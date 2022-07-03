@@ -6,7 +6,7 @@ import org.gradle.api.Project
 /**
  * @author Silvio Giebl
  */
-class OCIPlugin : Plugin<Project> {
+class OciPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
 

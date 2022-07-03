@@ -1,3 +1,5 @@
+import java.util.Random
+
 @Suppress("DSL_SCOPE_VIOLATION")
 plugins {
     `kotlin-dsl`
@@ -37,13 +39,17 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    implementation("com.google.cloud.tools:jib-core:0.21.0")
+}
+
 gradlePlugin {
     plugins {
         create("oci") {
             id = "$group.$name"
             displayName = metadata.readableName.get()
             description = project.description
-            implementationClass = "$group.$name.OCIPlugin"
+            implementationClass = "$group.$name.OciPlugin"
         }
     }
 }
@@ -53,7 +59,6 @@ pluginBundle {
     vcsUrl = metadata.scm.get().url.get()
     tags = listOf("oci", "oci-image", "docker", "multi-arch")
 }
-
 
 testing {
     suites.named<JvmTestSuite>("test") {
