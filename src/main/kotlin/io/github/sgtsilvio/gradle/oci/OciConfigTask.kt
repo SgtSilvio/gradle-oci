@@ -1,13 +1,11 @@
 package io.github.sgtsilvio.gradle.oci
 
-import com.google.cloud.tools.jib.hash.CountingDigestOutputStream
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.*
-import java.io.FileOutputStream
 import java.time.Instant
 
 /**
@@ -148,18 +146,9 @@ abstract class OciConfigTask : DefaultTask() {
             }
             rootObject.addOptionalKeyAndValue("variant", platform.variant.orNull)
         }
+        val jsonBytes = jsonStringBuilder.toString().toByteArray()
 
-        val jsonFile = jsonFile.get().asFile
-        val digestFile = digestFile.get().asFile
-
-        val digest = FileOutputStream(jsonFile).use { fos ->
-            CountingDigestOutputStream(fos).use { dos ->
-                dos.write(jsonStringBuilder.toString().toByteArray())
-                dos.flush()
-                dos.computeDigest().digest.toString()
-            }
-        }
-
-        digestFile.writeText(digest)
+        jsonFile.get().asFile.writeBytes(jsonBytes)
+        digestFile.get().asFile.writeText(jsonBytes.sha256Digest())
     }
 }

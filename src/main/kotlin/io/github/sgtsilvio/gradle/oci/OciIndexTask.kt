@@ -1,15 +1,14 @@
 package io.github.sgtsilvio.gradle.oci
 
-import com.google.cloud.tools.jib.hash.CountingDigestOutputStream
 import io.github.sgtsilvio.gradle.oci.internal.addOciManifestDescriptor
 import io.github.sgtsilvio.gradle.oci.internal.addOptionalKeyAndObject
 import io.github.sgtsilvio.gradle.oci.internal.jsonStringBuilder
+import io.github.sgtsilvio.gradle.oci.internal.sha256Digest
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.mapProperty
-import java.io.FileOutputStream
 
 /**
  * @author Silvio Giebl
@@ -44,18 +43,9 @@ abstract class OciIndexTask : DefaultTask() {
             rootObject.addKey("mediaType").addValue("application/vnd.oci.image.index.v1+json")
             rootObject.addKey("schemaVersion").addValue(2)
         }
+        val jsonBytes = jsonStringBuilder.toString().toByteArray()
 
-        val jsonFile = jsonFile.get().asFile
-        val digestFile = digestFile.get().asFile
-
-        val digest = FileOutputStream(jsonFile).use { fos ->
-            CountingDigestOutputStream(fos).use { dos ->
-                dos.write(jsonStringBuilder.toString().toByteArray())
-                dos.flush()
-                dos.computeDigest().digest.toString()
-            }
-        }
-
-        digestFile.writeText(digest)
+        jsonFile.get().asFile.writeBytes(jsonBytes)
+        digestFile.get().asFile.writeText(jsonBytes.sha256Digest())
     }
 }
