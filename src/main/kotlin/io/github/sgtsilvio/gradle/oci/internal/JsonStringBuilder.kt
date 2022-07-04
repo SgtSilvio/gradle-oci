@@ -50,16 +50,19 @@ private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder
     }
 
     override fun addValue(value: String) {
+        addCommaIfNecessary()
         stringBuilder.append("\"$value\"")
         needsComma = true
     }
 
     override fun addValue(value: Long) {
+        addCommaIfNecessary()
         stringBuilder.append("$value")
         needsComma = true
     }
 
     override fun addValue(value: Boolean) {
+        addCommaIfNecessary()
         stringBuilder.append("$value")
         needsComma = true
     }

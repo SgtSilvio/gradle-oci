@@ -126,7 +126,7 @@ abstract class OciConfigTask : DefaultTask() {
                         historyArray.addObject { historyEntryObject ->
                             // sorted for canonical json: author, comment, created, created_by, empty_layer
                             historyEntryObject.addOptionalKeyAndValue("author", historyEntry.author.orNull)
-                            historyEntryObject.addOptionalKeyAndValue("author", historyEntry.comment.orNull)
+                            historyEntryObject.addOptionalKeyAndValue("comment", historyEntry.comment.orNull)
                             historyEntryObject.addOptionalKeyAndValue(
                                 "created", historyEntry.creationTime.orNull?.toString()
                             )
