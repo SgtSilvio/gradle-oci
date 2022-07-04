@@ -1,9 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import com.google.cloud.tools.jib.hash.CountingDigestOutputStream
-import io.github.sgtsilvio.gradle.oci.internal.addArray
-import io.github.sgtsilvio.gradle.oci.internal.addObject
-import io.github.sgtsilvio.gradle.oci.internal.jsonStringBuilder
+import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
@@ -108,83 +106,47 @@ abstract class OciConfigTask : DefaultTask() {
         jsonStringBuilder.addObject { rootObject ->
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
             rootObject.addKey("architecture").addValue(platform.architecture.get())
-            author.orNull?.let {
-                rootObject.addKey("author").addValue(it)
-            }
+            rootObject.addOptionalKeyAndValue("author", author.orNull)
             rootObject.addKey("config").addObject { configObject ->
                 // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
-                arguments.orNull?.takeIf { it.isNotEmpty() }?.let {
-                    configObject.addKey("Cmd").addArray(it)
-                }
-                entryPoint.orNull?.takeIf { it.isNotEmpty() }?.let {
-                    configObject.addKey("Entrypoint").addArray(it)
-                }
-                environment.orNull?.takeIf { it.isNotEmpty() }?.let {
-                    configObject.addKey("Env").addArray { envArray ->
-                        it.forEach { (key, value) -> envArray.addValue("$key=$value") }
-                    }
-                }
-                ports.orNull?.takeIf { it.isNotEmpty() }?.let {
-                    configObject.addKey("ExposedPorts").addObject(it)
-                }
-                labels.orNull?.takeIf { it.isNotEmpty() }?.let {
-                    configObject.addKey("Labels").addObject(it)
-                }
-                stopSignal.orNull?.let {
-                    configObject.addKey("StopSignal").addValue(it)
-                }
-                user.orNull?.let {
-                    configObject.addKey("User").addValue(it)
-                }
-                volumes.orNull?.takeIf { it.isNotEmpty() }?.let {
-                    configObject.addKey("Volumes").addObject(it)
-                }
-                workingDirectory.orNull?.let {
-                    configObject.addKey("WorkingDir").addValue(it)
-                }
+                configObject.addOptionalKeyAndArray("Cmd", arguments.orNull)
+                configObject.addOptionalKeyAndArray("Entrypoint", entryPoint.orNull)
+                configObject.addOptionalKeyAndArray("Env", environment.orNull?.map { "${it.key}=${it.value}" })
+                configObject.addOptionalKeyAndObject("ExposedPorts", ports.orNull)
+                configObject.addOptionalKeyAndObject("Labels", labels.orNull)
+                configObject.addOptionalKeyAndValue("StopSignal", stopSignal.orNull)
+                configObject.addOptionalKeyAndValue("User", user.orNull)
+                configObject.addOptionalKeyAndObject("Volumes", volumes.orNull)
+                configObject.addOptionalKeyAndValue("WorkingDir", workingDirectory.orNull)
             }
-            creationTime.orNull?.let {
-                rootObject.addKey("created").addValue(it.toString())
-            }
+            rootObject.addOptionalKeyAndValue("created", creationTime.orNull?.toString())
             history.orNull?.takeIf { it.isNotEmpty() }?.let { history ->
                 rootObject.addKey("history").addArray { historyArray ->
                     history.forEach { historyEntry ->
                         historyArray.addObject { historyEntryObject ->
                             // sorted for canonical json: author, comment, created, created_by, empty_layer
-                            historyEntry.author.orNull?.let {
-                                historyEntryObject.addKey("author").addValue(it)
-                            }
-                            historyEntry.comment.orNull?.let {
-                                historyEntryObject.addKey("author").addValue(it)
-                            }
-                            historyEntry.creationTime.orNull?.let {
-                                historyEntryObject.addKey("created").addValue(it.toString())
-                            }
-                            historyEntry.createdBy.orNull?.let {
-                                historyEntryObject.addKey("created_by").addValue(it)
-                            }
-                            historyEntry.emptyLayer.orNull?.let {
-                                historyEntryObject.addKey("created_by").addValue(it)
+                            historyEntryObject.addOptionalKeyAndValue("author", historyEntry.author.orNull)
+                            historyEntryObject.addOptionalKeyAndValue("author", historyEntry.comment.orNull)
+                            historyEntryObject.addOptionalKeyAndValue(
+                                "created", historyEntry.creationTime.orNull?.toString()
+                            )
+                            historyEntryObject.addOptionalKeyAndValue("created_by", historyEntry.createdBy.orNull)
+                            if (historyEntry.emptyLayer.getOrElse(false)) {
+                                historyEntryObject.addKey("empty_layer").addValue(true)
                             }
                         }
                     }
                 }
             }
             rootObject.addKey("os").addValue(platform.os.get())
-            platform.osFeatures.orNull?.takeIf { it.isNotEmpty() }?.let {
-                rootObject.addKey("os.features").addArray(it)
-            }
-            platform.osVersion.orNull?.let {
-                rootObject.addKey("os.version").addValue(it)
-            }
+            rootObject.addOptionalKeyAndArray("os.features", platform.osFeatures.orNull)
+            rootObject.addOptionalKeyAndValue("os.version", platform.osVersion.orNull)
             rootObject.addKey("rootfs").addObject { rootfsObject ->
                 // sorted for canonical json: diff_ids, type
                 rootfsObject.addKey("diff_ids").addArray(layerDiffIds.get())
                 rootfsObject.addKey("type").addValue("layers")
             }
-            platform.variant.orNull?.let {
-                rootObject.addKey("variant").addValue(it)
-            }
+            rootObject.addOptionalKeyAndValue("variant", platform.variant.orNull)
         }
 
         val jsonFile = jsonFile.get().asFile

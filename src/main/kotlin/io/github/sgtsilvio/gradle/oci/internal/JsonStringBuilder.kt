@@ -86,19 +86,25 @@ fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) {
     addArray { jsonArray -> iterable.forEach { jsonArray.addValue(it) } }
 }
 
-fun JsonObjectStringBuilder.addKeyAndValue(key: String, value: String?) {
+fun JsonObjectStringBuilder.addOptionalKeyAndValue(key: String, value: String?) {
     if (value != null) {
         addKey(key).addValue(value)
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndObject(key: String, map: Map<String, String>?) {
+fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, map: Map<String, String>?) {
     if ((map != null) && map.isNotEmpty()) {
         addKey(key).addObject(map)
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndArray(key: String, list: List<String>?) {
+fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, set: Set<String>?) {
+    if ((set != null) && set.isNotEmpty()) {
+        addKey(key).addObject(set)
+    }
+}
+
+fun JsonObjectStringBuilder.addOptionalKeyAndArray(key: String, list: List<String>?) {
     if ((list != null) && list.isNotEmpty()) {
         addKey(key).addArray(list)
     }
@@ -107,31 +113,31 @@ fun JsonObjectStringBuilder.addKeyAndArray(key: String, list: List<String>?) {
 fun JsonValueStringBuilder.addOciDescriptor(mediaType: String, ociDescriptor: OciDescriptor) {
     addObject { descriptorObject ->
         // sorted for canonical json: annotations, data, digest, mediaType, size, urls
-        descriptorObject.addKeyAndObject("annotations", ociDescriptor.annotations.orNull)
-        descriptorObject.addKeyAndValue("data", ociDescriptor.data.orNull)
+        descriptorObject.addOptionalKeyAndObject("annotations", ociDescriptor.annotations.orNull)
+        descriptorObject.addOptionalKeyAndValue("data", ociDescriptor.data.orNull)
         descriptorObject.addKey("digest").addValue(ociDescriptor.digest.get())
         descriptorObject.addKey("mediaType").addValue(mediaType)
         descriptorObject.addKey("size").addValue(ociDescriptor.size.get())
-        descriptorObject.addKeyAndArray("urls", ociDescriptor.urls.orNull)
+        descriptorObject.addOptionalKeyAndArray("urls", ociDescriptor.urls.orNull)
     }
 }
 
 fun JsonValueStringBuilder.addOciManifestDescriptor(ociManifestDescriptor: OciManifestDescriptor) {
     addObject { descriptorObject ->
         // sorted for canonical json: annotations, data, digest, mediaType, size, urls
-        descriptorObject.addKeyAndObject("annotations", ociManifestDescriptor.annotations.orNull)
-        descriptorObject.addKeyAndValue("data", ociManifestDescriptor.data.orNull)
+        descriptorObject.addOptionalKeyAndObject("annotations", ociManifestDescriptor.annotations.orNull)
+        descriptorObject.addOptionalKeyAndValue("data", ociManifestDescriptor.data.orNull)
         descriptorObject.addKey("digest").addValue(ociManifestDescriptor.digest.get())
         descriptorObject.addKey("mediaType").addValue("application/vnd.oci.image.manifest.v1+json")
         descriptorObject.addKey("platform").addObject { platformObject ->
             // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
             platformObject.addKey("architecture").addValue(ociManifestDescriptor.platform.architecture.get())
             platformObject.addKey("os").addValue(ociManifestDescriptor.platform.os.get())
-            platformObject.addKeyAndArray("osFeatures", ociManifestDescriptor.platform.osFeatures.orNull)
-            platformObject.addKeyAndValue("osVersion", ociManifestDescriptor.platform.osVersion.orNull)
-            platformObject.addKeyAndValue("variant", ociManifestDescriptor.platform.variant.orNull)
+            platformObject.addOptionalKeyAndArray("osFeatures", ociManifestDescriptor.platform.osFeatures.orNull)
+            platformObject.addOptionalKeyAndValue("osVersion", ociManifestDescriptor.platform.osVersion.orNull)
+            platformObject.addOptionalKeyAndValue("variant", ociManifestDescriptor.platform.variant.orNull)
         }
         descriptorObject.addKey("size").addValue(ociManifestDescriptor.size.get())
-        descriptorObject.addKeyAndArray("urls", ociManifestDescriptor.urls.orNull)
+        descriptorObject.addOptionalKeyAndArray("urls", ociManifestDescriptor.urls.orNull)
     }
 }

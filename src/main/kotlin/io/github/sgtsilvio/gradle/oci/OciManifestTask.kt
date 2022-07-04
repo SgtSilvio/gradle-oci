@@ -1,8 +1,8 @@
 package io.github.sgtsilvio.gradle.oci
 
 import com.google.cloud.tools.jib.hash.CountingDigestOutputStream
-import io.github.sgtsilvio.gradle.oci.internal.addObject
 import io.github.sgtsilvio.gradle.oci.internal.addOciDescriptor
+import io.github.sgtsilvio.gradle.oci.internal.addOptionalKeyAndObject
 import io.github.sgtsilvio.gradle.oci.internal.jsonStringBuilder
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -41,9 +41,7 @@ abstract class OciManifestTask : DefaultTask() {
         val jsonStringBuilder = jsonStringBuilder()
         jsonStringBuilder.addObject { rootObject ->
             // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-            annotations.orNull?.takeIf { it.isNotEmpty() }?.let {
-                rootObject.addKey("annotations").addObject(it)
-            }
+            rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
             rootObject.addKey("config").addOciDescriptor("application/vnd.oci.image.config.v1+json", configDescriptor)
             rootObject.addKey("layers").addArray { layersObject ->
                 layerDescriptors.get().forEach {
