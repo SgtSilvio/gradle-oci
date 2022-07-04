@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import com.google.cloud.tools.jib.hash.CountingDigestOutputStream
-import io.github.sgtsilvio.gradle.oci.internal.addKeyAndObject
+import io.github.sgtsilvio.gradle.oci.internal.addObject
 import io.github.sgtsilvio.gradle.oci.internal.addOciDescriptor
 import io.github.sgtsilvio.gradle.oci.internal.jsonStringBuilder
 import org.gradle.api.DefaultTask
@@ -38,24 +38,24 @@ abstract class OciManifestTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val layerDescriptors = layerDescriptors.get()
-        val annotations = annotations.orNull
-        val jsonFile = jsonFile.get().asFile
-        val digestFile = digestFile.get().asFile
-
         val jsonStringBuilder = jsonStringBuilder()
         jsonStringBuilder.addObject { rootObject ->
             // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-            rootObject.addKeyAndObject("annotations", annotations)
+            annotations.orNull?.takeIf { it.isNotEmpty() }?.let {
+                rootObject.addKey("annotations").addObject(it)
+            }
             rootObject.addKey("config").addOciDescriptor("application/vnd.oci.image.config.v1+json", configDescriptor)
             rootObject.addKey("layers").addArray { layersObject ->
-                layerDescriptors.forEach { layerDescriptor ->
-                    layersObject.addOciDescriptor("application/vnd.oci.image.layer.v1.tar+gzip", layerDescriptor)
+                layerDescriptors.get().forEach {
+                    layersObject.addOciDescriptor("application/vnd.oci.image.layer.v1.tar+gzip", it)
                 }
             }
             rootObject.addKey("mediaType").addValue("application/vnd.oci.image.manifest.v1+json")
             rootObject.addKey("schemaVersion").addValue(2)
         }
+
+        val jsonFile = jsonFile.get().asFile
+        val digestFile = digestFile.get().asFile
 
         val digest = FileOutputStream(jsonFile).use { fos ->
             CountingDigestOutputStream(fos).use { dos ->

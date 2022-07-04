@@ -12,11 +12,11 @@ interface JsonStringBuilder {
 }
 
 interface JsonObjectStringBuilder {
-    fun addKey(key: String): JsonValueStringBuilder
+    fun addKey(key: String): JsonValueStringBuilder // TODO escape " and \
 }
 
 interface JsonValueStringBuilder : JsonStringBuilder {
-    fun addValue(value: String)
+    fun addValue(value: String) // TODO escape " and \
 
     fun addValue(value: Long)
 
@@ -74,6 +74,18 @@ private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder
     }
 }
 
+fun JsonValueStringBuilder.addObject(map: Map<String, String>) {
+    addObject { jsonObject -> map.toSortedMap().forEach { jsonObject.addKey(it.key).addValue(it.value) } }
+}
+
+fun JsonValueStringBuilder.addObject(set: Set<String>) {
+    addObject { jsonObject -> set.toSortedSet().forEach { jsonObject.addKey(it).addObject {} } }
+}
+
+fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) {
+    addArray { jsonArray -> iterable.forEach { jsonArray.addValue(it) } }
+}
+
 fun JsonObjectStringBuilder.addKeyAndValue(key: String, value: String?) {
     if (value != null) {
         addKey(key).addValue(value)
@@ -82,15 +94,13 @@ fun JsonObjectStringBuilder.addKeyAndValue(key: String, value: String?) {
 
 fun JsonObjectStringBuilder.addKeyAndObject(key: String, map: Map<String, String>?) {
     if ((map != null) && map.isNotEmpty()) {
-        addKey(key).addObject { jsonObject ->
-            map.toSortedMap().forEach { (key, value) -> jsonObject.addKey(key).addValue(value) }
-        }
+        addKey(key).addObject(map)
     }
 }
 
 fun JsonObjectStringBuilder.addKeyAndArray(key: String, list: List<String>?) {
     if ((list != null) && list.isNotEmpty()) {
-        addKey(key).addArray { jsonArray -> list.forEach { jsonArray.addValue(it) } }
+        addKey(key).addArray(list)
     }
 }
 

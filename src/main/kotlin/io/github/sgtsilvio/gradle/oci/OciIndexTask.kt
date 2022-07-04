@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import com.google.cloud.tools.jib.hash.CountingDigestOutputStream
-import io.github.sgtsilvio.gradle.oci.internal.addKeyAndObject
+import io.github.sgtsilvio.gradle.oci.internal.addObject
 import io.github.sgtsilvio.gradle.oci.internal.addOciManifestDescriptor
 import io.github.sgtsilvio.gradle.oci.internal.jsonStringBuilder
 import org.gradle.api.DefaultTask
@@ -34,23 +34,21 @@ abstract class OciIndexTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val manifestDescriptors = manifestDescriptors.get()
-        val annotations = annotations.orNull
-        val jsonFile = jsonFile.get().asFile
-        val digestFile = digestFile.get().asFile
-
         val jsonStringBuilder = jsonStringBuilder()
         jsonStringBuilder.addObject { rootObject ->
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
-            rootObject.addKeyAndObject("annotations", annotations)
+            annotations.orNull?.takeIf { it.isNotEmpty() }?.let {
+                rootObject.addKey("annotations").addObject(it)
+            }
             rootObject.addKey("manifests").addArray { layersObject ->
-                manifestDescriptors.forEach { manifestDescriptor ->
-                    layersObject.addOciManifestDescriptor(manifestDescriptor)
-                }
+                manifestDescriptors.get().forEach { layersObject.addOciManifestDescriptor(it) }
             }
             rootObject.addKey("mediaType").addValue("application/vnd.oci.image.index.v1+json")
             rootObject.addKey("schemaVersion").addValue(2)
         }
+
+        val jsonFile = jsonFile.get().asFile
+        val digestFile = digestFile.get().asFile
 
         val digest = FileOutputStream(jsonFile).use { fos ->
             CountingDigestOutputStream(fos).use { dos ->
