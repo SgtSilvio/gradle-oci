@@ -12,11 +12,11 @@ interface JsonStringBuilder {
 }
 
 interface JsonObjectStringBuilder {
-    fun addKey(key: String): JsonValueStringBuilder // TODO escape " and \
+    fun addKey(key: String): JsonValueStringBuilder
 }
 
 interface JsonValueStringBuilder : JsonStringBuilder {
-    fun addValue(value: String) // TODO escape " and \
+    fun addValue(value: String)
 
     fun addValue(value: Long)
 
@@ -45,13 +45,13 @@ private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder
 
     override fun addKey(key: String): JsonValueStringBuilder {
         addCommaIfNecessary()
-        stringBuilder.append("\"$key\":")
+        stringBuilder.append("\"${escape(key)}\":")
         return this
     }
 
     override fun addValue(value: String) {
         addCommaIfNecessary()
-        stringBuilder.append("\"$value\"")
+        stringBuilder.append("\"${escape(value)}\"")
         needsComma = true
     }
 
@@ -75,6 +75,8 @@ private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder
             stringBuilder.append(',')
         }
     }
+
+    private fun escape(string: String) = string.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
 fun JsonValueStringBuilder.addObject(map: Map<String, String>) {
