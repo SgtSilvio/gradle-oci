@@ -1,5 +1,3 @@
-import java.util.Random
-
 @Suppress("DSL_SCOPE_VIOLATION")
 plugins {
     `kotlin-dsl`
@@ -40,6 +38,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.apache.commons:commons-compress:1.21")
     implementation("com.google.cloud.tools:jib-core:0.21.0")
 }
 

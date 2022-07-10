@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.internal.addOciManifestDescriptor
-import io.github.sgtsilvio.gradle.oci.internal.addOptionalKeyAndObject
-import io.github.sgtsilvio.gradle.oci.internal.jsonStringBuilder
-import io.github.sgtsilvio.gradle.oci.internal.sha256Digest
+import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.*
@@ -40,12 +37,12 @@ abstract class OciIndexTask : DefaultTask() {
             rootObject.addKey("manifests").addArray { layersObject ->
                 manifestDescriptors.get().forEach { layersObject.addOciManifestDescriptor(it) }
             }
-            rootObject.addKey("mediaType").addValue("application/vnd.oci.image.index.v1+json")
+            rootObject.addKey("mediaType").addValue(INDEX_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addValue(2)
         }
         val jsonBytes = jsonStringBuilder.toString().toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)
-        digestFile.get().asFile.writeText(jsonBytes.sha256Digest())
+        digestFile.get().asFile.writeText(calculateSha256Digest(jsonBytes))
     }
 }

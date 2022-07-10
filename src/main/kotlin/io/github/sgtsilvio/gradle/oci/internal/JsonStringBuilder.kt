@@ -133,7 +133,7 @@ fun JsonValueStringBuilder.addOciManifestDescriptor(ociManifestDescriptor: OciMa
         descriptorObject.addOptionalKeyAndObject("annotations", ociManifestDescriptor.annotations.orNull)
         descriptorObject.addOptionalKeyAndValue("data", ociManifestDescriptor.data.orNull)
         descriptorObject.addKey("digest").addValue(ociManifestDescriptor.digest.get())
-        descriptorObject.addKey("mediaType").addValue("application/vnd.oci.image.manifest.v1+json")
+        descriptorObject.addKey("mediaType").addValue(MANIFEST_MEDIA_TYPE)
         descriptorObject.addKey("platform").addObject { platformObject ->
             // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
             platformObject.addKey("architecture").addValue(ociManifestDescriptor.platform.architecture.get())

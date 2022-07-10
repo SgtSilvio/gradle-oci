@@ -149,6 +149,6 @@ abstract class OciConfigTask : DefaultTask() {
         val jsonBytes = jsonStringBuilder.toString().toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)
-        digestFile.get().asFile.writeText(jsonBytes.sha256Digest())
+        digestFile.get().asFile.writeText(calculateSha256Digest(jsonBytes))
     }
 }
