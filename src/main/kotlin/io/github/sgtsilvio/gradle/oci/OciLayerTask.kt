@@ -40,6 +40,7 @@ abstract class OciLayerTask : DefaultTask() {
     @get:OutputFile
     val diffIdFile = project.objects.fileProperty().convention(outputDirectory.file("layer.diffid"))
 
+    @get:Internal
     val contents: OciCopySpec get() = rootCopySpec
 
     fun contents(action: Action<OciCopySpec>) = action.execute(rootCopySpec)
@@ -86,7 +87,7 @@ abstract class OciLayerTask : DefaultTask() {
         tarArchiveEntries: MutableMap<TarArchiveEntry, FileTreeElement>
     ) {
         // TODO put all path elements to tarArchiveEntries (to extra implicitTarArchiveDirectories)
-        val destinationPath = parentDestinationPath + copySpec.destinationPath.get()
+        val destinationPath = parentDestinationPath + "/" + copySpec.destinationPath.get()
         val renamePatterns = parentRenamePatterns + convertRenamePatterns(copySpec.renamePatterns.orNull)
         val filePermissions = copySpec.filePermissions.orNull
         val directoryPermissions = copySpec.directoryPermissions.orNull
@@ -185,3 +186,18 @@ abstract class OciLayerTask : DefaultTask() {
         // TODO default only if no match, null means null
     }
 }
+
+// permissions, userId, groupId
+// *        | file, file2                                        | ^[^/]$
+// */       | dir/, dir2/                                        | ^[^/]/$
+// test     | test                                               | ^test$
+// test/    | test/                                              | ^test/$
+// test/**  | test/, test/foo, test/bar, test/foo/, test/foo/bar | ^test/.*$
+// test/**/ | test/foo/, test/foo/bar/                           | ^test/.*/$
+
+// rename file (must not contain /)
+// .*        | bar    | foo | bar
+// .*        | $0.txt | foo | foo.txt
+// (.*)o(.*) | $1a$2  | foo | fao
+
+// rename dir (must contain / at the end, must NOT contain slashes between)
