@@ -4,39 +4,89 @@ import org.gradle.api.Action
 import org.gradle.api.provider.Property
 
 /**
+ * Set of specifications for copying files inspired by [org.gradle.api.file.CopySpec].
+ *
+ * The differences to [org.gradle.api.file.CopySpec] are:
+ * - Ownership (user and group ids) can be set (important for OCI layer tar archives)
+ * - Renaming, permissions and ownership rules can be set for specific path patterns
+ * - Renaming, permissions and ownership rules can be set for directories and not only regular files
+ * - All parts are considered as inputs for robust up-to-date checks
+ *
  * @author Silvio Giebl
  */
 interface OciCopySpec {
 
+    /**
+     * Add source files to the current copy spec.
+     *
+     * @param source see [org.gradle.api.Project.files] for all possible types
+     * @return the current copy spec
+     */
     fun from(source: Any): OciCopySpec
 
+    /**
+     * Add source files to a new child copy spec.
+     * The child copy spec is further configured by the given action.
+     *
+     * A child copy spec inherits renaming rules, permissions and ownership from the current (parent) copy spec, but
+     * creates a new scope so that any configuration does not affect the parent copy spec.
+     *
+     * @param source          see [org.gradle.api.Project.files] for all possible types
+     * @param configureAction action invoked with the created child copy spec
+     * @return the created child copy spec
+     */
     fun from(source: Any, configureAction: Action<in OciCopySpec>): OciCopySpec
 
+    /**
+     * Set the destination path of the current copy spec.
+     *
+     * @param destinationPath must not start with `/`, must not end with `/`
+     * @return the current copy spec
+     */
     fun into(destinationPath: String): OciCopySpec
-    // TODO validations:
-    //  destinationPath: must not start with /, must not end with /
 
+    /**
+     * Set the destination path of a new child copy spec.
+     * The child copy spec is further configured by the given action.
+     *
+     * A child copy spec inherits renaming rules, permissions and ownership from the current (parent) copy spec, but
+     * creates a new scope so that any configuration does not affect the parent copy spec.
+     *
+     * @param destinationPath must not start with `/`, must not end with `/`
+     * @param configureAction action invoked with the created child copy spec
+     * @return the created child copy spec
+     */
     fun into(destinationPath: String, configureAction: Action<in OciCopySpec>): OciCopySpec
-    // TODO validations:
-    //  destinationPath: must not start with /, must not end with /
 
+    /**
+     * Add a renaming rule to the current copy spec.
+     * The renaming rule is applied to every file.
+     *
+     * @param fileNameRegex regex for the file/directory name without the directory path,
+     *                      must not contain `/` except at the end (then matching a directory)
+     * @param replacement   regex replacement expression that can include substitutions,
+     *                      must not contain `/` if fileNameRegex does not match a directory (does not end with `/`),
+     *                      the result after applying the replacement must not be empty if fileNameRegex does not match a directory
+     * @return the current copy spec
+     */
     fun rename(fileNameRegex: String, replacement: String): OciCopySpec {
         return rename("**/", fileNameRegex, replacement)
     }
-    // TODO validations:
-    //  fileNameRegex: must not contain / except at the end
-    //  replacement: must not contain /
-    //   ??? if fileNameRegex ends with /, then replacement may be empty or may contain slashes ???
-    //   runtime validation: must not be empty if fileNameRegex does not end with /
-    // TODO delegates to rename by setting directoryPathPattern to **/
 
+    /**
+     * Add a renaming rule to the current copy spec.
+     * The renaming rule is only applied to files/directories that match the directoryPathPattern.
+     *
+     * @param directoryPathPattern glob pattern for the directory path without the file/directory name,
+     *                             must not start with `/`, must end with `/` or be empty
+     * @param fileNameRegex        regex for the file/directory name without the directory path,
+     *                             must not contain `/` except at the end (then matching a directory)
+     * @param replacement          regex replacement expression that can include substitutions,
+     *                             must not contain `/` if fileNameRegex does not match a directory (does not end with `/`),
+     *                             the result after applying the replacement must not be empty if fileNameRegex does not match a directory
+     * @return the current copy spec
+     */
     fun rename(directoryPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpec
-    // TODO validations:
-    //  directoryPathPattern: must not start with /, must end with /
-    //  fileNameRegex: must not contain / except at the end
-    //  replacement: must not contain /
-    //   ??? if fileNameRegex ends with /, then replacement may be empty or may contain slashes ???
-    //   runtime validation: must not be empty if fileNameRegex does not end with /
 
     /**
      * Default permissions for files created at the destination.
@@ -54,29 +104,50 @@ interface OciCopySpec {
      */
     val directoryPermissions: Property<Int>
 
+    /**
+     * Add a permission rule to the current copy spec.
+     * The permission rule is only applied to files/directories that match the pathPattern.
+     *
+     * @param pathPattern glob pattern for the full path of the file/directory,
+     *                    must not start with `/`, may end with `/` (then matching a directory)
+     * @param permissions `null` means that the actual permissions of the source file are used also at the destination
+     * @return the current copy spec
+     */
     fun permissions(pathPattern: String, permissions: Int?): OciCopySpec
-    // TODO validations:
-    //  pathPattern: must not start with /, may end with /
 
     /**
-     * Default user id for files and directories created at the destination.
+     * Default user id ownership for files and directories created at the destination.
      * Initially set to `0` for root copy specs, otherwise to the same value as the parent copy spec.
      * The default value is used unless a specific user id supplied via [userId] matches.
      */
     val userId: Property<Long>
 
+    /**
+     * Add a user id ownership rule to the current copy spec.
+     * The user id ownership rule is only applied to files/directories that match the pathPattern.
+     *
+     * @param pathPattern glob pattern for the full path of the file/directory,
+     *                    must not start with `/`, may end with `/` (then matching a directory)
+     * @param userId      user id number
+     * @return the current copy spec
+     */
     fun userId(pathPattern: String, userId: Long): OciCopySpec
-    // TODO validations:
-    //  pathPattern: must not start with /, may end with /
 
     /**
-     * Default group id for files and directories created at the destination.
+     * Default group id ownership for files and directories created at the destination.
      * Initially set to `0` for root copy specs, otherwise to the same value as the parent copy spec.
      * The default value is used unless a specific group id supplied via [groupId] matches.
      */
     val groupId: Property<Long>
 
+    /**
+     * Add a group id ownership rule to the current copy spec.
+     * The group id ownership rule is only applied to files/directories that match the pathPattern.
+     *
+     * @param pathPattern glob pattern for the full path of the file/directory,
+     *                    must not start with `/`, may end with `/` (then matching a directory)
+     * @param groupId     group id number
+     * @return the current copy spec
+     */
     fun groupId(pathPattern: String, groupId: Long): OciCopySpec
-    // TODO validations:
-    //  pathPattern: must not start with /, may end with /
 }
