@@ -68,7 +68,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
 
     override fun into(destinationPath: String): OciCopySpecImpl {
         // TODO validation
-        this.destinationPath.set(destinationPath)
+        this.destinationPath.set("$destinationPath/")
         return this
     }
 

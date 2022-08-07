@@ -87,25 +87,27 @@ abstract class OciLayerTask : DefaultTask() {
         tarArchiveEntries: MutableMap<TarArchiveEntry, FileTreeElement>
     ) {
         // TODO put all path elements to tarArchiveEntries (to extra implicitTarArchiveDirectories)
-        val destinationPath = parentDestinationPath + "/" + copySpec.destinationPath.get()
-        val renamePatterns = parentRenamePatterns + convertRenamePatterns(copySpec.renamePatterns.orNull)
+        val destinationPath = parentDestinationPath + copySpec.destinationPath.get()
+        val renamePatterns =
+            parentRenamePatterns + convertRenamePatterns(copySpec.renamePatterns.orNull, destinationPath)
         val filePermissions = copySpec.filePermissions.orNull
         val directoryPermissions = copySpec.directoryPermissions.orNull
-        val permissionPatterns = parentPermissionPatterns + convertPatterns(copySpec.permissionPatterns.orNull)
+        val permissionPatterns =
+            convertPatterns(copySpec.permissionPatterns.orNull, destinationPath) + parentPermissionPatterns
         val userId = copySpec.userId.get()
-        val userIdPatterns = parentUserIdPatterns + convertPatterns(copySpec.userIdPatterns.orNull)
+        val userIdPatterns = convertPatterns(copySpec.userIdPatterns.orNull, destinationPath) + parentUserIdPatterns
         val groupId = copySpec.groupId.get()
-        val groupIdPatterns = parentGroupIdPatterns + convertPatterns(copySpec.groupIdPatterns.orNull)
+        val groupIdPatterns = convertPatterns(copySpec.groupIdPatterns.orNull, destinationPath) + parentGroupIdPatterns
         copySpec.sources.asFileTree.visit(object : FileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
                 val tarArchiveEntry =
-                    TarArchiveEntry(rename("$destinationPath/${dirDetails.relativePath}/", renamePatterns))
+                    TarArchiveEntry(rename("$destinationPath${dirDetails.relativePath}/", renamePatterns))
                 visitEntry(tarArchiveEntry, dirDetails, directoryPermissions)
             }
 
             override fun visitFile(fileDetails: FileVisitDetails) {
                 val tarArchiveEntry =
-                    TarArchiveEntry(rename("$destinationPath/${fileDetails.relativePath}", renamePatterns))
+                    TarArchiveEntry(rename("$destinationPath${fileDetails.relativePath}", renamePatterns))
                 tarArchiveEntry.size = fileDetails.size
                 visitEntry(tarArchiveEntry, fileDetails, filePermissions)
             }
@@ -142,14 +144,17 @@ abstract class OciLayerTask : DefaultTask() {
         }
     }
 
-    private fun convertRenamePatterns(renamePatterns: List<Triple<String, String, String>>?): List<Pair<Regex, String>> {
+    private fun convertRenamePatterns(
+        renamePatterns: List<Triple<String, String, String>>?,
+        destinationPath: String
+    ): List<Pair<Regex, String>> {
         if (renamePatterns == null) {
             return listOf()
         }
         val convertedPatterns = LinkedList<Pair<Regex, String>>()
         for (renamePattern in renamePatterns) {
             // TODO check if pattern.first is interesting at all
-            val pathRegex = convertToRegex(renamePattern.first)
+            val pathRegex = convertToRegex(destinationPath + renamePattern.first)
             val fileNameRegex = renamePattern.second
             val regex = "(?<=^$pathRegex)" + if (fileNameRegex.endsWith('/')) {
                 "${fileNameRegex.substring(0, fileNameRegex.length - 1)}(?=/)"
@@ -169,14 +174,18 @@ abstract class OciLayerTask : DefaultTask() {
         return renamedPath
     }
 
-    private fun <T> convertPatterns(patterns: List<Pair<String, T>>?): List<Pair<Regex, T>> {
+    private fun <T> convertPatterns(
+        patterns: List<Pair<String, T>>?,
+        destinationPath: String
+    ): List<Pair<Regex, T>> {
         if (patterns == null) {
             return listOf()
         }
         val convertedPatterns = LinkedList<Pair<Regex, T>>()
         for (pattern in patterns) {
             // TODO check if pattern.first is interesting at all // true if starts with **, TODO
-            convertedPatterns.addFirst(Pair("^${convertToRegex(pattern.first)}$".toRegex(), pattern.second))
+            val pathRegex = convertToRegex(destinationPath + pattern.first)
+            convertedPatterns.addFirst(Pair("^$pathRegex$".toRegex(), pattern.second))
         }
         return convertedPatterns
     }
