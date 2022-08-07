@@ -67,51 +67,77 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun into(destinationPath: String): OciCopySpecImpl {
-        // TODO validation
-        this.destinationPath.set("$destinationPath/")
+        if (destinationPath.startsWith("/")) {
+            throw IllegalArgumentException("destinationPath must not start with '/'")
+        }
+        if (destinationPath.endsWith("/")) {
+            throw IllegalArgumentException("destinationPath must not end with '/'")
+        }
+        if (destinationPath.contains("//")) {
+            throw IllegalArgumentException("destinationPath must not contain '//'")
+        }
+        this.destinationPath.set(if (destinationPath == "") "" else "$destinationPath/")
         return this
     }
 
     override fun into(destinationPath: String, configureAction: Action<in OciCopySpec>): OciCopySpecImpl {
-        // TODO validation
         return addChild({ it.into(destinationPath) }, configureAction)
     }
 
     private inline fun addChild(
-        action: (OciCopySpecImpl) -> Unit,
-        userAction: Action<in OciCopySpec>
+        action: (OciCopySpecImpl) -> Unit, userAction: Action<in OciCopySpec>
     ): OciCopySpecImpl {
         val child = objectFactory.newInstance<OciCopySpecImpl>()
+        action.invoke(child) // invoke the action before adding the child as the action performs validations
         children.add(child)
         child.filePermissions.set(filePermissions)
         child.directoryPermissions.set(directoryPermissions)
         child.userId.convention(userId)
         child.groupId.convention(groupId)
-        action.invoke(child)
         userAction.execute(child)
         return child
     }
 
     override fun rename(directoryPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpecImpl {
-        // TODO validation
+        if (directoryPathPattern.startsWith("/")) {
+            throw IllegalArgumentException("directoryPathPattern must not start with '/'")
+        }
+        if (directoryPathPattern != "" && !directoryPathPattern.endsWith("/")) {
+            throw IllegalArgumentException("directoryPathPattern must end with '/'")
+        }
+        if (directoryPathPattern.contains("//")) {
+            throw IllegalArgumentException("directoryPathPattern must not contain '//'")
+        }
+        if (fileNameRegex.indexOf('/') in 0..fileNameRegex.length - 2) {
+            throw IllegalArgumentException("fileNameRegex must not contain '/' except at the end")
+        }
+        if (!fileNameRegex.endsWith('/') && replacement.contains('/')) {
+            throw IllegalArgumentException("replacement must not contain '/' if fileNameRegex does not match a directory")
+        }
         renamePatterns.add(Triple(directoryPathPattern, fileNameRegex, replacement))
         return this
     }
 
     override fun permissions(pathPattern: String, permissions: Int?): OciCopySpecImpl {
-        // TODO validation
+        if (pathPattern.startsWith("/")) {
+            throw IllegalArgumentException("pathPattern must not start with '/'")
+        }
         permissionPatterns.add(Pair(pathPattern, permissions))
         return this
     }
 
     override fun userId(pathPattern: String, userId: Long): OciCopySpecImpl {
-        // TODO validation
+        if (pathPattern.startsWith("/")) {
+            throw IllegalArgumentException("pathPattern must not start with '/'")
+        }
         userIdPatterns.add(Pair(pathPattern, userId))
         return this
     }
 
     override fun groupId(pathPattern: String, groupId: Long): OciCopySpecImpl {
-        // TODO validation
+        if (pathPattern.startsWith("/")) {
+            throw IllegalArgumentException("pathPattern must not start with '/'")
+        }
         groupIdPatterns.add(Pair(pathPattern, groupId))
         return this
     }
