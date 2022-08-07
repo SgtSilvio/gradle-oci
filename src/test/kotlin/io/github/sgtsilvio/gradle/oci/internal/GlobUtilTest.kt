@@ -35,7 +35,7 @@ internal class GlobUtilTest {
 
     @Test
     internal fun `convertToRegex double star slash`() {
-        assertEquals(".*/", convertToRegex("**/"))
+        assertEquals("(?:.*/)?", convertToRegex("**/"))
     }
 
     @Test
@@ -45,7 +45,7 @@ internal class GlobUtilTest {
 
     @Test
     internal fun `convertToRegex slash double star slash`() {
-        assertEquals("/.*/", convertToRegex("/**/"))
+        assertEquals("/(?:.*/)?", convertToRegex("/**/"))
     }
 
     @Test
@@ -65,7 +65,7 @@ internal class GlobUtilTest {
 
     @Test
     internal fun `convertToRegex foo slash double star slash`() {
-        assertEquals("foo/.*/", convertToRegex("foo/**/"))
+        assertEquals("foo/(?:.*/)?", convertToRegex("foo/**/"))
     }
 
     @Test
@@ -205,7 +205,7 @@ internal class GlobUtilTest {
 
     @Test
     internal fun `convertToRegex single star slash double star slash`() {
-        assertEquals("[^/]*/.*/", convertToRegex("*/**/"))
+        assertEquals("[^/]*/(?:.*/)?", convertToRegex("*/**/"))
     }
 
     @Test
@@ -225,7 +225,7 @@ internal class GlobUtilTest {
 
     @Test
     internal fun `convertToRegex slash single star slash double star slash`() {
-        assertEquals("/[^/]*/.*/", convertToRegex("/*/**/"))
+        assertEquals("/[^/]*/(?:.*/)?", convertToRegex("/*/**/"))
     }
 
     @Test
@@ -235,7 +235,7 @@ internal class GlobUtilTest {
 
     @Test
     internal fun `convertToRegex foo slash single star slash double star slash`() {
-        assertEquals("foo/[^/]*/.*/", convertToRegex("foo/*/**/"))
+        assertEquals("foo/[^/]*/(?:.*/)?", convertToRegex("foo/*/**/"))
     }
 
     @Test

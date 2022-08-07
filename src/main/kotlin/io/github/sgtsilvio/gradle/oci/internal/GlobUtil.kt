@@ -17,8 +17,8 @@ fun convertToRegex(globPattern: String): String {
                     i++
                     if (// last char is either '/' or string start
                         ((i < 3) || (globPattern[i - 3] == '/')) &&
-                        // next char is '/' and additional chars
-                        ((i + 1) < globPattern.length) && (globPattern[i] == '/')
+                        // next char is '/'
+                        (i < globPattern.length) && (globPattern[i] == '/')
                     ) {
                         i++
                         regex.append("(?:.*/)?")
