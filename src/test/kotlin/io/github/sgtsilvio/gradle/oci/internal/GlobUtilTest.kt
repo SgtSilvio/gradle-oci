@@ -6,255 +6,255 @@ import org.junit.jupiter.api.Test
 /**
  * @author Silvio Giebl
  */
-internal class GlobUtilTest {
+class GlobUtilTest {
 
     @Test
-    internal fun `convertToRegex single star`() {
+    fun `convertToRegex single star`() {
         assertEquals("[^/]*", convertToRegex("*"))
     }
 
     @Test
-    internal fun `convertToRegex double star`() {
+    fun `convertToRegex double star`() {
         assertEquals(".*", convertToRegex("**"))
     }
 
     @Test
-    internal fun `convertToRegex slash single star`() {
+    fun `convertToRegex slash single star`() {
         assertEquals("/[^/]*", convertToRegex("/*"))
     }
 
     @Test
-    internal fun `convertToRegex slash double star`() {
+    fun `convertToRegex slash double star`() {
         assertEquals("/.*", convertToRegex("/**"))
     }
 
     @Test
-    internal fun `convertToRegex single star slash`() {
+    fun `convertToRegex single star slash`() {
         assertEquals("[^/]*/", convertToRegex("*/"))
     }
 
     @Test
-    internal fun `convertToRegex double star slash`() {
+    fun `convertToRegex double star slash`() {
         assertEquals("(?:.*/)?", convertToRegex("**/"))
     }
 
     @Test
-    internal fun `convertToRegex slash single star slash`() {
+    fun `convertToRegex slash single star slash`() {
         assertEquals("/[^/]*/", convertToRegex("/*/"))
     }
 
     @Test
-    internal fun `convertToRegex slash double star slash`() {
+    fun `convertToRegex slash double star slash`() {
         assertEquals("/(?:.*/)?", convertToRegex("/**/"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash single star`() {
+    fun `convertToRegex foo slash single star`() {
         assertEquals("foo/[^/]*", convertToRegex("foo/*"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash double star`() {
+    fun `convertToRegex foo slash double star`() {
         assertEquals("foo/.*", convertToRegex("foo/**"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash single star slash`() {
+    fun `convertToRegex foo slash single star slash`() {
         assertEquals("foo/[^/]*/", convertToRegex("foo/*/"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash double star slash`() {
+    fun `convertToRegex foo slash double star slash`() {
         assertEquals("foo/(?:.*/)?", convertToRegex("foo/**/"))
     }
 
     @Test
-    internal fun `convertToRegex single star slash foo`() {
+    fun `convertToRegex single star slash foo`() {
         assertEquals("[^/]*/foo", convertToRegex("*/foo"))
     }
 
     @Test
-    internal fun `convertToRegex double star slash foo`() {
+    fun `convertToRegex double star slash foo`() {
         assertEquals("(?:.*/)?foo", convertToRegex("**/foo"))
     }
 
     @Test
-    internal fun `convertToRegex slash single star slash foo`() {
+    fun `convertToRegex slash single star slash foo`() {
         assertEquals("/[^/]*/foo", convertToRegex("/*/foo"))
     }
 
     @Test
-    internal fun `convertToRegex slash double star slash foo`() {
+    fun `convertToRegex slash double star slash foo`() {
         assertEquals("/(?:.*/)?foo", convertToRegex("/**/foo"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash single star slash bar`() {
+    fun `convertToRegex foo slash single star slash bar`() {
         assertEquals("foo/[^/]*/bar", convertToRegex("foo/*/bar"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash double star slash bar`() {
+    fun `convertToRegex foo slash double star slash bar`() {
         assertEquals("foo/(?:.*/)?bar", convertToRegex("foo/**/bar"))
     }
 
     @Test
-    internal fun `convertToRegex foo single star`() {
+    fun `convertToRegex foo single star`() {
         assertEquals("foo[^/]*", convertToRegex("foo*"))
     }
 
     @Test
-    internal fun `convertToRegex foo double star`() {
+    fun `convertToRegex foo double star`() {
         assertEquals("foo.*", convertToRegex("foo**"))
     }
 
     @Test
-    internal fun `convertToRegex foo single star slash`() {
+    fun `convertToRegex foo single star slash`() {
         assertEquals("foo[^/]*/", convertToRegex("foo*/"))
     }
 
     @Test
-    internal fun `convertToRegex foo double star slash`() {
+    fun `convertToRegex foo double star slash`() {
         assertEquals("foo.*/", convertToRegex("foo**/"))
     }
 
     @Test
-    internal fun `convertToRegex foo single star slash bar`() {
+    fun `convertToRegex foo single star slash bar`() {
         assertEquals("foo[^/]*/bar", convertToRegex("foo*/bar"))
     }
 
     @Test
-    internal fun `convertToRegex foo double star slash bar`() {
+    fun `convertToRegex foo double star slash bar`() {
         assertEquals("foo.*/bar", convertToRegex("foo**/bar"))
     }
 
     @Test
-    internal fun `convertToRegex single star foo`() {
+    fun `convertToRegex single star foo`() {
         assertEquals("[^/]*foo", convertToRegex("*foo"))
     }
 
     @Test
-    internal fun `convertToRegex double star foo`() {
+    fun `convertToRegex double star foo`() {
         assertEquals(".*foo", convertToRegex("**foo"))
     }
 
     @Test
-    internal fun `convertToRegex slash single star foo`() {
+    fun `convertToRegex slash single star foo`() {
         assertEquals("/[^/]*foo", convertToRegex("/*foo"))
     }
 
     @Test
-    internal fun `convertToRegex slash double star foo`() {
+    fun `convertToRegex slash double star foo`() {
         assertEquals("/.*foo", convertToRegex("/**foo"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash single star bar`() {
+    fun `convertToRegex foo slash single star bar`() {
         assertEquals("foo/[^/]*bar", convertToRegex("foo/*bar"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash double star bar`() {
+    fun `convertToRegex foo slash double star bar`() {
         assertEquals("foo/.*bar", convertToRegex("foo/**bar"))
     }
 
     @Test
-    internal fun `convertToRegex foo single star bar`() {
+    fun `convertToRegex foo single star bar`() {
         assertEquals("foo[^/]*bar", convertToRegex("foo*bar"))
     }
 
     @Test
-    internal fun `convertToRegex foo double star bar`() {
+    fun `convertToRegex foo double star bar`() {
         assertEquals("foo.*bar", convertToRegex("foo**bar"))
     }
 
     @Test
-    internal fun `convertToRegex double star slash single star`() {
+    fun `convertToRegex double star slash single star`() {
         assertEquals("(?:.*/)?[^/]*", convertToRegex("**/*"))
     }
 
     @Test
-    internal fun `convertToRegex single star slash double star`() {
+    fun `convertToRegex single star slash double star`() {
         assertEquals("[^/]*/.*", convertToRegex("*/**"))
     }
 
     @Test
-    internal fun `convertToRegex slash double star slash single star`() {
+    fun `convertToRegex slash double star slash single star`() {
         assertEquals("/(?:.*/)?[^/]*", convertToRegex("/**/*"))
     }
 
     @Test
-    internal fun `convertToRegex slash single star slash double star`() {
+    fun `convertToRegex slash single star slash double star`() {
         assertEquals("/[^/]*/.*", convertToRegex("/*/**"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash double star slash single star`() {
+    fun `convertToRegex foo slash double star slash single star`() {
         assertEquals("foo/(?:.*/)?[^/]*", convertToRegex("foo/**/*"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash single star slash double star`() {
+    fun `convertToRegex foo slash single star slash double star`() {
         assertEquals("foo/[^/]*/.*", convertToRegex("foo/*/**"))
     }
 
     @Test
-    internal fun `convertToRegex double star slash single star slash`() {
+    fun `convertToRegex double star slash single star slash`() {
         assertEquals("(?:.*/)?[^/]*/", convertToRegex("**/*/"))
     }
 
     @Test
-    internal fun `convertToRegex single star slash double star slash`() {
+    fun `convertToRegex single star slash double star slash`() {
         assertEquals("[^/]*/(?:.*/)?", convertToRegex("*/**/"))
     }
 
     @Test
-    internal fun `convertToRegex double star slash single star slash foo`() {
+    fun `convertToRegex double star slash single star slash foo`() {
         assertEquals("(?:.*/)?[^/]*/foo", convertToRegex("**/*/foo"))
     }
 
     @Test
-    internal fun `convertToRegex single star slash double star slash foo`() {
+    fun `convertToRegex single star slash double star slash foo`() {
         assertEquals("[^/]*/(?:.*/)?foo", convertToRegex("*/**/foo"))
     }
 
     @Test
-    internal fun `convertToRegex slash double star slash single star slash`() {
+    fun `convertToRegex slash double star slash single star slash`() {
         assertEquals("/(?:.*/)?[^/]*/", convertToRegex("/**/*/"))
     }
 
     @Test
-    internal fun `convertToRegex slash single star slash double star slash`() {
+    fun `convertToRegex slash single star slash double star slash`() {
         assertEquals("/[^/]*/(?:.*/)?", convertToRegex("/*/**/"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash double star slash single star slash`() {
+    fun `convertToRegex foo slash double star slash single star slash`() {
         assertEquals("foo/(?:.*/)?[^/]*/", convertToRegex("foo/**/*/"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash single star slash double star slash`() {
+    fun `convertToRegex foo slash single star slash double star slash`() {
         assertEquals("foo/[^/]*/(?:.*/)?", convertToRegex("foo/*/**/"))
     }
 
     @Test
-    internal fun `convertToRegex slash double star slash single star slash foo`() {
+    fun `convertToRegex slash double star slash single star slash foo`() {
         assertEquals("/(?:.*/)?[^/]*/foo", convertToRegex("/**/*/foo"))
     }
 
     @Test
-    internal fun `convertToRegex slash single star slash double star slash foo`() {
+    fun `convertToRegex slash single star slash double star slash foo`() {
         assertEquals("/[^/]*/(?:.*/)?foo", convertToRegex("/*/**/foo"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash double star slash single star slash bar`() {
+    fun `convertToRegex foo slash double star slash single star slash bar`() {
         assertEquals("foo/(?:.*/)?[^/]*/bar", convertToRegex("foo/**/*/bar"))
     }
 
     @Test
-    internal fun `convertToRegex foo slash single star slash double star slash bar`() {
+    fun `convertToRegex foo slash single star slash double star slash bar`() {
         assertEquals("foo/[^/]*/(?:.*/)?bar", convertToRegex("foo/*/**/bar"))
     }
 }
