@@ -119,14 +119,11 @@ abstract class OciLayerTask : DefaultTask() {
                 fileVisitDetails: FileVisitDetails,
                 defaultPermissions: Int?
             ) {
-                val permissions = findFirstMatch(
-                    permissionPatterns,
-                    tarArchiveEntry.name,
-                    defaultPermissions
-                ) ?: fileVisitDetails.mode
+                val permissions =
+                    findMatch(permissionPatterns, tarArchiveEntry.name, defaultPermissions) ?: fileVisitDetails.mode
                 tarArchiveEntry.mode = (tarArchiveEntry.mode and 0b111_111_111.inv()) or permissions
-                tarArchiveEntry.setUserId(findFirstMatch(userIdPatterns, tarArchiveEntry.name, userId))
-                tarArchiveEntry.setGroupId(findFirstMatch(groupIdPatterns, tarArchiveEntry.name, groupId))
+                tarArchiveEntry.setUserId(findMatch(userIdPatterns, tarArchiveEntry.name, userId))
+                tarArchiveEntry.setGroupId(findMatch(groupIdPatterns, tarArchiveEntry.name, groupId))
                 tarArchiveEntry.setModTime(DEFAULT_MODIFICATION_TIME.toEpochMilli()) // TODO
                 if (tarArchiveEntries.put(tarArchiveEntry, fileVisitDetails) != null) {
                     throw IllegalStateException("duplicate entry") // TODO
@@ -197,9 +194,9 @@ abstract class OciLayerTask : DefaultTask() {
         return convertedPatterns
     }
 
-    private fun <T> findFirstMatch(patterns: List<Triple<Int, Regex, T>>, path: String, default: T): T {
-        return patterns.findLast { it.second.matches(path.substring(it.first)) }?.third ?: default
-        // TODO default only if no match, null means null
+    private fun <T> findMatch(patterns: List<Triple<Int, Regex, T>>, path: String, default: T): T {
+        val match = patterns.findLast { it.second.matches(path.substring(it.first)) }
+        return if (match == null) default else match.third
     }
 }
 
@@ -217,3 +214,13 @@ abstract class OciLayerTask : DefaultTask() {
 // (.*)o(.*) | $1a$2  | foo | fao
 
 // rename dir (must contain / at the end, must NOT contain slashes between)
+
+
+// into("foo/bar") { => immutable, not renamed
+//     from("wab.txt")
+//     rename(".*", "$0.aso") => foo/bar/**/.*
+// }
+// rename("foo/", "bar/", "test/")
+//
+//
+//
