@@ -89,17 +89,15 @@ abstract class OciLayerTask : DefaultTask() {
         // TODO put all path elements to tarArchiveEntries (to extra implicitTarArchiveDirectories)
         val destinationPath = parentDestinationPath + copySpec.destinationPath.get()
         val renamePatterns =
-            parentRenamePatterns + convertRenamePatterns(copySpec.renamePatterns.orNull, destinationPath)
+            parentRenamePatterns + convertRenamePatterns(copySpec.renamePatterns.get(), destinationPath) // TODO
         val filePermissions = copySpec.filePermissions.orNull
         val directoryPermissions = copySpec.directoryPermissions.orNull
         val permissionPatterns =
-            convertPatterns(parentPermissionPatterns, copySpec.permissionPatterns.getOrElse(listOf()), destinationPath)
+            convertPatterns(parentPermissionPatterns, copySpec.permissionPatterns.get(), destinationPath)
         val userId = copySpec.userId.get()
-        val userIdPatterns =
-            convertPatterns(parentUserIdPatterns, copySpec.userIdPatterns.getOrElse(listOf()), destinationPath)
+        val userIdPatterns = convertPatterns(parentUserIdPatterns, copySpec.userIdPatterns.get(), destinationPath)
         val groupId = copySpec.groupId.get()
-        val groupIdPatterns =
-            convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.getOrElse(listOf()), destinationPath)
+        val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
         copySpec.sources.asFileTree.visit(object : FileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
                 val tarArchiveEntry =
@@ -144,10 +142,10 @@ abstract class OciLayerTask : DefaultTask() {
     }
 
     private fun convertRenamePatterns(
-        renamePatterns: List<Triple<String, String, String>>?,
+        renamePatterns: List<Triple<String, String, String>>,
         destinationPath: String
     ): List<Pair<Regex, String>> {
-        if (renamePatterns == null) {
+        if (renamePatterns.isEmpty()) {
             return listOf()
         }
         val convertedPatterns = LinkedList<Pair<Regex, String>>()

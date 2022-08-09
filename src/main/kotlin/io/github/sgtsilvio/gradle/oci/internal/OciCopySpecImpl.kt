@@ -25,7 +25,6 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     val destinationPath = objectFactory.property<String>().convention("")
 
     @get:Input
-    @get:Optional
     val renamePatterns = objectFactory.listProperty<Triple<String, String, String>>()
 
     @get:Input
@@ -37,21 +36,18 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     override val directoryPermissions = objectFactory.property<Int>().value(0b111_101_101)
 
     @get:Input
-    @get:Optional
     val permissionPatterns = objectFactory.listProperty<Pair<String, Int?>>()
 
     @get:Input
     override val userId = objectFactory.property<Long>().convention(0)
 
     @get:Input
-    @get:Optional
     val userIdPatterns = objectFactory.listProperty<Pair<String, Long>>()
 
     @get:Input
     override val groupId = objectFactory.property<Long>().convention(0)
 
     @get:Input
-    @get:Optional
     val groupIdPatterns = objectFactory.listProperty<Pair<String, Long>>()
 
     @get:Nested
