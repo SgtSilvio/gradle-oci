@@ -81,9 +81,9 @@ abstract class OciLayerTask : DefaultTask() {
         copySpec: OciCopySpecImpl,
         parentDestinationPath: String,
         parentRenamePatterns: List<Pair<Regex, String>>,
-        parentPermissionPatterns: List<Triple<Int, Regex, Int?>>,
-        parentUserIdPatterns: List<Triple<Int, Regex, Long>>,
-        parentGroupIdPatterns: List<Triple<Int, Regex, Long>>,
+        parentPermissionPatterns: List<Pair<GlobMatcher, Int?>>,
+        parentUserIdPatterns: List<Pair<GlobMatcher, Long>>,
+        parentGroupIdPatterns: List<Pair<GlobMatcher, Long>>,
         tarArchiveEntries: MutableMap<TarArchiveEntry, FileTreeElement>
     ) {
         // TODO put all path elements to tarArchiveEntries (to extra implicitTarArchiveDirectories)
@@ -171,30 +171,29 @@ abstract class OciLayerTask : DefaultTask() {
     }
 
     private fun <T> convertPatterns(
-        parentPatterns: List<Triple<Int, Regex, T>>,
+        parentPatterns: List<Pair<GlobMatcher, T>>,
         patterns: List<Pair<String, T>>,
         destinationPath: String
-    ): List<Triple<Int, Regex, T>> {
+    ): List<Pair<GlobMatcher, T>> {
         if (parentPatterns.isEmpty() && patterns.isEmpty()) {
             return listOf()
         }
-        val convertedPatterns = LinkedList<Triple<Int, Regex, T>>()
+        val convertedPatterns = LinkedList<Pair<GlobMatcher, T>>()
         for (parentPattern in parentPatterns) {
-            val matcher = parentPattern.second.toPattern().matcher(destinationPath.substring(parentPattern.first))
-            if (matcher.find() || matcher.hitEnd()) {
+            if (parentPattern.first.matchesParentDirectory(destinationPath)) {
                 convertedPatterns.add(parentPattern)
             }
         }
         for (pattern in patterns) {
             val pathRegex = convertToRegex(pattern.first)
-            convertedPatterns.add(Triple(destinationPath.length, "^$pathRegex$".toRegex(), pattern.second))
+            convertedPatterns.add(Pair(GlobMatcher("^$pathRegex$", destinationPath.length), pattern.second))
         }
         return convertedPatterns
     }
 
-    private fun <T> findMatch(patterns: List<Triple<Int, Regex, T>>, path: String, default: T): T {
-        val match = patterns.findLast { it.second.matches(path.substring(it.first)) }
-        return if (match == null) default else match.third
+    private fun <T> findMatch(patterns: List<Pair<GlobMatcher, T>>, path: String, default: T): T {
+        val match = patterns.findLast { it.first.matches(path) }
+        return if (match == null) default else match.second
     }
 }
 
