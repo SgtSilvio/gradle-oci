@@ -7,7 +7,6 @@ private const val regexMetaChars = "\\^$.|?*+()[{"
 private fun isRegexMeta(c: Char) = regexMetaChars.contains(c)
 
 fun convertToRegex(globPattern: String): String {
-//    val regex = StringBuilder("^")
     val regex = StringBuilder()
     var i = 0
     while (i < globPattern.length) {
@@ -15,6 +14,9 @@ fun convertToRegex(globPattern: String): String {
             '*' -> {
                 if ((i < globPattern.length) && (globPattern[i] == '*')) {
                     i++
+                    if ((i < globPattern.length) && (globPattern[i] == '*')) {
+                        throw PatternSyntaxException("'***' not allowed", globPattern, i)
+                    }
                     if (// last char is either '/' or string start
                         ((i < 3) || (globPattern[i - 3] == '/')) &&
                         // next char is '/'
@@ -48,6 +50,5 @@ fun convertToRegex(globPattern: String): String {
             }
         }
     }
-//    return regex.append('$').toString()
     return regex.toString()
 }
