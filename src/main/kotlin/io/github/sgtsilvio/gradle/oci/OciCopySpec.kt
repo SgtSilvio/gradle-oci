@@ -78,7 +78,7 @@ interface OciCopySpec {
      * The renaming rule is only applied to files/directories that match the directoryPathPattern.
      *
      * @param directoryPathPattern glob pattern for the directory path without the file/directory name,
-     *                             must not start with `/`, must end with `/` or be empty
+     *                             must not start with `/`, must match a directory (be empty, end with `/` or '**')
      * @param fileNameRegex        regex for the file/directory name without the directory path,
      *                             must not contain `/` except at the end (then matching a directory)
      * @param replacement          regex replacement expression that can include substitutions,

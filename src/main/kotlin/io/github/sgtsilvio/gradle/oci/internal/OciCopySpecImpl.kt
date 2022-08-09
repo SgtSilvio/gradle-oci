@@ -63,10 +63,10 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun into(destinationPath: String): OciCopySpecImpl {
-        if (destinationPath.startsWith("/")) {
+        if (destinationPath.startsWith('/')) {
             throw IllegalArgumentException("destinationPath must not start with '/'")
         }
-        if (destinationPath.endsWith("/")) {
+        if (destinationPath.endsWith('/')) {
             throw IllegalArgumentException("destinationPath must not end with '/'")
         }
         if (destinationPath.contains("//")) {
@@ -95,11 +95,11 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun rename(directoryPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpecImpl {
-        if (directoryPathPattern.startsWith("/")) {
+        if (directoryPathPattern.startsWith('/')) {
             throw IllegalArgumentException("directoryPathPattern must not start with '/'")
         }
-        if (directoryPathPattern != "" && !directoryPathPattern.endsWith("/")) {
-            throw IllegalArgumentException("directoryPathPattern must end with '/'")
+        if (directoryPathPattern != "" && !directoryPathPattern.endsWith('/') && !directoryPathPattern.endsWith("**")) {
+            throw IllegalArgumentException("directoryPathPattern must match a directory ('', end with '/' or '**')")
         }
         if (directoryPathPattern.contains("//")) {
             throw IllegalArgumentException("directoryPathPattern must not contain '//'")
@@ -115,7 +115,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun permissions(pathPattern: String, permissions: Int?): OciCopySpecImpl {
-        if (pathPattern.startsWith("/")) {
+        if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
         permissionPatterns.add(Pair(pathPattern, permissions))
@@ -123,7 +123,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun userId(pathPattern: String, userId: Long): OciCopySpecImpl {
-        if (pathPattern.startsWith("/")) {
+        if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
         userIdPatterns.add(Pair(pathPattern, userId))
@@ -131,7 +131,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun groupId(pathPattern: String, groupId: Long): OciCopySpecImpl {
-        if (pathPattern.startsWith("/")) {
+        if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
         groupIdPatterns.add(Pair(pathPattern, groupId))
