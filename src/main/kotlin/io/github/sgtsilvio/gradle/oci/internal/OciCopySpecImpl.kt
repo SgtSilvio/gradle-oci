@@ -32,6 +32,9 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     val renamePatterns = objectFactory.listProperty<Triple<String, String, String>>()
 
     @get:Input
+    val movementPatterns = objectFactory.listProperty<Triple<String, String, String>>()
+
+    @get:Input
     @get:Optional
     override val filePermissions = objectFactory.property<Int>()
 
@@ -69,14 +72,14 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun into(destinationPath: String): OciCopySpecImpl {
+        if (destinationPath.contains("//")) {
+            throw IllegalArgumentException("destinationPath must not contain '//'")
+        }
         if (destinationPath.startsWith('/')) {
             throw IllegalArgumentException("destinationPath must not start with '/'")
         }
         if (destinationPath.endsWith('/')) {
             throw IllegalArgumentException("destinationPath must not end with '/'")
-        }
-        if (destinationPath.contains("//")) {
-            throw IllegalArgumentException("destinationPath must not contain '//'")
         }
         this.destinationPath.set(if (destinationPath == "") "" else "$destinationPath/")
         return this
@@ -96,27 +99,38 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return child
     }
 
-    override fun rename(directoryPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpecImpl {
-        if (directoryPathPattern.startsWith('/')) {
-            throw IllegalArgumentException("directoryPathPattern must not start with '/'")
+    override fun rename(parentPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpecImpl {
+        if (parentPathPattern.contains("//")) {
+            throw IllegalArgumentException("parentPathPattern must not contain '//'")
         }
-        if (directoryPathPattern != "" && !directoryPathPattern.endsWith('/') && !directoryPathPattern.endsWith("**")) {
-            throw IllegalArgumentException("directoryPathPattern must match a directory ('', end with '/' or '**')")
+        if (parentPathPattern.startsWith('/')) {
+            throw IllegalArgumentException("parentPathPattern must not start with '/'")
         }
-        if (directoryPathPattern.contains("//")) {
-            throw IllegalArgumentException("directoryPathPattern must not contain '//'")
+        if (parentPathPattern != "" && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
+            throw IllegalArgumentException("parentPathPattern must match a directory ('', end with '/' or '**')")
         }
-        if (fileNameRegex.indexOf('/') in 0..fileNameRegex.length - 2) {
-            throw IllegalArgumentException("fileNameRegex must not contain '/' except at the end")
+        renamePatterns.add(Triple(parentPathPattern, fileNameRegex, replacement))
+        return this
+    }
+
+    override fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): OciCopySpec {
+        if (parentPathPattern.contains("//")) {
+            throw IllegalArgumentException("parentPathPattern must not contain '//'")
         }
-        if (!fileNameRegex.endsWith('/') && replacement.contains('/')) {
-            throw IllegalArgumentException("replacement must not contain '/' if fileNameRegex does not match a directory")
+        if (parentPathPattern.startsWith('/')) {
+            throw IllegalArgumentException("parentPathPattern must not start with '/'")
         }
-        renamePatterns.add(Triple(directoryPathPattern, fileNameRegex, replacement))
+        if (parentPathPattern != "" && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
+            throw IllegalArgumentException("parentPathPattern must match a directory ('', end with '/' or '**')")
+        }
+        movementPatterns.add(Triple(parentPathPattern, directoryNameRegex, replacement))
         return this
     }
 
     override fun permissions(pathPattern: String, permissions: Int): OciCopySpecImpl {
+        if (pathPattern.contains("//")) {
+            throw IllegalArgumentException("pathPattern must not contain '//'")
+        }
         if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
@@ -125,6 +139,9 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun userId(pathPattern: String, userId: Long): OciCopySpecImpl {
+        if (pathPattern.contains("//")) {
+            throw IllegalArgumentException("pathPattern must not contain '//'")
+        }
         if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
@@ -133,6 +150,9 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     }
 
     override fun groupId(pathPattern: String, groupId: Long): OciCopySpecImpl {
+        if (pathPattern.contains("//")) {
+            throw IllegalArgumentException("pathPattern must not contain '//'")
+        }
         if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }

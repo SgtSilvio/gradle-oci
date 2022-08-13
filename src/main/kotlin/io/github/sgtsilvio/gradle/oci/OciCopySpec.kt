@@ -9,7 +9,7 @@ import org.gradle.api.provider.Property
  * The differences to [org.gradle.api.file.CopySpec] are:
  * - Ownership (user and group ids) can be set (important for OCI layer tar archives)
  * - Renaming, permissions and ownership rules can be set for specific path patterns
- * - Renaming, permissions and ownership rules can be set for directories and not only regular files
+ * - Movement, permissions and ownership rules can be set for directories and not only regular files
  * - All parts are considered as inputs for robust up-to-date checks
  *
  * @author Silvio Giebl
@@ -59,14 +59,14 @@ interface OciCopySpec {
     fun into(destinationPath: String, configureAction: Action<in OciCopySpec>): OciCopySpec
 
     /**
-     * Add a renaming rule to the current copy spec.
+     * Add a file renaming rule to the current copy spec.
      * The renaming rule is applied to every file.
+     * Multiple renaming rules of this copy spec are applied in the supplied order.
+     * All renaming rules of parent copy specs are applied before this copy spec's renaming rules.
      *
-     * @param fileNameRegex regex for the file/directory name without the directory path,
-     *                      must not contain `/` except at the end (then matching a directory)
+     * @param fileNameRegex regex applied to the file name without the parent directory path,
      * @param replacement   regex replacement expression that can include substitutions,
-     *                      must not contain `/` if fileNameRegex does not match a directory (does not end with `/`),
-     *                      the result after applying the replacement must not be empty if fileNameRegex does not match a directory
+     *                      the result must not be empty and must not contain `/`
      * @return the current copy spec
      */
     fun rename(fileNameRegex: String, replacement: String): OciCopySpec {
@@ -74,19 +74,52 @@ interface OciCopySpec {
     }
 
     /**
+     * Add a file renaming rule to the current copy spec.
+     * The renaming rule is only applied to files whose parent directory path (after all directory movement rules have
+     * been applied) match the `parentPathPattern`.
+     * Multiple renaming rules of this copy spec are applied in the supplied order.
+     * All renaming rules of parent copy specs are applied before this copy spec's renaming rules.
+     *
+     * @param parentPathPattern glob pattern applied to the parent directory path without the file name,
+     *                          must not start with `/` (would never match),
+     *                          must match a directory (be empty, end with `/` or '**')
+     * @param fileNameRegex     regex applied to the file name without the parent directory path,
+     * @param replacement       regex replacement expression that can include substitutions,
+     *                          the result must not be empty and must not contain `/`
+     * @return the current copy spec
+     */
+    fun rename(parentPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpec
+
+    /**
+     * Add a directory movement rule to the current copy spec.
+     * The movement rule is applied to every directory.
+     * Multiple movement rules of this copy spec are applied in the supplied order.
+     * All movement rules of parent copy specs are applied before this copy spec's movement rules.
+     *
+     * @param directoryNameRegex regex applied to the directory name without the parent directory path,
+     * @param replacement        regex replacement expression that can include substitutions,
+     *                           the result may be empty (deleting the directory, moving all children to the parent directory),
+     *                           the result may contain multiple '/' (adding directories) but not at the start of end,
+     * @return the current copy spec
+     */
+    fun move(directoryNameRegex: String, replacement: String): OciCopySpec {
+        return move("**/", directoryNameRegex, replacement)
+    }
+
+    /**
      * Add a renaming rule to the current copy spec.
      * The renaming rule is only applied to files/directories that match the directoryPathPattern.
      *
-     * @param directoryPathPattern glob pattern for the directory path without the file/directory name,
-     *                             must not start with `/`, must match a directory (be empty, end with `/` or '**')
-     * @param fileNameRegex        regex for the file/directory name without the directory path,
-     *                             must not contain `/` except at the end (then matching a directory)
-     * @param replacement          regex replacement expression that can include substitutions,
-     *                             must not contain `/` if fileNameRegex does not match a directory (does not end with `/`),
-     *                             the result after applying the replacement must not be empty if fileNameRegex does not match a directory
+     * @param parentPathPattern  glob pattern applied to the parent directory path without the directory name,
+     *                           must not start with `/` (would never match),
+     *                           must match a directory (be empty, end with `/` or '**')
+     * @param directoryNameRegex regex applied to the directory name without the parent directory path,
+     * @param replacement        regex replacement expression that can include substitutions,
+     *                           the result may be empty (deleting the directory, moving all children to the parent directory),
+     *                           the result may contain multiple '/' (adding directories) but not at the start of end,
      * @return the current copy spec
      */
-    fun rename(directoryPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpec
+    fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): OciCopySpec
 
     /**
      * Default (UNIX) permissions for files created at the destination.
@@ -106,10 +139,12 @@ interface OciCopySpec {
 
     /**
      * Add a (UNIX) permission rule to the current copy spec.
-     * The permission rule is only applied to files/directories that match the pathPattern.
+     * The permission rule is only applied to files and directories whose relative destination path (after all directory
+     * move and file renaming rules have been applied) match the `pathPattern`.
      *
-     * @param pathPattern glob pattern for the full path of the file/directory,
-     *                    must not start with `/`, may end with `/` (then matching a directory)
+     * @param pathPattern glob pattern applied to the relative destination path of a file or directory,
+     *                    must not start with `/` (would never match),
+     *                    may end with `/` (then matching a directory)
      * @param permissions UNIX permissions, from `0000` to `0777`
      * @return the current copy spec
      */
@@ -125,10 +160,12 @@ interface OciCopySpec {
 
     /**
      * Add a user id ownership rule to the current copy spec.
-     * The user id ownership rule is only applied to files/directories that match the pathPattern.
+     * The user id ownership rule is only applied to files and directories whose relative destination path (after all
+     * directory movement and file renaming rules have been applied) match the `pathPattern`.
      *
-     * @param pathPattern glob pattern for the full path of the file/directory,
-     *                    must not start with `/`, may end with `/` (then matching a directory)
+     * @param pathPattern glob pattern applied to the relative destination path of a file or directory,
+     *                    must not start with `/` (would never match),
+     *                    may end with `/` (then matching a directory)
      * @param userId      user id number
      * @return the current copy spec
      */
@@ -144,10 +181,12 @@ interface OciCopySpec {
 
     /**
      * Add a group id ownership rule to the current copy spec.
-     * The group id ownership rule is only applied to files/directories that match the pathPattern.
+     * The group id ownership rule is only applied to files and directories whose relative destination path (after all
+     * directory movement and file renaming rules have been applied) match the `pathPattern`.
      *
-     * @param pathPattern glob pattern for the full path of the file/directory,
-     *                    must not start with `/`, may end with `/` (then matching a directory)
+     * @param pathPattern glob pattern applied to the relative destination path of a file or directory,
+     *                    must not start with `/` (would never match),
+     *                    may end with `/` (then matching a directory)
      * @param groupId     group id number
      * @return the current copy spec
      */
