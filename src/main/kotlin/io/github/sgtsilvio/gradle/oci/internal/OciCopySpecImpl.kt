@@ -3,9 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.*
 import org.gradle.api.tasks.Optional
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
@@ -19,6 +17,7 @@ import javax.inject.Inject
 open class OciCopySpecImpl @Inject constructor(private val objectFactory: ObjectFactory) : OciCopySpec {
 
     @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     val sources = objectFactory.fileCollection()
 
     @get:Input
