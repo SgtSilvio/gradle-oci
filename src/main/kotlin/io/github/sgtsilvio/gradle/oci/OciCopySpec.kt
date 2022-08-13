@@ -89,35 +89,36 @@ interface OciCopySpec {
     fun rename(directoryPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpec
 
     /**
-     * Default permissions for files created at the destination.
-     * Initially set to `0b111_101_101`/`0755` for root copy specs, otherwise to the same value as the parent copy spec.
-     * Setting it to `null` means that the actual permissions of the source file are used also at the destination.
+     * Default (UNIX) permissions for files created at the destination.
+     * If no value is present, the value is inherited from the parent copy spec if there is one in the used scope.
+     * If no value is present and this is a root copy spec in the used scope, it defaults to `0b111_101_101`/`0755`.
      * The default value is used unless a specific permission supplied via [permissions] matches.
      */
     val filePermissions: Property<Int>
 
     /**
-     * Default permissions for directories created at the destination.
-     * Initially set to `0b110_100_100`/`0644` for root copy specs, otherwise to the same value as the parent copy spec.
-     * Setting it to `null` means that the actual permissions of the source directory are used also at the destination.
+     * Default (UNIX) permissions for directories created at the destination.
+     * If no value is present, the value is inherited from the parent copy spec if there is one in the used scope.
+     * If no value is present and this is a root copy spec in the used scope, it defaults to `0b110_100_100`/`0644`.
      * The default value is used unless a specific permission supplied via [permissions] matches.
      */
     val directoryPermissions: Property<Int>
 
     /**
-     * Add a permission rule to the current copy spec.
+     * Add a (UNIX) permission rule to the current copy spec.
      * The permission rule is only applied to files/directories that match the pathPattern.
      *
      * @param pathPattern glob pattern for the full path of the file/directory,
      *                    must not start with `/`, may end with `/` (then matching a directory)
-     * @param permissions `null` means that the actual permissions of the source file are used also at the destination
+     * @param permissions UNIX permissions, from `0000` to `0777`
      * @return the current copy spec
      */
-    fun permissions(pathPattern: String, permissions: Int?): OciCopySpec
+    fun permissions(pathPattern: String, permissions: Int): OciCopySpec
 
     /**
      * Default user id ownership for files and directories created at the destination.
-     * Initially set to `0` for root copy specs, otherwise to the same value as the parent copy spec.
+     * If no value is present, the value is inherited from the parent copy spec if there is one in the used scope.
+     * If no value is present and this is a root copy spec in the used scope, it defaults to `0`.
      * The default value is used unless a specific user id supplied via [userId] matches.
      */
     val userId: Property<Long>
@@ -135,7 +136,8 @@ interface OciCopySpec {
 
     /**
      * Default group id ownership for files and directories created at the destination.
-     * Initially set to `0` for root copy specs, otherwise to the same value as the parent copy spec.
+     * If no value is present, the value is inherited from the parent copy spec if there is one in the used scope.
+     * If no value is present and this is a root copy spec in the used scope, it defaults to `0`.
      * The default value is used unless a specific group id supplied via [groupId] matches.
      */
     val groupId: Property<Long>

@@ -11,6 +11,11 @@ import org.gradle.kotlin.dsl.property
 import java.util.*
 import javax.inject.Inject
 
+const val DEFAULT_FILE_PERMISSIONS = 0b110_100_100
+const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
+const val DEFAULT_USER_ID = 0L
+const val DEFAULT_GROUP_ID = 0L
+
 /**
  * @author Silvio Giebl
  */
@@ -28,23 +33,25 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
 
     @get:Input
     @get:Optional
-    override val filePermissions = objectFactory.property<Int>().value(0b110_100_100)
+    override val filePermissions = objectFactory.property<Int>()
 
     @get:Input
     @get:Optional
-    override val directoryPermissions = objectFactory.property<Int>().value(0b111_101_101)
+    override val directoryPermissions = objectFactory.property<Int>()
 
     @get:Input
-    val permissionPatterns = objectFactory.listProperty<Pair<String, Int?>>()
+    val permissionPatterns = objectFactory.listProperty<Pair<String, Int>>()
 
     @get:Input
-    override val userId = objectFactory.property<Long>().convention(0)
+    @get:Optional
+    override val userId = objectFactory.property<Long>()
 
     @get:Input
     val userIdPatterns = objectFactory.listProperty<Pair<String, Long>>()
 
     @get:Input
-    override val groupId = objectFactory.property<Long>().convention(0)
+    @get:Optional
+    override val groupId = objectFactory.property<Long>()
 
     @get:Input
     val groupIdPatterns = objectFactory.listProperty<Pair<String, Long>>()
@@ -85,10 +92,6 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         val child = objectFactory.newInstance<OciCopySpecImpl>()
         action.invoke(child) // invoke the action before adding the child as the action performs validations
         children.add(child)
-        child.filePermissions.set(filePermissions)
-        child.directoryPermissions.set(directoryPermissions)
-        child.userId.convention(userId)
-        child.groupId.convention(groupId)
         userAction.execute(child)
         return child
     }
@@ -113,7 +116,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun permissions(pathPattern: String, permissions: Int?): OciCopySpecImpl {
+    override fun permissions(pathPattern: String, permissions: Int): OciCopySpecImpl {
         if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }

@@ -48,7 +48,19 @@ abstract class OciLayerTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val tarArchiveEntries = TreeMap<TarArchiveEntry, FileTreeElement>(Comparator.comparing { it.name })
-        processCopySpec(rootCopySpec, "", listOf(), listOf(), listOf(), listOf(), tarArchiveEntries)
+        processCopySpec(
+            rootCopySpec,
+            "",
+            listOf(),
+            DEFAULT_FILE_PERMISSIONS,
+            DEFAULT_DIRECTORY_PERMISSIONS,
+            listOf(),
+            DEFAULT_USER_ID,
+            listOf(),
+            DEFAULT_GROUP_ID,
+            listOf(),
+            tarArchiveEntries
+        )
 
         val tarFile = tarFile.get().asFile
         val digestFile = digestFile.get().asFile
@@ -81,8 +93,12 @@ abstract class OciLayerTask : DefaultTask() {
         copySpec: OciCopySpecImpl,
         parentDestinationPath: String,
         parentRenamePatterns: List<Pair<Regex, String>>,
-        parentPermissionPatterns: List<Pair<GlobMatcher, Int?>>,
+        parentFilePermissions: Int,
+        parentDirectoryPermissions: Int,
+        parentPermissionPatterns: List<Pair<GlobMatcher, Int>>,
+        parentUserId: Long,
         parentUserIdPatterns: List<Pair<GlobMatcher, Long>>,
+        parentGroupId: Long,
         parentGroupIdPatterns: List<Pair<GlobMatcher, Long>>,
         tarArchiveEntries: MutableMap<TarArchiveEntry, FileTreeElement>
     ) {
@@ -90,13 +106,13 @@ abstract class OciLayerTask : DefaultTask() {
         val destinationPath = parentDestinationPath + copySpec.destinationPath.get()
         val renamePatterns =
             parentRenamePatterns + convertRenamePatterns(copySpec.renamePatterns.get(), destinationPath) // TODO
-        val filePermissions = copySpec.filePermissions.orNull
-        val directoryPermissions = copySpec.directoryPermissions.orNull
+        val filePermissions = copySpec.filePermissions.orNull ?: parentFilePermissions
+        val directoryPermissions = copySpec.directoryPermissions.orNull ?: parentDirectoryPermissions
         val permissionPatterns =
             convertPatterns(parentPermissionPatterns, copySpec.permissionPatterns.get(), destinationPath)
-        val userId = copySpec.userId.get()
+        val userId = copySpec.userId.orNull ?: parentUserId
         val userIdPatterns = convertPatterns(parentUserIdPatterns, copySpec.userIdPatterns.get(), destinationPath)
-        val groupId = copySpec.groupId.get()
+        val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
         copySpec.sources.asFileTree.visit(object : FileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
@@ -115,10 +131,9 @@ abstract class OciLayerTask : DefaultTask() {
             private fun visitEntry(
                 tarArchiveEntry: TarArchiveEntry,
                 fileVisitDetails: FileVisitDetails,
-                defaultPermissions: Int?
+                defaultPermissions: Int
             ) {
-                val permissions =
-                    findMatch(permissionPatterns, tarArchiveEntry.name, defaultPermissions) ?: fileVisitDetails.mode
+                val permissions = findMatch(permissionPatterns, tarArchiveEntry.name, defaultPermissions)
                 tarArchiveEntry.mode = (tarArchiveEntry.mode and 0b111_111_111.inv()) or permissions
                 tarArchiveEntry.setUserId(findMatch(userIdPatterns, tarArchiveEntry.name, userId))
                 tarArchiveEntry.setGroupId(findMatch(groupIdPatterns, tarArchiveEntry.name, groupId))
@@ -133,8 +148,12 @@ abstract class OciLayerTask : DefaultTask() {
                 child,
                 destinationPath,
                 renamePatterns,
+                filePermissions,
+                directoryPermissions,
                 permissionPatterns,
+                userId,
                 userIdPatterns,
+                groupId,
                 groupIdPatterns,
                 tarArchiveEntries
             )
