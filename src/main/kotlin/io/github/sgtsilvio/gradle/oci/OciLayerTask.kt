@@ -52,6 +52,7 @@ abstract class OciLayerTask : DefaultTask() {
             rootCopySpec,
             "",
             listOf(),
+            listOf(),
             DEFAULT_FILE_PERMISSIONS,
             DEFAULT_DIRECTORY_PERMISSIONS,
             listOf(),
@@ -92,7 +93,8 @@ abstract class OciLayerTask : DefaultTask() {
     private fun processCopySpec(
         copySpec: OciCopySpecImpl,
         parentDestinationPath: String,
-        parentRenamePatterns: List<Pair<Regex, String>>,
+        parentRenamePatterns: List<Triple<GlobMatcher, Regex, String>>,
+        parentMovePatterns: List<Triple<GlobMatcher, Regex, String>>,
         parentFilePermissions: Int,
         parentDirectoryPermissions: Int,
         parentPermissionPatterns: List<Pair<GlobMatcher, Int>>,
@@ -103,9 +105,10 @@ abstract class OciLayerTask : DefaultTask() {
         tarArchiveEntries: MutableMap<TarArchiveEntry, FileTreeElement>
     ) {
         // TODO put all path elements to tarArchiveEntries (to extra implicitTarArchiveDirectories)
-        val destinationPath = parentDestinationPath + copySpec.destinationPath.get()
-        val renamePatterns =
-            parentRenamePatterns + convertRenamePatterns(copySpec.renamePatterns.get(), destinationPath) // TODO
+        val currentDestinationPath = copySpec.destinationPath.get()
+        val destinationPath = parentDestinationPath + currentDestinationPath
+        val renamePatterns = convertRenamePatterns(parentRenamePatterns, copySpec.renamePatterns.get(), destinationPath)
+        val movePatterns = convertRenamePatterns(parentMovePatterns, copySpec.movePatterns.get(), destinationPath)
         val filePermissions = copySpec.filePermissions.orNull ?: parentFilePermissions
         val directoryPermissions = copySpec.directoryPermissions.orNull ?: parentDirectoryPermissions
         val permissionPatterns =
@@ -116,14 +119,16 @@ abstract class OciLayerTask : DefaultTask() {
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
         copySpec.sources.asFileTree.visit(object : FileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
-                val tarArchiveEntry =
-                    TarArchiveEntry(rename("$destinationPath${dirDetails.relativePath}/", renamePatterns))
+                val parentPath = destinationPath + dirDetails.relativePath.parent.pathString.ifNotEmpty { "$it/" }
+                val fileName = rename(parentPath, dirDetails.name + '/', movePatterns)
+                val tarArchiveEntry = TarArchiveEntry("$parentPath$fileName")
                 visitEntry(tarArchiveEntry, dirDetails, directoryPermissions)
             }
 
             override fun visitFile(fileDetails: FileVisitDetails) {
-                val tarArchiveEntry =
-                    TarArchiveEntry(rename("$destinationPath${fileDetails.relativePath}", renamePatterns))
+                val parentPath = destinationPath + fileDetails.relativePath.parent.pathString.ifNotEmpty { "$it/" }
+                val fileName = rename(parentPath, fileDetails.name, renamePatterns)
+                val tarArchiveEntry = TarArchiveEntry("$parentPath$fileName")
                 tarArchiveEntry.size = fileDetails.size
                 visitEntry(tarArchiveEntry, fileDetails, filePermissions)
             }
@@ -148,6 +153,7 @@ abstract class OciLayerTask : DefaultTask() {
                 child,
                 destinationPath,
                 renamePatterns,
+                movePatterns,
                 filePermissions,
                 directoryPermissions,
                 permissionPatterns,
@@ -161,32 +167,44 @@ abstract class OciLayerTask : DefaultTask() {
     }
 
     private fun convertRenamePatterns(
-        renamePatterns: List<Triple<String, String, String>>,
+        parentPatterns: List<Triple<GlobMatcher, Regex, String>>,
+        patterns: List<Triple<String, String, String>>,
         destinationPath: String
-    ): List<Pair<Regex, String>> {
-        if (renamePatterns.isEmpty()) {
+    ): List<Triple<GlobMatcher, Regex, String>> {
+        if (parentPatterns.isEmpty() && patterns.isEmpty()) {
             return listOf()
         }
-        val convertedPatterns = LinkedList<Pair<Regex, String>>()
-        for (renamePattern in renamePatterns) {
-            val pathRegex = convertToRegex(destinationPath + renamePattern.first)
-            val fileNameRegex = renamePattern.second
-            val regex = "(?<=^$pathRegex)" + if (fileNameRegex.endsWith('/')) {
-                "${fileNameRegex.substring(0, fileNameRegex.length - 1)}(?=/)"
-            } else {
-                "$fileNameRegex$"
+        val convertedPatterns = LinkedList<Triple<GlobMatcher, Regex, String>>()
+        for (parentPattern in parentPatterns) {
+            if (parentPattern.first.matchesParentDirectory(destinationPath)) {
+                convertedPatterns.add(parentPattern)
             }
-            convertedPatterns.add(Pair(regex.toRegex(), renamePattern.third))
+        }
+        for (pattern in patterns) {
+            val pathRegex = convertToRegex(pattern.first)
+            convertedPatterns.add(
+                Triple(
+                    GlobMatcher("^$pathRegex$", destinationPath.length),
+                    Regex("^${pattern.second}$"),
+                    pattern.third
+                )
+            )
         }
         return convertedPatterns
     }
 
-    private fun rename(path: String, renamePatterns: List<Pair<Regex, String>>): String {
-        var renamedPath = path
-        for (renamePattern in renamePatterns) {
-            renamedPath = renamePattern.first.replace(renamedPath, renamePattern.second)
+    private fun rename(
+        parentPath: String,
+        fileName: String,
+        patterns: List<Triple<GlobMatcher, Regex, String>>
+    ): String {
+        var renamedFileName = fileName
+        for (pattern in patterns) {
+            if (pattern.first.matches(parentPath)) {
+                renamedFileName = pattern.second.replaceFirst(renamedFileName, pattern.third)
+            }
         }
-        return renamedPath
+        return renamedFileName
     }
 
     private fun <T> convertPatterns(

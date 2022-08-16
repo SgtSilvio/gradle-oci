@@ -32,7 +32,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     val renamePatterns = objectFactory.listProperty<Triple<String, String, String>>()
 
     @get:Input
-    val movementPatterns = objectFactory.listProperty<Triple<String, String, String>>()
+    val movePatterns = objectFactory.listProperty<Triple<String, String, String>>()
 
     @get:Input
     @get:Optional
@@ -81,7 +81,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         if (destinationPath.endsWith('/')) {
             throw IllegalArgumentException("destinationPath must not end with '/'")
         }
-        this.destinationPath.set(if (destinationPath == "") "" else "$destinationPath/")
+        this.destinationPath.set(destinationPath.ifNotEmpty { "$it/" })
         return this
     }
 
@@ -123,7 +123,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         if (parentPathPattern != "" && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
             throw IllegalArgumentException("parentPathPattern must match a directory ('', end with '/' or '**')")
         }
-        movementPatterns.add(Triple(parentPathPattern, directoryNameRegex, replacement))
+        movePatterns.add(Triple(parentPathPattern, directoryNameRegex, replacement))
         return this
     }
 
@@ -160,3 +160,5 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 }
+
+inline fun String.ifNotEmpty(transformer: (String) -> String): String = if (isEmpty()) this else transformer(this)
