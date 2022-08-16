@@ -8,7 +8,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.FileVisitDetails
-import org.gradle.api.file.FileVisitor
+import org.gradle.api.file.ReproducibleFileVisitor
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.OutputFile
@@ -117,7 +117,7 @@ abstract class OciLayerTask : DefaultTask() {
         val userIdPatterns = convertPatterns(parentUserIdPatterns, copySpec.userIdPatterns.get(), destinationPath)
         val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
-        copySpec.sources.asFileTree.visit(object : FileVisitor {
+        copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
                 val parentPath = destinationPath + dirDetails.relativePath.parent.pathString.ifNotEmpty { "$it/" }
                 val fileName = rename(parentPath, dirDetails.name + '/', movePatterns)
@@ -147,6 +147,8 @@ abstract class OciLayerTask : DefaultTask() {
                     throw IllegalStateException("duplicate entry") // TODO
                 }
             }
+
+            override fun isReproducibleFileOrder() = true
         })
         for (child in copySpec.children) {
             processCopySpec(
