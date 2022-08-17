@@ -99,7 +99,7 @@ interface OciCopySpec {
      * @param directoryNameRegex regex applied to the directory name without the parent directory path,
      * @param replacement        regex replacement expression that can include substitutions,
      *                           the result may be empty (deleting the directory, moving all children to the parent directory),
-     *                           the result may contain multiple '/' (adding directories) but not at the start of end,
+     *                           the result may contain multiple '/' (adding directories) but not at the start or end,
      * @return the current copy spec
      */
     fun move(directoryNameRegex: String, replacement: String): OciCopySpec {
@@ -116,7 +116,7 @@ interface OciCopySpec {
      * @param directoryNameRegex regex applied to the directory name without the parent directory path,
      * @param replacement        regex replacement expression that can include substitutions,
      *                           the result may be empty (deleting the directory, moving all children to the parent directory),
-     *                           the result may contain multiple '/' (adding directories) but not at the start of end,
+     *                           the result may contain multiple '/' (adding directories) but not at the start or end,
      * @return the current copy spec
      */
     fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): OciCopySpec
