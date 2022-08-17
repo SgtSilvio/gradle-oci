@@ -119,10 +119,16 @@ abstract class OciLayerTask : DefaultTask() {
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
-                val parentPath = destinationPath + dirDetails.relativePath.parent.pathString.ifNotEmpty { "$it/" }
-                val fileName = rename(parentPath, dirDetails.name + '/', movePatterns)
-                val tarArchiveEntry = TarArchiveEntry("$parentPath$fileName")
-                visitEntry(tarArchiveEntry, dirDetails, directoryPermissions)
+                var parentPath = destinationPath + dirDetails.relativePath.parent.pathString.ifNotEmpty { "$it/" }
+                val directoryNames = move(parentPath, dirDetails.name, movePatterns)
+                for (directoryName in directoryNames) {
+                    parentPath = "$parentPath$directoryName/"
+                    val tarArchiveEntry = TarArchiveEntry(parentPath)
+                    visitEntry(tarArchiveEntry, directoryPermissions)
+                    if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
+                        throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
+                    }
+                }
             }
 
             override fun visitFile(fileDetails: FileVisitDetails) {
@@ -130,22 +136,18 @@ abstract class OciLayerTask : DefaultTask() {
                 val fileName = rename(parentPath, fileDetails.name, renamePatterns)
                 val tarArchiveEntry = TarArchiveEntry("$parentPath$fileName")
                 tarArchiveEntry.size = fileDetails.size
-                visitEntry(tarArchiveEntry, fileDetails, filePermissions)
+                visitEntry(tarArchiveEntry, filePermissions)
+                if (tarArchiveEntries.put(tarArchiveEntry, fileDetails) != null) {
+                    throw IllegalStateException("duplicate entry")
+                }
             }
 
-            private fun visitEntry(
-                tarArchiveEntry: TarArchiveEntry,
-                fileVisitDetails: FileVisitDetails,
-                defaultPermissions: Int
-            ) {
+            private fun visitEntry(tarArchiveEntry: TarArchiveEntry, defaultPermissions: Int) {
                 val permissions = findMatch(permissionPatterns, tarArchiveEntry.name, defaultPermissions)
                 tarArchiveEntry.mode = (tarArchiveEntry.mode and 0b111_111_111.inv()) or permissions
                 tarArchiveEntry.setUserId(findMatch(userIdPatterns, tarArchiveEntry.name, userId))
                 tarArchiveEntry.setGroupId(findMatch(groupIdPatterns, tarArchiveEntry.name, groupId))
                 tarArchiveEntry.setModTime(DEFAULT_MODIFICATION_TIME.toEpochMilli()) // TODO
-                if (tarArchiveEntries.put(tarArchiveEntry, fileVisitDetails) != null) {
-                    throw IllegalStateException("duplicate entry") // TODO
-                }
             }
 
             override fun isReproducibleFileOrder() = true
@@ -200,13 +202,49 @@ abstract class OciLayerTask : DefaultTask() {
         fileName: String,
         patterns: List<Triple<GlobMatcher, Regex, String>>
     ): String {
-        var renamedFileName = fileName
+        var currentFileName = fileName
         for (pattern in patterns) {
             if (pattern.first.matches(parentPath)) {
-                renamedFileName = pattern.second.replaceFirst(renamedFileName, pattern.third)
+                val renamedFileName = pattern.second.replaceFirst(currentFileName, pattern.third)
+                currentFileName = validateRename(currentFileName, renamedFileName)
             }
         }
+        return currentFileName
+    }
+
+    private fun validateRename(fileName: String, renamedFileName: String): String {
+        if (renamedFileName.isEmpty()) {
+            error("file name must not be empty after renaming ($fileName -> $renamedFileName)")
+        } else if (renamedFileName.contains('/')) {
+            error("file name must not contain '/' after renaming ($fileName -> $renamedFileName)")
+        }
         return renamedFileName
+    }
+
+    private fun move(
+        parentPath: String,
+        directoryName: String,
+        patterns: List<Triple<GlobMatcher, Regex, String>>
+    ): List<String> {
+        var currentDirectoryPath = directoryName
+        for (pattern in patterns) {
+            if (pattern.first.matches(parentPath)) {
+                val renamedDirectoryPath = pattern.second.replaceFirst(currentDirectoryPath, pattern.third)
+                currentDirectoryPath = validateMove(currentDirectoryPath, renamedDirectoryPath)
+            }
+        }
+        return if (currentDirectoryPath.isEmpty()) listOf() else currentDirectoryPath.split('/')
+    }
+
+    private fun validateMove(directoryName: String, renamedDirectoryPath: String): String {
+        if (renamedDirectoryPath.startsWith('/')) {
+            error("directory must not start with '/' after movement ($directoryName -> $renamedDirectoryPath)")
+        } else if (renamedDirectoryPath.endsWith('/')) {
+            error("directory must not end with '/' after movement ($directoryName -> $renamedDirectoryPath)")
+        } else if (renamedDirectoryPath.contains("//")) {
+            error("directory must not contain '//' after movement ($directoryName -> $renamedDirectoryPath)")
+        }
+        return renamedDirectoryPath
     }
 
     private fun <T> convertPatterns(
