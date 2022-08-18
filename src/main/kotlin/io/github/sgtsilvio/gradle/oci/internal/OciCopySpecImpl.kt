@@ -81,7 +81,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         if (destinationPath.endsWith('/')) {
             throw IllegalArgumentException("destinationPath must not end with '/'")
         }
-        this.destinationPath.set(destinationPath.ifNotEmpty { "$it/" })
+        this.destinationPath.set(destinationPath)
         return this
     }
 
@@ -160,5 +160,3 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 }
-
-inline fun String.ifNotEmpty(transformer: (String) -> String): String = if (isEmpty()) this else transformer(this)

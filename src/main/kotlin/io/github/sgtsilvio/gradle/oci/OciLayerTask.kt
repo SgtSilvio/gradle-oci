@@ -105,7 +105,7 @@ abstract class OciLayerTask : DefaultTask() {
         tarArchiveEntries: MutableMap<TarArchiveEntry, FileTreeElement>
     ) {
         // TODO put all path elements to tarArchiveEntries (to extra implicitTarArchiveDirectories)
-        val currentDestinationPath = copySpec.destinationPath.get()
+        val currentDestinationPath = copySpec.destinationPath.get().ifNotEmpty { "$it/" }
         val destinationPath = parentDestinationPath + currentDestinationPath
         val renamePatterns = convertRenamePatterns(parentRenamePatterns, copySpec.renamePatterns.get(), destinationPath)
         val movePatterns = convertRenamePatterns(parentMovePatterns, copySpec.movePatterns.get(), destinationPath)
@@ -143,8 +143,7 @@ abstract class OciLayerTask : DefaultTask() {
             }
 
             private fun visitEntry(tarArchiveEntry: TarArchiveEntry, defaultPermissions: Int) {
-                val permissions = findMatch(permissionPatterns, tarArchiveEntry.name, defaultPermissions)
-                tarArchiveEntry.mode = (tarArchiveEntry.mode and 0b111_111_111.inv()) or permissions
+                tarArchiveEntry.setPermissions(findMatch(permissionPatterns, tarArchiveEntry.name, defaultPermissions))
                 tarArchiveEntry.setUserId(findMatch(userIdPatterns, tarArchiveEntry.name, userId))
                 tarArchiveEntry.setGroupId(findMatch(groupIdPatterns, tarArchiveEntry.name, groupId))
                 tarArchiveEntry.setModTime(DEFAULT_MODIFICATION_TIME.toEpochMilli()) // TODO
@@ -272,6 +271,12 @@ abstract class OciLayerTask : DefaultTask() {
         val match = patterns.findLast { it.first.matches(path) }
         return if (match == null) default else match.second
     }
+
+    fun TarArchiveEntry.setPermissions(permissions: Int) {
+        mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
+    }
+
+    inline fun String.ifNotEmpty(transformer: (String) -> String): String = if (isEmpty()) this else transformer(this)
 }
 
 // permissions, userId, groupId
