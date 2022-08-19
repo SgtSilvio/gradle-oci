@@ -77,7 +77,7 @@ abstract class OciLayerTask : DefaultTask() {
                             for (tarArchiveEntry in tarArchiveEntries) {
                                 tos.putArchiveEntry(tarArchiveEntry.key)
                                 if (!tarArchiveEntry.value.isDirectory) {
-                                    tarArchiveEntry.value.copyTo(tos)
+                                    tarArchiveEntry.value.copyTo(tos) // TODO does not work for tars
                                 }
                                 tos.closeArchiveEntry()
                             }
@@ -343,3 +343,66 @@ abstract class OciLayerTask : DefaultTask() {
 //
 //
 //
+
+//private fun rename(
+//    destinationPath: String,
+//    directoryPath: String,
+//    fileName: String,
+//    renamePatterns: List<Triple<Pattern, Pattern, String>>
+//): Pair<String, String> {
+//    var completeDirectoryPath = "$destinationPath$directoryPath"
+//    var renamedFileName = fileName
+//    for (renamePattern in renamePatterns) {
+//        val matcher = renamePattern.first.matcher(completeDirectoryPath)
+//        while (matcher.find()) {
+//            val end = matcher.end()
+//            println(end)
+//            if (end < destinationPath.length) {
+//                println("1")
+//                continue
+//            }
+//            if (end < completeDirectoryPath.length) {
+//                println("2 " + completeDirectoryPath[end - 1])
+//                if (completeDirectoryPath[end - 1] == '/') {
+//                    println("2.2")
+//                    val nextSlash = completeDirectoryPath.indexOf('/', end)
+//                    val directoryName = completeDirectoryPath.substring(end, nextSlash + 1)
+//                    val renamedDirectoryName =
+//                        renamePattern.second.matcher(directoryName).replaceAll(renamePattern.third)
+//                    println(directoryName + " " + renamedDirectoryName)
+//                    // TODO check if no change
+//                    // TODO validation that still directory
+//                    completeDirectoryPath = completeDirectoryPath.substring(0, end) +
+//                            renamedDirectoryName +
+//                            completeDirectoryPath.substring(nextSlash + 1)
+//                }
+//                continue
+//            }
+//            println("3")
+//            renamedFileName = renamePattern.second.matcher(renamedFileName).replaceAll(renamePattern.third)
+//            // TODO validation that still the same (file or directory)
+//        }
+//    }
+//    return Pair(completeDirectoryPath, renamedFileName)
+//}
+//
+//fun main() {
+//    println(
+//        rename(
+//            "foo/",
+//            "foo/bar/",
+//            "wab",
+//            listOf(
+//                Triple(Pattern.compile('^' + convertToRegex("**/")), Pattern.compile("^.*$"), "$0.txt"),
+////                Triple(Pattern.compile('^' + convertToRegex("foo/foo/bar/")), Pattern.compile("^.*$"), "$0.txt"),
+//                Triple(Pattern.compile('^' + convertToRegex("**/")), Pattern.compile("^foo/$"), "ha/"),
+//                Triple(Pattern.compile('^' + convertToRegex("foo/")), Pattern.compile("^foo/$"), "ha/"),
+//            )
+//        )
+//    )
+////    val matcher = Pattern.compile("^(.*?/)?").matcher("abc/def/")
+//    val matcher = Pattern.compile("^(?=((.*/)?)).").matcher("abc/def/")
+//    while (matcher.find()) {
+//        println("${matcher.start()} ${matcher.end()}")
+//    }
+//}
