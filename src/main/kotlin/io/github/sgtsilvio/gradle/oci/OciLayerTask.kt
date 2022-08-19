@@ -117,22 +117,26 @@ abstract class OciLayerTask : DefaultTask() {
         val userIdPatterns = convertPatterns(parentUserIdPatterns, copySpec.userIdPatterns.get(), destinationPath)
         val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
+
+        val moveEntries = HashMap<FileElement, String>()
+
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
-                var parentPath = destinationPath + dirDetails.relativePath.parent.pathString.ifNotEmpty { "$it/" }
-                val directoryNames = move(parentPath, dirDetails.name, movePatterns)
-                for (directoryName in directoryNames) {
-                    parentPath = "$parentPath$directoryName/"
-                    val tarArchiveEntry = TarArchiveEntry(parentPath)
-                    visitEntry(tarArchiveEntry, directoryPermissions)
-                    if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
-                        throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
-                    }
+                val path = move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveEntries)
+//                var path = ""
+//                for (directoryName in directoryNames) {
+//                    path = "$path$directoryName/"
+                val tarArchiveEntry = TarArchiveEntry(path)
+                visitEntry(tarArchiveEntry, directoryPermissions)
+                if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
+                    throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
                 }
+//                }
             }
 
             override fun visitFile(fileDetails: FileVisitDetails) {
-                val parentPath = destinationPath + fileDetails.relativePath.parent.pathString.ifNotEmpty { "$it/" }
+                val parentPath =
+                    move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveEntries)
                 val fileName = rename(parentPath, fileDetails.name, renamePatterns)
                 val tarArchiveEntry = TarArchiveEntry("$parentPath$fileName")
                 tarArchiveEntry.size = fileDetails.size
@@ -221,18 +225,34 @@ abstract class OciLayerTask : DefaultTask() {
     }
 
     private fun move(
-        parentPath: String,
-        directoryName: String,
-        patterns: List<Triple<GlobMatcher, Regex, String>>
-    ): List<String> {
-        var currentDirectoryPath = directoryName
-        for (pattern in patterns) {
-            if (pattern.first.matches(parentPath)) {
-                val renamedDirectoryPath = pattern.second.replaceFirst(currentDirectoryPath, pattern.third)
-                currentDirectoryPath = validateMove(currentDirectoryPath, renamedDirectoryPath)
+        destinationPath: String,
+        segments: Array<String>,
+        patterns: List<Triple<GlobMatcher, Regex, String>>,
+        moveEntries: HashMap<FileElement, String>
+    ): String {
+        var parentPath = destinationPath
+        var parent: FileElement? = null
+        for (directoryName in segments) {
+            var fileElement = FileElement(parent, directoryName)
+            val renamedDirectoryPath = moveEntries.compute(fileElement) { storedFileElement, storedPath ->
+                if (storedPath != null) {
+                    fileElement = storedFileElement
+                    storedPath
+                } else {
+                    var currentDirectoryPath = directoryName
+                    for (pattern in patterns) {
+                        if (pattern.first.matches(parentPath)) {
+                            val renamedDirectoryPath = pattern.second.replaceFirst(currentDirectoryPath, pattern.third)
+                            currentDirectoryPath = validateMove(currentDirectoryPath, renamedDirectoryPath)
+                        }
+                    }
+                    currentDirectoryPath
+                }
             }
+            parentPath += "$renamedDirectoryPath/"
+            parent = fileElement
         }
-        return if (currentDirectoryPath.isEmpty()) listOf() else currentDirectoryPath.split('/')
+        return parentPath
     }
 
     private fun validateMove(directoryName: String, renamedDirectoryPath: String): String {
@@ -277,6 +297,26 @@ abstract class OciLayerTask : DefaultTask() {
     }
 
     inline fun String.ifNotEmpty(transformer: (String) -> String): String = if (isEmpty()) this else transformer(this)
+
+    class FileElement(
+        val parent: FileElement?,
+        val name: String
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is FileElement) return false
+
+            if (parent !== other.parent) return false
+            if (name != other.name) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = System.identityHashCode(parent)
+            result = 31 * result + name.hashCode()
+            return result
+        }
+    }
 }
 
 // permissions, userId, groupId
