@@ -118,25 +118,27 @@ abstract class OciLayerTask : DefaultTask() {
         val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
 
-        val moveEntries = HashMap<FileElement, String>()
-
+        val moveEntries = HashMap<FileElement, Pair<FileElement, String>>()
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
-                val path = move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveEntries)
-//                var path = ""
-//                for (directoryName in directoryNames) {
-//                    path = "$path$directoryName/"
-                val tarArchiveEntry = TarArchiveEntry(path)
-                visitEntry(tarArchiveEntry, directoryPermissions)
-                if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
-                    throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
+                move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveEntries) { path ->
+                    val tarArchiveEntry = TarArchiveEntry(path)
+                    visitEntry(tarArchiveEntry, directoryPermissions)
+                    if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
+                        throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
+                    }
                 }
-//                }
             }
 
             override fun visitFile(fileDetails: FileVisitDetails) {
                 val parentPath =
-                    move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveEntries)
+                    move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveEntries) { path ->
+                        val tarArchiveEntry = TarArchiveEntry(path)
+                        visitEntry(tarArchiveEntry, directoryPermissions)
+//                        if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
+//                            throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
+//                        }
+                    }
                 val fileName = rename(parentPath, fileDetails.name, renamePatterns)
                 val tarArchiveEntry = TarArchiveEntry("$parentPath$fileName")
                 tarArchiveEntry.size = fileDetails.size
@@ -155,6 +157,8 @@ abstract class OciLayerTask : DefaultTask() {
 
             override fun isReproducibleFileOrder() = true
         })
+        moveEntries.clear()
+
         for (child in copySpec.children) {
             processCopySpec(
                 child,
@@ -224,33 +228,36 @@ abstract class OciLayerTask : DefaultTask() {
         return renamedFileName
     }
 
-    private fun move(
+    private inline fun move(
         destinationPath: String,
         segments: Array<String>,
         patterns: List<Triple<GlobMatcher, Regex, String>>,
-        moveEntries: HashMap<FileElement, String>
+        moveEntries: HashMap<FileElement, Pair<FileElement, String>>,
+        crossinline newDirectoryAction: (String) -> Unit
     ): String {
         var parentPath = destinationPath
         var parent: FileElement? = null
         for (directoryName in segments) {
-            var fileElement = FileElement(parent, directoryName)
-            val renamedDirectoryPath = moveEntries.compute(fileElement) { storedFileElement, storedPath ->
-                if (storedPath != null) {
-                    fileElement = storedFileElement
-                    storedPath
-                } else {
-                    var currentDirectoryPath = directoryName
-                    for (pattern in patterns) {
-                        if (pattern.first.matches(parentPath)) {
-                            val renamedDirectoryPath = pattern.second.replaceFirst(currentDirectoryPath, pattern.third)
-                            currentDirectoryPath = validateMove(currentDirectoryPath, renamedDirectoryPath)
-                        }
+            val currentParentPath = parentPath
+            val moveEntry = moveEntries.computeIfAbsent(FileElement(parent, directoryName)) {
+                var currentDirectoryPath = directoryName
+                for (pattern in patterns) {
+                    if (pattern.first.matches(currentParentPath)) {
+                        val renamedDirectoryPath = pattern.second.replaceFirst(currentDirectoryPath, pattern.third)
+                        currentDirectoryPath = validateMove(currentDirectoryPath, renamedDirectoryPath)
                     }
-                    currentDirectoryPath
                 }
+                if (currentDirectoryPath.isNotEmpty()) {
+                    var path = currentParentPath
+                    for (currentDirectoryName in currentDirectoryPath.split('/')) {
+                        path = "$path$currentDirectoryName/"
+                        newDirectoryAction.invoke(path)
+                    }
+                }
+                Pair(it, currentDirectoryPath)
             }
-            parentPath += "$renamedDirectoryPath/"
-            parent = fileElement
+            parentPath += moveEntry.second.ifNotEmpty { "$it/" }
+            parent = moveEntry.first
         }
         return parentPath
     }
