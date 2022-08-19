@@ -118,10 +118,10 @@ abstract class OciLayerTask : DefaultTask() {
         val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
 
-        val moveEntries = HashMap<FileElement, Pair<FileElement, String>>()
+        val moveCache = HashMap<FileElement, Pair<FileElement, String>>()
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
-                move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveEntries) { path ->
+                move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveCache) { path ->
                     val tarArchiveEntry = TarArchiveEntry(path)
                     visitEntry(tarArchiveEntry, directoryPermissions)
                     if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
@@ -132,7 +132,7 @@ abstract class OciLayerTask : DefaultTask() {
 
             override fun visitFile(fileDetails: FileVisitDetails) {
                 val parentPath =
-                    move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveEntries) { path ->
+                    move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveCache) { path ->
                         val tarArchiveEntry = TarArchiveEntry(path)
                         visitEntry(tarArchiveEntry, directoryPermissions)
 //                        if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
@@ -157,7 +157,7 @@ abstract class OciLayerTask : DefaultTask() {
 
             override fun isReproducibleFileOrder() = true
         })
-        moveEntries.clear()
+        moveCache.clear()
 
         for (child in copySpec.children) {
             processCopySpec(
@@ -232,14 +232,14 @@ abstract class OciLayerTask : DefaultTask() {
         destinationPath: String,
         segments: Array<String>,
         patterns: List<Triple<GlobMatcher, Regex, String>>,
-        moveEntries: HashMap<FileElement, Pair<FileElement, String>>,
+        moveCache: HashMap<FileElement, Pair<FileElement, String>>,
         crossinline newDirectoryAction: (String) -> Unit
     ): String {
         var parentPath = destinationPath
         var parent: FileElement? = null
         for (directoryName in segments) {
             val currentParentPath = parentPath
-            val moveEntry = moveEntries.computeIfAbsent(FileElement(parent, directoryName)) {
+            val moveEntry = moveCache.computeIfAbsent(FileElement(parent, directoryName)) {
                 var currentDirectoryPath = directoryName
                 for (pattern in patterns) {
                     if (pattern.first.matches(currentParentPath)) {
