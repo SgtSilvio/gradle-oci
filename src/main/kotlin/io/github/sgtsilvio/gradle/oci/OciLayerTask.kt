@@ -152,20 +152,15 @@ abstract class OciLayerTask : DefaultTask() {
         val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
 
-        if (currentDestinationPath.isNotEmpty()) {
-            var path = parentDestinationPath
-            for (currentDirectoryName in currentDestinationPath.split('/')) {
-                path = "$path$currentDirectoryName/"
-                // TODO check duplicate, dir with same properties is ok
-                val fileMetadata = FileMetadata(
-                    path,
-                    findMatch(parentPermissionPatterns, path, directoryPermissions),
-                    findMatch(parentUserIdPatterns, path, userId),
-                    findMatch(parentGroupIdPatterns, path, groupId),
-                    DEFAULT_MODIFICATION_TIME
-                )
-                visitor.visitDirectory(fileMetadata)
-            }
+        visitAllDirectories(parentDestinationPath, currentDestinationPath) { path ->
+            val fileMetadata = FileMetadata(
+                path,
+                findMatch(parentPermissionPatterns, path, directoryPermissions),
+                findMatch(parentUserIdPatterns, path, userId),
+                findMatch(parentGroupIdPatterns, path, groupId),
+                DEFAULT_MODIFICATION_TIME
+            )
+            visitor.visitDirectory(fileMetadata)
         }
 
         val moveCache = HashMap<String, String>()
@@ -260,20 +255,24 @@ abstract class OciLayerTask : DefaultTask() {
         return convertedPatterns
     }
 
-    private fun rename(
+    private inline fun rename(
         parentPath: String,
         fileName: String,
-        patterns: List<Triple<GlobMatcher, Regex, String>>
+        patterns: List<Triple<GlobMatcher, Regex, String>>,
+        validation: (String, String) -> String
     ): String {
         var renamedFileName = fileName
         for (pattern in patterns) {
             if (pattern.first.matches(parentPath)) {
                 val newRenamedFileName = pattern.second.replaceFirst(renamedFileName, pattern.third)
-                renamedFileName = validateRename(renamedFileName, newRenamedFileName)
+                renamedFileName = validation.invoke(renamedFileName, newRenamedFileName)
             }
         }
         return renamedFileName
     }
+
+    private fun rename(parentPath: String, fileName: String, patterns: List<Triple<GlobMatcher, Regex, String>>) =
+        rename(parentPath, fileName, patterns, ::validateRename)
 
     private fun validateRename(fileName: String, renamedFileName: String): String {
         if (renamedFileName.isEmpty()) {
@@ -295,20 +294,8 @@ abstract class OciLayerTask : DefaultTask() {
         for (directoryName in segments) {
             val parentPath = movedPath
             val movedDirectoryPath = moveCache.computeIfAbsent("$parentPath/$directoryName") {
-                var movedDirectoryPath = directoryName
-                for (pattern in patterns) {
-                    if (pattern.first.matches(parentPath)) {
-                        val newMovedDirectoryPath = pattern.second.replaceFirst(movedDirectoryPath, pattern.third)
-                        movedDirectoryPath = validateMove(movedDirectoryPath, newMovedDirectoryPath)
-                    }
-                }
-                if (movedDirectoryPath.isNotEmpty()) {
-                    var path = parentPath
-                    for (currentDirectoryName in movedDirectoryPath.split('/')) {
-                        path = "$path$currentDirectoryName/"
-                        newDirectoryAction.invoke(path)
-                    }
-                }
+                val movedDirectoryPath = rename(parentPath, directoryName, patterns, ::validateMove)
+                visitAllDirectories(parentPath, movedDirectoryPath, newDirectoryAction)
                 movedDirectoryPath
             }
             movedPath += movedDirectoryPath.ifNotEmpty { "$it/" }
@@ -325,6 +312,16 @@ abstract class OciLayerTask : DefaultTask() {
             error("directory must not contain '//' after movement ($directoryName -> $movedDirectoryPath)")
         }
         return movedDirectoryPath
+    }
+
+    private inline fun visitAllDirectories(parentPath: String, directoryPath: String, visitor: (String) -> Unit) {
+        if (directoryPath.isNotEmpty()) {
+            var path = parentPath
+            for (directoryName in directoryPath.split('/')) {
+                path = "$path$directoryName/"
+                visitor.invoke(path)
+            }
+        }
     }
 
     private fun <T> convertPatterns(
