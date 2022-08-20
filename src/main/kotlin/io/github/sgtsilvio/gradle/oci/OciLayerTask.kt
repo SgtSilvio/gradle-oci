@@ -364,7 +364,9 @@ abstract class OciLayerTask : DefaultTask() {
     class FileElement(
         val parent: FileElement?,
         val name: String
-    ) {
+    ) : Comparable<FileElement> {
+        private val level: Int = if (parent == null) 0 else parent.level + 1
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is FileElement) return false
@@ -378,6 +380,28 @@ abstract class OciLayerTask : DefaultTask() {
             var result = System.identityHashCode(parent)
             result = 31 * result + name.hashCode()
             return result
+        }
+
+        override fun compareTo(other: FileElement): Int {
+            var base = this
+            var otherBase = other
+            if (level < other.level) {
+                for (i in 1..(other.level - level)) {
+                    otherBase = otherBase.parent!!
+                }
+            } else if (other.level < level) {
+                for (i in 1..(level - other.level)) {
+                    base = base.parent!!
+                }
+            }
+            if (base === otherBase) {
+                return level - other.level
+            }
+            while (base.parent !== otherBase.parent) {
+                base = base.parent!!
+                otherBase = otherBase.parent!!
+            }
+            return base.name.compareTo(otherBase.name)
         }
     }
 
