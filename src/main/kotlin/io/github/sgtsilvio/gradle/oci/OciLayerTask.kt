@@ -6,7 +6,6 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.ReproducibleFileVisitor
 import org.gradle.api.tasks.Internal
@@ -47,21 +46,21 @@ abstract class OciLayerTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val tarArchiveEntries = TreeMap<TarArchiveEntry, FileTreeElement>(Comparator.comparing { it.name })
-        processCopySpec(
-            rootCopySpec,
-            "",
-            listOf(),
-            listOf(),
-            DEFAULT_FILE_PERMISSIONS,
-            DEFAULT_DIRECTORY_PERMISSIONS,
-            listOf(),
-            DEFAULT_USER_ID,
-            listOf(),
-            DEFAULT_GROUP_ID,
-            listOf(),
-            tarArchiveEntries
-        )
+//        val tarArchiveEntries = TreeMap<TarArchiveEntry, FileTreeElement>(Comparator.comparing { it.name })
+//        processCopySpec(
+//            rootCopySpec,
+//            "",
+//            listOf(),
+//            listOf(),
+//            DEFAULT_FILE_PERMISSIONS,
+//            DEFAULT_DIRECTORY_PERMISSIONS,
+//            listOf(),
+//            DEFAULT_USER_ID,
+//            listOf(),
+//            DEFAULT_GROUP_ID,
+//            listOf(),
+//            tarArchiveEntries
+//        )
 
         val tarFile = tarFile.get().asFile
         val digestFile = digestFile.get().asFile
@@ -74,13 +73,49 @@ abstract class OciLayerTask : DefaultTask() {
                         TarArchiveOutputStream(dos2, StandardCharsets.UTF_8.name()).use { tos ->
                             tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                             tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
-                            for (tarArchiveEntry in tarArchiveEntries) {
-                                tos.putArchiveEntry(tarArchiveEntry.key)
-                                if (!tarArchiveEntry.value.isDirectory) {
-                                    tarArchiveEntry.value.copyTo(tos) // TODO does not work for tars
+//                            for (tarArchiveEntry in tarArchiveEntries) {
+//                                tos.putArchiveEntry(tarArchiveEntry.key)
+//                                if (!tarArchiveEntry.value.isDirectory) {
+//                                    tarArchiveEntry.value.copyTo(tos) // TODO does not work for tars
+//                                }
+//                                tos.closeArchiveEntry()
+//                            }
+                            processCopySpec(
+                                rootCopySpec,
+                                "",
+                                listOf(),
+                                listOf(),
+                                DEFAULT_FILE_PERMISSIONS,
+                                DEFAULT_DIRECTORY_PERMISSIONS,
+                                listOf(),
+                                DEFAULT_USER_ID,
+                                listOf(),
+                                DEFAULT_GROUP_ID,
+                                listOf(),
+                                object : OciCopySpecVisitor {
+                                    override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
+                                        tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                                            setPermissions(fileMetadata.permissions)
+                                            setUserId(fileMetadata.userId)
+                                            setGroupId(fileMetadata.groupId)
+                                            setModTime(fileMetadata.modificationTime.toEpochMilli())
+                                            size = fileMetadata.size
+                                        })
+                                        fileSource.copyTo(tos)
+                                        tos.closeArchiveEntry()
+                                    }
+
+                                    override fun visitDirectory(fileMetadata: FileMetadata) {
+                                        tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                                            setPermissions(fileMetadata.permissions)
+                                            setUserId(fileMetadata.userId)
+                                            setGroupId(fileMetadata.groupId)
+                                            setModTime(fileMetadata.modificationTime.toEpochMilli())
+                                        })
+                                        tos.closeArchiveEntry()
+                                    }
                                 }
-                                tos.closeArchiveEntry()
-                            }
+                            )
                         }
                         diffIdFile.writeText(formatSha256Digest(dos2.messageDigest.digest()))
                     }
@@ -102,11 +137,10 @@ abstract class OciLayerTask : DefaultTask() {
         parentUserIdPatterns: List<Pair<GlobMatcher, Long>>,
         parentGroupId: Long,
         parentGroupIdPatterns: List<Pair<GlobMatcher, Long>>,
-        tarArchiveEntries: MutableMap<TarArchiveEntry, FileTreeElement>
+        visitor: OciCopySpecVisitor
     ) {
-        // TODO put all path elements to tarArchiveEntries (to extra implicitTarArchiveDirectories)
-        val currentDestinationPath = copySpec.destinationPath.get().ifNotEmpty { "$it/" }
-        val destinationPath = parentDestinationPath + currentDestinationPath
+        val currentDestinationPath = copySpec.destinationPath.get()
+        val destinationPath = parentDestinationPath + currentDestinationPath.ifNotEmpty { "$it/" }
         val renamePatterns = convertRenamePatterns(parentRenamePatterns, copySpec.renamePatterns.get(), destinationPath)
         val movePatterns = convertRenamePatterns(parentMovePatterns, copySpec.movePatterns.get(), destinationPath)
         val filePermissions = copySpec.filePermissions.orNull ?: parentFilePermissions
@@ -118,41 +152,63 @@ abstract class OciLayerTask : DefaultTask() {
         val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
 
+        if (currentDestinationPath.isNotEmpty()) {
+            var path = parentDestinationPath
+            for (currentDirectoryName in currentDestinationPath.split('/')) {
+                path = "$path$currentDirectoryName/"
+                // TODO check duplicate, dir with same properties is ok
+                val fileMetadata = FileMetadata(
+                    path,
+                    findMatch(parentPermissionPatterns, path, directoryPermissions),
+                    findMatch(parentUserIdPatterns, path, userId),
+                    findMatch(parentGroupIdPatterns, path, groupId),
+                    DEFAULT_MODIFICATION_TIME
+                )
+                visitor.visitDirectory(fileMetadata)
+            }
+        }
+
         val moveCache = HashMap<FileElement, Pair<FileElement, String>>()
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
                 move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveCache) { path ->
-                    val tarArchiveEntry = TarArchiveEntry(path)
-                    visitEntry(tarArchiveEntry, directoryPermissions)
-                    if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
-                        throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
-                    }
+                    // TODO check duplicate, dir with same properties is ok
+                    val fileMetadata = FileMetadata(
+                        path,
+                        findMatch(permissionPatterns, path, directoryPermissions),
+                        findMatch(userIdPatterns, path, userId),
+                        findMatch(groupIdPatterns, path, groupId),
+                        DEFAULT_MODIFICATION_TIME
+                    )
+                    visitor.visitDirectory(fileMetadata)
                 }
             }
 
             override fun visitFile(fileDetails: FileVisitDetails) {
                 val parentPath =
                     move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveCache) { path ->
-                        val tarArchiveEntry = TarArchiveEntry(path)
-                        visitEntry(tarArchiveEntry, directoryPermissions)
-//                        if (tarArchiveEntries.put(tarArchiveEntry, dirDetails) != null) { // TODO dirDetails
-//                            throw IllegalStateException("duplicate entry") // TODO dir with same properties is ok
-//                        }
+                        // TODO check duplicate, dir with same properties is ok
+                        val fileMetadata = FileMetadata(
+                            path,
+                            findMatch(permissionPatterns, path, directoryPermissions),
+                            findMatch(userIdPatterns, path, userId),
+                            findMatch(groupIdPatterns, path, groupId),
+                            DEFAULT_MODIFICATION_TIME
+                        )
+                        visitor.visitDirectory(fileMetadata)
                     }
                 val fileName = rename(parentPath, fileDetails.name, renamePatterns)
-                val tarArchiveEntry = TarArchiveEntry("$parentPath$fileName")
-                tarArchiveEntry.size = fileDetails.size
-                visitEntry(tarArchiveEntry, filePermissions)
-                if (tarArchiveEntries.put(tarArchiveEntry, fileDetails) != null) {
-                    throw IllegalStateException("duplicate entry")
-                }
-            }
-
-            private fun visitEntry(tarArchiveEntry: TarArchiveEntry, defaultPermissions: Int) {
-                tarArchiveEntry.setPermissions(findMatch(permissionPatterns, tarArchiveEntry.name, defaultPermissions))
-                tarArchiveEntry.setUserId(findMatch(userIdPatterns, tarArchiveEntry.name, userId))
-                tarArchiveEntry.setGroupId(findMatch(groupIdPatterns, tarArchiveEntry.name, groupId))
-                tarArchiveEntry.setModTime(DEFAULT_MODIFICATION_TIME.toEpochMilli()) // TODO
+                // TODO check duplicate
+                val path = "$parentPath$fileName"
+                val fileMetadata = FileMetadata(
+                    path,
+                    findMatch(permissionPatterns, path, directoryPermissions),
+                    findMatch(userIdPatterns, path, userId),
+                    findMatch(groupIdPatterns, path, groupId),
+                    DEFAULT_MODIFICATION_TIME,
+                    fileDetails.size
+                )
+                visitor.visitFile(fileMetadata, FileSourceAdapter(fileDetails))
             }
 
             override fun isReproducibleFileOrder() = true
@@ -172,7 +228,7 @@ abstract class OciLayerTask : DefaultTask() {
                 userIdPatterns,
                 groupId,
                 groupIdPatterns,
-                tarArchiveEntries
+                visitor
             )
         }
     }
@@ -323,6 +379,11 @@ abstract class OciLayerTask : DefaultTask() {
             result = 31 * result + name.hashCode()
             return result
         }
+    }
+
+    interface OciCopySpecVisitor {
+        fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource)
+        fun visitDirectory(fileMetadata: FileMetadata)
     }
 }
 
