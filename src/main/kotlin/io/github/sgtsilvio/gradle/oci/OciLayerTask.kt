@@ -168,7 +168,7 @@ abstract class OciLayerTask : DefaultTask() {
             }
         }
 
-        val moveCache = HashMap<FileElement, Pair<FileElement, String>>()
+        val moveCache = HashMap<String, String>()
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
                 move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveCache) { path ->
@@ -265,14 +265,14 @@ abstract class OciLayerTask : DefaultTask() {
         fileName: String,
         patterns: List<Triple<GlobMatcher, Regex, String>>
     ): String {
-        var currentFileName = fileName
+        var renamedFileName = fileName
         for (pattern in patterns) {
             if (pattern.first.matches(parentPath)) {
-                val renamedFileName = pattern.second.replaceFirst(currentFileName, pattern.third)
-                currentFileName = validateRename(currentFileName, renamedFileName)
+                val newRenamedFileName = pattern.second.replaceFirst(renamedFileName, pattern.third)
+                renamedFileName = validateRename(renamedFileName, newRenamedFileName)
             }
         }
-        return currentFileName
+        return renamedFileName
     }
 
     private fun validateRename(fileName: String, renamedFileName: String): String {
@@ -288,45 +288,43 @@ abstract class OciLayerTask : DefaultTask() {
         destinationPath: String,
         segments: Array<String>,
         patterns: List<Triple<GlobMatcher, Regex, String>>,
-        moveCache: HashMap<FileElement, Pair<FileElement, String>>,
+        moveCache: HashMap<String, String>,
         crossinline newDirectoryAction: (String) -> Unit
     ): String {
-        var parentPath = destinationPath
-        var parent: FileElement? = null
+        var movedPath = destinationPath
         for (directoryName in segments) {
-            val currentParentPath = parentPath
-            val moveEntry = moveCache.computeIfAbsent(FileElement(parent, directoryName)) {
-                var currentDirectoryPath = directoryName
+            val parentPath = movedPath
+            val movedDirectoryPath = moveCache.computeIfAbsent("$parentPath/$directoryName") {
+                var movedDirectoryPath = directoryName
                 for (pattern in patterns) {
-                    if (pattern.first.matches(currentParentPath)) {
-                        val renamedDirectoryPath = pattern.second.replaceFirst(currentDirectoryPath, pattern.third)
-                        currentDirectoryPath = validateMove(currentDirectoryPath, renamedDirectoryPath)
+                    if (pattern.first.matches(parentPath)) {
+                        val newMovedDirectoryPath = pattern.second.replaceFirst(movedDirectoryPath, pattern.third)
+                        movedDirectoryPath = validateMove(movedDirectoryPath, newMovedDirectoryPath)
                     }
                 }
-                if (currentDirectoryPath.isNotEmpty()) {
-                    var path = currentParentPath
-                    for (currentDirectoryName in currentDirectoryPath.split('/')) {
+                if (movedDirectoryPath.isNotEmpty()) {
+                    var path = parentPath
+                    for (currentDirectoryName in movedDirectoryPath.split('/')) {
                         path = "$path$currentDirectoryName/"
                         newDirectoryAction.invoke(path)
                     }
                 }
-                Pair(it, currentDirectoryPath)
+                movedDirectoryPath
             }
-            parentPath += moveEntry.second.ifNotEmpty { "$it/" }
-            parent = moveEntry.first
+            movedPath += movedDirectoryPath.ifNotEmpty { "$it/" }
         }
-        return parentPath
+        return movedPath
     }
 
-    private fun validateMove(directoryName: String, renamedDirectoryPath: String): String {
-        if (renamedDirectoryPath.startsWith('/')) {
-            error("directory must not start with '/' after movement ($directoryName -> $renamedDirectoryPath)")
-        } else if (renamedDirectoryPath.endsWith('/')) {
-            error("directory must not end with '/' after movement ($directoryName -> $renamedDirectoryPath)")
-        } else if (renamedDirectoryPath.contains("//")) {
-            error("directory must not contain '//' after movement ($directoryName -> $renamedDirectoryPath)")
+    private fun validateMove(directoryName: String, movedDirectoryPath: String): String {
+        if (movedDirectoryPath.startsWith('/')) {
+            error("directory must not start with '/' after movement ($directoryName -> $movedDirectoryPath)")
+        } else if (movedDirectoryPath.endsWith('/')) {
+            error("directory must not end with '/' after movement ($directoryName -> $movedDirectoryPath)")
+        } else if (movedDirectoryPath.contains("//")) {
+            error("directory must not contain '//' after movement ($directoryName -> $movedDirectoryPath)")
         }
-        return renamedDirectoryPath
+        return movedDirectoryPath
     }
 
     private fun <T> convertPatterns(
@@ -360,60 +358,6 @@ abstract class OciLayerTask : DefaultTask() {
     }
 
     inline fun String.ifNotEmpty(transformer: (String) -> String): String = if (isEmpty()) this else transformer(this)
-
-    class FileElement(
-        val parent: FileElement?,
-        val name: String
-    ) : Comparable<FileElement> {
-        private val level: Int = if (parent == null) 0 else parent.level + 1
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is FileElement) return false
-
-            if (parent !== other.parent) return false
-            if (name != other.name) return false
-            return true
-        }
-
-        override fun hashCode(): Int {
-            var result = System.identityHashCode(parent)
-            result = 31 * result + name.hashCode()
-            return result
-        }
-
-        override fun toString(): String {
-            var path = name
-            var current = parent
-            while (current != null) {
-                path = "${current.name}/$path"
-                current = current.parent
-            }
-            return path
-        }
-
-        override fun compareTo(other: FileElement): Int {
-            var base = this
-            var otherBase = other
-            if (level < other.level) {
-                for (i in 1..(other.level - level)) {
-                    otherBase = otherBase.parent!!
-                }
-            } else if (other.level < level) {
-                for (i in 1..(level - other.level)) {
-                    base = base.parent!!
-                }
-            }
-            if (base === otherBase) {
-                return level - other.level
-            }
-            while (base.parent !== otherBase.parent) {
-                base = base.parent!!
-                otherBase = otherBase.parent!!
-            }
-            return base.name.compareTo(otherBase.name)
-        }
-    }
 
     interface OciCopySpecVisitor {
         fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource)
