@@ -46,22 +46,6 @@ abstract class OciLayerTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-//        val tarArchiveEntries = TreeMap<TarArchiveEntry, FileTreeElement>(Comparator.comparing { it.name })
-//        processCopySpec(
-//            rootCopySpec,
-//            "",
-//            listOf(),
-//            listOf(),
-//            DEFAULT_FILE_PERMISSIONS,
-//            DEFAULT_DIRECTORY_PERMISSIONS,
-//            listOf(),
-//            DEFAULT_USER_ID,
-//            listOf(),
-//            DEFAULT_GROUP_ID,
-//            listOf(),
-//            tarArchiveEntries
-//        )
-
         val tarFile = tarFile.get().asFile
         val digestFile = digestFile.get().asFile
         val diffIdFile = diffIdFile.get().asFile
@@ -73,25 +57,8 @@ abstract class OciLayerTask : DefaultTask() {
                         TarArchiveOutputStream(dos2, StandardCharsets.UTF_8.name()).use { tos ->
                             tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                             tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
-//                            for (tarArchiveEntry in tarArchiveEntries) {
-//                                tos.putArchiveEntry(tarArchiveEntry.key)
-//                                if (!tarArchiveEntry.value.isDirectory) {
-//                                    tarArchiveEntry.value.copyTo(tos) // TODO does not work for tars
-//                                }
-//                                tos.closeArchiveEntry()
-//                            }
                             processCopySpec(
                                 rootCopySpec,
-                                "",
-                                listOf(),
-                                listOf(),
-                                DEFAULT_FILE_PERMISSIONS,
-                                DEFAULT_DIRECTORY_PERMISSIONS,
-                                listOf(),
-                                DEFAULT_USER_ID,
-                                listOf(),
-                                DEFAULT_GROUP_ID,
-                                listOf(),
                                 object : OciCopySpecVisitor {
                                     override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
                                         tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
@@ -123,6 +90,44 @@ abstract class OciLayerTask : DefaultTask() {
                 digestFile.writeText(formatSha256Digest(dos.messageDigest.digest()))
             }
         }
+    }
+
+    private fun processCopySpec(copySpec: OciCopySpecImpl, visitor: OciCopySpecVisitor) {
+        val allFiles = HashMap<String, FileMetadata>()
+        processCopySpec(
+            copySpec,
+            "",
+            listOf(),
+            listOf(),
+            DEFAULT_FILE_PERMISSIONS,
+            DEFAULT_DIRECTORY_PERMISSIONS,
+            listOf(),
+            DEFAULT_USER_ID,
+            listOf(),
+            DEFAULT_GROUP_ID,
+            listOf(),
+            object : OciCopySpecVisitor {
+                override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
+                    if (allFiles.putIfAbsent(fileMetadata.path, fileMetadata) == null) {
+                        visitor.visitFile(fileMetadata, fileSource)
+                    } else {
+                        throw IllegalStateException("duplicate file '${fileMetadata.path}'")
+                    }
+                }
+
+                override fun visitDirectory(fileMetadata: FileMetadata) {
+                    val previousFileMetadata = allFiles.putIfAbsent(fileMetadata.path, fileMetadata)
+                    if (previousFileMetadata == null) {
+                        visitor.visitDirectory(fileMetadata)
+                    } else if (previousFileMetadata != fileMetadata) {
+                        throw IllegalStateException(
+                            "duplicate directory with different metadata ($previousFileMetadata vs $fileMetadata)"
+                        )
+                    }
+                }
+            }
+        )
+        allFiles.clear()
     }
 
     private fun processCopySpec(
@@ -167,7 +172,6 @@ abstract class OciLayerTask : DefaultTask() {
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
             override fun visitDir(dirDetails: FileVisitDetails) {
                 move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveCache) { path ->
-                    // TODO check duplicate, dir with same properties is ok
                     val fileMetadata = FileMetadata(
                         path,
                         findMatch(permissionPatterns, path, directoryPermissions),
@@ -182,7 +186,6 @@ abstract class OciLayerTask : DefaultTask() {
             override fun visitFile(fileDetails: FileVisitDetails) {
                 val parentPath =
                     move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveCache) { path ->
-                        // TODO check duplicate, dir with same properties is ok
                         val fileMetadata = FileMetadata(
                             path,
                             findMatch(permissionPatterns, path, directoryPermissions),
@@ -193,11 +196,10 @@ abstract class OciLayerTask : DefaultTask() {
                         visitor.visitDirectory(fileMetadata)
                     }
                 val fileName = rename(parentPath, fileDetails.name, renamePatterns)
-                // TODO check duplicate
                 val path = "$parentPath$fileName"
                 val fileMetadata = FileMetadata(
                     path,
-                    findMatch(permissionPatterns, path, directoryPermissions),
+                    findMatch(permissionPatterns, path, filePermissions),
                     findMatch(userIdPatterns, path, userId),
                     findMatch(groupIdPatterns, path, groupId),
                     DEFAULT_MODIFICATION_TIME,

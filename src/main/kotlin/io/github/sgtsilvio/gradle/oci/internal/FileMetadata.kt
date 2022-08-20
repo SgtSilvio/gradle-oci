@@ -8,7 +8,7 @@ import java.time.Instant
 /**
  * @author Silvio Giebl
  */
-open class FileMetadata(
+data class FileMetadata(
     val path: String,
     val permissions: Int,
     val userId: Long,
