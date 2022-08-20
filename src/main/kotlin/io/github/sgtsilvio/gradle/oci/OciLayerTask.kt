@@ -382,6 +382,16 @@ abstract class OciLayerTask : DefaultTask() {
             return result
         }
 
+        override fun toString(): String {
+            var path = name
+            var current = parent
+            while (current != null) {
+                path = "${current.name}/$path"
+                current = current.parent
+            }
+            return path
+        }
+
         override fun compareTo(other: FileElement): Int {
             var base = this
             var otherBase = other
