@@ -1,8 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-import io.github.sgtsilvio.gradle.oci.OciDescriptor
-import io.github.sgtsilvio.gradle.oci.OciManifestDescriptor
-
 fun jsonStringBuilder(): JsonStringBuilder = JsonStringBuilderImpl()
 
 interface JsonStringBuilder {
@@ -112,37 +109,5 @@ fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, set: Set<String
 fun JsonObjectStringBuilder.addOptionalKeyAndArray(key: String, list: List<String>?) {
     if ((list != null) && list.isNotEmpty()) {
         addKey(key).addArray(list)
-    }
-}
-
-fun JsonValueStringBuilder.addOciDescriptor(mediaType: String, ociDescriptor: OciDescriptor) {
-    addObject { descriptorObject ->
-        // sorted for canonical json: annotations, data, digest, mediaType, size, urls
-        descriptorObject.addOptionalKeyAndObject("annotations", ociDescriptor.annotations.orNull)
-        descriptorObject.addOptionalKeyAndValue("data", ociDescriptor.data.orNull)
-        descriptorObject.addKey("digest").addValue(ociDescriptor.digest.get())
-        descriptorObject.addKey("mediaType").addValue(mediaType)
-        descriptorObject.addKey("size").addValue(ociDescriptor.size.get())
-        descriptorObject.addOptionalKeyAndArray("urls", ociDescriptor.urls.orNull)
-    }
-}
-
-fun JsonValueStringBuilder.addOciManifestDescriptor(ociManifestDescriptor: OciManifestDescriptor) {
-    addObject { descriptorObject ->
-        // sorted for canonical json: annotations, data, digest, mediaType, size, urls
-        descriptorObject.addOptionalKeyAndObject("annotations", ociManifestDescriptor.annotations.orNull)
-        descriptorObject.addOptionalKeyAndValue("data", ociManifestDescriptor.data.orNull)
-        descriptorObject.addKey("digest").addValue(ociManifestDescriptor.digest.get())
-        descriptorObject.addKey("mediaType").addValue(MANIFEST_MEDIA_TYPE)
-        descriptorObject.addKey("platform").addObject { platformObject ->
-            // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
-            platformObject.addKey("architecture").addValue(ociManifestDescriptor.platform.architecture.get())
-            platformObject.addKey("os").addValue(ociManifestDescriptor.platform.os.get())
-            platformObject.addOptionalKeyAndArray("osFeatures", ociManifestDescriptor.platform.osFeatures.orNull)
-            platformObject.addOptionalKeyAndValue("osVersion", ociManifestDescriptor.platform.osVersion.orNull)
-            platformObject.addOptionalKeyAndValue("variant", ociManifestDescriptor.platform.variant.orNull)
-        }
-        descriptorObject.addKey("size").addValue(ociManifestDescriptor.size.get())
-        descriptorObject.addOptionalKeyAndArray("urls", ociManifestDescriptor.urls.orNull)
     }
 }
