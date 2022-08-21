@@ -146,7 +146,7 @@ abstract class OciLayerTask : DefaultTask() {
         parentUserIdPatterns: List<Pair<GlobMatcher, Long>>,
         parentGroupId: Long,
         parentGroupIdPatterns: List<Pair<GlobMatcher, Long>>,
-        visitor: OciCopySpecVisitor
+        visitor: OciCopySpecVisitor,
     ) {
         val currentDestinationPath = copySpec.destinationPath.get()
         visitAllDirectories(parentDestinationPath, currentDestinationPath) { path ->
@@ -237,7 +237,7 @@ abstract class OciLayerTask : DefaultTask() {
     private fun convertRenamePatterns(
         parentPatterns: List<Triple<GlobMatcher, Regex, String>>,
         patterns: List<Triple<String, String, String>>,
-        destinationPath: String
+        destinationPath: String,
     ): List<Triple<GlobMatcher, Regex, String>> {
         if (parentPatterns.isEmpty() && patterns.isEmpty()) {
             return listOf()
@@ -263,7 +263,7 @@ abstract class OciLayerTask : DefaultTask() {
         parentPath: String,
         fileName: String,
         patterns: List<Triple<GlobMatcher, Regex, String>>,
-        validation: (String, String) -> String
+        validation: (String, String) -> String,
     ): String {
         var renamedFileName = fileName
         for (pattern in patterns) {
@@ -292,7 +292,7 @@ abstract class OciLayerTask : DefaultTask() {
         segments: Array<String>,
         patterns: List<Triple<GlobMatcher, Regex, String>>,
         moveCache: HashMap<String, String>,
-        crossinline newDirectoryAction: (String) -> Unit
+        crossinline newDirectoryAction: (String) -> Unit,
     ): String {
         var movedPath = destinationPath
         for (directoryName in segments) {
@@ -331,7 +331,7 @@ abstract class OciLayerTask : DefaultTask() {
     private fun <T> convertPatterns(
         parentPatterns: List<Pair<GlobMatcher, T>>,
         patterns: List<Pair<String, T>>,
-        destinationPath: String
+        destinationPath: String,
     ): List<Pair<GlobMatcher, T>> {
         if (parentPatterns.isEmpty() && patterns.isEmpty()) {
             return listOf()

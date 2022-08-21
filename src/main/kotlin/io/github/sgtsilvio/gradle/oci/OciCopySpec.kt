@@ -31,11 +31,11 @@ interface OciCopySpec {
      * A child copy spec inherits renaming rules, permissions and ownership from the current (parent) copy spec, but
      * creates a new scope so that any configuration does not affect the parent copy spec.
      *
-     * @param source          see [org.gradle.api.Project.files] for all possible types
-     * @param configureAction action invoked with the created child copy spec
+     * @param source see [org.gradle.api.Project.files] for all possible types
+     * @param action action invoked with the created child copy spec
      * @return the created child copy spec
      */
-    fun from(source: Any, configureAction: Action<in OciCopySpec>): OciCopySpec
+    fun from(source: Any, action: Action<in OciCopySpec>): OciCopySpec
 
     /**
      * Set the destination path of the current copy spec.
@@ -53,7 +53,7 @@ interface OciCopySpec {
      * creates a new scope so that any configuration does not affect the parent copy spec.
      *
      * @param destinationPath must not start with `/`, must not end with `/`
-     * @param configureAction action invoked with the created child copy spec
+     * @param action          action invoked with the created child copy spec
      * @return the created child copy spec
      */
     fun into(destinationPath: String, configureAction: Action<in OciCopySpec>): OciCopySpec
@@ -69,9 +69,7 @@ interface OciCopySpec {
      *                      the result must not be empty and must not contain `/`
      * @return the current copy spec
      */
-    fun rename(fileNameRegex: String, replacement: String): OciCopySpec {
-        return rename("**/", fileNameRegex, replacement)
-    }
+    fun rename(fileNameRegex: String, replacement: String) = rename("**/", fileNameRegex, replacement)
 
     /**
      * Add a file renaming rule to the current copy spec.
@@ -102,9 +100,7 @@ interface OciCopySpec {
      *                           the result may contain multiple '/' (adding directories) but not at the start or end,
      * @return the current copy spec
      */
-    fun move(directoryNameRegex: String, replacement: String): OciCopySpec {
-        return move("**/", directoryNameRegex, replacement)
-    }
+    fun move(directoryNameRegex: String, replacement: String) = move("**/", directoryNameRegex, replacement)
 
     /**
      * Add a renaming rule to the current copy spec.

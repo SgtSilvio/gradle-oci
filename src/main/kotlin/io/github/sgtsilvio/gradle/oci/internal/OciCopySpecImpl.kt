@@ -67,8 +67,8 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun from(source: Any, configureAction: Action<in OciCopySpec>): OciCopySpecImpl {
-        return addChild({ it.from(source) }, configureAction)
+    override fun from(source: Any, action: Action<in OciCopySpec>): OciCopySpecImpl {
+        return addChild({ it.from(source) }, action)
     }
 
     override fun into(destinationPath: String): OciCopySpecImpl {
@@ -85,15 +85,16 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun into(destinationPath: String, configureAction: Action<in OciCopySpec>): OciCopySpecImpl {
-        return addChild({ it.into(destinationPath) }, configureAction)
+    override fun into(destinationPath: String, action: Action<in OciCopySpec>): OciCopySpecImpl {
+        return addChild({ it.into(destinationPath) }, action)
     }
 
     private inline fun addChild(
-        action: (OciCopySpecImpl) -> Unit, userAction: Action<in OciCopySpec>
+        initAction: (OciCopySpecImpl) -> Unit,
+        userAction: Action<in OciCopySpec>,
     ): OciCopySpecImpl {
         val child = objectFactory.newInstance<OciCopySpecImpl>()
-        action.invoke(child) // invoke the action before adding the child as the action performs validations
+        initAction.invoke(child) // invoke the action before adding the child as the action performs validations
         children.add(child)
         userAction.execute(child)
         return child
