@@ -103,12 +103,12 @@ abstract class OciLayerTask : DefaultTask() {
             "",
             listOf(),
             listOf(),
-            DEFAULT_FILE_PERMISSIONS,
-            DEFAULT_DIRECTORY_PERMISSIONS,
+            copySpec.filePermissions.orNull ?: DEFAULT_FILE_PERMISSIONS,
+            copySpec.directoryPermissions.orNull ?: DEFAULT_DIRECTORY_PERMISSIONS,
             listOf(),
-            DEFAULT_USER_ID,
+            copySpec.userId.orNull ?: DEFAULT_USER_ID,
             listOf(),
-            DEFAULT_GROUP_ID,
+            copySpec.groupId.orNull ?: DEFAULT_GROUP_ID,
             listOf(),
             object : OciCopySpecVisitor {
                 override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
@@ -149,6 +149,17 @@ abstract class OciLayerTask : DefaultTask() {
         visitor: OciCopySpecVisitor
     ) {
         val currentDestinationPath = copySpec.destinationPath.get()
+        visitAllDirectories(parentDestinationPath, currentDestinationPath) { path ->
+            val fileMetadata = FileMetadata(
+                path,
+                findMatch(parentPermissionPatterns, path, parentDirectoryPermissions),
+                findMatch(parentUserIdPatterns, path, parentUserId),
+                findMatch(parentGroupIdPatterns, path, parentGroupId),
+                DEFAULT_MODIFICATION_TIME
+            )
+            visitor.visitDirectory(fileMetadata)
+        }
+
         val destinationPath = parentDestinationPath + currentDestinationPath.addDirectorySlash()
         val renamePatterns = convertRenamePatterns(parentRenamePatterns, copySpec.renamePatterns.get(), destinationPath)
         val movePatterns = convertRenamePatterns(parentMovePatterns, copySpec.movePatterns.get(), destinationPath)
@@ -160,17 +171,6 @@ abstract class OciLayerTask : DefaultTask() {
         val userIdPatterns = convertPatterns(parentUserIdPatterns, copySpec.userIdPatterns.get(), destinationPath)
         val groupId = copySpec.groupId.orNull ?: parentGroupId
         val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
-
-        visitAllDirectories(parentDestinationPath, currentDestinationPath) { path ->
-            val fileMetadata = FileMetadata(
-                path,
-                findMatch(parentPermissionPatterns, path, directoryPermissions),
-                findMatch(parentUserIdPatterns, path, userId),
-                findMatch(parentGroupIdPatterns, path, groupId),
-                DEFAULT_MODIFICATION_TIME
-            )
-            visitor.visitDirectory(fileMetadata)
-        }
 
         val moveCache = HashMap<String, String>()
         copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
