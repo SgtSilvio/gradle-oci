@@ -56,7 +56,7 @@ interface OciCopySpec {
      * @param action          action invoked with the created child copy spec
      * @return the created child copy spec
      */
-    fun into(destinationPath: String, configureAction: Action<in OciCopySpec>): OciCopySpec
+    fun into(destinationPath: String, action: Action<in OciCopySpec>): OciCopySpec
 
     /**
      * Add a file renaming rule to the current copy spec.
