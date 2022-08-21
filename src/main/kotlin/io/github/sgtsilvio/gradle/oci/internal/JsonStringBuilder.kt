@@ -64,7 +64,7 @@ private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder
         needsComma = true
     }
 
-    override fun toString(): String = stringBuilder.toString()
+    override fun toString() = stringBuilder.toString()
 
     private fun addCommaIfNecessary() {
         if (needsComma) {

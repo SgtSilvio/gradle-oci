@@ -9,16 +9,12 @@ class GlobMatcher(regexString: String, private val startIndex: Int) {
 
     private val pattern = Pattern.compile(regexString)
 
-    fun matches(path: String): Boolean {
-        return pattern.matcher(path).region(startIndex, path.length).matches()
-    }
+    fun matches(path: String) = pattern.matcher(path).region(startIndex, path.length).matches()
 
     fun matchesParentDirectory(parentDirectoryPath: String): Boolean {
         val matcher = pattern.matcher(parentDirectoryPath).region(startIndex, parentDirectoryPath.length)
         return matcher.matches() || matcher.hitEnd()
     }
 
-    override fun toString(): String {
-        return "GlobMatcher(pattern=$pattern, startIndex=$startIndex)"
-    }
+    override fun toString() = "GlobMatcher(pattern=$pattern, startIndex=$startIndex)"
 }
