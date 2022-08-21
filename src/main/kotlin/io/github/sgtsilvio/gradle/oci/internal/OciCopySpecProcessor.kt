@@ -1,18 +1,15 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
+import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.ReproducibleFileVisitor
+import java.io.OutputStream
 import java.util.*
 
 const val DEFAULT_FILE_PERMISSIONS = 0b110_100_100
 const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
 const val DEFAULT_USER_ID = 0L
 const val DEFAULT_GROUP_ID = 0L
-
-interface OciCopySpecVisitor {
-    fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource)
-    fun visitDirectory(fileMetadata: FileMetadata)
-}
 
 fun processCopySpec(copySpec: OciCopySpecImpl, visitor: OciCopySpecVisitor) {
     val allFiles = HashMap<String, FileMetadata>()
@@ -273,3 +270,11 @@ private fun <T> findMatch(patterns: List<Pair<GlobMatcher, T>>, path: String, de
 }
 
 private fun String.addDirectorySlash(): String = if (isEmpty()) "" else "$this/"
+
+private class FileSourceAdapter(private val fileTreeElement: FileTreeElement) : FileSource {
+    override fun asFile() = fileTreeElement.file
+
+    override fun copyTo(output: OutputStream) {
+        fileTreeElement.copyTo(output)
+    }
+}

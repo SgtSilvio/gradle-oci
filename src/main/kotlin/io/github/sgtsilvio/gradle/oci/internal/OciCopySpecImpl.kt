@@ -11,11 +11,6 @@ import org.gradle.kotlin.dsl.property
 import java.util.*
 import javax.inject.Inject
 
-const val DEFAULT_FILE_PERMISSIONS = 0b110_100_100
-const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
-const val DEFAULT_USER_ID = 0L
-const val DEFAULT_GROUP_ID = 0L
-
 /**
  * @author Silvio Giebl
  */
