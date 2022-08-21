@@ -92,6 +92,10 @@ abstract class OciLayerTask : DefaultTask() {
         }
     }
 
+    private fun TarArchiveEntry.setPermissions(permissions: Int) {
+        mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
+    }
+
     private fun processCopySpec(copySpec: OciCopySpecImpl, visitor: OciCopySpecVisitor) {
         val allFiles = HashMap<String, FileMetadata>()
         processCopySpec(
@@ -145,7 +149,7 @@ abstract class OciLayerTask : DefaultTask() {
         visitor: OciCopySpecVisitor
     ) {
         val currentDestinationPath = copySpec.destinationPath.get()
-        val destinationPath = parentDestinationPath + currentDestinationPath.ifNotEmpty { "$it/" }
+        val destinationPath = parentDestinationPath + currentDestinationPath.addDirectorySlash()
         val renamePatterns = convertRenamePatterns(parentRenamePatterns, copySpec.renamePatterns.get(), destinationPath)
         val movePatterns = convertRenamePatterns(parentMovePatterns, copySpec.movePatterns.get(), destinationPath)
         val filePermissions = copySpec.filePermissions.orNull ?: parentFilePermissions
@@ -298,7 +302,7 @@ abstract class OciLayerTask : DefaultTask() {
                 visitAllDirectories(parentPath, movedDirectoryPath, newDirectoryAction)
                 movedDirectoryPath
             }
-            movedPath += movedDirectoryPath.ifNotEmpty { "$it/" }
+            movedPath += movedDirectoryPath.addDirectorySlash()
         }
         return movedPath
     }
@@ -350,11 +354,7 @@ abstract class OciLayerTask : DefaultTask() {
         return if (match == null) default else match.second
     }
 
-    fun TarArchiveEntry.setPermissions(permissions: Int) {
-        mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
-    }
-
-    inline fun String.ifNotEmpty(transformer: (String) -> String): String = if (isEmpty()) this else transformer(this)
+    private fun String.addDirectorySlash(): String = if (isEmpty()) "" else "$this/"
 
     interface OciCopySpecVisitor {
         fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource)
