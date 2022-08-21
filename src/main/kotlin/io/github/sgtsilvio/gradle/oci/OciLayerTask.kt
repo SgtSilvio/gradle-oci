@@ -54,32 +54,29 @@ abstract class OciLayerTask : DefaultTask() {
                         TarArchiveOutputStream(dos2, StandardCharsets.UTF_8.name()).use { tos ->
                             tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                             tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
-                            processCopySpec(
-                                rootCopySpec,
-                                object : OciCopySpecVisitor {
-                                    override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
-                                        tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
-                                            setPermissions(fileMetadata.permissions)
-                                            setUserId(fileMetadata.userId)
-                                            setGroupId(fileMetadata.groupId)
-                                            setModTime(fileMetadata.modificationTime.toEpochMilli())
-                                            size = fileMetadata.size
-                                        })
-                                        fileSource.copyTo(tos)
-                                        tos.closeArchiveEntry()
-                                    }
-
-                                    override fun visitDirectory(fileMetadata: FileMetadata) {
-                                        tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
-                                            setPermissions(fileMetadata.permissions)
-                                            setUserId(fileMetadata.userId)
-                                            setGroupId(fileMetadata.groupId)
-                                            setModTime(fileMetadata.modificationTime.toEpochMilli())
-                                        })
-                                        tos.closeArchiveEntry()
-                                    }
+                            processCopySpec(rootCopySpec, object : OciCopySpecVisitor {
+                                override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
+                                    tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                                        setPermissions(fileMetadata.permissions)
+                                        setUserId(fileMetadata.userId)
+                                        setGroupId(fileMetadata.groupId)
+                                        setModTime(fileMetadata.modificationTime.toEpochMilli())
+                                        size = fileMetadata.size
+                                    })
+                                    fileSource.copyTo(tos)
+                                    tos.closeArchiveEntry()
                                 }
-                            )
+
+                                override fun visitDirectory(fileMetadata: FileMetadata) {
+                                    tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                                        setPermissions(fileMetadata.permissions)
+                                        setUserId(fileMetadata.userId)
+                                        setGroupId(fileMetadata.groupId)
+                                        setModTime(fileMetadata.modificationTime.toEpochMilli())
+                                    })
+                                    tos.closeArchiveEntry()
+                                }
+                            })
                         }
                         diffIdFile.writeText(formatSha256Digest(dos2.messageDigest.digest()))
                     }
