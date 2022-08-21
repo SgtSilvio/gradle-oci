@@ -11,11 +11,7 @@ const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
 const val DEFAULT_USER_ID = 0L
 const val DEFAULT_GROUP_ID = 0L
 
-class OciCopySpecRoot {
-
-}
-
-fun processCopySpec(copySpec: OciCopySpecImpl, visitor: OciCopySpecVisitor) {
+fun processCopySpec(copySpec: OciCopySpecInput, visitor: OciCopySpecVisitor) {
     val allFiles = HashMap<String, FileMetadata>()
     processCopySpec(
         copySpec,
@@ -54,7 +50,7 @@ fun processCopySpec(copySpec: OciCopySpecImpl, visitor: OciCopySpecVisitor) {
 }
 
 private fun processCopySpec(
-    copySpec: OciCopySpecImpl,
+    copySpec: OciCopySpecInput,
     parentDestinationPath: String,
     parentRenamePatterns: List<Triple<GlobMatcher, Regex, String>>,
     parentMovePatterns: List<Triple<GlobMatcher, Regex, String>>,

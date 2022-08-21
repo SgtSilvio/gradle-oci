@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci
 
 import org.gradle.api.Action
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.util.PatternFilterable
 
 /**
  * Set of specifications for copying files inspired by [org.gradle.api.file.CopySpec].
@@ -57,6 +58,18 @@ interface OciCopySpec {
      * @return the created child copy spec
      */
     fun into(destinationPath: String, action: Action<in OciCopySpec>): OciCopySpec
+
+    /**
+     * Inclusion and exclusion filters for source files added via [from].
+     */
+    val filter: PatternFilterable
+
+    /**
+     * Configure inclusion and exclusion filters for source files added via [from].
+     *
+     * @param action configuration action that can add or modify inclusion and exclusion filters.
+     */
+    fun filter(action: Action<PatternFilterable>)
 
     /**
      * Add a file renaming rule to the current copy spec.

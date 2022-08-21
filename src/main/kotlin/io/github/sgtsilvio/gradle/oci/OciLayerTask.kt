@@ -21,8 +21,10 @@ import java.util.zip.GZIPOutputStream
  */
 abstract class OciLayerTask : DefaultTask() {
 
+    private val _contents = project.objects.newInstance<OciCopySpecImpl>()
+
     @get:Nested
-    protected val rootCopySpec = project.objects.newInstance<OciCopySpecImpl>()
+    protected val copySpecInput = _contents.asInput(project.providers)
 
     @get:Internal
     val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
@@ -37,12 +39,13 @@ abstract class OciLayerTask : DefaultTask() {
     val diffIdFile = project.objects.fileProperty().convention(outputDirectory.file("layer.diffid"))
 
     @get:Internal
-    val contents: OciCopySpec get() = rootCopySpec
+    val contents: OciCopySpec get() = _contents
 
-    fun contents(action: Action<OciCopySpec>) = action.execute(rootCopySpec)
+    fun contents(action: Action<OciCopySpec>) = action.execute(_contents)
 
     @TaskAction
     protected fun run() {
+        val copySpecInput = copySpecInput.get()
         val tarFile = tarFile.get().asFile
         val digestFile = digestFile.get().asFile
         val diffIdFile = diffIdFile.get().asFile
@@ -54,7 +57,7 @@ abstract class OciLayerTask : DefaultTask() {
                         TarArchiveOutputStream(dos2, StandardCharsets.UTF_8.name()).use { tos ->
                             tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                             tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
-                            processCopySpec(rootCopySpec, object : OciCopySpecVisitor {
+                            processCopySpec(copySpecInput, object : OciCopySpecVisitor {
                                 override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
                                     tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
                                         setPermissions(fileMetadata.permissions)
