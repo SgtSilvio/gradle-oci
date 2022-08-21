@@ -27,7 +27,7 @@ private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder
     override fun addObject(block: JsonObjectStringBuilder.() -> Unit) {
         addCommaIfNecessary()
         stringBuilder.append('{')
-        block.invoke(this)
+        block(this)
         stringBuilder.append('}')
         needsComma = true
     }
@@ -35,7 +35,7 @@ private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder
     override fun addArray(block: JsonValueStringBuilder.() -> Unit) {
         addCommaIfNecessary()
         stringBuilder.append('[')
-        block.invoke(this)
+        block(this)
         stringBuilder.append(']')
         needsComma = true
     }

@@ -11,6 +11,10 @@ const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
 const val DEFAULT_USER_ID = 0L
 const val DEFAULT_GROUP_ID = 0L
 
+class OciCopySpecRoot {
+
+}
+
 fun processCopySpec(copySpec: OciCopySpecImpl, visitor: OciCopySpecVisitor) {
     val allFiles = HashMap<String, FileMetadata>()
     processCopySpec(
@@ -178,13 +182,13 @@ private inline fun rename(
     parentPath: String,
     fileName: String,
     patterns: List<Triple<GlobMatcher, Regex, String>>,
-    validation: (String, String) -> String,
+    validate: (String, String) -> String,
 ): String {
     var renamedFileName = fileName
     for (pattern in patterns) {
         if (pattern.first.matches(parentPath)) {
             val newRenamedFileName = pattern.second.replaceFirst(renamedFileName, pattern.third)
-            renamedFileName = validation.invoke(renamedFileName, newRenamedFileName)
+            renamedFileName = validate(renamedFileName, newRenamedFileName)
         }
     }
     return renamedFileName
@@ -238,7 +242,7 @@ private inline fun visitAllDirectories(parentPath: String, directoryPath: String
         var path = parentPath
         for (directoryName in directoryPath.split('/')) {
             path = "$path$directoryName/"
-            visitor.invoke(path)
+            visitor(path)
         }
     }
 }

@@ -84,12 +84,9 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return addChild({ it.into(destinationPath) }, action)
     }
 
-    private inline fun addChild(
-        initAction: (OciCopySpecImpl) -> Unit,
-        userAction: Action<in OciCopySpec>,
-    ): OciCopySpecImpl {
+    private inline fun addChild(init: (OciCopySpecImpl) -> Unit, userAction: Action<in OciCopySpec>): OciCopySpecImpl {
         val child = objectFactory.newInstance<OciCopySpecImpl>()
-        initAction.invoke(child) // invoke the action before adding the child as the action performs validations
+        init(child) // invoke the action before adding the child as the action performs validations
         children.add(child)
         userAction.execute(child)
         return child
