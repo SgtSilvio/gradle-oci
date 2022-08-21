@@ -248,9 +248,7 @@ abstract class OciLayerTask : DefaultTask() {
             val pathRegex = convertToRegex(pattern.first)
             convertedPatterns.add(
                 Triple(
-                    GlobMatcher("^$pathRegex$", destinationPath.length),
-                    Regex("^${pattern.second}$"),
-                    pattern.third
+                    GlobMatcher("^$pathRegex$", destinationPath.length), Regex("^${pattern.second}$"), pattern.third
                 )
             )
         }
@@ -363,91 +361,3 @@ abstract class OciLayerTask : DefaultTask() {
         fun visitDirectory(fileMetadata: FileMetadata)
     }
 }
-
-// permissions, userId, groupId
-// *        | file, file2                                        | ^[^/]$
-// */       | dir/, dir2/                                        | ^[^/]/$
-// test     | test                                               | ^test$
-// test/    | test/                                              | ^test/$
-// test/**  | test/, test/foo, test/bar, test/foo/, test/foo/bar | ^test/.*$
-// test/**/ | test/foo/, test/foo/bar/                           | ^test/.*/$
-
-// rename file (must not contain /)
-// .*        | bar    | foo | bar
-// .*        | $0.txt | foo | foo.txt
-// (.*)o(.*) | $1a$2  | foo | fao
-
-// rename dir (must contain / at the end, must NOT contain slashes between)
-
-
-// into("foo/bar") { => immutable, not renamed
-//     from("wab.txt")
-//     rename(".*", "$0.aso") => foo/bar/**/.*
-// }
-// rename("foo/", "bar/", "test/")
-//
-//
-//
-
-//private fun rename(
-//    destinationPath: String,
-//    directoryPath: String,
-//    fileName: String,
-//    renamePatterns: List<Triple<Pattern, Pattern, String>>
-//): Pair<String, String> {
-//    var completeDirectoryPath = "$destinationPath$directoryPath"
-//    var renamedFileName = fileName
-//    for (renamePattern in renamePatterns) {
-//        val matcher = renamePattern.first.matcher(completeDirectoryPath)
-//        while (matcher.find()) {
-//            val end = matcher.end()
-//            println(end)
-//            if (end < destinationPath.length) {
-//                println("1")
-//                continue
-//            }
-//            if (end < completeDirectoryPath.length) {
-//                println("2 " + completeDirectoryPath[end - 1])
-//                if (completeDirectoryPath[end - 1] == '/') {
-//                    println("2.2")
-//                    val nextSlash = completeDirectoryPath.indexOf('/', end)
-//                    val directoryName = completeDirectoryPath.substring(end, nextSlash + 1)
-//                    val renamedDirectoryName =
-//                        renamePattern.second.matcher(directoryName).replaceAll(renamePattern.third)
-//                    println(directoryName + " " + renamedDirectoryName)
-//                    // TODO check if no change
-//                    // TODO validation that still directory
-//                    completeDirectoryPath = completeDirectoryPath.substring(0, end) +
-//                            renamedDirectoryName +
-//                            completeDirectoryPath.substring(nextSlash + 1)
-//                }
-//                continue
-//            }
-//            println("3")
-//            renamedFileName = renamePattern.second.matcher(renamedFileName).replaceAll(renamePattern.third)
-//            // TODO validation that still the same (file or directory)
-//        }
-//    }
-//    return Pair(completeDirectoryPath, renamedFileName)
-//}
-//
-//fun main() {
-//    println(
-//        rename(
-//            "foo/",
-//            "foo/bar/",
-//            "wab",
-//            listOf(
-//                Triple(Pattern.compile('^' + convertToRegex("**/")), Pattern.compile("^.*$"), "$0.txt"),
-////                Triple(Pattern.compile('^' + convertToRegex("foo/foo/bar/")), Pattern.compile("^.*$"), "$0.txt"),
-//                Triple(Pattern.compile('^' + convertToRegex("**/")), Pattern.compile("^foo/$"), "ha/"),
-//                Triple(Pattern.compile('^' + convertToRegex("foo/")), Pattern.compile("^foo/$"), "ha/"),
-//            )
-//        )
-//    )
-////    val matcher = Pattern.compile("^(.*?/)?").matcher("abc/def/")
-//    val matcher = Pattern.compile("^(?=((.*/)?)).").matcher("abc/def/")
-//    while (matcher.find()) {
-//        println("${matcher.start()} ${matcher.end()}")
-//    }
-//}
