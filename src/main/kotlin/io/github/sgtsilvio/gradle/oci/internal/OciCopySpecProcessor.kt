@@ -11,19 +11,18 @@ const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
 const val DEFAULT_USER_ID = 0L
 const val DEFAULT_GROUP_ID = 0L
 
-fun processCopySpec(copySpec: OciCopySpecInput, visitor: OciCopySpecVisitor) {
+fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
     val allFiles = HashMap<String, FileMetadata>()
-    processCopySpec(
-        copySpec,
+    process(
         "",
         listOf(),
         listOf(),
-        copySpec.filePermissions.orNull ?: DEFAULT_FILE_PERMISSIONS,
-        copySpec.directoryPermissions.orNull ?: DEFAULT_DIRECTORY_PERMISSIONS,
+        filePermissions.orNull ?: DEFAULT_FILE_PERMISSIONS,
+        directoryPermissions.orNull ?: DEFAULT_DIRECTORY_PERMISSIONS,
         listOf(),
-        copySpec.userId.orNull ?: DEFAULT_USER_ID,
+        userId.orNull ?: DEFAULT_USER_ID,
         listOf(),
-        copySpec.groupId.orNull ?: DEFAULT_GROUP_ID,
+        groupId.orNull ?: DEFAULT_GROUP_ID,
         listOf(),
         object : OciCopySpecVisitor {
             override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
@@ -49,8 +48,7 @@ fun processCopySpec(copySpec: OciCopySpecInput, visitor: OciCopySpecVisitor) {
     allFiles.clear()
 }
 
-private fun processCopySpec(
-    copySpec: OciCopySpecInput,
+private fun OciCopySpecInput.process(
     parentDestinationPath: String,
     parentRenamePatterns: List<Triple<GlobMatcher, Regex, String>>,
     parentMovePatterns: List<Triple<GlobMatcher, Regex, String>>,
@@ -63,7 +61,7 @@ private fun processCopySpec(
     parentGroupIdPatterns: List<Pair<GlobMatcher, Long>>,
     visitor: OciCopySpecVisitor,
 ) {
-    val currentDestinationPath = copySpec.destinationPath.get()
+    val currentDestinationPath = destinationPath.get()
     visitAllDirectories(parentDestinationPath, currentDestinationPath) { path ->
         val fileMetadata = FileMetadata(
             path,
@@ -76,19 +74,18 @@ private fun processCopySpec(
     }
 
     val destinationPath = parentDestinationPath + currentDestinationPath.addDirectorySlash()
-    val renamePatterns = convertRenamePatterns(parentRenamePatterns, copySpec.renamePatterns.get(), destinationPath)
-    val movePatterns = convertRenamePatterns(parentMovePatterns, copySpec.movePatterns.get(), destinationPath)
-    val filePermissions = copySpec.filePermissions.orNull ?: parentFilePermissions
-    val directoryPermissions = copySpec.directoryPermissions.orNull ?: parentDirectoryPermissions
-    val permissionPatterns =
-        convertPatterns(parentPermissionPatterns, copySpec.permissionPatterns.get(), destinationPath)
-    val userId = copySpec.userId.orNull ?: parentUserId
-    val userIdPatterns = convertPatterns(parentUserIdPatterns, copySpec.userIdPatterns.get(), destinationPath)
-    val groupId = copySpec.groupId.orNull ?: parentGroupId
-    val groupIdPatterns = convertPatterns(parentGroupIdPatterns, copySpec.groupIdPatterns.get(), destinationPath)
+    val renamePatterns = convertRenamePatterns(parentRenamePatterns, renamePatterns.get(), destinationPath)
+    val movePatterns = convertRenamePatterns(parentMovePatterns, movePatterns.get(), destinationPath)
+    val filePermissions = filePermissions.orNull ?: parentFilePermissions
+    val directoryPermissions = directoryPermissions.orNull ?: parentDirectoryPermissions
+    val permissionPatterns = convertPatterns(parentPermissionPatterns, permissionPatterns.get(), destinationPath)
+    val userId = userId.orNull ?: parentUserId
+    val userIdPatterns = convertPatterns(parentUserIdPatterns, userIdPatterns.get(), destinationPath)
+    val groupId = groupId.orNull ?: parentGroupId
+    val groupIdPatterns = convertPatterns(parentGroupIdPatterns, groupIdPatterns.get(), destinationPath)
 
     val moveCache = HashMap<String, String>()
-    copySpec.sources.asFileTree.visit(object : ReproducibleFileVisitor {
+    sources.asFileTree.visit(object : ReproducibleFileVisitor {
         override fun visitDir(dirDetails: FileVisitDetails) {
             move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveCache) { path ->
                 val fileMetadata = FileMetadata(
@@ -131,9 +128,8 @@ private fun processCopySpec(
     })
     moveCache.clear()
 
-    for (child in copySpec.children) {
-        processCopySpec(
-            child,
+    for (child in children) {
+        child.process(
             destinationPath,
             renamePatterns,
             movePatterns,

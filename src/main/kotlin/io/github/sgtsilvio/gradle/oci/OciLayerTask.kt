@@ -57,7 +57,7 @@ abstract class OciLayerTask : DefaultTask() {
                         TarArchiveOutputStream(dos2, StandardCharsets.UTF_8.name()).use { tos ->
                             tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                             tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
-                            processCopySpec(copySpecInput, object : OciCopySpecVisitor {
+                            copySpecInput.process(object : OciCopySpecVisitor {
                                 override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
                                     tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
                                         setPermissions(fileMetadata.permissions)
