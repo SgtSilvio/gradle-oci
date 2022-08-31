@@ -79,6 +79,10 @@ abstract class OciLayerTask : DefaultTask() {
                                     })
                                     tos.closeArchiveEntry()
                                 }
+
+                                private fun TarArchiveEntry.setPermissions(permissions: Int) {
+                                    mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
+                                }
                             })
                         }
                         diffIdFile.writeText(formatSha256Digest(dos2.messageDigest.digest()))
@@ -87,9 +91,5 @@ abstract class OciLayerTask : DefaultTask() {
                 digestFile.writeText(formatSha256Digest(dos.messageDigest.digest()))
             }
         }
-    }
-
-    private fun TarArchiveEntry.setPermissions(permissions: Int) {
-        mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
     }
 }
