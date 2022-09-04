@@ -32,14 +32,14 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
     val groupIdPatterns = objectFactory.listProperty<Pair<String, Long>>()
     val children = LinkedList<OciCopySpecImpl>()
 
-    override fun from(source: Any): OciCopySpecImpl {
+    final override fun from(source: Any): OciCopySpecImpl {
         sources.from(source)
         return this
     }
 
-    override fun from(source: Any, action: Action<in OciCopySpec>) = addChild({ it.from(source) }, action)
+    final override fun from(source: Any, action: Action<in OciCopySpec>) = addChild({ it.from(source) }, action)
 
-    override fun into(destinationPath: String): OciCopySpecImpl {
+    final override fun into(destinationPath: String): OciCopySpecImpl {
         if (destinationPath.contains("//")) {
             throw IllegalArgumentException("destinationPath must not contain '//'")
         }
@@ -53,7 +53,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun into(destinationPath: String, action: Action<in OciCopySpec>) =
+    final override fun into(destinationPath: String, action: Action<in OciCopySpec>) =
         addChild({ it.into(destinationPath) }, action)
 
     private inline fun addChild(init: (OciCopySpecImpl) -> Unit, userAction: Action<in OciCopySpec>): OciCopySpecImpl {
@@ -64,9 +64,9 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return child
     }
 
-    override fun filter(action: Action<PatternFilterable>) = action.execute(filter)
+    final override fun filter(action: Action<PatternFilterable>) = action.execute(filter)
 
-    override fun rename(parentPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpecImpl {
+    final override fun rename(parentPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpecImpl {
         if (parentPathPattern.contains("//")) {
             throw IllegalArgumentException("parentPathPattern must not contain '//'")
         }
@@ -80,7 +80,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): OciCopySpec {
+    final override fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): OciCopySpec {
         if (parentPathPattern.contains("//")) {
             throw IllegalArgumentException("parentPathPattern must not contain '//'")
         }
@@ -94,7 +94,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun permissions(pathPattern: String, permissions: Int): OciCopySpecImpl {
+    final override fun permissions(pathPattern: String, permissions: Int): OciCopySpecImpl {
         if (pathPattern.contains("//")) {
             throw IllegalArgumentException("pathPattern must not contain '//'")
         }
@@ -105,7 +105,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun userId(pathPattern: String, userId: Long): OciCopySpecImpl {
+    final override fun userId(pathPattern: String, userId: Long): OciCopySpecImpl {
         if (pathPattern.contains("//")) {
             throw IllegalArgumentException("pathPattern must not contain '//'")
         }
@@ -116,7 +116,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return this
     }
 
-    override fun groupId(pathPattern: String, groupId: Long): OciCopySpecImpl {
+    final override fun groupId(pathPattern: String, groupId: Long): OciCopySpecImpl {
         if (pathPattern.contains("//")) {
             throw IllegalArgumentException("pathPattern must not contain '//'")
         }
