@@ -22,7 +22,7 @@ abstract class OciConfigTask : DefaultTask() {
     val author = project.objects.property<String>()
 
     @get:Nested
-    val platform = project.objects.newInstance(OciPlatform::class)
+    val platform = project.objects.newInstance<OciPlatform>()
 
     @get:Input
     @get:Optional
