@@ -1,8 +1,8 @@
 @Suppress("DSL_SCOPE_VIOLATION")
 plugins {
     `kotlin-dsl`
-    `maven-publish`
     alias(libs.plugins.plugin.publish)
+    alias(libs.plugins.defaults)
     alias(libs.plugins.metadata)
 }
 
@@ -30,7 +30,6 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
     }
-    withSourcesJar()
 }
 
 repositories {
