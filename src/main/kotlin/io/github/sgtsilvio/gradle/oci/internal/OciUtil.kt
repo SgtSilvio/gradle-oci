@@ -43,8 +43,8 @@ fun JsonValueStringBuilder.addOciManifestDescriptor(ociManifestDescriptor: OciMa
             // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
             platformObject.addKey("architecture").addValue(ociManifestDescriptor.platform.architecture.get())
             platformObject.addKey("os").addValue(ociManifestDescriptor.platform.os.get())
-            platformObject.addOptionalKeyAndArray("osFeatures", ociManifestDescriptor.platform.osFeatures.orNull)
-            platformObject.addOptionalKeyAndValue("osVersion", ociManifestDescriptor.platform.osVersion.orNull)
+            platformObject.addOptionalKeyAndArray("os.features", ociManifestDescriptor.platform.osFeatures.orNull)
+            platformObject.addOptionalKeyAndValue("os.version", ociManifestDescriptor.platform.osVersion.orNull)
             platformObject.addOptionalKeyAndValue("variant", ociManifestDescriptor.platform.variant.orNull)
         }
         descriptorObject.addKey("size").addValue(ociManifestDescriptor.size.get())
