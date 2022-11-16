@@ -37,7 +37,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.apache.commons:commons-compress:1.21")
+    implementation(libs.commons.compress)
     implementation("com.google.cloud.tools:jib-core:0.21.0")
 }
 
