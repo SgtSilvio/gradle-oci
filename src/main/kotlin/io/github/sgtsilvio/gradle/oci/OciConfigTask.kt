@@ -1,12 +1,15 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.internal.*
+import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.*
 import java.time.Instant
+import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
@@ -57,7 +60,7 @@ abstract class OciConfigTask : DefaultTask() {
     val stopSignal = project.objects.property<String>()
 
     @get:Nested
-    val layers = project.objects.listProperty<Layer>()
+    val layers = mutableListOf<Layer>()
 
     @get:Input
     @get:Optional
@@ -94,6 +97,15 @@ abstract class OciConfigTask : DefaultTask() {
         val comment: Property<String>
     }
 
+    @get:Inject
+    protected abstract val objectFactory: ObjectFactory
+
+    fun addLayer(action: Action<in Layer>) {
+        val layer = objectFactory.newInstance<Layer>()
+        layers.add(layer)
+        action.execute(layer)
+    }
+
     @TaskAction
     protected fun run() {
         val jsonStringBuilder = jsonStringBuilder()
@@ -115,7 +127,7 @@ abstract class OciConfigTask : DefaultTask() {
             }
             rootObject.addOptionalKeyAndValue("created", creationTime.orNull?.toString())
             rootObject.addKey("history").addArray { historyArray ->
-                layers.get().forEach { layer ->
+                layers.forEach { layer ->
                     historyArray.addObject { historyObject ->
                         // sorted for canonical json: author, comment, created, created_by, empty_layer
                         historyObject.addOptionalKeyAndValue("author", layer.author.orNull)
@@ -134,7 +146,7 @@ abstract class OciConfigTask : DefaultTask() {
             rootObject.addKey("rootfs").addObject { rootfsObject ->
                 // sorted for canonical json: diff_ids, type
                 rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
-                    layers.get().forEach { layer ->
+                    layers.forEach { layer ->
                         if (layer.diffId.isPresent) {
                             diffIdsArray.addValue(layer.diffId.get())
                         }

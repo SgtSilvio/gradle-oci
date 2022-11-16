@@ -1,12 +1,14 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.internal.*
+import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.*
-import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.mapProperty
 import org.gradle.kotlin.dsl.newInstance
+import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
@@ -17,7 +19,7 @@ abstract class OciManifestTask : DefaultTask() {
     val configDescriptor = project.objects.newInstance<OciDescriptor>()
 
     @get:Nested
-    val layerDescriptors = project.objects.listProperty<OciDescriptor>()
+    val layerDescriptors = mutableListOf<OciDescriptor>()
 
     @get:Input
     @get:Optional
@@ -32,6 +34,15 @@ abstract class OciManifestTask : DefaultTask() {
     @get:OutputFile
     val digestFile = project.objects.fileProperty().convention(outputDirectory.file("manifest.digest"))
 
+    @get:Inject
+    protected abstract val objectFactory: ObjectFactory
+
+    fun addLayerDescriptor(action: Action<in OciDescriptor>) {
+        val layerDescriptor = objectFactory.newInstance<OciDescriptor>()
+        layerDescriptors.add(layerDescriptor)
+        action.execute(layerDescriptor)
+    }
+
     @TaskAction
     protected fun run() {
         val jsonStringBuilder = jsonStringBuilder()
@@ -40,9 +51,7 @@ abstract class OciManifestTask : DefaultTask() {
             rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
             rootObject.addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
             rootObject.addKey("layers").addArray { layersObject ->
-                layerDescriptors.get().forEach {
-                    layersObject.addOciDescriptor(LAYER_MEDIA_TYPE, it)
-                }
+                layerDescriptors.forEach { layersObject.addOciDescriptor(LAYER_MEDIA_TYPE, it) }
             }
             rootObject.addKey("mediaType").addValue(MANIFEST_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addValue(2)

@@ -1,11 +1,14 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.internal.*
+import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.*
-import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.mapProperty
+import org.gradle.kotlin.dsl.newInstance
+import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
@@ -13,7 +16,7 @@ import org.gradle.kotlin.dsl.mapProperty
 abstract class OciIndexTask : DefaultTask() {
 
     @get:Nested
-    val manifestDescriptors = project.objects.listProperty<OciManifestDescriptor>()
+    val manifestDescriptors = mutableListOf<OciManifestDescriptor>()
 
     @get:Input
     @get:Optional
@@ -28,6 +31,15 @@ abstract class OciIndexTask : DefaultTask() {
     @get:OutputFile
     val digestFile = project.objects.fileProperty().convention(outputDirectory.file("index.digest"))
 
+    @get:Inject
+    protected abstract val objectFactory: ObjectFactory
+
+    fun addManifestDescriptor(action: Action<in OciManifestDescriptor>) {
+        val manifestDescriptor = objectFactory.newInstance<OciManifestDescriptor>()
+        manifestDescriptors.add(manifestDescriptor)
+        action.execute(manifestDescriptor)
+    }
+
     @TaskAction
     protected fun run() {
         val jsonStringBuilder = jsonStringBuilder()
@@ -35,7 +47,7 @@ abstract class OciIndexTask : DefaultTask() {
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
             rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
             rootObject.addKey("manifests").addArray { layersObject ->
-                manifestDescriptors.get().forEach { layersObject.addOciManifestDescriptor(it) }
+                manifestDescriptors.forEach { layersObject.addOciManifestDescriptor(it) }
             }
             rootObject.addKey("mediaType").addValue(INDEX_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addValue(2)
