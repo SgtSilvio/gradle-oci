@@ -54,10 +54,6 @@ abstract class OciConfigTask : DefaultTask() {
 
     @get:Input
     @get:Optional
-    val labels = project.objects.mapProperty<String, String>()
-
-    @get:Input
-    @get:Optional
     val stopSignal = project.objects.property<String>()
 
     @get:Input
@@ -66,6 +62,10 @@ abstract class OciConfigTask : DefaultTask() {
     @get:Nested
     @get:Optional
     val history = project.objects.listProperty<HistoryEntry>()
+
+    @get:Input
+    @get:Optional
+    val annotations = project.objects.mapProperty<String, String>()
 
     @get:Internal
     val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
@@ -111,7 +111,7 @@ abstract class OciConfigTask : DefaultTask() {
                 configObject.addOptionalKeyAndArray("Entrypoint", entryPoint.orNull)
                 configObject.addOptionalKeyAndArray("Env", environment.orNull?.map { "${it.key}=${it.value}" })
                 configObject.addOptionalKeyAndObject("ExposedPorts", ports.orNull)
-                configObject.addOptionalKeyAndObject("Labels", labels.orNull)
+                configObject.addOptionalKeyAndObject("Labels", annotations.orNull)
                 configObject.addOptionalKeyAndValue("StopSignal", stopSignal.orNull)
                 configObject.addOptionalKeyAndValue("User", user.orNull)
                 configObject.addOptionalKeyAndObject("Volumes", volumes.orNull)
