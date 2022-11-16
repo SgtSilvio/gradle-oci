@@ -100,6 +100,8 @@ abstract class OciConfigTask : DefaultTask() {
     @get:Inject
     protected abstract val objectFactory: ObjectFactory
 
+    fun platform(action: Action<in OciPlatform>) = action.execute(platform)
+
     fun addLayer(action: Action<in Layer>) {
         val layer = objectFactory.newInstance<Layer>()
         layers.add(layer)

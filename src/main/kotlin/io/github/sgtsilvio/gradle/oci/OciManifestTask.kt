@@ -37,6 +37,8 @@ abstract class OciManifestTask : DefaultTask() {
     @get:Inject
     protected abstract val objectFactory: ObjectFactory
 
+    fun configDescriptor(action: Action<in OciDescriptor>) = action.execute(configDescriptor)
+
     fun addLayerDescriptor(action: Action<in OciDescriptor>) {
         val layerDescriptor = objectFactory.newInstance<OciDescriptor>()
         layerDescriptors.add(layerDescriptor)
