@@ -69,7 +69,7 @@ interface OciCopySpec {
      *
      * @param action configuration action that can add or modify inclusion and exclusion filters.
      */
-    fun filter(action: Action<PatternFilterable>)
+    fun filter(action: Action<in PatternFilterable>)
 
     /**
      * Add a file renaming rule to the current copy spec.

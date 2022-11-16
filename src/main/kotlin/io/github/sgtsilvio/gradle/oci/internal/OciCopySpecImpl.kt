@@ -64,7 +64,7 @@ open class OciCopySpecImpl @Inject constructor(private val objectFactory: Object
         return child
     }
 
-    final override fun filter(action: Action<PatternFilterable>) = action.execute(filter)
+    final override fun filter(action: Action<in PatternFilterable>) = action.execute(filter)
 
     final override fun rename(parentPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpecImpl {
         if (parentPathPattern.contains("//")) {

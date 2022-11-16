@@ -41,7 +41,7 @@ abstract class OciLayerTask : DefaultTask() {
     @get:Internal
     val contents: OciCopySpec get() = _contents
 
-    fun contents(action: Action<OciCopySpec>) = action.execute(_contents)
+    fun contents(action: Action<in OciCopySpec>) = action.execute(_contents)
 
     @TaskAction
     protected fun run() {
