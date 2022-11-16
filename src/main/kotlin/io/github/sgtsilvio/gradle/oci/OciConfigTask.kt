@@ -56,12 +56,8 @@ abstract class OciConfigTask : DefaultTask() {
     @get:Optional
     val stopSignal = project.objects.property<String>()
 
-    @get:Input
-    val layerDiffIds = project.objects.listProperty<String>()
-
     @get:Nested
-    @get:Optional
-    val history = project.objects.listProperty<HistoryEntry>()
+    val layers = project.objects.listProperty<Layer>()
 
     @get:Input
     @get:Optional
@@ -76,7 +72,11 @@ abstract class OciConfigTask : DefaultTask() {
     @get:OutputFile
     val digestFile = project.objects.fileProperty().convention(outputDirectory.file("config.digest"))
 
-    interface HistoryEntry {
+    interface Layer {
+        @get:Input
+        @get:Optional
+        val diffId: Property<String>
+
         @get:Input
         @get:Optional
         val creationTime: Property<Instant>
@@ -92,10 +92,6 @@ abstract class OciConfigTask : DefaultTask() {
         @get:Input
         @get:Optional
         val comment: Property<String>
-
-        @get:Input
-        @get:Optional
-        val emptyLayer: Property<Boolean>
     }
 
     @TaskAction
@@ -118,20 +114,16 @@ abstract class OciConfigTask : DefaultTask() {
                 configObject.addOptionalKeyAndValue("WorkingDir", workingDirectory.orNull)
             }
             rootObject.addOptionalKeyAndValue("created", creationTime.orNull?.toString())
-            history.orNull?.takeIf { it.isNotEmpty() }?.let { history ->
-                rootObject.addKey("history").addArray { historyArray ->
-                    history.forEach { historyEntry ->
-                        historyArray.addObject { historyEntryObject ->
-                            // sorted for canonical json: author, comment, created, created_by, empty_layer
-                            historyEntryObject.addOptionalKeyAndValue("author", historyEntry.author.orNull)
-                            historyEntryObject.addOptionalKeyAndValue("comment", historyEntry.comment.orNull)
-                            historyEntryObject.addOptionalKeyAndValue(
-                                "created", historyEntry.creationTime.orNull?.toString()
-                            )
-                            historyEntryObject.addOptionalKeyAndValue("created_by", historyEntry.createdBy.orNull)
-                            if (historyEntry.emptyLayer.getOrElse(false)) {
-                                historyEntryObject.addKey("empty_layer").addValue(true)
-                            }
+            rootObject.addKey("history").addArray { historyArray ->
+                layers.get().forEach { layer ->
+                    historyArray.addObject { historyObject ->
+                        // sorted for canonical json: author, comment, created, created_by, empty_layer
+                        historyObject.addOptionalKeyAndValue("author", layer.author.orNull)
+                        historyObject.addOptionalKeyAndValue("comment", layer.comment.orNull)
+                        historyObject.addOptionalKeyAndValue("created", layer.creationTime.orNull?.toString())
+                        historyObject.addOptionalKeyAndValue("created_by", layer.createdBy.orNull)
+                        if (!layer.diffId.isPresent) {
+                            historyObject.addKey("empty_layer").addValue(true)
                         }
                     }
                 }
@@ -141,7 +133,13 @@ abstract class OciConfigTask : DefaultTask() {
             rootObject.addOptionalKeyAndValue("os.version", platform.osVersion.orNull)
             rootObject.addKey("rootfs").addObject { rootfsObject ->
                 // sorted for canonical json: diff_ids, type
-                rootfsObject.addKey("diff_ids").addArray(layerDiffIds.get())
+                rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
+                    layers.get().forEach { layer ->
+                        if (layer.diffId.isPresent) {
+                            diffIdsArray.addValue(layer.diffId.get())
+                        }
+                    }
+                }
                 rootfsObject.addKey("type").addValue("layers")
             }
             rootObject.addOptionalKeyAndValue("variant", platform.variant.orNull)
