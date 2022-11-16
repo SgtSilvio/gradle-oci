@@ -95,19 +95,19 @@ fun JsonObjectStringBuilder.addOptionalKeyAndValue(key: String, value: String?) 
 }
 
 fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, map: Map<String, String>?) {
-    if ((map != null) && map.isNotEmpty()) {
+    if (!map.isNullOrEmpty()) {
         addKey(key).addObject(map)
     }
 }
 
 fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, set: Set<String>?) {
-    if ((set != null) && set.isNotEmpty()) {
+    if (!set.isNullOrEmpty()) {
         addKey(key).addObject(set)
     }
 }
 
 fun JsonObjectStringBuilder.addOptionalKeyAndArray(key: String, list: List<String>?) {
-    if ((list != null) && list.isNotEmpty()) {
+    if (!list.isNullOrEmpty()) {
         addKey(key).addArray(list)
     }
 }
