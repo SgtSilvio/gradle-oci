@@ -47,7 +47,9 @@ abstract class OciIndexTask : DefaultTask() {
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
             rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
             rootObject.addKey("manifests").addArray { layersObject ->
-                manifestDescriptors.forEach { layersObject.addOciManifestDescriptor(it) }
+                for (manifestDescriptor in manifestDescriptors) {
+                    layersObject.addOciManifestDescriptor(manifestDescriptor)
+                }
             }
             rootObject.addKey("mediaType").addValue(INDEX_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addValue(2)

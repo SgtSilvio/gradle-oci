@@ -129,7 +129,7 @@ abstract class OciConfigTask : DefaultTask() {
             }
             rootObject.addOptionalKeyAndValue("created", creationTime.orNull?.toString())
             rootObject.addKey("history").addArray { historyArray ->
-                layers.forEach { layer ->
+                for (layer in layers) {
                     historyArray.addObject { historyObject ->
                         // sorted for canonical json: author, comment, created, created_by, empty_layer
                         historyObject.addOptionalKeyAndValue("author", layer.author.orNull)
@@ -148,7 +148,7 @@ abstract class OciConfigTask : DefaultTask() {
             rootObject.addKey("rootfs").addObject { rootfsObject ->
                 // sorted for canonical json: diff_ids, type
                 rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
-                    layers.forEach { layer ->
+                    for (layer in layers) {
                         if (layer.diffId.isPresent) {
                             diffIdsArray.addValue(layer.diffId.get())
                         }

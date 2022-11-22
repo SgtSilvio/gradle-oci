@@ -53,7 +53,9 @@ abstract class OciManifestTask : DefaultTask() {
             rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
             rootObject.addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
             rootObject.addKey("layers").addArray { layersObject ->
-                layerDescriptors.forEach { layersObject.addOciDescriptor(LAYER_MEDIA_TYPE, it) }
+                for (layerDescriptor in layerDescriptors) {
+                    layersObject.addOciDescriptor(LAYER_MEDIA_TYPE, layerDescriptor)
+                }
             }
             rootObject.addKey("mediaType").addValue(MANIFEST_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addValue(2)
