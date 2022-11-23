@@ -1,9 +1,11 @@
 [versions]
 commons-compress = "1.22"
+json = "20220924"
 junit-jupiter = "5.9.1"
 
 [libraries]
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
+json = { module = "org.json:json", version.ref = "json" }
 
 [plugins]
 plugin-publish = { id = "com.gradle.plugin-publish", version = "1.1.0" }

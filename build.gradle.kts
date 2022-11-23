@@ -37,6 +37,7 @@ repositories {
 
 dependencies {
     implementation(libs.commons.compress)
+    implementation(libs.json)
     implementation("com.google.cloud.tools:jib-core:0.21.0")
 }
 
