@@ -7,15 +7,27 @@ import java.time.Instant
 fun decodeComponent(string: String) = decodeComponent(JSONObject(string))
 
 private fun decodeComponent(jsonObject: JSONObject) = OciComponent(
-    decodeCapabilities(jsonObject.getJSONArray("capabilities")),
+    decodeCapabilities(jsonObject.opt("capabilities")),
     jsonObject.optString("prebuiltIndexDigest", null),
     decodeBundleOrPlatformBundles(jsonObject)
 )
 
-private fun decodeCapabilities(jsonArray: JSONArray): Set<OciComponent.Capability> =
-    jsonArray.mapTo(mutableSetOf(), ::decodeCapability)
+private fun decodeCapabilities(jsonArray: Any?): Set<OciComponent.Capability> {
+    if (jsonArray !is JSONArray) {
+        throw IllegalArgumentException("'capabilities' must be an array, but was '$jsonArray'")
+    }
+    return decodeCapabilities(jsonArray)
+}
 
-private fun decodeCapability(any: Any) = decodeCapability(any as JSONObject)
+private fun decodeCapabilities(jsonArray: JSONArray): Set<OciComponent.Capability> =
+    jsonArray.mapIndexedTo(mutableSetOf(), ::decodeCapability)
+
+private fun decodeCapability(index: Int, jsonObject: Any): OciComponent.Capability {
+    if (jsonObject !is JSONObject) {
+        throw IllegalArgumentException("'capabilities[$index]' must be an object, but was '$jsonObject'")
+    }
+    return decodeCapability(jsonObject)
+}
 
 private fun decodeCapability(jsonObject: JSONObject) = OciComponent.Capability(
     jsonObject.getString("group"),
@@ -23,19 +35,38 @@ private fun decodeCapability(jsonObject: JSONObject) = OciComponent.Capability(
 )
 
 private fun decodeBundleOrPlatformBundles(jsonObject: JSONObject) = if (jsonObject.has("bundle")) {
-    if (jsonObject.has("bundles")) {
-        throw IllegalStateException("must not contain both 'bundle' and 'platformBundles' keys") // TODO
+    if (jsonObject.has("platformBundles")) {
+        throw IllegalStateException("'bundle' and 'platformBundles' must not both be present")
     }
-    decodeBundle(jsonObject.getJSONObject("bundle"))
+    decodeBundle(jsonObject.opt("bundle"))
 } else {
-    OciComponent.PlatformBundles(
-        jsonObject.getJSONArray("platformBundles").associateBy(::decodePlatformKey, ::decodeBundleValue)
+    decodePlatformBundles(jsonObject.opt("platformBundles"))
+}
+
+private fun decodePlatformBundles(jsonArray: Any?): OciComponent.PlatformBundles {
+    if (jsonArray !is JSONArray) {
+        throw IllegalArgumentException("'platformBundles' must be an array, but was '$jsonArray'")
+    }
+    var index = 0
+    return OciComponent.PlatformBundles(jsonArray.associate { decodePlatformBundle(it, index++) })
+}
+
+private fun decodePlatformBundle(jsonObject: Any?, index: Int): Pair<OciComponent.Platform, OciComponent.Bundle> {
+    if (jsonObject !is JSONObject) {
+        throw IllegalArgumentException("'platformBundles[$index]' must be an object, but was '$jsonObject'")
+    }
+    return Pair(
+        decodePlatform(jsonObject.opt("platform")), // TODO error message misses platformBundles[$index]
+        decodeBundle(jsonObject.opt("bundle")), // TODO error message misses platformBundles[$index]
     )
 }
 
-private fun decodePlatformKey(any: Any) = decodePlatform((any as JSONObject).getJSONObject("platform"))
-
-private fun decodeBundleValue(any: Any) = decodeBundle((any as JSONObject).getJSONObject("bundle"))
+private fun decodePlatform(jsonObject: Any?): OciComponent.Platform {
+    if (jsonObject !is JSONObject) {
+        throw IllegalArgumentException("'platform' must be an object, but was '$jsonObject'")
+    }
+    return decodePlatform(jsonObject)
+}
 
 private fun decodePlatform(jsonObject: JSONObject) = OciComponent.Platform(
     jsonObject.getString("architecture"),
@@ -44,6 +75,13 @@ private fun decodePlatform(jsonObject: JSONObject) = OciComponent.Platform(
     jsonObject.optJSONArray("osFeatures")?.map { it as String } ?: listOf(),
     jsonObject.optString("variant", null),
 )
+
+private fun decodeBundle(jsonObject: Any?): OciComponent.Bundle {
+    if (jsonObject !is JSONObject) {
+        throw IllegalArgumentException("'bundle' must be an object, but was '$jsonObject'")
+    }
+    return decodeBundle(jsonObject)
+}
 
 private fun decodeBundle(jsonObject: JSONObject) = OciComponent.Bundle(
     jsonObject.optString("prebuiltManifestDigest", null),
