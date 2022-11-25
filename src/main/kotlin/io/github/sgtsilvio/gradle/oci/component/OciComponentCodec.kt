@@ -4,112 +4,68 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
-fun decodeComponent(string: String) = decodeComponent(JSONObject(string))
+fun decodeComponent(string: String) = JSONObject(string).decodeComponent()
 
-private fun decodeComponent(jsonObject: JSONObject) = OciComponent(
-    decodeCapabilities(jsonObject.opt("capabilities")),
-    jsonObject.optString("prebuiltIndexDigest", null),
-    decodeBundleOrPlatformBundles(jsonObject)
+private fun JSONObject.decodeComponent() = OciComponent(
+    key("capabilities") { arrayValue().decodeCapabilities() },
+    optionalKey("prebuiltIndexDigest") { stringValue() },
+    if (has("bundle")) {
+        if (has("platformBundles")) throw JsonException("'bundle|platformBundles'", "must not both be present")
+        key("bundle") { objectValue().decodeBundle() }
+    } else {
+        key("platformBundles") { arrayValue().decodePlatformBundles() }
+    },
 )
 
-private fun decodeCapabilities(jsonArray: Any?): Set<OciComponent.Capability> {
-    if (jsonArray !is JSONArray) {
-        throw IllegalArgumentException("'capabilities' must be an array, but was '$jsonArray'")
-    }
-    return decodeCapabilities(jsonArray)
-}
+private fun JSONArray.decodeCapabilities() = toSet { objectValue().decodeCapability() }
 
-private fun decodeCapabilities(jsonArray: JSONArray): Set<OciComponent.Capability> =
-    jsonArray.mapIndexedTo(mutableSetOf(), ::decodeCapability)
-
-private fun decodeCapability(index: Int, jsonObject: Any): OciComponent.Capability {
-    if (jsonObject !is JSONObject) {
-        throw IllegalArgumentException("'capabilities[$index]' must be an object, but was '$jsonObject'")
-    }
-    return decodeCapability(jsonObject)
-}
-
-private fun decodeCapability(jsonObject: JSONObject) = OciComponent.Capability(
-    jsonObject.getString("group"),
-    jsonObject.getString("name"),
+private fun JSONObject.decodeCapability() = OciComponent.Capability(
+    key("group") { stringValue() },
+    key("name") { stringValue() },
 )
 
-private fun decodeBundleOrPlatformBundles(jsonObject: JSONObject) = if (jsonObject.has("bundle")) {
-    if (jsonObject.has("platformBundles")) {
-        throw IllegalStateException("'bundle' and 'platformBundles' must not both be present")
+private fun JSONArray.decodePlatformBundles() = OciComponent.PlatformBundles(toMap {
+    objectValue().run {
+        Pair(
+            key("platform") { objectValue().decodePlatform() },
+            key("bundle") { objectValue().decodeBundle() },
+        )
     }
-    decodeBundle(jsonObject.opt("bundle"))
-} else {
-    decodePlatformBundles(jsonObject.opt("platformBundles"))
-}
+})
 
-private fun decodePlatformBundles(jsonArray: Any?): OciComponent.PlatformBundles {
-    if (jsonArray !is JSONArray) {
-        throw IllegalArgumentException("'platformBundles' must be an array, but was '$jsonArray'")
-    }
-    var index = 0
-    return OciComponent.PlatformBundles(jsonArray.associate { decodePlatformBundle(it, index++) })
-}
-
-private fun decodePlatformBundle(jsonObject: Any?, index: Int): Pair<OciComponent.Platform, OciComponent.Bundle> {
-    if (jsonObject !is JSONObject) {
-        throw IllegalArgumentException("'platformBundles[$index]' must be an object, but was '$jsonObject'")
-    }
-    return Pair(
-        decodePlatform(jsonObject.opt("platform")), // TODO error message misses platformBundles[$index]
-        decodeBundle(jsonObject.opt("bundle")), // TODO error message misses platformBundles[$index]
-    )
-}
-
-private fun decodePlatform(jsonObject: Any?): OciComponent.Platform {
-    if (jsonObject !is JSONObject) {
-        throw IllegalArgumentException("'platform' must be an object, but was '$jsonObject'")
-    }
-    return decodePlatform(jsonObject)
-}
-
-private fun decodePlatform(jsonObject: JSONObject) = OciComponent.Platform(
-    jsonObject.getString("architecture"),
-    jsonObject.getString("os"),
-    jsonObject.optString("osVersion", null),
-    jsonObject.optJSONArray("osFeatures")?.map { it as String } ?: listOf(),
-    jsonObject.optString("variant", null),
+private fun JSONObject.decodePlatform() = OciComponent.Platform(
+    key("architecture") { stringValue() },
+    key("os") { stringValue() },
+    optionalKey("osVersion") { stringValue() },
+    optionalKey("osFeatures") { arrayValue().toList { stringValue() } } ?: listOf(),
+    optionalKey("variant") { stringValue() },
 )
 
-private fun decodeBundle(jsonObject: Any?): OciComponent.Bundle {
-    if (jsonObject !is JSONObject) {
-        throw IllegalArgumentException("'bundle' must be an object, but was '$jsonObject'")
-    }
-    return decodeBundle(jsonObject)
-}
-
-private fun decodeBundle(jsonObject: JSONObject) = OciComponent.Bundle(
-    jsonObject.optString("prebuiltManifestDigest", null),
-    jsonObject.optString("prebuiltConfigDigest", null),
-    jsonObject.optString("creationTime", null)?.let(Instant::parse),
-    jsonObject.optString("author", null),
-    jsonObject.optString("user", null),
-    jsonObject.optJSONArray("ports")?.mapTo(mutableSetOf()) { it as String } ?: setOf(),
-    jsonObject.optJSONObject("environment")?.toMap()?.mapValues { it.value as String } ?: mapOf(),
-    jsonObject.optJSONArray("entryPoint")?.map { it as String },
-    jsonObject.optJSONArray("arguments")?.map { it as String },
-    jsonObject.optJSONArray("volumes")?.mapTo(mutableSetOf()) { it as String } ?: setOf(),
-    jsonObject.optString("workingDirectory", null),
-    jsonObject.optString("stopSignal", null),
-    jsonObject.optJSONObject("annotations")?.toMap()?.mapValues { it.value as String } ?: mapOf(),
-    jsonObject.optJSONArray("baseComponents")?.map { decodeCapabilities(it as JSONArray) } ?: listOf(),
-    jsonObject.getJSONArray("layers").map(::decodeLayer),
+private fun JSONObject.decodeBundle() = OciComponent.Bundle(
+    optionalKey("prebuiltManifestDigest") { stringValue() },
+    optionalKey("prebuiltConfigDigest") { stringValue() },
+    optionalKey("creationTime") { stringValue() }?.let(Instant::parse),
+    optionalKey("author") { stringValue() },
+    optionalKey("user") { stringValue() },
+    optionalKey("ports") { arrayValue().toSet { stringValue() } } ?: setOf(),
+    optionalKey("environment") { objectValue().toMap { stringValue() } } ?: mapOf(),
+    optionalKey("entryPoint") { arrayValue().toList { stringValue() } },
+    optionalKey("arguments") { arrayValue().toList { stringValue() } },
+    optionalKey("volumes") { arrayValue().toSet { stringValue() } } ?: setOf(),
+    optionalKey("workingDirectory") { stringValue() },
+    optionalKey("stopSignal") { stringValue() },
+    optionalKey("annotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
+    optionalKey("baseComponents") { arrayValue().toList { arrayValue().decodeCapabilities() } } ?: listOf(),
+    key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
 )
 
-private fun decodeLayer(any: Any) = decodeLayer(any as JSONObject)
-
-private fun decodeLayer(jsonObject: JSONObject) = OciComponent.Bundle.Layer(
-    jsonObject.getString("digest"),
-    jsonObject.getString("diffId"),
-    jsonObject.optString("creationTime", null)?.let(Instant::parse),
-    jsonObject.optString("author", null),
-    jsonObject.optString("createdBy", null),
-    jsonObject.optString("comment", null),
+private fun JSONObject.decodeLayer() = OciComponent.Bundle.Layer(
+    key("digest") { stringValue() },
+    key("diffId") { stringValue() },
+    optionalKey("creationTime") { stringValue() }?.let(Instant::parse),
+    optionalKey("author") { stringValue() },
+    optionalKey("createdBy") { stringValue() },
+    optionalKey("comment") { stringValue() },
 )
 
 fun encodeComponent(component: OciComponent) = JSONObject().apply {
@@ -203,6 +159,88 @@ private fun encodeLayer(layer: OciComponent.Bundle.Layer) = JSONObject().apply {
     put("createdBy", layer.createdBy)
     put("comment", layer.comment)
 }
+
+private fun Any.stringValue(): String {
+    if (this !is String) {
+        throw JsonException("", "must be a string, but is '$this'")
+    }
+    return this
+}
+
+private fun Any.objectValue(): JSONObject {
+    if (this !is JSONObject) {
+        throw JsonException("", "must be an object, but is '$this'")
+    }
+    return this
+}
+
+private fun Any.arrayValue(): JSONArray {
+    if (this !is JSONArray) {
+        throw JsonException("", "must be an array, but is '$this'")
+    }
+    return this
+}
+
+private fun <T> JSONObject.key(key: String, transformer: Any.() -> T): T {
+    val value = opt(key) ?: throw JsonException(key, "is required, but is missing")
+    try {
+        return transformer.invoke(value)
+    } catch (e: JsonException) {
+        throw JsonException(key, e)
+    }
+}
+
+private fun <T> JSONObject.optionalKey(key: String, transformer: Any.() -> T): T? {
+    val value = opt(key) ?: return null
+    try {
+        return transformer.invoke(value)
+    } catch (e: JsonException) {
+        throw JsonException(key, e)
+    }
+}
+
+private fun <T> JSONObject.toMap(transformer: Any.() -> T): Map<String, T> =
+    toMap().mapValues { transformer.invoke(it.value) }
+
+private inline fun <T> JSONArray.toList(transformer: Any.() -> T): List<T> {
+    var i = 0
+    try {
+        return map { transformer.invoke(it).also { i++ } }
+    } catch (e: JsonException) {
+        throw JsonException(i, e)
+    }
+}
+
+private inline fun <T> JSONArray.toSet(transformer: Any.() -> T): Set<T> {
+    var i = 0
+    try {
+        return mapTo(mutableSetOf()) { transformer.invoke(it).also { i++ } }
+    } catch (e: JsonException) {
+        throw JsonException(i, e)
+    }
+}
+
+private inline fun <K, V> JSONArray.toMap(transformer: Any.() -> Pair<K, V>): Map<K, V> {
+    var i = 0
+    try {
+        return associate { transformer.invoke(it).also { i++ } }
+    } catch (e: JsonException) {
+        throw JsonException(i, e)
+    }
+}
+
+private class JsonException(val path: String, val messageWithoutPath: String) :
+    RuntimeException(messageWithoutPath, null, false, false) {
+
+    override val message get() = "'$path' " + super.message
+
+    constructor(parentPath: String, e: JsonException) : this(combineJsonPaths(parentPath, e.path), e.messageWithoutPath)
+
+    constructor(arrayIndex: Int, e: JsonException) : this("[$arrayIndex]", e)
+}
+
+private fun combineJsonPaths(parentPath: String, path: String): String =
+    if (path.isEmpty()) parentPath else if (path.startsWith("[")) "$parentPath$path" else "$parentPath.$path"
 
 fun main() {
 //    val string = """
