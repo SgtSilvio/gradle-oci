@@ -229,14 +229,14 @@ private inline fun <K, V> JSONArray.toMap(transformer: Any.() -> Pair<K, V>): Ma
     }
 }
 
-private class JsonException(val path: String, val messageWithoutPath: String) :
+class JsonException internal constructor(private val path: String, private val messageWithoutPath: String) :
     RuntimeException(messageWithoutPath, null, false, false) {
 
     override val message get() = "'$path' " + super.message
 
-    constructor(parentPath: String, e: JsonException) : this(combineJsonPaths(parentPath, e.path), e.messageWithoutPath)
+    internal constructor(parentPath: String, e: JsonException) : this(combineJsonPaths(parentPath, e.path), e.messageWithoutPath)
 
-    constructor(arrayIndex: Int, e: JsonException) : this("[$arrayIndex]", e)
+    internal constructor(arrayIndex: Int, e: JsonException) : this("[$arrayIndex]", e)
 }
 
 private fun combineJsonPaths(parentPath: String, path: String): String =
