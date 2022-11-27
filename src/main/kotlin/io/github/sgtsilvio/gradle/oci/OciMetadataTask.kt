@@ -54,16 +54,21 @@ abstract class OciMetadataTask : DefaultTask() {
 
         fun resolvePlatforms() = bundleOrPlatformBundles.resolvePlatforms()
 
-        enum class State {
-            NONE, INITIALIZED, RESOLVING, RESOLVED
+        fun collectBundlesForPlatform(platform: OciComponent.Platform): List<OciComponent.Bundle> {
+            val result = linkedSetOf<Bundle>()
+            bundleOrPlatformBundles.collectBundlesForPlatform(platform, result)
+            return result.map { it.bundle }
         }
 
         sealed interface BundleOrPlatformBundles {
             fun resolvePlatforms(): PlatformSet
+            fun collectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>)
         }
 
         sealed class StatefulBundleOrPlatformBundles(protected val platforms: PlatformSet) : BundleOrPlatformBundles {
             private var state = State.NONE
+
+            private enum class State { NONE, INITIALIZED, RESOLVING, RESOLVED }
 
             fun init(components: Map<OciComponent.Capability, ResolvableOciComponent>) {
                 if (state != State.NONE) {
@@ -91,6 +96,18 @@ abstract class OciMetadataTask : DefaultTask() {
             }
 
             abstract fun doResolvePlatforms()
+
+            final override fun collectBundlesForPlatform(
+                platform: OciComponent.Platform,
+                result: LinkedHashSet<Bundle>,
+            ) {
+                if (state != State.RESOLVED) {
+                    throw IllegalStateException("collectBundlesForPlatform can not be called in state $state")
+                }
+                doCollectBundlesForPlatform(platform, result)
+            }
+
+            abstract fun doCollectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>)
         }
 
         class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
@@ -123,6 +140,15 @@ abstract class OciMetadataTask : DefaultTask() {
                     platforms.intersect(dependency.resolvePlatforms())
                 }
             }
+
+            override fun doCollectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>) {
+                if (this !in result) {
+                    for (dependency in dependencies) {
+                        dependency.collectBundlesForPlatform(platform, result)
+                    }
+                    result += this
+                }
+            }
         }
 
         class PlatformBundles(platformBundles: OciComponent.PlatformBundles) :
@@ -137,17 +163,24 @@ abstract class OciMetadataTask : DefaultTask() {
             }
 
             override fun getBundleForPlatforms(platforms: PlatformSet) =
-                if (platforms.count() == 1) map[platforms.first()] ?: UnresolvedBundle else this
+                if (platforms.count() == 1) getBundleForPlatform(platforms.first()) else this
 
             override fun doResolvePlatforms() {
                 for ((_, bundle) in map) {
                     platforms.unionise(bundle.resolvePlatforms())
                 }
             }
+
+            override fun doCollectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>) =
+                getBundleForPlatform(platform).collectBundlesForPlatform(platform, result)
+
+            private fun getBundleForPlatform(platform: OciComponent.Platform) = map[platform] ?: UnresolvedBundle
         }
 
         object UnresolvedBundle : BundleOrPlatformBundles {
             override fun resolvePlatforms() = PlatformSet(false)
+            override fun collectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>) =
+                throw IllegalStateException("unresolved dependency for platform $platform")
         }
     }
 
@@ -188,7 +221,12 @@ abstract class OciMetadataTask : DefaultTask() {
             }
         }
 
-        override fun iterator() = set.iterator()
+        override fun iterator(): Iterator<OciComponent.Platform> {
+            if (isInfinite) {
+                throw UnsupportedOperationException("iterating an infinite set is not possible")
+            }
+            return set.iterator()
+        }
     }
 
 //    private fun findPlatforms(
