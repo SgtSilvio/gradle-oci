@@ -1,6 +1,37 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-class ResolvableOciComponent(val component: OciComponent) {
+class OciComponentResolver {
+    private val components = mutableMapOf<OciComponent.Capability, ResolvableOciComponent>()
+    private var rootComponent: ResolvableOciComponent? = null
+
+    fun addComponent(component: OciComponent) {
+        val resolvableComponent = ResolvableOciComponent(component)
+        if (rootComponent == null) {
+            rootComponent = resolvableComponent
+        }
+        for (capability in component.capabilities) {
+            val prevComponent = components.put(capability, resolvableComponent)
+            if (prevComponent != null) {
+                throw IllegalStateException("$prevComponent and $component provide the same capability")
+            }
+        }
+    }
+
+    fun resolvePlatforms(): PlatformSet {
+        val rootComponent = rootComponent ?: throw IllegalStateException("at least one component is required")
+        for ((_, component) in components) {
+            component.init(components)
+        }
+        return rootComponent.resolvePlatforms()
+    }
+
+    fun collectBundlesForPlatform(platform: OciComponent.Platform): List<OciComponent.Bundle> {
+        val rootComponent = rootComponent ?: throw IllegalStateException("at least one component is required")
+        return rootComponent.collectBundlesForPlatform(platform)
+    }
+}
+
+private class ResolvableOciComponent(val component: OciComponent) {
     private val bundleOrPlatformBundles = when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> Bundle(bundleOrPlatformBundles, PlatformSet(true))
         is OciComponent.PlatformBundles -> PlatformBundles(bundleOrPlatformBundles)
@@ -31,12 +62,14 @@ class ResolvableOciComponent(val component: OciComponent) {
 
         private enum class State { NONE, INITIALIZED, RESOLVING, RESOLVED }
 
-        fun init(components: Map<OciComponent.Capability, ResolvableOciComponent>) {
-            if (state != State.NONE) {
-                throw IllegalStateException("init can not be called in state $state")
+        fun init(components: Map<OciComponent.Capability, ResolvableOciComponent>) = when (state) {
+            State.INITIALIZED -> Unit
+            State.NONE -> {
+                doInit(components)
+                state = State.INITIALIZED
             }
-            doInit(components)
-            state = State.INITIALIZED
+
+            else -> throw IllegalStateException("init can not be called in state $state")
         }
 
         abstract fun doInit(components: Map<OciComponent.Capability, ResolvableOciComponent>)

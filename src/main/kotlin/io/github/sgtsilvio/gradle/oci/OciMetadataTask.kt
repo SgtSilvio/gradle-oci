@@ -1,7 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.component.ResolvableOciComponent
+import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
 import io.github.sgtsilvio.gradle.oci.component.decodeComponent
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
@@ -20,24 +19,14 @@ abstract class OciMetadataTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val components = mutableMapOf<OciComponent.Capability, ResolvableOciComponent>()
-        var rootComponent: ResolvableOciComponent? = null
+        val ociComponentResolver = OciComponentResolver()
         for (file in componentFiles) {
-            val component = decodeComponent(file.readText())
-            val resolvableComponent = ResolvableOciComponent(component)
-            if (rootComponent == null) {
-                rootComponent = resolvableComponent
-            }
-            for (capability in component.capabilities) {
-                val prevComponent = components.put(capability, resolvableComponent)
-                if (prevComponent != null) {
-                    throw IllegalStateException("$prevComponent and $component provide the same capability")
-                }
-            }
+            ociComponentResolver.addComponent(decodeComponent(file.readText()))
         }
-        if (rootComponent == null) {
-            throw IllegalStateException("componentFiles must contains at least one component json file")
+        val platforms = ociComponentResolver.resolvePlatforms()
+        for (platform in platforms) {
+            val bundlesForPlatform = ociComponentResolver.collectBundlesForPlatform(platform)
+            // TODO
         }
-        // TODO
     }
 }
