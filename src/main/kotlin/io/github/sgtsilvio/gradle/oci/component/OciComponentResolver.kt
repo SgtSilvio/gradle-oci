@@ -20,7 +20,7 @@ class OciComponentResolver {
     fun resolvePlatforms(): PlatformSet {
         val rootComponent = rootComponent ?: throw IllegalStateException("at least one component is required")
         for ((_, component) in components) {
-            component.init(components)
+            component.init(this)
         }
         return rootComponent.resolvePlatforms()
     }
@@ -29,19 +29,26 @@ class OciComponentResolver {
         val rootComponent = rootComponent ?: throw IllegalStateException("at least one component is required")
         return rootComponent.collectBundlesForPlatform(platform)
     }
+
+    fun getComponent(capabilities: Set<OciComponent.Capability>): ResolvableOciComponent {
+        val component = components[capabilities.first()]
+            ?: throw IllegalStateException("component with capabilities $capabilities missing")
+        if (!component.component.capabilities.containsAll(capabilities)) {
+            throw IllegalStateException("component with capabilities ${component.component.capabilities} does not provide all required capabilities $capabilities")
+        }
+        return component
+    }
 }
 
-private class ResolvableOciComponent(val component: OciComponent) {
+class ResolvableOciComponent(val component: OciComponent) {
     private val bundleOrPlatformBundles = when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> Bundle(bundleOrPlatformBundles, PlatformSet(true))
         is OciComponent.PlatformBundles -> PlatformBundles(bundleOrPlatformBundles)
     }
 
-    fun init(components: Map<OciComponent.Capability, ResolvableOciComponent>) =
-        bundleOrPlatformBundles.init(components)
+    fun init(resolver: OciComponentResolver) = bundleOrPlatformBundles.init(resolver)
 
-    private fun getBundleForPlatforms(platforms: PlatformSet) =
-        bundleOrPlatformBundles.getBundleForPlatforms(platforms)
+    private fun getBundleForPlatforms(platforms: PlatformSet) = bundleOrPlatformBundles.getBundleForPlatforms(platforms)
 
     fun resolvePlatforms() = bundleOrPlatformBundles.resolvePlatforms()
 
@@ -62,17 +69,17 @@ private class ResolvableOciComponent(val component: OciComponent) {
 
         private enum class State { NONE, INITIALIZED, RESOLVING, RESOLVED }
 
-        fun init(components: Map<OciComponent.Capability, ResolvableOciComponent>) = when (state) {
+        fun init(resolver: OciComponentResolver) = when (state) {
             State.INITIALIZED -> Unit
             State.NONE -> {
-                doInit(components)
+                doInit(resolver)
                 state = State.INITIALIZED
             }
 
             else -> throw IllegalStateException("init can not be called in state $state")
         }
 
-        abstract fun doInit(components: Map<OciComponent.Capability, ResolvableOciComponent>)
+        abstract fun doInit(resolver: OciComponentResolver)
 
         abstract fun getBundleForPlatforms(platforms: PlatformSet): BundleOrPlatformBundles
 
@@ -108,23 +115,10 @@ private class ResolvableOciComponent(val component: OciComponent) {
         StatefulBundleOrPlatformBundles(platforms) {
         private val dependencies = mutableListOf<BundleOrPlatformBundles>()
 
-        override fun doInit(components: Map<OciComponent.Capability, ResolvableOciComponent>) {
+        override fun doInit(resolver: OciComponentResolver) {
             for (singleParentCapabilities in bundle.parentCapabilities) {
-                val parentComponent = getComponent(components, singleParentCapabilities)
-                dependencies += parentComponent.getBundleForPlatforms(platforms)
+                dependencies += resolver.getComponent(singleParentCapabilities).getBundleForPlatforms(platforms)
             }
-        }
-
-        private fun getComponent(
-            components: Map<OciComponent.Capability, ResolvableOciComponent>,
-            capabilities: Set<OciComponent.Capability>,
-        ): ResolvableOciComponent {
-            val component = components[capabilities.first()]
-                ?: throw IllegalStateException("component with capabilities $capabilities missing")
-            if (!component.component.capabilities.containsAll(capabilities)) {
-                throw IllegalStateException("component with capabilities ${component.component.capabilities} does not provide all required capabilities $capabilities")
-            }
-            return component
         }
 
         override fun getBundleForPlatforms(platforms: PlatformSet) = this
@@ -147,12 +141,11 @@ private class ResolvableOciComponent(val component: OciComponent) {
 
     private class PlatformBundles(platformBundles: OciComponent.PlatformBundles) :
         StatefulBundleOrPlatformBundles(PlatformSet(true)) {
-        private val map =
-            platformBundles.map.mapValues { (platform, bundle) -> Bundle(bundle, PlatformSet(platform)) }
+        private val map = platformBundles.map.mapValues { (platform, bundle) -> Bundle(bundle, PlatformSet(platform)) }
 
-        override fun doInit(components: Map<OciComponent.Capability, ResolvableOciComponent>) {
+        override fun doInit(resolver: OciComponentResolver) {
             for ((_, bundle) in map) {
-                bundle.init(components)
+                bundle.init(resolver)
             }
         }
 
