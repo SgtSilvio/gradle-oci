@@ -41,7 +41,7 @@ abstract class OciMetadataTask : DefaultTask() {
 //        val images = mutableMapOf<OciComponent.Platform, OciImage>() // TODO OciImage type
     }
 
-    private class ResolvableOciComponent(val component: OciComponent) {
+    class ResolvableOciComponent(val component: OciComponent) {
         private val bundleOrPlatformBundles = when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
             is OciComponent.Bundle -> Bundle(bundleOrPlatformBundles, PlatformSet(true))
             is OciComponent.PlatformBundles -> PlatformBundles(bundleOrPlatformBundles)
@@ -50,7 +50,8 @@ abstract class OciMetadataTask : DefaultTask() {
         fun init(components: Map<OciComponent.Capability, ResolvableOciComponent>) =
             bundleOrPlatformBundles.init(components)
 
-        fun getBundleForPlatforms(platforms: PlatformSet) = bundleOrPlatformBundles.getBundleForPlatforms(platforms)
+        private fun getBundleForPlatforms(platforms: PlatformSet) =
+            bundleOrPlatformBundles.getBundleForPlatforms(platforms)
 
         fun resolvePlatforms() = bundleOrPlatformBundles.resolvePlatforms()
 
@@ -60,12 +61,13 @@ abstract class OciMetadataTask : DefaultTask() {
             return result.map { it.bundle }
         }
 
-        sealed interface BundleOrPlatformBundles {
+        private sealed interface BundleOrPlatformBundles {
             fun resolvePlatforms(): PlatformSet
             fun collectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>)
         }
 
-        sealed class StatefulBundleOrPlatformBundles(protected val platforms: PlatformSet) : BundleOrPlatformBundles {
+        private sealed class StatefulBundleOrPlatformBundles(protected val platforms: PlatformSet) :
+            BundleOrPlatformBundles {
             private var state = State.NONE
 
             private enum class State { NONE, INITIALIZED, RESOLVING, RESOLVED }
@@ -110,7 +112,7 @@ abstract class OciMetadataTask : DefaultTask() {
             abstract fun doCollectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>)
         }
 
-        class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
+        private class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
             StatefulBundleOrPlatformBundles(platforms) {
             private val dependencies = mutableListOf<BundleOrPlatformBundles>()
 
@@ -151,7 +153,7 @@ abstract class OciMetadataTask : DefaultTask() {
             }
         }
 
-        class PlatformBundles(platformBundles: OciComponent.PlatformBundles) :
+        private class PlatformBundles(platformBundles: OciComponent.PlatformBundles) :
             StatefulBundleOrPlatformBundles(PlatformSet(true)) {
             private val map =
                 platformBundles.map.mapValues { (platform, bundle) -> Bundle(bundle, PlatformSet(platform)) }
@@ -177,7 +179,7 @@ abstract class OciMetadataTask : DefaultTask() {
             private fun getBundleForPlatform(platform: OciComponent.Platform) = map[platform] ?: UnresolvedBundle
         }
 
-        object UnresolvedBundle : BundleOrPlatformBundles {
+        private object UnresolvedBundle : BundleOrPlatformBundles {
             override fun resolvePlatforms() = PlatformSet(false)
             override fun collectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>) =
                 throw IllegalStateException("unresolved dependency for platform $platform")
