@@ -143,7 +143,7 @@ class OciComponentResolver {
         }
 
         private class PlatformBundles(platformBundles: OciComponent.PlatformBundles) :
-            StatefulBundleOrPlatformBundles(PlatformSet(true)) {
+            StatefulBundleOrPlatformBundles(PlatformSet(false)) {
             private val map =
                 platformBundles.map.mapValues { (platform, bundle) -> Bundle(bundle, PlatformSet(platform)) }
 
