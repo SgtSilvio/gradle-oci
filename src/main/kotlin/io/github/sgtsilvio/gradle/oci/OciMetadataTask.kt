@@ -163,7 +163,7 @@ abstract class OciMetadataTask : DefaultTask() {
             }
 
             override fun getBundleForPlatforms(platforms: PlatformSet) =
-                if (platforms.count() == 1) getBundleForPlatform(platforms.first()) else this
+                if (!platforms.isInfinite && platforms.count() == 1) getBundleForPlatform(platforms.first()) else this
 
             override fun doResolvePlatforms() {
                 for ((_, bundle) in map) {
