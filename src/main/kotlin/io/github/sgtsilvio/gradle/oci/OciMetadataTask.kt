@@ -37,8 +37,7 @@ abstract class OciMetadataTask : DefaultTask() {
         if (rootComponent == null) {
             throw IllegalStateException("componentFiles must contains at least one component json file")
         }
-//        val platforms = findPlatforms(rootComponent, components)
-//        val images = mutableMapOf<OciComponent.Platform, OciImage>() // TODO OciImage type
+        // TODO
     }
 
     class ResolvableOciComponent(val component: OciComponent) {
@@ -230,45 +229,4 @@ abstract class OciMetadataTask : DefaultTask() {
             return set.iterator()
         }
     }
-
-//    private fun findPlatforms(
-//        component: OciComponent,
-//        components: Map<OciComponent.Capability, OciComponent>,
-//    ): Set<OciComponent.Platform> {
-//        val platforms = mutableSetOf<OciComponent.Platform>()
-//        when (component.bundleOrPlatformBundles) {
-//            is OciComponent.Bundle -> {
-//
-//            }
-//            is OciComponent.PlatformBundles -> {
-//
-//            }
-//        }
-//        for (bundle in component.bundles) {
-//            when (val platform = bundle.platform) {
-//                null -> {
-//                    val baseImage = bundle.baseImage
-//                        ?: throw IllegalStateException("root component must contain defined platforms")
-//                    val baseOciComponent = components[baseImage]
-//                        ?: throw IllegalStateException("componentFiles must contain all referenced components")
-//                    platforms.addAll(findPlatforms(baseOciComponent, components))
-//                }
-//
-//                else -> {
-//                    var baseImage = bundle.baseImage
-//                    while (baseImage != null) {
-//                        val baseOciComponent = components[baseImage]
-//                            ?: throw IllegalStateException("componentFiles must contain all referenced components")
-//                        val baseBundle = baseOciComponent.bundles.find { it.platform == platform }
-//                            ?: throw IllegalStateException("base component must provide the same platform")
-//                        // TODO null platform is also allowed
-//                        // TODO maybe just don't add platform
-//                        baseImage = baseBundle.baseImage
-//                    }
-//                    platforms.add(platform)
-//                }
-//            }
-//        }
-//        return platforms
-//    }
 }
