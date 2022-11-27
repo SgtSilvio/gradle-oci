@@ -39,7 +39,7 @@ class OciComponentResolver {
         return component
     }
 
-    class ResolvableOciComponent(val component: OciComponent) {
+    private class ResolvableOciComponent(val component: OciComponent) {
         private val bundleOrPlatformBundles = when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
             is OciComponent.Bundle -> Bundle(bundleOrPlatformBundles, PlatformSet(true))
             is OciComponent.PlatformBundles -> PlatformBundles(bundleOrPlatformBundles)
@@ -79,7 +79,7 @@ class OciComponentResolver {
                 else -> throw IllegalStateException("init can not be called in state $state")
             }
 
-            abstract fun doInit(resolver: OciComponentResolver)
+            protected abstract fun doInit(resolver: OciComponentResolver)
 
             abstract fun getBundleForPlatforms(platforms: PlatformSet): BundleOrPlatformBundles
 
@@ -96,7 +96,7 @@ class OciComponentResolver {
                 else -> throw IllegalStateException("resolveAvailablePlatforms can not be called in state $state")
             }
 
-            abstract fun doResolvePlatforms()
+            protected abstract fun doResolvePlatforms()
 
             final override fun collectBundlesForPlatform(
                 platform: OciComponent.Platform,
@@ -108,7 +108,10 @@ class OciComponentResolver {
                 doCollectBundlesForPlatform(platform, result)
             }
 
-            abstract fun doCollectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>)
+            protected abstract fun doCollectBundlesForPlatform(
+                platform: OciComponent.Platform,
+                result: LinkedHashSet<Bundle>,
+            )
         }
 
         private class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
