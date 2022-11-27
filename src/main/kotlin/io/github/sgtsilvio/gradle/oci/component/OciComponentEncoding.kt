@@ -68,15 +68,15 @@ private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
     if (bundle.annotations.isNotEmpty()) {
         put("annotations", bundle.annotations)
     }
-    if (bundle.baseComponents.isNotEmpty()) {
-        put("baseComponents", encodeBaseComponents(bundle.baseComponents))
+    if (bundle.parentCapabilities.isNotEmpty()) {
+        put("parentCapabilities", encodeParentCapabilities(bundle.parentCapabilities))
     }
     put("layers", encodeLayers(bundle.layers))
 }
 
-private fun encodeBaseComponents(baseComponents: List<Set<OciComponent.Capability>>) = JSONArray().apply {
-    for (baseComponent in baseComponents) {
-        put(encodeCapabilities(baseComponent))
+private fun encodeParentCapabilities(parentCapabilities: List<Set<OciComponent.Capability>>) = JSONArray().apply {
+    for (singleParentCapabilities in parentCapabilities) {
+        put(encodeCapabilities(singleParentCapabilities))
     }
 }
 

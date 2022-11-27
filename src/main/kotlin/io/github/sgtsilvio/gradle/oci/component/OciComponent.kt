@@ -39,7 +39,7 @@ data class OciComponent(
         val workingDirectory: String?,
         val stopSignal: String?,
         val annotations: Map<String, String>,
-        val baseComponents: List<Set<Capability>>,
+        val parentCapabilities: List<Set<Capability>>,
         val layers: List<Layer>,
     ) : BundleOrPlatformBundles {
 

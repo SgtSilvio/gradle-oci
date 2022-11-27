@@ -56,7 +56,7 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     optionalKey("workingDirectory") { stringValue() },
     optionalKey("stopSignal") { stringValue() },
     optionalKey("annotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
-    optionalKey("baseComponents") { arrayValue().toList { arrayValue().decodeCapabilities() } } ?: listOf(),
+    optionalKey("parentCapabilities") { arrayValue().toList { arrayValue().decodeCapabilities() } } ?: listOf(),
     key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
 )
 
@@ -116,7 +116,7 @@ fun main() {
 //                        "hey": "ho",
 //                        "aso": "wabern"
 //                    },
-//                    "baseComponents": [
+//                    "parentCapabilities": [
 //                        [
 //                            {
 //                                "group": "org.example",
