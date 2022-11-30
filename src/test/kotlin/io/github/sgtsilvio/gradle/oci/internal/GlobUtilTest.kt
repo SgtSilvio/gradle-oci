@@ -1,12 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**
  * @author Silvio Giebl
  */
-class GlobUtilTest {
+internal class GlobUtilTest {
 
     @Test
     fun `convertToRegex single star`() {
