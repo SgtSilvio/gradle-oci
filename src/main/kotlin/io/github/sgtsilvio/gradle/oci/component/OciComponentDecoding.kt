@@ -61,8 +61,8 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
 )
 
 private fun JSONObject.decodeLayer() = OciComponent.Bundle.Layer(
-    key("digest") { stringValue() },
-    key("diffId") { stringValue() },
+    optionalKey("digest") { stringValue() },
+    optionalKey("diffId") { stringValue() },
     optionalKey("creationTime") { stringValue() }?.let(Instant::parse),
     optionalKey("author") { stringValue() },
     optionalKey("createdBy") { stringValue() },

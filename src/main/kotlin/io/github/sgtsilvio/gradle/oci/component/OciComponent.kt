@@ -44,8 +44,8 @@ data class OciComponent(
     ) : BundleOrPlatformBundles {
 
         data class Layer(
-            val digest: String,
-            val diffId: String,
+            val digest: String?,
+            val diffId: String?,
             val creationTime: Instant?,
             val author: String?,
             val createdBy: String?,
