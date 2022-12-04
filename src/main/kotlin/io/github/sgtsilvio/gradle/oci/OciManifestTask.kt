@@ -56,8 +56,8 @@ abstract class OciManifestTask : DefaultTask() {
                     layersObject.addOciDescriptor(LAYER_MEDIA_TYPE, layerDescriptor)
                 }
             }
-            rootObject.addKey("mediaType").addValue(MANIFEST_MEDIA_TYPE)
-            rootObject.addKey("schemaVersion").addValue(2)
+            rootObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
+            rootObject.addKey("schemaVersion").addNumber(2)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)

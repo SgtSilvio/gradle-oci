@@ -50,8 +50,8 @@ abstract class OciIndexTask : DefaultTask() {
                     layersObject.addOciManifestDescriptor(manifestDescriptor)
                 }
             }
-            rootObject.addKey("mediaType").addValue(INDEX_MEDIA_TYPE)
-            rootObject.addKey("schemaVersion").addValue(2)
+            rootObject.addKey("mediaType").addString(INDEX_MEDIA_TYPE)
+            rootObject.addKey("schemaVersion").addNumber(2)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)

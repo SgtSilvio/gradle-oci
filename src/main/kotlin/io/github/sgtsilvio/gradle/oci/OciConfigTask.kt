@@ -112,8 +112,8 @@ abstract class OciConfigTask : DefaultTask() {
     protected fun run() {
         val jsonBytes = jsonObject { rootObject ->
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
-            rootObject.addKey("architecture").addValue(platform.architecture.get())
-            rootObject.addOptionalKeyAndValue("author", author.orNull)
+            rootObject.addKey("architecture").addString(platform.architecture.get())
+            rootObject.addOptionalKeyAndString("author", author.orNull)
             rootObject.addKey("config").addObject { configObject ->
                 // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
                 configObject.addOptionalKeyAndArray("Cmd", arguments.orNull)
@@ -121,41 +121,41 @@ abstract class OciConfigTask : DefaultTask() {
                 configObject.addOptionalKeyAndArray("Env", environment.orNull?.map { "${it.key}=${it.value}" })
                 configObject.addOptionalKeyAndObject("ExposedPorts", ports.orNull)
                 configObject.addOptionalKeyAndObject("Labels", annotations.orNull)
-                configObject.addOptionalKeyAndValue("StopSignal", stopSignal.orNull)
-                configObject.addOptionalKeyAndValue("User", user.orNull)
+                configObject.addOptionalKeyAndString("StopSignal", stopSignal.orNull)
+                configObject.addOptionalKeyAndString("User", user.orNull)
                 configObject.addOptionalKeyAndObject("Volumes", volumes.orNull)
-                configObject.addOptionalKeyAndValue("WorkingDir", workingDirectory.orNull)
+                configObject.addOptionalKeyAndString("WorkingDir", workingDirectory.orNull)
             }
-            rootObject.addOptionalKeyAndValue("created", creationTime.orNull?.toString())
+            rootObject.addOptionalKeyAndString("created", creationTime.orNull?.toString())
             rootObject.addKey("history").addArray { historyArray ->
                 for (layer in layers) {
                     historyArray.addObject { historyObject ->
                         // sorted for canonical json: author, comment, created, created_by, empty_layer
-                        historyObject.addOptionalKeyAndValue("author", layer.author.orNull)
-                        historyObject.addOptionalKeyAndValue("comment", layer.comment.orNull)
-                        historyObject.addOptionalKeyAndValue("created", layer.creationTime.orNull?.toString())
-                        historyObject.addOptionalKeyAndValue("created_by", layer.createdBy.orNull)
+                        historyObject.addOptionalKeyAndString("author", layer.author.orNull)
+                        historyObject.addOptionalKeyAndString("comment", layer.comment.orNull)
+                        historyObject.addOptionalKeyAndString("created", layer.creationTime.orNull?.toString())
+                        historyObject.addOptionalKeyAndString("created_by", layer.createdBy.orNull)
                         if (!layer.diffId.isPresent) {
-                            historyObject.addKey("empty_layer").addValue(true)
+                            historyObject.addKey("empty_layer").addBoolean(true)
                         }
                     }
                 }
             }
-            rootObject.addKey("os").addValue(platform.os.get())
+            rootObject.addKey("os").addString(platform.os.get())
             rootObject.addOptionalKeyAndArray("os.features", platform.osFeatures.orNull)
-            rootObject.addOptionalKeyAndValue("os.version", platform.osVersion.orNull)
+            rootObject.addOptionalKeyAndString("os.version", platform.osVersion.orNull)
             rootObject.addKey("rootfs").addObject { rootfsObject ->
                 // sorted for canonical json: diff_ids, type
                 rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
                     for (layer in layers) {
                         if (layer.diffId.isPresent) {
-                            diffIdsArray.addValue(layer.diffId.get())
+                            diffIdsArray.addString(layer.diffId.get())
                         }
                     }
                 }
-                rootfsObject.addKey("type").addValue("layers")
+                rootfsObject.addKey("type").addString("layers")
             }
-            rootObject.addOptionalKeyAndValue("variant", platform.variant.orNull)
+            rootObject.addOptionalKeyAndString("variant", platform.variant.orNull)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)

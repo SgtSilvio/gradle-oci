@@ -21,11 +21,11 @@ interface JsonValueStringBuilder {
 
     fun addArray(block: (JsonValueStringBuilder) -> Unit)
 
-    fun addValue(value: String)
+    fun addString(value: String)
 
-    fun addValue(value: Long)
+    fun addNumber(value: Long)
 
-    fun addValue(value: Boolean)
+    fun addBoolean(value: Boolean)
 }
 
 private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBuilder {
@@ -50,25 +50,25 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
 
     override fun addKey(key: String): JsonValueStringBuilder {
         addCommaIfNecessary()
-        stringBuilder.append("\"${escape(key)}\":")
+        stringBuilder.append("\"").append(escape(key)).append("\":")
         return this
     }
 
-    override fun addValue(value: String) {
+    override fun addString(value: String) {
         addCommaIfNecessary()
-        stringBuilder.append("\"${escape(value)}\"")
+        stringBuilder.append("\"").append(escape(value)).append("\"")
         needsComma = true
     }
 
-    override fun addValue(value: Long) {
+    override fun addNumber(value: Long) {
         addCommaIfNecessary()
-        stringBuilder.append("$value")
+        stringBuilder.append(value.toString())
         needsComma = true
     }
 
-    override fun addValue(value: Boolean) {
+    override fun addBoolean(value: Boolean) {
         addCommaIfNecessary()
-        stringBuilder.append("$value")
+        stringBuilder.append(value.toString())
         needsComma = true
     }
 
@@ -85,7 +85,7 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
 }
 
 fun JsonValueStringBuilder.addObject(map: Map<String, String>) {
-    addObject { jsonObject -> map.toSortedMap().forEach { jsonObject.addKey(it.key).addValue(it.value) } }
+    addObject { jsonObject -> map.toSortedMap().forEach { jsonObject.addKey(it.key).addString(it.value) } }
 }
 
 fun JsonValueStringBuilder.addObject(set: Set<String>) {
@@ -93,12 +93,12 @@ fun JsonValueStringBuilder.addObject(set: Set<String>) {
 }
 
 fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) {
-    addArray { jsonArray -> iterable.forEach { jsonArray.addValue(it) } }
+    addArray { jsonArray -> iterable.forEach { jsonArray.addString(it) } }
 }
 
-fun JsonObjectStringBuilder.addOptionalKeyAndValue(key: String, value: String?) {
+fun JsonObjectStringBuilder.addOptionalKeyAndString(key: String, value: String?) {
     if (value != null) {
-        addKey(key).addValue(value)
+        addKey(key).addString(value)
     }
 }
 
