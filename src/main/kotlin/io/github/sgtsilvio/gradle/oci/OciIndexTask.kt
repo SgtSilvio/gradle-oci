@@ -42,8 +42,7 @@ abstract class OciIndexTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val jsonStringBuilder = jsonStringBuilder()
-        jsonStringBuilder.addObject { rootObject ->
+        val jsonBytes = jsonObject { rootObject ->
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
             rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
             rootObject.addKey("manifests").addArray { layersObject ->
@@ -53,8 +52,7 @@ abstract class OciIndexTask : DefaultTask() {
             }
             rootObject.addKey("mediaType").addValue(INDEX_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addValue(2)
-        }
-        val jsonBytes = jsonStringBuilder.toString().toByteArray()
+        }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)
         digestFile.get().asFile.writeText(calculateSha256Digest(jsonBytes))

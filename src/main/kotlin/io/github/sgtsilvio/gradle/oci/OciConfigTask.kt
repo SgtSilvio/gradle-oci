@@ -110,8 +110,7 @@ abstract class OciConfigTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val jsonStringBuilder = jsonStringBuilder()
-        jsonStringBuilder.addObject { rootObject ->
+        val jsonBytes = jsonObject { rootObject ->
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
             rootObject.addKey("architecture").addValue(platform.architecture.get())
             rootObject.addOptionalKeyAndValue("author", author.orNull)
@@ -157,8 +156,7 @@ abstract class OciConfigTask : DefaultTask() {
                 rootfsObject.addKey("type").addValue("layers")
             }
             rootObject.addOptionalKeyAndValue("variant", platform.variant.orNull)
-        }
-        val jsonBytes = jsonStringBuilder.toString().toByteArray()
+        }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)
         digestFile.get().asFile.writeText(calculateSha256Digest(jsonBytes))

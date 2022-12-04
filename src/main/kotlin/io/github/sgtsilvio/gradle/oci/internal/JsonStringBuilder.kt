@@ -1,18 +1,26 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-fun jsonStringBuilder(): JsonStringBuilder = JsonStringBuilderImpl()
+fun jsonObject(block: (JsonObjectStringBuilder) -> Unit): String {
+    val builder = JsonStringBuilderImpl()
+    builder.addObject(block)
+    return builder.toString()
+}
 
-interface JsonStringBuilder {
-    fun addObject(block: (JsonObjectStringBuilder) -> Unit)
-
-    fun addArray(block: (JsonValueStringBuilder) -> Unit)
+fun jsonArray(block: (JsonValueStringBuilder) -> Unit): String {
+    val builder = JsonStringBuilderImpl()
+    builder.addArray(block)
+    return builder.toString()
 }
 
 interface JsonObjectStringBuilder {
     fun addKey(key: String): JsonValueStringBuilder
 }
 
-interface JsonValueStringBuilder : JsonStringBuilder {
+interface JsonValueStringBuilder {
+    fun addObject(block: (JsonObjectStringBuilder) -> Unit)
+
+    fun addArray(block: (JsonValueStringBuilder) -> Unit)
+
     fun addValue(value: String)
 
     fun addValue(value: Long)
@@ -20,7 +28,7 @@ interface JsonValueStringBuilder : JsonStringBuilder {
     fun addValue(value: Boolean)
 }
 
-private class JsonStringBuilderImpl : JsonStringBuilder, JsonObjectStringBuilder, JsonValueStringBuilder {
+private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBuilder {
     private val stringBuilder = StringBuilder()
     private var needsComma = false
 
