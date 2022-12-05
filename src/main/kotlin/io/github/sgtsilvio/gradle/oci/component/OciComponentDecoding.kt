@@ -61,8 +61,14 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
 )
 
 private fun JSONObject.decodeLayer() = OciComponent.Bundle.Layer(
-    optionalKey("digest") { stringValue() },
-    optionalKey("diffId") { stringValue() },
+    if (has("digest") || has("diffId") || has("size") || has("annotations")) {
+        OciComponent.Bundle.Layer.Descriptor(
+            key("digest") { stringValue() },
+            key("diffId") { stringValue() },
+            key("size") { longValue() },
+            optionalKey("annotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
+        )
+    } else null,
     optionalKey("creationTime") { stringValue() }?.let(Instant::parse),
     optionalKey("author") { stringValue() },
     optionalKey("createdBy") { stringValue() },
@@ -134,6 +140,7 @@ fun main() {
 //                        {
 //                            "digest": "sha256:456",
 //                            "diffId": "sha256:567",
+//                            "size": 456,
 //                            "creationTime": "${Instant.EPOCH}",
 //                            "author": "John Doe",
 //                            "createdBy": "hand",
@@ -141,7 +148,8 @@ fun main() {
 //                        },
 //                        {
 //                            "digest": "sha256:678",
-//                            "diffId": "sha256:789"
+//                            "diffId": "sha256:789",
+//                            "size": 678
 //                        }
 //                    ]
 //                }
@@ -155,7 +163,8 @@ fun main() {
 //                    "layers": [
 //                        {
 //                            "digest": "sha256:456",
-//                            "diffId": "sha256:567"
+//                            "diffId": "sha256:567",
+//                            "size": 456
 //                        }
 //                    ]
 //                }
@@ -175,7 +184,8 @@ fun main() {
             "layers": [
                 {
                     "digest": "sha256:456",
-                    "diffId": "sha256:567"
+                    "diffId": "sha256:567",
+                    "size": 456
                 }
             ]
         }

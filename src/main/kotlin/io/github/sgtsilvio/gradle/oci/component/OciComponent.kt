@@ -44,12 +44,19 @@ data class OciComponent(
     ) : BundleOrPlatformBundles {
 
         data class Layer(
-            val digest: String?,
-            val diffId: String?,
+            val descriptor: Descriptor?,
             val creationTime: Instant?,
             val author: String?,
             val createdBy: String?,
             val comment: String?,
-        )
+        ) {
+
+            data class Descriptor(
+                val digest: String,
+                val diffId: String,
+                val size: Long,
+                val annotations: Map<String, String>
+            )
+        }
     }
 }

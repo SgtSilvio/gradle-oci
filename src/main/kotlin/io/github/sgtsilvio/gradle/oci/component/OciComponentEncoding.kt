@@ -52,7 +52,7 @@ private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
         put("ports", bundle.ports) // TODO sorted
     }
     if (bundle.environment.isNotEmpty()) {
-        put("environment", bundle.environment)
+        put("environment", bundle.environment) // TODO sorted
     }
     if (bundle.entryPoint != null) {
         put("entryPoint", bundle.entryPoint)
@@ -66,7 +66,7 @@ private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
     put("workingDirectory", bundle.workingDirectory)
     put("stopSignal", bundle.stopSignal)
     if (bundle.annotations.isNotEmpty()) {
-        put("annotations", bundle.annotations)
+        put("annotations", bundle.annotations) // TODO sorted
     }
     if (bundle.parentCapabilities.isNotEmpty()) {
         put("parentCapabilities", encodeParentCapabilities(bundle.parentCapabilities))
@@ -87,8 +87,14 @@ private fun encodeLayers(layers: List<OciComponent.Bundle.Layer>) = JSONArray().
 }
 
 private fun encodeLayer(layer: OciComponent.Bundle.Layer) = JSONObject().apply {
-    put("digest", layer.digest)
-    put("diffId", layer.diffId)
+    if (layer.descriptor != null) {
+        put("digest", layer.descriptor.digest)
+        put("diffId", layer.descriptor.diffId)
+        put("size", layer.descriptor.size)
+        if (layer.descriptor.annotations.isNotEmpty()) {
+            put("annotations", layer.descriptor.annotations) // TODO sorted
+        }
+    }
     put("creationTime", layer.creationTime?.run { toString() })
     put("author", layer.author)
     put("createdBy", layer.createdBy)

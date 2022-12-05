@@ -3,25 +3,25 @@ package io.github.sgtsilvio.gradle.oci.internal
 import org.json.JSONArray
 import org.json.JSONObject
 
-fun Any.stringValue(): String {
-    if (this !is String) {
-        throw JsonException("", "must be a string, but is '$this'")
-    }
-    return this
+fun Any.objectValue() = when (this) {
+    is JSONObject -> this
+    else -> throw JsonException("", "must be an object, but is '$this'")
 }
 
-fun Any.objectValue(): JSONObject {
-    if (this !is JSONObject) {
-        throw JsonException("", "must be an object, but is '$this'")
-    }
-    return this
+fun Any.arrayValue() = when (this) {
+    is JSONArray -> this
+    else -> throw JsonException("", "must be an array, but is '$this'")
 }
 
-fun Any.arrayValue(): JSONArray {
-    if (this !is JSONArray) {
-        throw JsonException("", "must be an array, but is '$this'")
-    }
-    return this
+fun Any.stringValue() = when (this) {
+    is String -> this
+    else -> throw JsonException("", "must be a string, but is '$this'")
+}
+
+fun Any.longValue() = when (this) {
+    is Long -> this
+    is Int -> this.toLong()
+    else -> throw JsonException("", "must be a long, but is '$this'")
 }
 
 inline fun <T> JSONObject.key(key: String, transformer: Any.() -> T): T {
