@@ -41,7 +41,7 @@ abstract class OciMetadataTask : DefaultTask() {
             fun writeDataDescriptor(dataDescriptor: OciComponent.DataDescriptor) {
                 fos.write(dataDescriptor.digest.toByteArray())
                 fos.write(' '.toInt())
-                fos.write(dataDescriptor.data.size)
+                fos.write(dataDescriptor.size.toString().toByteArray())
                 fos.write(' '.toInt())
                 fos.write(dataDescriptor.data)
                 fos.write('\n'.toInt())
