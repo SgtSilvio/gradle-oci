@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import java.time.Instant
+import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
 
 /**
  * @author Silvio Giebl
@@ -52,11 +53,25 @@ data class OciComponent(
         ) {
 
             data class Descriptor(
-                val digest: String,
+                override val digest: String,
                 val diffId: String,
-                val size: Long,
-                val annotations: Map<String, String>
-            )
+                override val size: Long,
+                override val annotations: Map<String, String>,
+            ) : OciComponent.Descriptor
         }
+    }
+
+    interface Descriptor {
+        val digest: String
+        val size: Long
+        val annotations: Map<String, String>
+    }
+
+    class DataDescriptor(
+        val data: ByteArray,
+        override val annotations: Map<String, String>,
+    ): Descriptor {
+        override val digest = calculateSha256Digest(data)
+        override val size get() =  data.size.toLong()
     }
 }
