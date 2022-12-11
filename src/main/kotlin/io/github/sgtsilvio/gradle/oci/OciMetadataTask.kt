@@ -17,7 +17,7 @@ abstract class OciMetadataTask : DefaultTask() {
     val componentFiles = project.objects.fileCollection()
 
     @get:OutputFile
-    val digestToMetadataFile = project.objects.fileProperty()
+    val digestToMetadataPropertiesFile = project.objects.fileProperty()
 
     @TaskAction
     protected fun run() {
@@ -37,14 +37,9 @@ abstract class OciMetadataTask : DefaultTask() {
         }
         val index = createIndex(manifests)
 
-        digestToMetadataFile.get().asFile.outputStream().buffered().use { fos ->
+        digestToMetadataPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             fun writeDataDescriptor(dataDescriptor: OciComponent.DataDescriptor) {
-                fos.write(dataDescriptor.digest.toByteArray())
-                fos.write(' '.toInt())
-                fos.write(dataDescriptor.size.toString().toByteArray())
-                fos.write(' '.toInt())
-                fos.write(dataDescriptor.data)
-                fos.write('\n'.toInt())
+                writer.writeProperty(dataDescriptor.digest, String(dataDescriptor.data))
             }
             writeDataDescriptor(index)
             for ((_, manifest) in manifests) {

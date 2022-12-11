@@ -2,8 +2,7 @@ package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.decodeComponent
-import io.github.sgtsilvio.gradle.oci.internal.escapePropertiesKey
-import io.github.sgtsilvio.gradle.oci.internal.escapePropertiesValue
+import io.github.sgtsilvio.gradle.oci.internal.writeProperty
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
 
@@ -39,10 +38,7 @@ abstract class OciLayerDigestsTask : DefaultTask() {
         }
         digestToLayerPathPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             for ((digest, layerPath) in digestToLayerPath) {
-                writer.write(digest.escapePropertiesKey())
-                writer.write('='.toInt())
-                writer.write(layerPath.escapePropertiesValue())
-                writer.write('\n'.toInt())
+                writer.writeProperty(digest, layerPath)
             }
         }
     }
