@@ -66,6 +66,7 @@ interface OciExtension {
 
     interface ImageDefinition : UsableImage, Named {
         override val capabilities: SetProperty<Capability>
+        val indexAnnotations: MapProperty<String, String>
 
         fun allPlatforms(configuration: Action<in Bundle>)
 
@@ -88,11 +89,10 @@ interface OciExtension {
             val volumes: SetProperty<String>
             val workingDirectory: Property<String>
             val stopSignal: Property<String>
-            val annotations: MapProperty<String, String>
-//            val configDescriptorAnnotations: MapProperty<String, String>
-//            val manifestAnnotations: MapProperty<String, String>
-//            val manifestDescriptorAnnotations: MapProperty<String, String>
-//            val indexAnnotations: MapProperty<String, String>
+            val configAnnotations: MapProperty<String, String>
+            val configDescriptorAnnotations: MapProperty<String, String>
+            val manifestAnnotations: MapProperty<String, String>
+            val manifestDescriptorAnnotations: MapProperty<String, String>
 
             val layers: NamedDomainObjectList<Layer>
 
@@ -129,6 +129,7 @@ interface OciExtension {
                 val author: Property<String>
                 val createdBy: Property<String>
                 val comment: Property<String>
+                val descriptorAnnotations: MapProperty<String, String>
 
                 fun contents(configuration: Action<in OciCopySpec>)
 
