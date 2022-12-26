@@ -76,7 +76,7 @@ interface OciExtension {
         fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>)
 
         interface Bundle {
-            val baseImages: BaseImages
+            val parentImages: ParentImages
 
             val creationTime: Property<Instant>
             val author: Property<String>
@@ -96,11 +96,11 @@ interface OciExtension {
 
             val layers: NamedDomainObjectList<Layer>
 
+            fun parentImages(configuration: Action<in ParentImages>)
+
             fun layers(configuration: Action<in Layers>)
 
-            fun baseImages(configuration: Action<in BaseImages>)
-
-            interface BaseImages {
+            interface ParentImages {
                 fun add(dependency: ModuleDependency)
                 fun <D : ModuleDependency> add(dependency: D, configuration: Action<in D>)
                 fun add(dependencyProvider: Provider<out ModuleDependency>)
