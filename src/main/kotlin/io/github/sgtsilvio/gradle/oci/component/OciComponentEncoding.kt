@@ -55,10 +55,7 @@ private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
         put("environment", bundle.environment) // TODO sorted
     }
     if (bundle.command != null) {
-        if (bundle.command.entryPoint != null) {
-            put("entryPoint", bundle.command.entryPoint)
-        }
-        put("arguments", bundle.command.arguments)
+        put("command", encodeCommand(bundle.command))
     }
     if (bundle.volumes.isNotEmpty()) {
         put("volumes", bundle.volumes) // TODO sorted
@@ -72,6 +69,13 @@ private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
         put("parentCapabilities", encodeParentCapabilities(bundle.parentCapabilities))
     }
     put("layers", encodeLayers(bundle.layers))
+}
+
+private fun encodeCommand(command: OciComponent.Bundle.Command) = JSONObject().apply {
+    if (command.entryPoint != null) {
+        put("entryPoint", command.entryPoint)
+    }
+    put("arguments", command.arguments)
 }
 
 private fun encodeParentCapabilities(parentCapabilities: List<Set<OciComponent.Capability>>) = JSONArray().apply {

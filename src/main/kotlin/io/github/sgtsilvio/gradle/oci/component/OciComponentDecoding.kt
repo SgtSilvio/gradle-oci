@@ -50,7 +50,7 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     optionalKey("user") { stringValue() },
     optionalKey("ports") { arrayValue().toSet { stringValue() } } ?: setOf(),
     optionalKey("environment") { objectValue().toMap { stringValue() } } ?: mapOf(),
-    decodeCommand(),
+    optionalKey("command") { objectValue().decodeCommand() },
     optionalKey("volumes") { arrayValue().toSet { stringValue() } } ?: setOf(),
     optionalKey("workingDirectory") { stringValue() },
     optionalKey("stopSignal") { stringValue() },
@@ -59,15 +59,10 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
 )
 
-private fun JSONObject.decodeCommand(): OciComponent.Bundle.Command? {
-    val entryPoint = optionalKey("entryPoint") { arrayValue().toList { stringValue() } }
-    val arguments = optionalKey("arguments") { arrayValue().toList { stringValue() } }
-    return if (arguments != null) {
-        OciComponent.Bundle.Command(entryPoint, arguments)
-    } else if (entryPoint != null) {
-        throw JsonException("entryPoint", "must not be present if 'arguments' is not present")
-    } else null
-}
+private fun JSONObject.decodeCommand() = OciComponent.Bundle.Command(
+    optionalKey("entryPoint") { arrayValue().toList { stringValue() } },
+    key("arguments") { arrayValue().toList { stringValue() } },
+)
 
 private fun JSONObject.decodeLayer() = OciComponent.Bundle.Layer(
     if (has("digest") || has("diffId") || has("size") || has("annotations")) {
@@ -119,8 +114,10 @@ fun main() {
 //                        "HOME": "/",
 //                        "ENV": "test"
 //                    },
-//                    "entryPoint": ["bin/sh", "-c"],
-//                    "arguments": ["echo", "hello"],
+//                    "command": {
+//                        "entryPoint": ["bin/sh", "-c"],
+//                        "arguments": ["echo", "hello"]
+//                    },
 //                    "volumes": [
 //                        "/data",
 //                        "/log"
