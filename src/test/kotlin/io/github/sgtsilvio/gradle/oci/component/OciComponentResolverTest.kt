@@ -280,7 +280,6 @@ internal class OciComponentResolverTest {
             setOf(),
             mapOf(),
             null,
-            null,
             setOf(),
             null,
             null,

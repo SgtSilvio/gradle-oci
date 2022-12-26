@@ -34,8 +34,7 @@ data class OciComponent(
         val user: String?,
         val ports: Set<String>,
         val environment: Map<String, String>,
-        val entryPoint: List<String>?, // empty (no args) is different from null (not set)
-        val arguments: List<String>?, // empty (no args) is different from null (not set)
+        val command: Command?,
         val volumes: Set<String>,
         val workingDirectory: String?,
         val stopSignal: String?,
@@ -43,6 +42,11 @@ data class OciComponent(
         val parentCapabilities: List<Set<Capability>>,
         val layers: List<Layer>,
     ) : BundleOrPlatformBundles {
+
+        data class Command(
+            val entryPoint: List<String>?, // empty (no args) is different from null (not set, inherit)
+            val arguments: List<String> // default empty
+        )
 
         data class Layer(
             val descriptor: Descriptor?,

@@ -70,12 +70,11 @@ abstract class OciMetadataTask : DefaultTask() {
             }
             ports += bundle.ports
             environment += bundle.environment
-            if (bundle.entryPoint != null) {
-                entryPoint = bundle.entryPoint
-                arguments = listOf()
-            }
-            if (bundle.arguments != null) {
-                arguments = bundle.arguments
+            if (bundle.command != null) {
+                if (bundle.command.entryPoint != null) {
+                    entryPoint = bundle.command.entryPoint
+                }
+                arguments = bundle.command.arguments
             }
             volumes += bundle.volumes
             if (bundle.workingDirectory != null) {

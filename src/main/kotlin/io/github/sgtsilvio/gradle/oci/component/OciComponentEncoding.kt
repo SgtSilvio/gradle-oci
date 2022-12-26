@@ -54,11 +54,11 @@ private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
     if (bundle.environment.isNotEmpty()) {
         put("environment", bundle.environment) // TODO sorted
     }
-    if (bundle.entryPoint != null) {
-        put("entryPoint", bundle.entryPoint)
-    }
-    if (bundle.arguments != null) {
-        put("arguments", bundle.arguments)
+    if (bundle.command != null) {
+        if (bundle.command.entryPoint != null) {
+            put("entryPoint", bundle.command.entryPoint)
+        }
+        put("arguments", bundle.command.arguments)
     }
     if (bundle.volumes.isNotEmpty()) {
         put("volumes", bundle.volumes) // TODO sorted

@@ -11,7 +11,7 @@ private fun JSONObject.decodeComponent() = OciComponent(
     key("capabilities") { arrayValue().decodeCapabilities() },
     optionalKey("prebuiltIndexDigest") { stringValue() },
     if (has("bundle")) {
-        if (has("platformBundles")) throw JsonException("'bundle|platformBundles'", "must not both be present")
+        if (has("platformBundles")) throw JsonException("bundle|platformBundles", "must not both be present")
         key("bundle") { objectValue().decodeBundle() }
     } else {
         key("platformBundles") { arrayValue().decodePlatformBundles() }
@@ -50,8 +50,7 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     optionalKey("user") { stringValue() },
     optionalKey("ports") { arrayValue().toSet { stringValue() } } ?: setOf(),
     optionalKey("environment") { objectValue().toMap { stringValue() } } ?: mapOf(),
-    optionalKey("entryPoint") { arrayValue().toList { stringValue() } },
-    optionalKey("arguments") { arrayValue().toList { stringValue() } },
+    decodeCommand(),
     optionalKey("volumes") { arrayValue().toSet { stringValue() } } ?: setOf(),
     optionalKey("workingDirectory") { stringValue() },
     optionalKey("stopSignal") { stringValue() },
@@ -59,6 +58,16 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     optionalKey("parentCapabilities") { arrayValue().toList { arrayValue().decodeCapabilities() } } ?: listOf(),
     key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
 )
+
+private fun JSONObject.decodeCommand(): OciComponent.Bundle.Command? {
+    val entryPoint = optionalKey("entryPoint") { arrayValue().toList { stringValue() } }
+    val arguments = optionalKey("arguments") { arrayValue().toList { stringValue() } }
+    return if (arguments != null) {
+        OciComponent.Bundle.Command(entryPoint, arguments)
+    } else if (entryPoint != null) {
+        throw JsonException("entryPoint", "must not be present if 'arguments' is not present")
+    } else null
+}
 
 private fun JSONObject.decodeLayer() = OciComponent.Bundle.Layer(
     if (has("digest") || has("diffId") || has("size") || has("annotations")) {
