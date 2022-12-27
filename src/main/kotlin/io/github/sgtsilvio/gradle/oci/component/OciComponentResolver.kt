@@ -1,16 +1,17 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 class OciComponentResolver {
-    private val components = mutableMapOf<OciComponent.Capability, ResolvableOciComponent>()
-    private var rootComponent: ResolvableOciComponent? = null
+    private val resolvableComponents = mutableMapOf<OciComponent.Capability, ResolvableOciComponent>()
+    private var rootResolvableComponent: ResolvableOciComponent? = null
+    val rootComponent get() = getRootComponent().component
 
     fun addComponent(component: OciComponent) {
         val resolvableComponent = ResolvableOciComponent(component)
-        if (rootComponent == null) {
-            rootComponent = resolvableComponent
+        if (rootResolvableComponent == null) {
+            rootResolvableComponent = resolvableComponent
         }
         for (capability in component.capabilities) {
-            val prevComponent = components.put(capability, resolvableComponent)
+            val prevComponent = resolvableComponents.put(capability, resolvableComponent)
             if (prevComponent != null) {
                 throw IllegalStateException("$prevComponent and $component provide the same capability")
             }
@@ -18,20 +19,21 @@ class OciComponentResolver {
     }
 
     fun resolvePlatforms(): PlatformSet {
-        val rootComponent = rootComponent ?: throw IllegalStateException("at least one component is required")
-        for ((_, component) in components) {
+        val rootComponent = getRootComponent()
+        for ((_, component) in resolvableComponents) {
             component.init(this)
         }
         return rootComponent.resolvePlatforms()
     }
 
-    fun collectBundlesForPlatform(platform: OciComponent.Platform): List<OciComponent.Bundle> {
-        val rootComponent = rootComponent ?: throw IllegalStateException("at least one component is required")
-        return rootComponent.collectBundlesForPlatform(platform)
-    }
+    fun collectBundlesForPlatform(platform: OciComponent.Platform): List<OciComponent.Bundle> =
+        getRootComponent().collectBundlesForPlatform(platform)
+
+    private fun getRootComponent() =
+        rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
     private fun getComponent(capabilities: Set<OciComponent.Capability>): ResolvableOciComponent {
-        val component = components[capabilities.first()]
+        val component = resolvableComponents[capabilities.first()]
             ?: throw IllegalStateException("component with capabilities $capabilities missing")
         if (!component.component.capabilities.containsAll(capabilities)) {
             throw IllegalStateException("component with capabilities ${component.component.capabilities} does not provide all required capabilities $capabilities")

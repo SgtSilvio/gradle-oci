@@ -129,7 +129,7 @@ interface OciExtension {
                 val author: Property<String>
                 val createdBy: Property<String>
                 val comment: Property<String>
-                val descriptorAnnotations: MapProperty<String, String>
+                val annotations: MapProperty<String, String>
 
                 fun contents(configuration: Action<in OciCopySpec>)
 

@@ -35,7 +35,7 @@ abstract class OciMetadataTask : DefaultTask() {
             val manifest = createManifest(config, bundlesForPlatform)
             manifests.add(Pair(platform, manifest))
         }
-        val index = createIndex(manifests)
+        val index = createIndex(manifests, ociComponentResolver.rootComponent)
 
         digestToMetadataPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             fun writeDataDescriptor(dataDescriptor: OciComponent.DataDescriptor) {
@@ -64,6 +64,7 @@ abstract class OciMetadataTask : DefaultTask() {
         var workingDirectory: String? = null
         var stopSignal: String? = null
         val annotations = mutableMapOf<String, String>()
+        val descriptorAnnotations = mutableMapOf<String, String>()
         for (bundle in bundles) {
             if (bundle.user != null) {
                 user = bundle.user
@@ -83,7 +84,8 @@ abstract class OciMetadataTask : DefaultTask() {
             if (bundle.stopSignal != null) {
                 stopSignal = bundle.stopSignal
             }
-            annotations += bundle.annotations
+            annotations += bundle.configAnnotations
+            descriptorAnnotations += bundle.configDescriptorAnnotations
         }
 
         val data = jsonObject { rootObject ->
@@ -137,16 +139,23 @@ abstract class OciMetadataTask : DefaultTask() {
             }
             rootObject.addOptionalKeyAndString("variant", platform.variant)
         }.toByteArray()
-        return OciComponent.DataDescriptor(data, mapOf()) // TODO annotations
+        return OciComponent.DataDescriptor(data, descriptorAnnotations)
     }
 
     private fun createManifest(
         configDescriptor: OciComponent.Descriptor,
         bundles: List<OciComponent.Bundle>,
     ): OciComponent.DataDescriptor {
+        val annotations = mutableMapOf<String, String>()
+        val descriptorAnnotations = mutableMapOf<String, String>()
+        for (bundle in bundles) {
+            annotations += bundle.manifestAnnotations
+            descriptorAnnotations += bundle.manifestDescriptorAnnotations
+        }
+
         val data = jsonObject { rootObject ->
             // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-//            rootObject.addOptionalKeyAndObject("annotations", annotations) // TODO annotations
+            rootObject.addOptionalKeyAndObject("annotations", annotations)
             rootObject.addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
             rootObject.addKey("layers").addArray { layersObject ->
                 for (bundle in bundles) {
@@ -160,15 +169,16 @@ abstract class OciMetadataTask : DefaultTask() {
             rootObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addNumber(2)
         }.toByteArray()
-        return OciComponent.DataDescriptor(data, mapOf()) // TODO annotations
+        return OciComponent.DataDescriptor(data, descriptorAnnotations)
     }
 
     private fun createIndex(
-        manifestDescriptors: List<Pair<OciComponent.Platform, OciComponent.Descriptor>>
+        manifestDescriptors: List<Pair<OciComponent.Platform, OciComponent.Descriptor>>,
+        component: OciComponent,
     ): OciComponent.DataDescriptor {
         val data = jsonObject { rootObject ->
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
-//            rootObject.addOptionalKeyAndObject("annotations", annotations) // TODO annotations
+            rootObject.addOptionalKeyAndObject("annotations", component.indexAnnotations)
             rootObject.addKey("manifests").addArray { layersObject ->
                 for ((platform, descriptor) in manifestDescriptors) {
                     layersObject.addOciManifestDescriptor(descriptor, platform)

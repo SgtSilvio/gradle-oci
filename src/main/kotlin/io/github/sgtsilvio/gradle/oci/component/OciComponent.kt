@@ -10,6 +10,7 @@ data class OciComponent(
     val capabilities: Set<Capability>,
     val prebuiltIndexDigest: String?,
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
+    val indexAnnotations: Map<String, String>,
 ) {
 
     data class Capability(val group: String, val name: String)
@@ -38,7 +39,10 @@ data class OciComponent(
         val volumes: Set<String>,
         val workingDirectory: String?,
         val stopSignal: String?,
-        val annotations: Map<String, String>,
+        val configAnnotations: Map<String, String>,
+        val configDescriptorAnnotations: Map<String, String>,
+        val manifestAnnotations: Map<String, String>,
+        val manifestDescriptorAnnotations: Map<String, String>,
         val parentCapabilities: List<Set<Capability>>,
         val layers: List<Layer>,
     ) : BundleOrPlatformBundles {
@@ -74,8 +78,8 @@ data class OciComponent(
     class DataDescriptor(
         val data: ByteArray,
         override val annotations: Map<String, String>,
-    ): Descriptor {
+    ) : Descriptor {
         override val digest = calculateSha256Digest(data)
-        override val size get() =  data.size.toLong()
+        override val size get() = data.size.toLong()
     }
 }

@@ -16,6 +16,7 @@ private fun JSONObject.decodeComponent() = OciComponent(
     } else {
         key("platformBundles") { arrayValue().decodePlatformBundles() }
     },
+    optionalKey("indexAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
 )
 
 private fun JSONArray.decodeCapabilities() = toSet { objectValue().decodeCapability() }
@@ -54,7 +55,10 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     optionalKey("volumes") { arrayValue().toSet { stringValue() } } ?: setOf(),
     optionalKey("workingDirectory") { stringValue() },
     optionalKey("stopSignal") { stringValue() },
-    optionalKey("annotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
+    optionalKey("configAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
+    optionalKey("configDescriptorAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
+    optionalKey("manifestAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
+    optionalKey("manifestDescriptorAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
     optionalKey("parentCapabilities") { arrayValue().toList { arrayValue().decodeCapabilities() } } ?: listOf(),
     key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
 )
@@ -124,7 +128,19 @@ fun main() {
 //                    ],
 //                    "workingDirectory": "/home/example",
 //                    "stopSignal": "SIGKILL",
-//                    "annotations": {
+//                    "configAnnotations": {
+//                        "hey": "ho",
+//                        "aso": "wabern"
+//                    },
+//                    "configDescriptorAnnotations": {
+//                        "hey": "ho",
+//                        "aso": "wabern"
+//                    },
+//                    "manifestAnnotations": {
+//                        "hey": "ho",
+//                        "aso": "wabern"
+//                    },
+//                    "manifestDescriptorAnnotations": {
 //                        "hey": "ho",
 //                        "aso": "wabern"
 //                    },
@@ -150,7 +166,11 @@ fun main() {
 //                            "creationTime": "${Instant.EPOCH}",
 //                            "author": "John Doe",
 //                            "createdBy": "hand",
-//                            "comment": "ja"
+//                            "comment": "ja",
+//                            "annotations": {
+//                                "hey": "ho",
+//                                "aso": "wabern"
+//                            }
 //                        },
 //                        {
 //                            "digest": "sha256:678",
@@ -175,7 +195,11 @@ fun main() {
 //                    ]
 //                }
 //            }
-//        ]
+//        ],
+//        "indexAnnotations": {
+//            "hey": "ho",
+//            "aso": "wabern"
+//        }
 //    }
 //    """.trimIndent()
     val string = """

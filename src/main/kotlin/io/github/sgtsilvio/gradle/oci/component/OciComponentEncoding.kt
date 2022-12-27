@@ -10,6 +10,9 @@ fun encodeComponent(component: OciComponent) = JSONObject().apply {
         is OciComponent.Bundle -> put("bundle", encodeBundle(bundleOrPlatformBundles))
         is OciComponent.PlatformBundles -> put("platformBundles", encodePlatformBundles(bundleOrPlatformBundles))
     }
+    if (component.indexAnnotations.isNotEmpty()) {
+        put("indexAnnotations", component.indexAnnotations) // TODO sorted
+    }
 }
 
 private fun encodeCapabilities(capabilities: Set<OciComponent.Capability>) = JSONArray().apply {
@@ -62,8 +65,17 @@ private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
     }
     put("workingDirectory", bundle.workingDirectory)
     put("stopSignal", bundle.stopSignal)
-    if (bundle.annotations.isNotEmpty()) {
-        put("annotations", bundle.annotations) // TODO sorted
+    if (bundle.configAnnotations.isNotEmpty()) {
+        put("configAnnotations", bundle.configAnnotations) // TODO sorted
+    }
+    if (bundle.configDescriptorAnnotations.isNotEmpty()) {
+        put("configDescriptorAnnotations", bundle.configDescriptorAnnotations) // TODO sorted
+    }
+    if (bundle.manifestAnnotations.isNotEmpty()) {
+        put("manifestAnnotations", bundle.manifestAnnotations) // TODO sorted
+    }
+    if (bundle.manifestDescriptorAnnotations.isNotEmpty()) {
+        put("manifestDescriptorAnnotations", bundle.manifestDescriptorAnnotations) // TODO sorted
     }
     if (bundle.parentCapabilities.isNotEmpty()) {
         put("parentCapabilities", encodeParentCapabilities(bundle.parentCapabilities))
