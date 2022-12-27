@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
+import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import org.gradle.api.*
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
@@ -9,6 +10,7 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.*
 import org.gradle.api.specs.Spec
+import org.gradle.api.tasks.TaskProvider
 import java.net.URI
 import java.time.Instant
 
@@ -64,6 +66,8 @@ interface OciExtension {
     interface ImageDefinition : UsableImage, Named {
         override val capabilities: SetProperty<Capability>
         val indexAnnotations: MapProperty<String, String>
+
+        val component: Provider<OciComponent>
 
         fun allPlatforms(configuration: Action<in Bundle>)
 
@@ -128,12 +132,12 @@ interface OciExtension {
                 val author: Property<String>
                 val createdBy: Property<String>
                 val comment: Property<String>
-                val task: Provider<OciLayerTask>
+                val task: Provider<OciLayerTask> // no TaskProvider|NamedDomainObjectProvider because name/configure not possible if task is absent
                 val annotations: MapProperty<String, String>
 
-                fun contents(configuration: Action<in OciCopySpec>)
+                fun contents(configuration: Action<in OciCopySpec>) // registers new task if still null
 
-                fun contents(task: OciLayerTask)
+                fun contents(task: TaskProvider<OciLayerTask>) // throws UOE when contents have already been configured
             }
         }
     }
