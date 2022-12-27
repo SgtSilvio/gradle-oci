@@ -6,6 +6,7 @@ import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.capabilities.Capability
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.*
@@ -47,13 +48,8 @@ interface OciExtension {
         val osFeatures: List<String>
     }
 
-    interface Capability {
-        val group: String
-        val name: String
-    }
-
     interface Image {
-        val capabilities: Provider<Set<Capability>>
+        val capabilities: Set<Capability>
         val componentFiles: FileCollection
         val layerFiles: FileCollection
     }
@@ -64,10 +60,12 @@ interface OciExtension {
     }
 
     interface ImageDefinition : UsableImage, Named {
-        override val capabilities: SetProperty<Capability>
+        override val capabilities: Set<Capability>
         val indexAnnotations: MapProperty<String, String>
 
         val component: Provider<OciComponent>
+
+        fun capabilities(configuration: Action<in Capabilities>)
 
         fun allPlatforms(configuration: Action<in Bundle>)
 
@@ -76,6 +74,10 @@ interface OciExtension {
         fun addPlatform(platform: Platform, configuration: Action<in Bundle>)
 
         fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>)
+
+        interface Capabilities {
+            fun capability(group: String, name: String)
+        }
 
         interface Bundle {
             val parentImages: ParentImages
