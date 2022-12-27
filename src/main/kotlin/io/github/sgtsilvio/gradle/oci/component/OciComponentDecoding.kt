@@ -8,7 +8,7 @@ import java.time.Instant
 fun decodeComponent(string: String) = JSONObject(string).decodeComponent()
 
 private fun JSONObject.decodeComponent() = OciComponent(
-    key("capabilities") { arrayValue().decodeCapabilities() },
+    key("capabilities") { arrayValue().toSet { objectValue().decodeCapability() } },
     if (has("bundle")) {
         if (has("platformBundles")) throw JsonException("bundle|platformBundles", "must not both be present")
         key("bundle") { objectValue().decodeBundle() }
@@ -17,8 +17,6 @@ private fun JSONObject.decodeComponent() = OciComponent(
     },
     optionalKey("indexAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
 )
-
-private fun JSONArray.decodeCapabilities() = toSet { objectValue().decodeCapability() }
 
 private fun JSONObject.decodeCapability() = OciComponent.Capability(
     key("group") { stringValue() },
@@ -56,7 +54,7 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     optionalKey("configDescriptorAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
     optionalKey("manifestAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
     optionalKey("manifestDescriptorAnnotations") { objectValue().toMap { stringValue() } } ?: mapOf(),
-    optionalKey("parentCapabilities") { arrayValue().toList { arrayValue().decodeCapabilities() } } ?: listOf(),
+    optionalKey("parentCapabilities") { arrayValue().toList { objectValue().decodeCapability() } } ?: listOf(),
     key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
 )
 
@@ -139,18 +137,14 @@ fun main() {
 //                        "aso": "wabern"
 //                    },
 //                    "parentCapabilities": [
-//                        [
-//                            {
-//                                "group": "org.example",
-//                                "name": "base"
-//                            }
-//                        ],
-//                        [
-//                            {
-//                                "group": "org.example",
-//                                "name": "base2"
-//                            }
-//                        ]
+//                        {
+//                            "group": "org.example",
+//                            "name": "base"
+//                        },
+//                        {
+//                            "group": "org.example",
+//                            "name": "base2"
+//                        }
 //                    ],
 //                    "layers": [
 //                        {

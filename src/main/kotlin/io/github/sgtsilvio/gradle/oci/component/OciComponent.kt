@@ -40,7 +40,7 @@ data class OciComponent(
         val configDescriptorAnnotations: Map<String, String>,
         val manifestAnnotations: Map<String, String>,
         val manifestDescriptorAnnotations: Map<String, String>,
-        val parentCapabilities: List<Set<Capability>>,
+        val parentCapabilities: List<Capability>,
         val layers: List<Layer>,
     ) : BundleOrPlatformBundles {
 

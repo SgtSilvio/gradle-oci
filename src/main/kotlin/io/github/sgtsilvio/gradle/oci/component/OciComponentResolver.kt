@@ -32,14 +32,8 @@ class OciComponentResolver {
     private fun getRootComponent() =
         rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
-    private fun getComponent(capabilities: Set<OciComponent.Capability>): ResolvableOciComponent {
-        val component = resolvableComponents[capabilities.first()]
-            ?: throw IllegalStateException("component with capabilities $capabilities missing")
-        if (!component.component.capabilities.containsAll(capabilities)) {
-            throw IllegalStateException("component with capabilities ${component.component.capabilities} does not provide all required capabilities $capabilities")
-        }
-        return component
-    }
+    private fun getComponent(capability: OciComponent.Capability): ResolvableOciComponent =
+        resolvableComponents[capability] ?: throw IllegalStateException("component with capability $capability missing")
 
     private class ResolvableOciComponent(val component: OciComponent) {
         private val bundleOrPlatformBundles = when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
@@ -121,8 +115,8 @@ class OciComponentResolver {
             private val dependencies = mutableListOf<BundleOrPlatformBundles>()
 
             override fun doInit(resolver: OciComponentResolver) {
-                for (singleParentCapabilities in bundle.parentCapabilities) {
-                    dependencies += resolver.getComponent(singleParentCapabilities).getBundleForPlatforms(platforms)
+                for (parentCapability in bundle.parentCapabilities) {
+                    dependencies += resolver.getComponent(parentCapability).getBundleForPlatforms(platforms)
                 }
             }
 

@@ -87,9 +87,9 @@ private fun encodeCommand(command: OciComponent.Bundle.Command) = JSONObject().a
     put("arguments", command.arguments)
 }
 
-private fun encodeParentCapabilities(parentCapabilities: List<Set<OciComponent.Capability>>) = JSONArray().apply {
-    for (singleParentCapabilities in parentCapabilities) {
-        put(encodeCapabilities(singleParentCapabilities))
+private fun encodeParentCapabilities(parentCapabilities: List<OciComponent.Capability>) = JSONArray().apply {
+    for (parentCapability in parentCapabilities) {
+        put(encodeCapability(parentCapability))
     }
 }
 

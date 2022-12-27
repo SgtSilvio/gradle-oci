@@ -60,7 +60,7 @@ internal class OciComponentResolverTest {
             mapOf(),
         )
 
-        val bundle = createBundle("bundle", listOf(setOf(OciComponent.Capability("org.example", "base"))))
+        val bundle = createBundle("bundle", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
             setOf(OciComponent.Capability("org.example", "test")),
             bundle,
@@ -87,8 +87,8 @@ internal class OciComponentResolverTest {
             mapOf(),
         )
 
-        val bundleAmd64 = createBundle("bundleAmd64", listOf(setOf(OciComponent.Capability("org.example", "base"))))
-        val bundleArm64v8 = createBundle("bundleArm64v8", listOf(setOf(OciComponent.Capability("org.example", "base"))))
+        val bundleAmd64 = createBundle("bundleAmd64", listOf(OciComponent.Capability("org.example", "base")))
+        val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
             setOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(mapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
@@ -116,8 +116,8 @@ internal class OciComponentResolverTest {
             mapOf(),
         )
 
-        val bundleArm64v8 = createBundle("bundleArm64v8", listOf(setOf(OciComponent.Capability("org.example", "base"))))
-        val bundleArm32v7 = createBundle("bundleArm32v7", listOf(setOf(OciComponent.Capability("org.example", "base"))))
+        val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base")))
+        val bundleArm32v7 = createBundle("bundleArm32v7", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
             setOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(mapOf(arm64v8 to bundleArm64v8, arm32v7 to bundleArm32v7)),
@@ -143,7 +143,7 @@ internal class OciComponentResolverTest {
             mapOf(),
         )
 
-        val bundleArm64v8 = createBundle("bundleArm64v8", listOf(setOf(OciComponent.Capability("org.example", "base"))))
+        val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
             setOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(mapOf(arm64v8 to bundleArm64v8)),
@@ -175,9 +175,8 @@ internal class OciComponentResolverTest {
             mapOf(),
         )
 
-        val bundleAmd64 = createBundle("bundleAmd64", listOf(setOf(OciComponent.Capability("org.example", "base1"))))
-        val bundleArm64v8 =
-            createBundle("bundleArm64v8", listOf(setOf(OciComponent.Capability("org.example", "base2"))))
+        val bundleAmd64 = createBundle("bundleAmd64", listOf(OciComponent.Capability("org.example", "base1")))
+        val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base2")))
         val component = OciComponent(
             setOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(mapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
@@ -201,8 +200,8 @@ internal class OciComponentResolverTest {
         val bundle = createBundle(
             "bundle",
             listOf(
-                setOf(OciComponent.Capability("org.example", "base3")),
-                setOf(OciComponent.Capability("org.example", "base1"))
+                OciComponent.Capability("org.example", "base3"),
+                OciComponent.Capability("org.example", "base1"),
             ),
         )
         val component = OciComponent(
@@ -211,31 +210,30 @@ internal class OciComponentResolverTest {
             mapOf(),
         )
 
-        val base1Bundle = createBundle("base1Bundle", listOf(setOf(OciComponent.Capability("org.example", "base2"))))
+        val base1Bundle = createBundle("base1Bundle", listOf(OciComponent.Capability("org.example", "base2")))
         val base1Component = OciComponent(
             setOf(OciComponent.Capability("org.example", "base1")),
             base1Bundle,
             mapOf(),
         )
 
-        val base2BundleAmd64 =
-            createBundle("base2BundleAmd64", listOf(setOf(OciComponent.Capability("org.example", "base5"))))
+        val base2BundleAmd64 = createBundle("base2BundleAmd64", listOf(OciComponent.Capability("org.example", "base5")))
         val base2BundleArm64v8 =
-            createBundle("base2BundleArm64v8", listOf(setOf(OciComponent.Capability("org.example", "base5"))))
+            createBundle("base2BundleArm64v8", listOf(OciComponent.Capability("org.example", "base5")))
         val base2Component = OciComponent(
             setOf(OciComponent.Capability("org.example", "base2")),
             OciComponent.PlatformBundles(mapOf(amd64 to base2BundleAmd64, arm64v8 to base2BundleArm64v8)),
             mapOf(),
         )
 
-        val base3Bundle = createBundle("base3Bundle", listOf(setOf(OciComponent.Capability("org.example", "base4"))))
+        val base3Bundle = createBundle("base3Bundle", listOf(OciComponent.Capability("org.example", "base4")))
         val base3Component = OciComponent(
             setOf(OciComponent.Capability("org.example", "base3")),
             base3Bundle,
             mapOf(),
         )
 
-        val base4Bundle = createBundle("base4Bundle", listOf(setOf(OciComponent.Capability("org.example", "base5"))))
+        val base4Bundle = createBundle("base4Bundle", listOf(OciComponent.Capability("org.example", "base5")))
         val base4Component = OciComponent(
             setOf(OciComponent.Capability("org.example", "base4")),
             base4Bundle,
@@ -270,7 +268,7 @@ internal class OciComponentResolverTest {
         )
     }
 
-    private fun createBundle(name: String, parentCapabilities: List<Set<OciComponent.Capability>> = listOf()) =
+    private fun createBundle(name: String, parentCapabilities: List<OciComponent.Capability> = listOf()) =
         OciComponent.Bundle(
             null,
             name,
