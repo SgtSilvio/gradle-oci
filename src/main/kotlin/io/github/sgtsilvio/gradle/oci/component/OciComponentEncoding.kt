@@ -5,7 +5,6 @@ import org.json.JSONObject
 
 fun encodeComponent(component: OciComponent) = JSONObject().apply {
     put("capabilities", encodeCapabilities(component.capabilities))
-    put("prebuiltIndexDigest", component.prebuiltIndexDigest)
     when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> put("bundle", encodeBundle(bundleOrPlatformBundles))
         is OciComponent.PlatformBundles -> put("platformBundles", encodePlatformBundles(bundleOrPlatformBundles))
@@ -46,8 +45,6 @@ private fun encodePlatform(platform: OciComponent.Platform) = JSONObject().apply
 }
 
 private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {
-    put("prebuiltManifestDigest", bundle.prebuiltManifestDigest)
-    put("prebuiltConfigDigest", bundle.prebuiltConfigDigest)
     put("creationTime", bundle.creationTime?.run { toString() })
     put("author", bundle.author)
     put("user", bundle.user)

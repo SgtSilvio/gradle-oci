@@ -9,7 +9,6 @@ fun decodeComponent(string: String) = JSONObject(string).decodeComponent()
 
 private fun JSONObject.decodeComponent() = OciComponent(
     key("capabilities") { arrayValue().decodeCapabilities() },
-    optionalKey("prebuiltIndexDigest") { stringValue() },
     if (has("bundle")) {
         if (has("platformBundles")) throw JsonException("bundle|platformBundles", "must not both be present")
         key("bundle") { objectValue().decodeBundle() }
@@ -44,8 +43,6 @@ private fun JSONObject.decodePlatform() = OciComponent.Platform(
 )
 
 private fun JSONObject.decodeBundle() = OciComponent.Bundle(
-    optionalKey("prebuiltManifestDigest") { stringValue() },
-    optionalKey("prebuiltConfigDigest") { stringValue() },
     optionalKey("creationTime") { stringValue() }?.let(Instant::parse),
     optionalKey("author") { stringValue() },
     optionalKey("user") { stringValue() },
@@ -96,7 +93,6 @@ fun main() {
 //                "name": "test"
 //            }
 //        ],
-//        "prebuiltIndexDigest": "sha256:123",
 //        "platformBundles": [
 //            {
 //                "platform": {
@@ -105,8 +101,6 @@ fun main() {
 //                    "variant": "v8"
 //                },
 //                "bundle": {
-//                    "prebuiltManifestDigest": "sha256:234",
-//                    "prebuiltConfigDigest": "sha256:345",
 //                    "creationTime": "${Instant.EPOCH}",
 //                    "author": "John Doe",
 //                    "user": "example",

@@ -1,14 +1,13 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import java.time.Instant
 import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
+import java.time.Instant
 
 /**
  * @author Silvio Giebl
  */
 data class OciComponent(
     val capabilities: Set<Capability>,
-    val prebuiltIndexDigest: String?,
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
     val indexAnnotations: Map<String, String>,
 ) {
@@ -28,8 +27,6 @@ data class OciComponent(
     )
 
     data class Bundle(
-        val prebuiltManifestDigest: String?,
-        val prebuiltConfigDigest: String?,
         val creationTime: Instant?,
         val author: String?,
         val user: String?,
