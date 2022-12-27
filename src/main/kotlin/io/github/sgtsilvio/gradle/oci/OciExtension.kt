@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import org.gradle.api.Action
-import org.gradle.api.Named
-import org.gradle.api.NamedDomainObjectContainer
-import org.gradle.api.NamedDomainObjectList
+import org.gradle.api.*
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
@@ -101,6 +98,8 @@ interface OciExtension {
             fun layers(configuration: Action<in Layers>)
 
             interface ParentImages {
+                val dependencies: DomainObjectSet<ModuleDependency>
+
                 fun add(dependency: ModuleDependency)
                 fun <D : ModuleDependency> add(dependency: D, configuration: Action<in D>)
                 fun add(dependencyProvider: Provider<out ModuleDependency>)
@@ -129,6 +128,7 @@ interface OciExtension {
                 val author: Property<String>
                 val createdBy: Property<String>
                 val comment: Property<String>
+                val task: Provider<OciLayerTask>
                 val annotations: MapProperty<String, String>
 
                 fun contents(configuration: Action<in OciCopySpec>)
