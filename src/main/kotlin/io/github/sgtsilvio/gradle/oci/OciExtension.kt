@@ -113,12 +113,11 @@ interface OciExtension {
 
                 fun module(dependencyNotation: CharSequence): ExternalModuleDependency
                 fun module(dependencyProvider: Provider<out MinimalExternalModuleDependency>): Provider<ExternalModuleDependency>
-                fun project(): ProjectDependency
-                fun project(projectPath: String): ProjectDependency
 
-                fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
-                fun add(dependencyNotation: CharSequence, configuration: Action<in ExternalModuleDependency>) =
-                    add(module(dependencyNotation), configuration)
+                fun add(dependencyNotation: CharSequence)
+                fun add(dependencyNotation: CharSequence, configuration: Action<in ExternalModuleDependency>)
+                fun add(project: Project)
+                fun add(project: Project, configuration: Action<in ProjectDependency>)
 
                 // FileCollection(Dependency) does not make sense as coordinates/capabilities are required
                 // bundle does not make sense as order is very important
