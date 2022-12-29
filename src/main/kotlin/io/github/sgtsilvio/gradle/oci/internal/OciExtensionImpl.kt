@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
+import io.github.sgtsilvio.gradle.oci.OciComponentTask
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciExtension
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
@@ -50,12 +51,20 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         private val name: String,
         private val objectFactory: ObjectFactory,
         configurationContainer: ConfigurationContainer,
+        taskContainer: TaskContainer,
+        projectLayout: ProjectLayout,
     ) : OciExtension.ImageDefinition {
+
         private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
         override val capabilities: Set<Capability> get() = imageConfiguration.outgoing.capabilities.toSet()
-//        override val component: Provider<OciComponent> = providerFactory.provider { createComponent }
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
         private var platformBundles: MutableMap<OciExtension.Platform, Bundle>? = null
+//        override val component: Provider<OciComponent> = providerFactory.provider { createComponent }
+        private val componentTask = createComponentTask(name, taskContainer, projectLayout)
+
+        init {
+            imageConfiguration.outgoing.artifact(componentTask)
+        }
 
         override fun getName() = name
 
@@ -124,6 +133,15 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
 
         private fun createConfigurationName(imageName: String) =
             if (imageName == "main") "ociImage" else "${imageName}OciImage"
+
+        private fun createComponentTask(imageName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
+            taskContainer.register<OciComponentTask>(createComponentTaskName(imageName)) {
+                component.set(this@ImageDefinition.component)
+                componentFile.set(projectLayout.buildDirectory.file("oci/$imageName/component.json"))
+            }
+
+        private fun createComponentTaskName(imageName: String) =
+            if (imageName == "main") "ociComponent" else "${imageName}OciComponent"
 
         abstract class Capabilities @Inject constructor(
             private val imageConfiguration: Configuration,
@@ -240,7 +258,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                     set(value) {
                         field = value
                         if (value != null) {
-                            imageConfiguration.outgoing.artifact(value)
+                            imageConfiguration.outgoing.artifact(value) // TODO order
                         }
                     }
 
