@@ -15,6 +15,7 @@ import org.gradle.api.capabilities.Capability
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
@@ -39,6 +40,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         osFeatures: List<String>,
     ) = Platform(os, architecture, variant, osVersion, osFeatures)
 
+
     data class Platform(
         override val os: String,
         override val architecture: String,
@@ -47,9 +49,11 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         override val osFeatures: List<String>,
     ) : OciExtension.Platform
 
+
     abstract class ImageDefinition @Inject constructor(
         private val name: String,
         private val objectFactory: ObjectFactory,
+        providerFactory: ProviderFactory,
         configurationContainer: ConfigurationContainer,
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
@@ -63,7 +67,16 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
         init {
+            registerArtifacts(providerFactory)
+        }
+
+        private fun registerArtifacts(providerFactory: ProviderFactory) {
             imageConfiguration.outgoing.artifact(componentTask)
+            imageConfiguration.outgoing.artifacts(providerFactory.provider {
+                val linkedSet = linkedSetOf<TaskProvider<OciLayerTask>>()
+                getBundleOrPlatformBundles().collectLayerTasks(linkedSet)
+                linkedSet
+            })
         }
 
         override fun getName() = name
@@ -143,6 +156,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         private fun createComponentTaskName(imageName: String) =
             if (imageName == "main") "ociComponent" else "${imageName}OciComponent"
 
+
         abstract class Capabilities @Inject constructor(
             private val imageConfiguration: Configuration,
         ) : OciExtension.ImageDefinition.Capabilities {
@@ -151,11 +165,15 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                 imageConfiguration.outgoing.capability("$group:$name:default")
         }
 
-        sealed interface BundleOrPlatformBundles
+
+        sealed interface BundleOrPlatformBundles {
+            fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>)
+        }
+
 
         abstract class Bundle @Inject constructor(
             private val imageName: String,
-            private val imageConfiguration: Configuration,
+            imageConfiguration: Configuration,
             private val objectFactory: ObjectFactory,
         ) : OciExtension.ImageDefinition.Bundle, BundleOrPlatformBundles {
 
@@ -170,7 +188,18 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                 configuration.execute(parentImages)
 
             override fun layers(configuration: Action<in OciExtension.ImageDefinition.Bundle.Layers>) =
-                configuration.execute(objectFactory.newInstance<Layers>(imageName, imageConfiguration, layers))
+                configuration.execute(objectFactory.newInstance<Layers>(imageName, layers))
+
+            override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {
+                for (layer in layers) {
+                    layer as Layer
+                    val task = layer.task
+                    if (task != null) {
+                        set.add(task)
+                    }
+                }
+            }
+
 
             abstract class ParentImages @Inject constructor(
                 private val imageConfiguration: Configuration,
@@ -232,35 +261,30 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                     add(project(project), configuration)
             }
 
+
             abstract class Layers @Inject constructor(
                 private val imageName: String,
-                private val imageConfiguration: Configuration,
                 private val layers: NamedDomainObjectList<OciExtension.ImageDefinition.Bundle.Layer>,
                 private val objectFactory: ObjectFactory,
             ) : OciExtension.ImageDefinition.Bundle.Layers {
 
                 override fun layer(name: String, configuration: Action<in OciExtension.ImageDefinition.Bundle.Layer>) {
-                    val layer = objectFactory.newInstance<Layer>(name, imageName, imageConfiguration)
+                    val layer = objectFactory.newInstance<Layer>(name, imageName)
                     layers.add(layer)
                     configuration.execute(layer)
                 }
             }
 
+
             abstract class Layer @Inject constructor(
                 private val name: String,
                 private val imageName: String,
-                private val imageConfiguration: Configuration,
                 private val taskContainer: TaskContainer,
                 private val projectLayout: ProjectLayout,
             ) : OciExtension.ImageDefinition.Bundle.Layer {
 
-                private var task: TaskProvider<OciLayerTask>? = null
-                    set(value) {
-                        field = value
-                        if (value != null) {
-                            imageConfiguration.outgoing.artifact(value) // TODO order
-                        }
-                    }
+                var task: TaskProvider<OciLayerTask>? = null
+                    private set
 
                 init {
                     createdBy.convention("gradle-oci: $name")
@@ -295,6 +319,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
             }
         }
 
+
         abstract class PlatformBundle @Inject constructor(
             imageName: String,
             imageConfiguration: Configuration,
@@ -302,6 +327,13 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
             objectFactory: ObjectFactory,
         ) : Bundle(imageName, imageConfiguration, objectFactory)
 
-        class PlatformBundles(val map: Map<OciExtension.Platform, Bundle>) : BundleOrPlatformBundles
+
+        class PlatformBundles(val map: Map<OciExtension.Platform, Bundle>) : BundleOrPlatformBundles {
+            override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {
+                for (bundle in map.values) {
+                    bundle.collectLayerTasks(set)
+                }
+            }
+        }
     }
 }
