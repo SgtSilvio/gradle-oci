@@ -87,8 +87,8 @@ interface OciExtension {
             val user: Property<String>
             val ports: SetProperty<String>
             val environment: MapProperty<String, String>
-            val entryPoint: ListProperty<String> // convention null
-            val arguments: ListProperty<String> // convention null
+            val entryPoint: ListProperty<String>
+            val arguments: ListProperty<String>
             val volumes: SetProperty<String>
             val workingDirectory: Property<String>
             val stopSignal: Property<String>
@@ -133,12 +133,12 @@ interface OciExtension {
                 val author: Property<String>
                 val createdBy: Property<String>
                 val comment: Property<String>
-                val task: Provider<OciLayerTask> // no TaskProvider|NamedDomainObjectProvider because name/configure not possible if task is absent
+//                val task: Provider<OciLayerTask> // no TaskProvider|NamedDomainObjectProvider because name/configure not possible if task is absent
                 val annotations: MapProperty<String, String>
 
-                fun contents(configuration: Action<in OciCopySpec>) // registers new task if still null
+                fun contents(configuration: Action<in OciCopySpec>)
 
-                fun contents(task: TaskProvider<OciLayerTask>) // throws UOE when contents have already been configured
+                fun contents(task: TaskProvider<OciLayerTask>)
             }
         }
     }
