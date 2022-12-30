@@ -7,22 +7,19 @@ import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.capabilities.Capability
-import org.gradle.api.file.FileCollection
-import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.*
 import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskProvider
-import java.net.URI
 import java.time.Instant
 
 /**
  * @author Silvio Giebl
  */
 interface OciExtension {
-    val registries: NamedDomainObjectList<Registry>
+//    val registries: NamedDomainObjectList<Registry>
     val imageDefinitions: NamedDomainObjectContainer<ImageDefinition>
 
-    fun registries(configuration: Action<in Registries>)
+//    fun registries(configuration: Action<in Registries>)
 
     fun platform(
         os: String,
@@ -32,13 +29,13 @@ interface OciExtension {
         osFeatures: List<String> = listOf(),
     ): Platform
 
-    interface Registries {
-        fun registry(configuration: Action<in Registry>)
-    }
+//    interface Registries {
+//        fun registry(configuration: Action<in Registry>)
+//    }
 
-    interface Registry : Named {
-        var url: URI
-    }
+//    interface Registry : Named {
+//        var url: URI
+//    }
 
     interface Platform {
         val os: String
@@ -50,13 +47,13 @@ interface OciExtension {
 
     interface Image {
         val capabilities: Set<Capability>
-        val componentFiles: FileCollection
-        val layerFiles: FileCollection
+//        val componentFiles: FileCollection
+//        val layerFiles: FileCollection
     }
 
     interface UsableImage : Image {
-        val digestToMetadataPropertiesFile: Provider<RegularFile>
-        val digestToLayerPathPropertiesFile: Provider<RegularFile>
+//        val digestToMetadataPropertiesFile: Provider<RegularFile>
+//        val digestToLayerPathPropertiesFile: Provider<RegularFile>
     }
 
     interface ImageDefinition : UsableImage, Named {
