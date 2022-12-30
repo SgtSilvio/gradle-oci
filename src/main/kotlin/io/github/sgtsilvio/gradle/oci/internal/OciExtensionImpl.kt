@@ -154,15 +154,16 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         private fun createConfigurationName(imageName: String) =
             if (imageName == "main") "ociImage" else "${imageName}OciImage"
 
-        private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
-            providerFactory.provider {
+        private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> {
+            val capabilities = capabilities.map { OciComponent.Capability(it.group, it.name) }.toSet()
+            return providerFactory.provider {
                 getBundleOrPlatformBundles()
             }.flatMap {
                 it.createComponentBundleOrPlatformBundles(providerFactory)
             }.zip(indexAnnotations) { cBundleOrPlatformBundles, indexAnnotations ->
-                val capabilities = capabilities.map { OciComponent.Capability(it.group, it.name) }.toSet()
                 OciComponent(capabilities, cBundleOrPlatformBundles, indexAnnotations)
             } // TODO if indexAnnotations is absent, but should not, instead should be empty map
+        }
 
         private fun createComponentTask(imageName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
             taskContainer.register<OciComponentTask>(createComponentTaskName(imageName)) {
