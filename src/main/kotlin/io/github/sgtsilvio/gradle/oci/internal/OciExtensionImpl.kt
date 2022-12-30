@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.OciComponentTask
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciExtension
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
+import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.Project
@@ -13,6 +14,7 @@ import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.file.ProjectLayout
+import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
@@ -28,8 +30,13 @@ import kotlin.collections.set
  */
 abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory) : OciExtension {
 
-    override val imageDefinitions = objectFactory.domainObjectContainer(OciExtension.ImageDefinition::class) { name ->
+    final override val imageDefinitions = objectFactory.domainObjectContainer(OciExtension.ImageDefinition::class) { name ->
         objectFactory.newInstance<ImageDefinition>(name)
+    }
+
+    init {
+        // eagerly realize imageDefinitions because it registers configurations and tasks
+        imageDefinitions.all {}
     }
 
     override fun platform(
@@ -63,7 +70,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         override val capabilities: Set<Capability> get() = imageConfiguration.outgoing.capabilities.toSet()
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
         private var platformBundles: MutableMap<OciExtension.Platform, Bundle>? = null
-//        override val component: Provider<OciComponent> = providerFactory.provider { createComponent }
+        override val component = createComponent(providerFactory)
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
         init {
@@ -147,6 +154,16 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         private fun createConfigurationName(imageName: String) =
             if (imageName == "main") "ociImage" else "${imageName}OciImage"
 
+        private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
+            providerFactory.provider {
+                getBundleOrPlatformBundles()
+            }.flatMap {
+                it.createComponentBundleOrPlatformBundles(providerFactory)
+            }.zip(indexAnnotations) { cBundleOrPlatformBundles, indexAnnotations ->
+                val capabilities = capabilities.map { OciComponent.Capability(it.group, it.name) }.toSet()
+                OciComponent(capabilities, cBundleOrPlatformBundles, indexAnnotations)
+            } // TODO if indexAnnotations is absent, but should not, instead should be empty map
+
         private fun createComponentTask(imageName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
             taskContainer.register<OciComponentTask>(createComponentTaskName(imageName)) {
                 component.set(this@ImageDefinition.component)
@@ -168,6 +185,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
 
         sealed interface BundleOrPlatformBundles {
             fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>)
+            fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<out OciComponent.BundleOrPlatformBundles>
         }
 
 
@@ -175,6 +193,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
             private val imageName: String,
             imageConfiguration: Configuration,
             private val objectFactory: ObjectFactory,
+            private val projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
         ) : OciExtension.ImageDefinition.Bundle, BundleOrPlatformBundles {
 
             override val parentImages = objectFactory.newInstance<ParentImages>(imageConfiguration)
@@ -199,6 +218,61 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                         set.add(task)
                     }
                 }
+            }
+
+            override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.Bundle> {
+                val parentCapabilities = mutableListOf<OciComponent.Capability>()
+                for (dependency in parentImages.dependencies) {
+                    val capabilities = dependency.requestedCapabilities
+                    if (capabilities.isEmpty()) { // add default capability
+                        if (dependency is ProjectDependency) {
+                            val id = projectDependencyPublicationResolver.resolve(
+                                ModuleVersionIdentifier::class.java,
+                                dependency
+                            )
+                            parentCapabilities.add(OciComponent.Capability(id.group, id.name))
+                        } else {
+                            parentCapabilities.add(OciComponent.Capability(dependency.group ?: "", dependency.name))
+                        }
+                    } else {
+                        for (capability in capabilities) {
+                            parentCapabilities.add(OciComponent.Capability(capability.group, capability.name))
+                        }
+                    }
+                }
+
+                var provider = OciComponent.BundleBuilder().parentCapabilities(parentCapabilities).let { providerFactory.provider { it } }
+
+                provider = provider.zip(creationTime, OciComponent.BundleBuilder::creationTime).orElse(provider)
+                provider = provider.zip(author, OciComponent.BundleBuilder::author).orElse(provider)
+                provider = provider.zip(user, OciComponent.BundleBuilder::user).orElse(provider)
+                provider = provider.zip(ports, OciComponent.BundleBuilder::ports).orElse(provider)
+                provider = provider.zip(environment, OciComponent.BundleBuilder::environment).orElse(provider)
+
+                var commandProvider = OciComponent.CommandBuilder().let { providerFactory.provider { it } }
+                commandProvider = commandProvider.zip(entryPoint, OciComponent.CommandBuilder::entryPoint).orElse(commandProvider)
+                commandProvider = commandProvider.zip(arguments, OciComponent.CommandBuilder::arguments).orElse(commandProvider)
+                provider = provider.zip(commandProvider) { bundleBuilder, commandBuilder -> bundleBuilder.command(commandBuilder.build()) }
+
+                provider = provider.zip(volumes, OciComponent.BundleBuilder::volumes).orElse(provider)
+                provider = provider.zip(workingDirectory, OciComponent.BundleBuilder::workingDirectory).orElse(provider)
+                provider = provider.zip(stopSignal, OciComponent.BundleBuilder::stopSignal).orElse(provider)
+                provider = provider.zip(configAnnotations, OciComponent.BundleBuilder::configAnnotations).orElse(provider)
+                provider = provider.zip(configDescriptorAnnotations, OciComponent.BundleBuilder::configDescriptorAnnotations).orElse(provider)
+                provider = provider.zip(manifestAnnotations, OciComponent.BundleBuilder::manifestAnnotations).orElse(provider)
+                provider = provider.zip(manifestDescriptorAnnotations, OciComponent.BundleBuilder::manifestDescriptorAnnotations).orElse(provider)
+
+                var layersProvider = providerFactory.provider { mutableListOf<OciComponent.Bundle.Layer>() }
+                for (layer in layers) {
+                    layer as Layer
+                    layersProvider = layersProvider.zip(layer.createComponentLayer(providerFactory)) { layers, cLayer ->
+                        layers.add(cLayer)
+                        layers
+                    }
+                }
+                provider = provider.zip(layersProvider, OciComponent.BundleBuilder::layers)
+
+                return provider.map { it.build() }
             }
 
 
@@ -315,6 +389,27 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                     this.task = task
                 }
 
+                fun createComponentLayer(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer> {
+                    var provider = OciComponent.LayerBuilder().let { providerFactory.provider { it } }
+
+                    provider = provider.zip(creationTime, OciComponent.LayerBuilder::creationTime).orElse(provider)
+                    provider = provider.zip(author, OciComponent.LayerBuilder::author).orElse(provider)
+                    provider = provider.zip(createdBy, OciComponent.LayerBuilder::createdBy).orElse(provider)
+                    provider = provider.zip(comment, OciComponent.LayerBuilder::comment).orElse(provider)
+
+                    var descriptorProvider = OciComponent.LayerDescriptorBuilder().let { providerFactory.provider { it } }
+                    descriptorProvider = descriptorProvider.zip(annotations, OciComponent.LayerDescriptorBuilder::annotations).orElse(descriptorProvider)
+                    val task = task
+                    if (task != null) {
+                        descriptorProvider = descriptorProvider.zip(task.flatMap { it.digestFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::digest).orElse(descriptorProvider)
+                        descriptorProvider = descriptorProvider.zip(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::diffId).orElse(descriptorProvider)
+                        descriptorProvider = descriptorProvider.zip(task.flatMap { it.tarFile }.map { it.asFile.length() }, OciComponent.LayerDescriptorBuilder::size).orElse(descriptorProvider)
+                    }
+                    provider = provider.zip(descriptorProvider) { layerBuilder, descriptorBuilder -> layerBuilder.descriptor(descriptorBuilder.build()) }
+
+                    return provider.map { it.build() }
+                }
+
                 private fun createTaskName(imageName: String, name: String) =
                     if (imageName == "main") "${name}OciLayer" else "${imageName}${name.capitalize()}OciLayer"
             }
@@ -326,14 +421,31 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
             imageConfiguration: Configuration,
             val platform: OciExtension.Platform?,
             objectFactory: ObjectFactory,
-        ) : Bundle(imageName, imageConfiguration, objectFactory)
+            projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
+        ) : Bundle(imageName, imageConfiguration, objectFactory, projectDependencyPublicationResolver)
 
 
         class PlatformBundles(val map: Map<OciExtension.Platform, Bundle>) : BundleOrPlatformBundles {
+            // TODO maybe remove PlatformBundles here completely as bundles collection and map should be sufficient
+
             override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {
                 for (bundle in map.values) {
                     bundle.collectLayerTasks(set)
                 }
+            }
+
+            override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.PlatformBundles> {
+                var provider = providerFactory.provider { mutableMapOf<OciComponent.Platform, OciComponent.Bundle>() }
+                for ((platform, bundle) in map) {
+                    val cPlatform = OciComponent.Platform(
+                        platform.architecture, platform.os, platform.osVersion, platform.osFeatures, platform.variant
+                    )
+                    provider = provider.zip(bundle.createComponentBundleOrPlatformBundles(providerFactory)) { map, cBundle ->
+                        map[cPlatform] = cBundle
+                        map
+                    }
+                }
+                return provider.map { OciComponent.PlatformBundles(it) }
             }
         }
     }
