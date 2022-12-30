@@ -75,7 +75,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
             imageConfiguration.outgoing.artifacts(providerFactory.provider {
                 val linkedSet = linkedSetOf<TaskProvider<OciLayerTask>>()
                 getBundleOrPlatformBundles().collectLayerTasks(linkedSet)
-                linkedSet
+                linkedSet.map { taskProvider -> taskProvider.flatMap { it.tarFile } }
             })
         }
 
