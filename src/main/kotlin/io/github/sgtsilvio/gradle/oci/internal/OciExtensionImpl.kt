@@ -178,6 +178,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         ) : OciExtension.ImageDefinition.Bundle, BundleOrPlatformBundles {
 
             override val parentImages = objectFactory.newInstance<ParentImages>(imageConfiguration)
+            override val layers = objectFactory.namedDomainObjectList(OciExtension.ImageDefinition.Bundle.Layer::class)
 
             init {
                 entryPoint.convention(null)
