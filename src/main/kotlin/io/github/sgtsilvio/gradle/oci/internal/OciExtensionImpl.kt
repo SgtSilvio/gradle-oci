@@ -155,14 +155,21 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
             if (imageName == "main") "ociImage" else "${imageName}OciImage"
 
         private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> {
-            val capabilities = capabilities.map { OciComponent.Capability(it.group, it.name) }.toSet()
-            return providerFactory.provider {
+            var provider = OciComponent.Builder().let { providerFactory.provider { it } }
+
+            provider = provider.zip(providerFactory.provider {
+                capabilities.map { OciComponent.Capability(it.group, it.name) }.toSet()
+            }, OciComponent.Builder::capabilities)
+
+            provider = provider.zip(providerFactory.provider {
                 getBundleOrPlatformBundles()
             }.flatMap {
                 it.createComponentBundleOrPlatformBundles(providerFactory)
-            }.zip(indexAnnotations) { cBundleOrPlatformBundles, indexAnnotations ->
-                OciComponent(capabilities, cBundleOrPlatformBundles, indexAnnotations)
-            } // TODO if indexAnnotations is absent, but should not, instead should be empty map
+            }, OciComponent.Builder::bundleOrPlatformBundles)
+
+            provider = provider.zip(indexAnnotations, OciComponent.Builder::indexAnnotations).orElse(provider)
+
+            return provider.map { it.build() }
         }
 
         private fun createComponentTask(imageName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
@@ -263,15 +270,17 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                 provider = provider.zip(manifestAnnotations, OciComponent.BundleBuilder::manifestAnnotations).orElse(provider)
                 provider = provider.zip(manifestDescriptorAnnotations, OciComponent.BundleBuilder::manifestDescriptorAnnotations).orElse(provider)
 
-                var layersProvider = providerFactory.provider { mutableListOf<OciComponent.Bundle.Layer>() }
-                for (layer in layers) {
+                var layersProvider = arrayOfNulls<OciComponent.Bundle.Layer>(layers.size).let { providerFactory.provider { it } }
+                for ((i, layer) in layers.withIndex()) {
                     layer as Layer
                     layersProvider = layersProvider.zip(layer.createComponentLayer(providerFactory)) { layers, cLayer ->
-                        layers.add(cLayer)
+                        layers[i] = cLayer
                         layers
                     }
                 }
-                provider = provider.zip(layersProvider, OciComponent.BundleBuilder::layers)
+                provider = provider.zip(layersProvider) { bundleBuilder, layers ->
+                    bundleBuilder.layers(List(layers.size) { i -> layers[i]!! })
+                }
 
                 return provider.map { it.build() }
             }

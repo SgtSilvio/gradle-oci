@@ -81,6 +81,18 @@ data class OciComponent(
         override val size get() = data.size.toLong()
     }
 
+    class Builder {
+        private var capabilities: Set<Capability>? = null
+        private var bundleOrPlatformBundles: BundleOrPlatformBundles? = null
+        private var indexAnnotations: Map<String, String> = mapOf()
+
+        fun capabilities(v: Set<Capability>) = apply { capabilities = v }
+        fun bundleOrPlatformBundles(v: BundleOrPlatformBundles) = apply { bundleOrPlatformBundles = v }
+        fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
+
+        fun build() = OciComponent(capabilities!!, bundleOrPlatformBundles!!, indexAnnotations)
+    }
+
     class BundleBuilder {
         private var creationTime: Instant? = null
         private var author: String? = null
@@ -98,7 +110,7 @@ data class OciComponent(
         private var parentCapabilities: List<Capability> = listOf()
         private var layers: List<Bundle.Layer> = listOf()
 
-        fun creationTime(v: Instant) = apply { creationTime = v }
+        fun creationTime(v: Instant?) = apply { creationTime = v }
         fun author(v: String?) = apply { author = v }
         fun user(v: String?) = apply { user = v }
         fun ports(v: Set<String>) = apply { ports = v }
