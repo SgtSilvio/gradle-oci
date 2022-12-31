@@ -81,7 +81,7 @@ data class OciComponent(
         override val size get() = data.size.toLong()
     }
 
-    class Builder {
+    class Builder : Serializable {
         private var capabilities: Set<Capability>? = null
         private var bundleOrPlatformBundles: BundleOrPlatformBundles? = null
         private var indexAnnotations: Map<String, String> = mapOf()
@@ -93,7 +93,7 @@ data class OciComponent(
         fun build() = OciComponent(capabilities!!, bundleOrPlatformBundles!!, indexAnnotations)
     }
 
-    class BundleBuilder {
+    class BundleBuilder : Serializable {
         private var creationTime: Instant? = null
         private var author: String? = null
         private var user: String? = null
@@ -145,7 +145,7 @@ data class OciComponent(
         )
     }
 
-    class CommandBuilder {
+    class CommandBuilder : Serializable {
         private var entryPoint: List<String>? = null
         private var arguments: List<String>? = null
 
@@ -156,7 +156,7 @@ data class OciComponent(
             if ((entryPoint == null) && (arguments == null)) null else Bundle.Command(entryPoint, arguments ?: listOf())
     }
 
-    class LayerBuilder {
+    class LayerBuilder : Serializable {
         private var descriptor: Bundle.Layer.Descriptor? = null
         private var creationTime: Instant? = null
         private var author: String? = null
@@ -172,19 +172,19 @@ data class OciComponent(
         fun build() = Bundle.Layer(descriptor, creationTime, author, createdBy, comment)
     }
 
-    class LayerDescriptorBuilder {
+    class LayerDescriptorBuilder : Serializable {
         private var digest: String? = null
         private var diffId: String? = null
         private var size: Long? = null
-        private var annotations: Map<String, String>? = null
+        private var annotations: Map<String, String> = mapOf()
 
         fun digest(v: String?) = apply { digest = v }
         fun diffId(v: String?) = apply { diffId = v }
         fun size(v: Long?) = apply { size = v }
-        fun annotations(v: Map<String, String>?) = apply { annotations = v }
+        fun annotations(v: Map<String, String>) = apply { annotations = v }
 
-        fun build() = if ((digest == null) && (diffId == null) && (size == null) && (annotations == null)) null else {
-            Bundle.Layer.Descriptor(digest!!, diffId!!, size!!, annotations!!)
+        fun build() = if ((digest == null) && (diffId == null) && (size == null) && (annotations.isEmpty())) null else {
+            Bundle.Layer.Descriptor(digest!!, diffId!!, size!!, annotations)
         }
     }
 }
