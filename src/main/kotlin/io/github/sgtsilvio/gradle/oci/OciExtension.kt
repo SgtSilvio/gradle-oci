@@ -64,21 +64,23 @@ interface OciExtension {
 
         fun capabilities(configuration: Action<in Capabilities>)
 
-        fun allPlatforms(configuration: Action<in Bundle>)
+        fun allPlatforms(configuration: Action<in Bundle>) // TODO create layers not for every platform if same config
+        // decorate Bundle so that layers is also decorated (different layers set for this and the other methods)
+        // layers only executed for the first bundle
 
-        fun addPlatform(platform: Platform)
+        fun addPlatform(platform: Platform) // TODO addPlatform + existingPlatform or general method platform (putIfAbsent)
 
         fun addPlatform(platform: Platform, configuration: Action<in Bundle>)
 
-        fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>)
+        fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>) // TODO same as for allPlatforms
 
         interface Capabilities {
             fun capability(group: String, name: String)
         }
 
         interface Bundle {
+            // TODO config {} => different scope, executed for every (platform) bundle, the bundle lambda should only be executed once an allPlatforms call for example
             val parentImages: ParentImages
-
             val creationTime: Property<Instant>
             val author: Property<String>
             val user: Property<String>
@@ -122,10 +124,13 @@ interface OciExtension {
             }
 
             interface Layers {
+                // TODO what to do if name already exists, if throws then no modification can happen (but still via layers field if not replaced with layerMetadata)
+                // TODO can not throw if executed in a different scope (once per allPlatforms for example)
                 fun layer(name: String, configuration: Action<in Layer>)
             }
 
             interface Layer : Named {
+                // TODO metadata {} => different scope
                 val creationTime: Property<Instant>
                 val author: Property<String>
                 val createdBy: Property<String>
@@ -133,6 +138,7 @@ interface OciExtension {
 //                val task: Provider<OciLayerTask> // no TaskProvider|NamedDomainObjectProvider because name/configure not possible if task is absent
                 val annotations: MapProperty<String, String>
 
+                // TODO needs to be executed in a different scope, only once for a allPlatforms call for example
                 fun contents(configuration: Action<in OciCopySpec>)
 
                 fun contents(task: TaskProvider<OciLayerTask>)
