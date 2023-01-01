@@ -57,7 +57,7 @@ interface OciExtension {
     }
 
     interface ImageDefinition : UsableImage, Named {
-        override val capabilities: Set<Capability>
+        override val capabilities: Set<Capability> // TODO maybe move to ParentCapabilities.set and return ParentCapabilities here
         val indexAnnotations: MapProperty<String, String>
 
         val component: Provider<OciComponent>
@@ -75,31 +75,16 @@ interface OciExtension {
         fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>) // TODO same as for allPlatforms
 
         interface Capabilities {
-            fun capability(group: String, name: String)
+            fun capability(group: String, name: String) // TODO maybe rename to add, capability should return a capability (but this method is not needed probably), parentImages.add is also not called parentImages.parentImage
         }
 
         interface Bundle {
-            // TODO config {} => different scope, executed for every (platform) bundle, the bundle lambda should only be executed once an allPlatforms call for example
             val parentImages: ParentImages
-            val creationTime: Property<Instant>
-            val author: Property<String>
-            val user: Property<String>
-            val ports: SetProperty<String>
-            val environment: MapProperty<String, String>
-            val entryPoint: ListProperty<String>
-            val arguments: ListProperty<String>
-            val volumes: SetProperty<String>
-            val workingDirectory: Property<String>
-            val stopSignal: Property<String>
-            val configAnnotations: MapProperty<String, String>
-            val configDescriptorAnnotations: MapProperty<String, String>
-            val manifestAnnotations: MapProperty<String, String>
-            val manifestDescriptorAnnotations: MapProperty<String, String>
-
-            val layers: NamedDomainObjectList<Layer>
+            val config: Config
+            val layers: NamedDomainObjectList<Layer> // TODO maybe move to Layers.list and return Layers here
 
             fun parentImages(configuration: Action<in ParentImages>)
-
+            fun config(configuration: Action<in Config>)
             fun layers(configuration: Action<in Layers>)
 
             interface ParentImages {
@@ -123,6 +108,23 @@ interface OciExtension {
                 // ProviderConvertible does not make sense as can't find a usage
             }
 
+            interface Config {
+                val creationTime: Property<Instant>
+                val author: Property<String>
+                val user: Property<String>
+                val ports: SetProperty<String>
+                val environment: MapProperty<String, String>
+                val entryPoint: ListProperty<String>
+                val arguments: ListProperty<String>
+                val volumes: SetProperty<String>
+                val workingDirectory: Property<String>
+                val stopSignal: Property<String>
+                val configAnnotations: MapProperty<String, String>
+                val configDescriptorAnnotations: MapProperty<String, String>
+                val manifestAnnotations: MapProperty<String, String>
+                val manifestDescriptorAnnotations: MapProperty<String, String>
+            }
+
             interface Layers {
                 // TODO what to do if name already exists, if throws then no modification can happen (but still via layers field if not replaced with layerMetadata)
                 // TODO can not throw if executed in a different scope (once per allPlatforms for example)
@@ -130,18 +132,22 @@ interface OciExtension {
             }
 
             interface Layer : Named {
-                // TODO metadata {} => different scope
-                val creationTime: Property<Instant>
-                val author: Property<String>
-                val createdBy: Property<String>
-                val comment: Property<String>
-//                val task: Provider<OciLayerTask> // no TaskProvider|NamedDomainObjectProvider because name/configure not possible if task is absent
-                val annotations: MapProperty<String, String>
+                val metadata: Metadata
+
+                fun metadata(configuration: Action<in Metadata>)
 
                 // TODO needs to be executed in a different scope, only once for a allPlatforms call for example
                 fun contents(configuration: Action<in OciCopySpec>)
 
                 fun contents(task: TaskProvider<OciLayerTask>)
+
+                interface Metadata {
+                    val creationTime: Property<Instant>
+                    val author: Property<String>
+                    val createdBy: Property<String>
+                    val comment: Property<String>
+                    val annotations: MapProperty<String, String>
+                }
             }
         }
     }
