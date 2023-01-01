@@ -114,7 +114,7 @@ fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, set: Set<String
     }
 }
 
-fun JsonObjectStringBuilder.addOptionalKeyAndArray(key: String, list: List<String>?) {
+fun JsonObjectStringBuilder.addOptionalKeyAndArray(key: String, list: Collection<String>?) {
     if (!list.isNullOrEmpty()) {
         addKey(key).addArray(list)
     }

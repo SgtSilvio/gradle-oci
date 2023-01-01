@@ -26,7 +26,7 @@ interface OciExtension {
         architecture: String,
         variant: String? = null,
         osVersion: String? = null,
-        osFeatures: List<String> = listOf(),
+        osFeatures: Set<String> = setOf(),
     ): Platform
 
 //    interface Registries {
@@ -42,7 +42,7 @@ interface OciExtension {
         val architecture: String
         val variant: String?
         val osVersion: String?
-        val osFeatures: List<String>
+        val osFeatures: Set<String>
     }
 
     interface Image {

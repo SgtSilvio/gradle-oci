@@ -39,7 +39,7 @@ private fun encodePlatform(platform: OciComponent.Platform) = JSONObject().apply
     put("os", platform.os)
     put("osVersion", platform.osVersion)
     if (platform.osFeatures.isNotEmpty()) {
-        put("osFeatures", platform.osFeatures)
+        put("osFeatures", platform.osFeatures) // TODO sorted
     }
     put("variant", platform.variant)
 }

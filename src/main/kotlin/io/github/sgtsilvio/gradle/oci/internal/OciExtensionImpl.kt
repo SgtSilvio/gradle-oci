@@ -44,7 +44,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         architecture: String,
         variant: String?,
         osVersion: String?,
-        osFeatures: List<String>,
+        osFeatures: Set<String>,
     ) = Platform(os, architecture, variant, osVersion, osFeatures)
 
 
@@ -53,7 +53,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         override val architecture: String,
         override val variant: String?,
         override val osVersion: String?,
-        override val osFeatures: List<String>,
+        override val osFeatures: Set<String>,
     ) : OciExtension.Platform
 
 

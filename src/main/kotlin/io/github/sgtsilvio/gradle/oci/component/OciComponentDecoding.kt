@@ -36,7 +36,7 @@ private fun JSONObject.decodePlatform() = OciComponent.Platform(
     key("architecture") { stringValue() },
     key("os") { stringValue() },
     optionalKey("osVersion") { stringValue() },
-    optionalKey("osFeatures") { arrayValue().toList { stringValue() } } ?: listOf(),
+    optionalKey("osFeatures") { arrayValue().toSet { stringValue() } } ?: setOf(),
     optionalKey("variant") { stringValue() },
 )
 

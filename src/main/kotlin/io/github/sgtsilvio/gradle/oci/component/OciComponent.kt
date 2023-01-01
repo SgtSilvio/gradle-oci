@@ -23,7 +23,7 @@ data class OciComponent(
         val architecture: String,
         val os: String,
         val osVersion: String?,
-        val osFeatures: List<String>,
+        val osFeatures: Set<String>,
         val variant: String?,
     ) : Serializable
 
