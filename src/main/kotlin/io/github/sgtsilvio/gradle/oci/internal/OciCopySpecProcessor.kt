@@ -74,15 +74,15 @@ private fun OciCopySpecInput.process(
     }
 
     val destinationPath = parentDestinationPath + currentDestinationPath.addDirectorySlash()
-    val renamePatterns = convertRenamePatterns(parentRenamePatterns, renamePatterns.get(), destinationPath)
-    val movePatterns = convertRenamePatterns(parentMovePatterns, movePatterns.get(), destinationPath)
+    val renamePatterns = convertRenamePatterns(parentRenamePatterns, renamePatterns, destinationPath)
+    val movePatterns = convertRenamePatterns(parentMovePatterns, movePatterns, destinationPath)
     val filePermissions = filePermissions.orNull ?: parentFilePermissions
     val directoryPermissions = directoryPermissions.orNull ?: parentDirectoryPermissions
-    val permissionPatterns = convertPatterns(parentPermissionPatterns, permissionPatterns.get(), destinationPath)
+    val permissionPatterns = convertPatterns(parentPermissionPatterns, permissionPatterns, destinationPath)
     val userId = userId.orNull ?: parentUserId
-    val userIdPatterns = convertPatterns(parentUserIdPatterns, userIdPatterns.get(), destinationPath)
+    val userIdPatterns = convertPatterns(parentUserIdPatterns, userIdPatterns, destinationPath)
     val groupId = groupId.orNull ?: parentGroupId
-    val groupIdPatterns = convertPatterns(parentGroupIdPatterns, groupIdPatterns.get(), destinationPath)
+    val groupIdPatterns = convertPatterns(parentGroupIdPatterns, groupIdPatterns, destinationPath)
 
     val moveCache = HashMap<String, String>()
     sources.asFileTree.visit(object : ReproducibleFileVisitor {

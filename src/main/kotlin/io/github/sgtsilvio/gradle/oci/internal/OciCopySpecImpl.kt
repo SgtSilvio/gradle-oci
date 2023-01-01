@@ -7,7 +7,6 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.util.PatternFilterable
 import org.gradle.api.tasks.util.PatternSet
-import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
 import java.util.*
@@ -21,15 +20,15 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
     val sources = objectFactory.fileCollection()
     val destinationPath = objectFactory.property<String>().convention("")
     final override val filter = objectFactory.newInstance<PatternSet>()
-    val renamePatterns = objectFactory.listProperty<Triple<String, String, String>>()
-    val movePatterns = objectFactory.listProperty<Triple<String, String, String>>()
+    val renamePatterns = mutableListOf<Triple<String, String, String>>()
+    val movePatterns = mutableListOf<Triple<String, String, String>>()
     final override val filePermissions = objectFactory.property<Int>()
     final override val directoryPermissions = objectFactory.property<Int>()
-    val permissionPatterns = objectFactory.listProperty<Pair<String, Int>>()
+    val permissionPatterns = mutableListOf<Pair<String, Int>>()
     final override val userId = objectFactory.property<Long>()
-    val userIdPatterns = objectFactory.listProperty<Pair<String, Long>>()
+    val userIdPatterns = mutableListOf<Pair<String, Long>>()
     final override val groupId = objectFactory.property<Long>()
-    val groupIdPatterns = objectFactory.listProperty<Pair<String, Long>>()
+    val groupIdPatterns = mutableListOf<Pair<String, Long>>()
     val children = LinkedList<OciCopySpecImpl>()
 
     final override fun from(source: Any): OciCopySpecImpl {
@@ -125,6 +124,29 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         }
         groupIdPatterns.add(Pair(pathPattern, groupId))
         return this
+    }
+
+    /**
+     * Single properties are inherited, collection properties are copied.
+     */
+    fun copy(): OciCopySpecImpl {
+        val copy = objectFactory.newInstance<OciCopySpecImpl>()
+        copy.sources.from(sources.from.toList()) // additive property -> copy (via toList)
+        copy.destinationPath.set(destinationPath) // single property -> inherit
+        copy.filter.copyFrom(filter) // additive property -> copy
+        copy.renamePatterns += renamePatterns // additive property -> copy
+        copy.movePatterns += movePatterns // additive property -> copy
+        copy.filePermissions.set(filePermissions) // single property -> inherit
+        copy.directoryPermissions.set(directoryPermissions) // single property -> inherit
+        copy.permissionPatterns += permissionPatterns // additive property -> copy
+        copy.userId.set(userId) // single property -> inherit
+        copy.userIdPatterns += userIdPatterns // additive property -> copy
+        copy.groupId.set(groupId) // single property -> inherit
+        copy.groupIdPatterns += groupIdPatterns // additive property -> copy
+        for (child in children) {
+            copy.children += child.copy() // contains additive properties -> copy
+        }
+        return copy
     }
 
     fun asInput(providerFactory: ProviderFactory): Provider<OciCopySpecInput> {

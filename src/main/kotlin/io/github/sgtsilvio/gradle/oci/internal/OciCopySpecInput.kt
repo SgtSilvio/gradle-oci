@@ -1,7 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
 import org.gradle.api.file.FileTree
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.util.PatternSet
 
@@ -46,7 +45,7 @@ class OciCopySpecInput(copySpec: OciCopySpecImpl, parentFilter: PatternSet? = nu
     val groupId = copySpec.groupId
 
     @get:Input
-    val groupIdPatterns: ListProperty<Pair<String, Long>> = copySpec.groupIdPatterns
+    val groupIdPatterns = copySpec.groupIdPatterns
 
     @get:Nested
     val children: List<OciCopySpecInput>
