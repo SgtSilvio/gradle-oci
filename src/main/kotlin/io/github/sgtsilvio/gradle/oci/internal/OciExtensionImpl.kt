@@ -198,9 +198,9 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
 
 
         abstract class Bundle @Inject constructor(
-            private val imageName: String,
+            imageName: String,
             imageConfiguration: Configuration,
-            private val objectFactory: ObjectFactory,
+            objectFactory: ObjectFactory,
             private val projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
         ) : OciExtension.ImageDefinition.Bundle, BundleOrPlatformBundles {
 
@@ -209,7 +209,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                 entryPoint.convention(null)
                 arguments.convention(null)
             }
-            override val layers = objectFactory.namedDomainObjectList(OciExtension.ImageDefinition.Bundle.Layer::class)
+            override val layers = objectFactory.newInstance<Layers>(imageName)
 
             override fun parentImages(configuration: Action<in OciExtension.ImageDefinition.Bundle.ParentImages>) =
                 configuration.execute(parentImages)
@@ -218,10 +218,10 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                 configuration.execute(config)
 
             override fun layers(configuration: Action<in OciExtension.ImageDefinition.Bundle.Layers>) =
-                configuration.execute(objectFactory.newInstance<Layers>(imageName, layers))
+                configuration.execute(layers)
 
             override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {
-                for (layer in layers) {
+                for (layer in layers.list) {
                     layer as Layer
                     val task = layer.task
                     if (task != null) {
@@ -272,8 +272,8 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
                 provider = provider.zip(config.manifestAnnotations.orElse(mapOf()), OciComponent.BundleBuilder::manifestAnnotations)
                 provider = provider.zip(config.manifestDescriptorAnnotations.orElse(mapOf()), OciComponent.BundleBuilder::manifestDescriptorAnnotations)
 
-                var layersProvider = arrayOfNulls<OciComponent.Bundle.Layer>(layers.size).let { providerFactory.provider { it } }
-                for ((i, layer) in layers.withIndex()) {
+                var layersProvider = arrayOfNulls<OciComponent.Bundle.Layer>(layers.list.size).let { providerFactory.provider { it } }
+                for ((i, layer) in layers.list.withIndex()) {
                     layer as Layer
                     layersProvider = layersProvider.zip(layer.createComponentLayer(providerFactory)) { layers, cLayer ->
                         layers[i] = cLayer
@@ -351,13 +351,14 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
 
             abstract class Layers @Inject constructor(
                 private val imageName: String,
-                private val layers: NamedDomainObjectList<OciExtension.ImageDefinition.Bundle.Layer>,
                 private val objectFactory: ObjectFactory,
             ) : OciExtension.ImageDefinition.Bundle.Layers {
 
+                override val list = objectFactory.namedDomainObjectList(OciExtension.ImageDefinition.Bundle.Layer::class)
+
                 override fun layer(name: String, configuration: Action<in OciExtension.ImageDefinition.Bundle.Layer>) {
                     val layer = objectFactory.newInstance<Layer>(name, imageName)
-                    layers.add(layer)
+                    list.add(layer)
                     configuration.execute(layer)
                 }
             }

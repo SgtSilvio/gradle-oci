@@ -81,7 +81,7 @@ interface OciExtension {
         interface Bundle {
             val parentImages: ParentImages
             val config: Config
-            val layers: NamedDomainObjectList<Layer> // TODO maybe move to Layers.list and return Layers here
+            val layers: Layers
 
             fun parentImages(configuration: Action<in ParentImages>)
             fun config(configuration: Action<in Config>)
@@ -126,6 +126,8 @@ interface OciExtension {
             }
 
             interface Layers {
+                val list: NamedDomainObjectList<Layer>
+
                 // TODO what to do if name already exists, if throws then no modification can happen (but still via layers field if not replaced with layerMetadata)
                 // TODO can not throw if executed in a different scope (once per allPlatforms for example)
                 fun layer(name: String, configuration: Action<in Layer>)
