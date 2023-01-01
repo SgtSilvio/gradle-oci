@@ -67,7 +67,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
     ) : OciExtension.ImageDefinition {
 
         private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
-        override val capabilities: Set<Capability> get() = imageConfiguration.outgoing.capabilities.toSet()
+        override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
         private var platformBundles: MutableMap<OciExtension.Platform, Bundle>? = null
         override val component = createComponent(providerFactory)
@@ -89,7 +89,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         override fun getName() = name
 
         override fun capabilities(configuration: Action<in OciExtension.ImageDefinition.Capabilities>) =
-            configuration.execute(objectFactory.newInstance<Capabilities>(imageConfiguration))
+            configuration.execute(capabilities)
 
         override fun allPlatforms(configuration: Action<in OciExtension.ImageDefinition.Bundle>) =
             bundles.configureEach(configuration)
@@ -158,7 +158,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
             var provider = OciComponent.Builder().let { providerFactory.provider { it } }
 
             provider = provider.zip(providerFactory.provider {
-                capabilities.map { OciComponent.Capability(it.group, it.name) }.toSet()
+                capabilities.set.map { OciComponent.Capability(it.group, it.name) }.toSet()
             }, OciComponent.Builder::capabilities)
 
             provider = provider.zip(providerFactory.provider {
@@ -185,6 +185,8 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         abstract class Capabilities @Inject constructor(
             private val imageConfiguration: Configuration,
         ) : OciExtension.ImageDefinition.Capabilities {
+
+            override val set: Set<Capability> get() = imageConfiguration.outgoing.capabilities.toSet()
 
             override fun capability(group: String, name: String) =
                 imageConfiguration.outgoing.capability("$group:$name:default")

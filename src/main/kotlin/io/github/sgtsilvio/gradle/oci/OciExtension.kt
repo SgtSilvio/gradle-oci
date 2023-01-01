@@ -46,7 +46,7 @@ interface OciExtension {
     }
 
     interface Image {
-        val capabilities: Set<Capability>
+//        val capabilities: Set<Capability>
 //        val componentFiles: FileCollection
 //        val layerFiles: FileCollection
     }
@@ -57,7 +57,7 @@ interface OciExtension {
     }
 
     interface ImageDefinition : UsableImage, Named {
-        override val capabilities: Set<Capability> // TODO maybe move to ParentCapabilities.set and return ParentCapabilities here
+        val capabilities: Capabilities
         val indexAnnotations: MapProperty<String, String>
 
         val component: Provider<OciComponent>
@@ -75,6 +75,8 @@ interface OciExtension {
         fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>) // TODO same as for allPlatforms
 
         interface Capabilities {
+            val set: Set<Capability>
+
             fun capability(group: String, name: String) // TODO maybe rename to add, capability should return a capability (but this method is not needed probably), parentImages.add is also not called parentImages.parentImage
         }
 
