@@ -68,9 +68,9 @@ interface OciExtension {
         // decorate Bundle so that layers is also decorated (different layers set for this and the other methods)
         // layers only executed for the first bundle
 
-        fun addPlatform(platform: Platform) // TODO addPlatform + existingPlatform or general method platform (putIfAbsent)
+        fun specificPlatform(platform: Platform)
 
-        fun addPlatform(platform: Platform, configuration: Action<in Bundle>)
+        fun specificPlatform(platform: Platform, configuration: Action<in Bundle>)
 
         fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>) // TODO same as for allPlatforms
 

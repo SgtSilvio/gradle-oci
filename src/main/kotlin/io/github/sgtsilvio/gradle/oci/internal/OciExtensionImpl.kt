@@ -94,11 +94,11 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         override fun allPlatforms(configuration: Action<in OciExtension.ImageDefinition.Bundle>) =
             bundles.configureEach(configuration)
 
-        override fun addPlatform(platform: OciExtension.Platform) {
+        override fun specificPlatform(platform: OciExtension.Platform) {
             addPlatformInternal(platform)
         }
 
-        override fun addPlatform(
+        override fun specificPlatform(
             platform: OciExtension.Platform,
             configuration: Action<in OciExtension.ImageDefinition.Bundle>,
         ) = configuration.execute(addPlatformInternal(platform))
