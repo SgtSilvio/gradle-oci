@@ -188,7 +188,7 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
 
             override val set: Set<Capability> get() = imageConfiguration.outgoing.capabilities.toSet()
 
-            override fun capability(group: String, name: String) =
+            override fun add(group: String, name: String) =
                 imageConfiguration.outgoing.capability("$group:$name:default")
         }
 

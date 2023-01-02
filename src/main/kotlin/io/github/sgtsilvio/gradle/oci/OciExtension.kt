@@ -77,7 +77,7 @@ interface OciExtension {
         interface Capabilities {
             val set: Set<Capability>
 
-            fun capability(group: String, name: String) // TODO maybe rename to add, capability should return a capability (but this method is not needed probably), parentImages.add is also not called parentImages.parentImage
+            fun add(group: String, name: String) // TODO maybe rename to add, capability should return a capability (but this method is not needed probably), parentImages.add is also not called parentImages.parentImage
         }
 
         interface Bundle {
