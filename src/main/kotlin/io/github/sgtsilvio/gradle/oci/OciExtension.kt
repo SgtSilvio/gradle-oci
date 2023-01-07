@@ -24,8 +24,8 @@ interface OciExtension {
     fun platform(
         os: String,
         architecture: String,
-        variant: String? = null,
-        osVersion: String? = null,
+        variant: String = "",
+        osVersion: String = "",
         osFeatures: Set<String> = setOf(),
     ): Platform
 
@@ -40,8 +40,8 @@ interface OciExtension {
     interface Platform {
         val os: String
         val architecture: String
-        val variant: String?
-        val osVersion: String?
+        val variant: String
+        val osVersion: String
         val osFeatures: Set<String>
     }
 
