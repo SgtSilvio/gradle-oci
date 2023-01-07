@@ -54,7 +54,17 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         override val variant: String,
         override val osVersion: String,
         override val osFeatures: Set<String>,
-    ) : OciExtension.Platform
+    ) : OciExtension.Platform {
+        override fun toString(): String {
+            val s = "@$os,$architecture"
+            return when {
+                osFeatures.isNotEmpty() -> "$s,$variant,$osVersion," + osFeatures.joinToString(",")
+                osVersion.isNotEmpty() -> "$s,$variant,$osVersion"
+                variant.isNotEmpty() -> "$s,$variant"
+                else -> s
+            }
+        }
+    }
 
 
     abstract class ImageDefinition @Inject constructor(
