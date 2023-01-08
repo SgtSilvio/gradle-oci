@@ -66,6 +66,24 @@ private class FieldPlatformFilter(
         return if (needsPostfix) "$s,+" else s
     }
 
+    override fun equals(other: Any?) = when {
+        this === other -> true
+        other !is FieldPlatformFilter -> false
+        oses != other.oses -> false
+        architectures != other.architectures -> false
+        variants != other.variants -> false
+        osVersions != other.osVersions -> false
+        else -> true
+    }
+
+    override fun hashCode(): Int {
+        var result = oses.hashCode()
+        result = 31 * result + architectures.hashCode()
+        result = 31 * result + variants.hashCode()
+        result = 31 * result + osVersions.hashCode()
+        return result
+    }
+
     override fun compareTo(other: FieldPlatformFilter): Int {
         oses.compareTo(other.oses).also { if (it != 0) return it }
         architectures.compareTo(other.architectures).also { if (it != 0) return it }
@@ -93,6 +111,14 @@ private class OrPlatformFilter(filters: Array<FieldPlatformFilter>) : PlatformFi
         }
         return s.toString()
     }
+
+    override fun equals(other: Any?) = when {
+        this === other -> true
+        other !is OrPlatformFilter -> false
+        else -> filters.contentEquals(other.filters)
+    }
+
+    override fun hashCode() = filters.contentHashCode()
 }
 
 private fun normalizeFilters(filters: Array<FieldPlatformFilter>): Array<FieldPlatformFilter> {
@@ -102,6 +128,7 @@ private fun normalizeFilters(filters: Array<FieldPlatformFilter>): Array<FieldPl
             if (a.isEmpty() || b.isEmpty()) setOf() else a + b
         }
     }
+
     val osArchVariantToOsVersions = mutableMapOf<Triple<String?, String?, String?>, Set<String>>()
     for (filter in filters) {
         val oses = filter.oses.ifEmpty { setOf(null) }
