@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciExtension
 import org.gradle.api.specs.Spec
+import java.util.TreeSet
 
 /**
  * @author Silvio Giebl
@@ -25,12 +26,16 @@ object AllPlatformFilter : PlatformFilter {
 }
 
 private class FieldPlatformFilter(
-    val oses: Set<String>, // empty means all // TODO sort
-    val architectures: Set<String>, // empty means all // TODO sort
-    val variants: Set<String>, // empty means all, "" element means not set // TODO sort
-    val osVersions: Set<String>, // empty means all, "" element means not set // TODO sort
+    oses: Set<String>, // empty means all
+    architectures: Set<String>, // empty means all
+    variants: Set<String>, // empty means all, "" element means not set
+    osVersions: Set<String>, // empty means all, "" element means not set
     //val osFeatures: Set<List<String>> => no support for filtering on osFeatures because confusing and complicated (is it and/or, all/any?)
-) : PlatformFilter {
+) : PlatformFilter, Comparable<FieldPlatformFilter> {
+    val oses = oses.toSortedSet().toSet()
+    val architectures = architectures.toSortedSet().toSet()
+    val variants = variants.toSortedSet().toSet()
+    val osVersions = osVersions.toSortedSet().toSet()
 
     override fun or(other: PlatformFilter) = when (other) {
         is AllPlatformFilter -> AllPlatformFilter
@@ -63,6 +68,13 @@ private class FieldPlatformFilter(
         s += ',' + osVersions.joinToString("+")
         needsPostfix = needsPostfix && (osVersions.size == 1)
         return if (needsPostfix) "$s,+" else s
+    }
+
+    override fun compareTo(other: FieldPlatformFilter): Int {
+        oses.compareTo(other.oses).also { if (it != 0) return it }
+        architectures.compareTo(other.architectures).also { if (it != 0) return it }
+        variants.compareTo(other.variants).also { if (it != 0) return it }
+        return osVersions.compareTo(other.osVersions)
     }
 }
 
@@ -155,14 +167,24 @@ private fun normalizeFilters(filters: Array<FieldPlatformFilter>): Array<FieldPl
         val (os, variants, osVersions) = osVariantsOsVersions
         archesVariantsOsVersionsToOses.merge(Triple(arches, variants, osVersions), os)
     }
-    val normalizedFilters = ArrayList<FieldPlatformFilter>(archesVariantsOsVersionsToOses.size)
+    val normalizedFilters = TreeSet<FieldPlatformFilter>()
     for ((archesVariantsOsVersions, oses) in archesVariantsOsVersionsToOses) {
         val (arches, variants, osVersions) = archesVariantsOsVersions
         normalizedFilters.add(FieldPlatformFilter(oses, arches, variants, osVersions))
     }
-    return normalizedFilters.toTypedArray() // TODO
-//    return filters
-    // TODO sort
+    return normalizedFilters.toTypedArray()
+}
+
+private operator fun <T : Comparable<T>> Iterable<T>.compareTo(other: Iterable<T>): Int {
+    val iterator = iterator()
+    val otherIterator = other.iterator()
+    while (iterator.hasNext() && otherIterator.hasNext()) {
+        val result = iterator.next().compareTo(otherIterator.next())
+        if (result != 0) {
+            return result
+        }
+    }
+    return if (iterator.hasNext()) 1 else if (otherIterator.hasNext()) -1 else 0
 }
 
 
