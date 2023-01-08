@@ -5,8 +5,9 @@ import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciExtension
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
+import io.github.sgtsilvio.gradle.oci.dsl.AllPlatformFilter
+import io.github.sgtsilvio.gradle.oci.dsl.PlatformFilter
 import org.gradle.api.Action
-import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
@@ -28,7 +29,7 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory) : OciExtension {
+abstract class OciExtensionImpl @Inject constructor(private val objectFactory: ObjectFactory) : OciExtension {
 
     final override val imageDefinitions = objectFactory.domainObjectContainer(OciExtension.ImageDefinition::class) { name ->
         objectFactory.newInstance<ImageDefinition>(name)
@@ -47,6 +48,19 @@ abstract class OciExtensionImpl @Inject constructor(objectFactory: ObjectFactory
         osFeatures: Set<String>,
     ) = Platform(os, architecture, variant, osVersion, osFeatures)
 
+    override fun platformFilter(configuration: Action<in OciExtension.PlatformFilterBuilder>): PlatformFilter {
+        val builder = objectFactory.newInstance<OciExtension.PlatformFilterBuilder>()
+        configuration.execute(builder)
+        return PlatformFilter(
+            builder.oses.get(),
+            builder.architectures.get(),
+            builder.variants.get(),
+            builder.osVersions.get(),
+        )
+    }
+
+    override fun PlatformFilter.or(configuration: Action<in OciExtension.PlatformFilterBuilder>) =
+        or(platformFilter(configuration))
 
     data class Platform(
         override val os: String,

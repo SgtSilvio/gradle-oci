@@ -2,17 +2,13 @@ package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciExtension
 import org.gradle.api.specs.Spec
-import java.util.TreeSet
+import java.util.*
 
 /**
  * @author Silvio Giebl
  */
 interface PlatformFilter : Spec<OciExtension.Platform> {
     fun or(other: PlatformFilter): PlatformFilter
-}
-
-interface PlatformFilterBuilder {
-    // TODO
 }
 
 fun PlatformFilter(oses: Set<String>, architectures: Set<String>, variants: Set<String>, osVersions: Set<String>) =

@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
+import io.github.sgtsilvio.gradle.oci.dsl.PlatformFilter
 import org.gradle.api.*
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
@@ -29,6 +30,10 @@ interface OciExtension {
         osFeatures: Set<String> = setOf(),
     ): Platform
 
+    fun platformFilter(configuration: Action<in PlatformFilterBuilder>) : PlatformFilter
+
+    fun PlatformFilter.or(configuration: Action<in PlatformFilterBuilder>) : PlatformFilter
+
 //    interface Registries {
 //        fun registry(configuration: Action<in Registry>)
 //    }
@@ -43,6 +48,13 @@ interface OciExtension {
         val variant: String
         val osVersion: String
         val osFeatures: Set<String>
+    }
+
+    interface PlatformFilterBuilder {
+        val oses: SetProperty<String>
+        val architectures: SetProperty<String>
+        val variants: SetProperty<String>
+        val osVersions: SetProperty<String>
     }
 
     interface Image {
