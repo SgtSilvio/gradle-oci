@@ -19,7 +19,6 @@ import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDepende
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
-import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.*
@@ -93,6 +92,8 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
         override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
+        private var universalBundleScope: BundleScope? = null
+        private var bundleScopes: MutableMap<PlatformFilter, BundleScope>? = null
         private var platformBundles: MutableMap<OciExtension.Platform, Bundle>? = null
         override val component = createComponent(providerFactory)
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
@@ -115,8 +116,14 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         override fun capabilities(configuration: Action<in OciExtension.ImageDefinition.Capabilities>) =
             configuration.execute(capabilities)
 
-        override fun allPlatforms(configuration: Action<in OciExtension.ImageDefinition.Bundle>) =
-            bundles.configureEach(configuration)
+        override fun allPlatforms(configuration: Action<in OciExtension.ImageDefinition.BundleScope>) {
+            var bundleScope = universalBundleScope
+            if (bundleScope == null) {
+                bundleScope = objectFactory.newInstance<BundleScope>(AllPlatformFilter, this)
+                universalBundleScope = bundleScope
+            }
+            configuration.execute(bundleScope)
+        }
 
         override fun specificPlatform(platform: OciExtension.Platform) {
             addPlatformInternal(platform)
@@ -128,10 +135,26 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         ) = configuration.execute(addPlatformInternal(platform))
 
         override fun platformsMatching(
-            spec: Spec<in OciExtension.Platform>,
-            configuration: Action<in OciExtension.ImageDefinition.Bundle>,
-        ) = bundles.matching { bundle -> if (bundle is PlatformBundle) spec.isSatisfiedBy(bundle.platform) else false }
-            .configureEach(configuration)
+            platformFilter: PlatformFilter,
+            configuration: Action<in OciExtension.ImageDefinition.BundleScope>,
+        ) {
+            if (platformFilter == AllPlatformFilter) {
+                return allPlatforms(configuration)
+            }
+            var bundleScopes = bundleScopes
+            var bundleScope: BundleScope? = null
+            if (bundleScopes == null) {
+                bundleScopes = mutableMapOf()
+                this.bundleScopes = bundleScopes
+            } else {
+                bundleScope = bundleScopes[platformFilter]
+            }
+            if (bundleScope == null) {
+                bundleScope = objectFactory.newInstance<BundleScope>(platformFilter, this)
+                bundleScopes[platformFilter] = bundleScope
+            }
+            configuration.execute(bundleScope)
+        }
 
         private fun addPlatformInternal(platform: OciExtension.Platform): Bundle {
             var platformBundles = platformBundles
@@ -206,6 +229,106 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             if (imageName == "main") "ociComponent" else "${imageName}OciComponent"
 
 
+        abstract class BundleScope @Inject constructor(
+            private val platformFilter: PlatformFilter,
+            private val imageDefinition: ImageDefinition,
+            private val objectFactory: ObjectFactory
+        ) : OciExtension.ImageDefinition.BundleScope {
+
+            private val filteredBundles = if (platformFilter == AllPlatformFilter) imageDefinition.bundles else
+                imageDefinition.bundles.matching { bundle ->
+                    if (bundle is PlatformBundle) platformFilter.isSatisfiedBy(bundle.platform) else false
+                }
+            private val layers = objectFactory.newInstance<LayersScope>(this)
+
+            override fun parentImages(configuration: Action<in OciExtension.ImageDefinition.Bundle.ParentImages>) =
+                filteredBundles.configureEach { parentImages(configuration) }
+
+            override fun config(configuration: Action<in OciExtension.ImageDefinition.Bundle.Config>) =
+                filteredBundles.configureEach { config(configuration) }
+
+            override fun layers(configuration: Action<in OciExtension.ImageDefinition.BundleScope.LayersScope>) =
+                configuration.execute(layers)
+
+            abstract class LayersScope @Inject constructor(
+                private val bundleScope: BundleScope,
+                private val objectFactory: ObjectFactory,
+            ) : OciExtension.ImageDefinition.BundleScope.LayersScope {
+
+                private val list = objectFactory.namedDomainObjectList(OciExtension.ImageDefinition.BundleScope.LayerScope::class)
+
+                override fun layer(
+                    name: String,
+                    configuration: Action<in OciExtension.ImageDefinition.BundleScope.LayerScope>,
+                ) = configuration.execute(layer(name))
+
+                fun layer(name: String): LayerScope {
+                    var layer = list.findByName(name) as LayerScope?
+                    if (layer == null) {
+                        layer = objectFactory.newInstance<LayerScope>(name, bundleScope)
+                        list.add(layer)
+                    }
+                    return layer
+                }
+            }
+
+            abstract class LayerScope @Inject constructor(
+                private val name: String,
+                private val bundleScope: BundleScope,
+                private val projectLayout: ProjectLayout,
+                private val taskContainer: TaskContainer,
+            ) : OciExtension.ImageDefinition.BundleScope.LayerScope {
+
+                private var task: TaskProvider<OciLayerTask>? = null
+                private var externalTask: TaskProvider<OciLayerTask>? = null
+
+                override fun getName() = name
+
+                override fun metadata(configuration: Action<in OciExtension.ImageDefinition.Bundle.Layer.Metadata>) =
+                    bundleScope.filteredBundles.configureEach { layers.layer(name).metadata(configuration) }
+
+                override fun contents(configuration: Action<in OciCopySpec>) {
+                    if (externalTask != null) {
+                        throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
+                    }
+                    var task = task
+                    if (task == null) {
+                        task = createTask(configuration)
+                        this.task = task
+                        bundleScope.filteredBundles.configureEach {
+                            layers.layer(name).contents(task)
+                        }
+                    } else {
+                        task.configure {
+                            contents(configuration)
+                        }
+                    }
+                }
+
+                override fun contents(task: TaskProvider<OciLayerTask>) {
+                    externalTask = if (task == this.task) null else task
+                    bundleScope.filteredBundles.configureEach {
+                        layers.layer(name).contents(task)
+                    }
+                }
+
+                private fun createTask(configuration: Action<in OciCopySpec>): TaskProvider<OciLayerTask> {
+                    val imageName = bundleScope.imageDefinition.name
+                    val layerName = name
+                    val platformFilter = bundleScope.platformFilter.toString()
+                    return taskContainer.register<OciLayerTask>(createTaskName(imageName, layerName, platformFilter)) {
+                        outputDirectory.convention(projectLayout.buildDirectory.dir("oci/$imageName/$layerName$platformFilter"))
+                        contents(configuration)
+                    }
+                }
+
+                private fun createTaskName(imageName: String, layerName: String, platformFilter: String) =
+                    if (imageName == "main") "${layerName}OciLayer$platformFilter"
+                    else "$imageName${layerName.capitalize()}OciLayer$platformFilter"
+            }
+        }
+
+
         abstract class Capabilities @Inject constructor(
             private val imageConfiguration: Configuration,
         ) : OciExtension.ImageDefinition.Capabilities {
@@ -249,7 +372,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {
                 for (layer in layers.list) {
                     layer as Layer
-                    val task = layer.task
+                    val task = layer.getTask()
                     if (task != null) {
                         set.add(task)
                     }
@@ -382,10 +505,16 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
                 override val list = objectFactory.namedDomainObjectList(OciExtension.ImageDefinition.Bundle.Layer::class)
 
-                override fun layer(name: String, configuration: Action<in OciExtension.ImageDefinition.Bundle.Layer>) {
-                    val layer = objectFactory.newInstance<Layer>(name, imageName)
-                    list.add(layer)
-                    configuration.execute(layer)
+                override fun layer(name: String, configuration: Action<in OciExtension.ImageDefinition.Bundle.Layer>) =
+                    configuration.execute(layer(name))
+
+                fun layer(name: String): Layer {
+                    var layer = list.findByName(name) as Layer?
+                    if (layer == null) {
+                        layer = objectFactory.newInstance<Layer>(name, imageName)
+                        list.add(layer)
+                    }
+                    return layer
                 }
             }
 
@@ -402,8 +531,8 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     createdBy.convention("gradle-oci: $name")
                 }
 
-                var task: TaskProvider<OciLayerTask>? = null
-                    private set
+                private var task: TaskProvider<OciLayerTask>? = null
+                private var externalTask: TaskProvider<OciLayerTask>? = null
 
                 override fun getName() = name
 
@@ -411,6 +540,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     configuration.execute(metadata)
 
                 override fun contents(configuration: Action<in OciCopySpec>) {
+                    if (externalTask != null) {
+                        throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
+                    }
                     var task = task
                     if (task == null) {
                         task = taskContainer.register<OciLayerTask>(createTaskName(imageName, name)) {
@@ -426,11 +558,10 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 }
 
                 override fun contents(task: TaskProvider<OciLayerTask>) {
-                    if (this.task != null) {
-                        throw IllegalStateException("layer task already set ${this.task}, can not replace with $task")
-                    }
-                    this.task = task
+                    externalTask = if (task == this.task) null else task
                 }
+
+                fun getTask() = externalTask ?: task
 
                 fun createComponentLayer(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer> {
                     var provider = OciComponent.LayerBuilder().let { providerFactory.provider { it } }
@@ -442,7 +573,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
                     var descriptorProvider = OciComponent.LayerDescriptorBuilder().let { providerFactory.provider { it } }
                     descriptorProvider = descriptorProvider.zip(metadata.annotations.orElse(mapOf()), OciComponent.LayerDescriptorBuilder::annotations)
-                    val task = task
+                    val task = getTask()
                     if (task != null) {
                         descriptorProvider = descriptorProvider.zipOptional(task.flatMap { it.digestFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::digest)
                         descriptorProvider = descriptorProvider.zipOptional(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::diffId)
@@ -454,7 +585,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 }
 
                 private fun createTaskName(imageName: String, name: String) =
-                    if (imageName == "main") "${name}OciLayer" else "${imageName}${name.capitalize()}OciLayer"
+                    if (imageName == "main") "${name}OciLayer" else "${imageName}${name.capitalize()}OciLayer" // TODO platform as part of name
             }
         }
 

@@ -9,7 +9,6 @@ import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.*
-import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskProvider
 import java.time.Instant
 
@@ -76,20 +75,18 @@ interface OciExtension {
 
         fun capabilities(configuration: Action<in Capabilities>)
 
-        fun allPlatforms(configuration: Action<in Bundle>) // TODO create layers not for every platform if same config
-        // decorate Bundle so that layers is also decorated (different layers set for this and the other methods)
-        // layers only executed for the first bundle
+        fun allPlatforms(configuration: Action<in BundleScope>)
 
         fun specificPlatform(platform: Platform)
 
         fun specificPlatform(platform: Platform, configuration: Action<in Bundle>)
 
-        fun platformsMatching(spec: Spec<in Platform>, configuration: Action<in Bundle>) // TODO same as for allPlatforms
+        fun platformsMatching(platformFilter: PlatformFilter, configuration: Action<in BundleScope>)
 
         interface Capabilities {
             val set: Set<Capability>
 
-            fun add(group: String, name: String) // TODO maybe rename to add, capability should return a capability (but this method is not needed probably), parentImages.add is also not called parentImages.parentImage
+            fun add(group: String, name: String)
         }
 
         interface Bundle {
@@ -142,8 +139,6 @@ interface OciExtension {
             interface Layers {
                 val list: NamedDomainObjectList<Layer>
 
-                // TODO what to do if name already exists, if throws then no modification can happen (but still via layers field if not replaced with layerMetadata)
-                // TODO can not throw if executed in a different scope (once per allPlatforms for example)
                 fun layer(name: String, configuration: Action<in Layer>)
             }
 
@@ -152,7 +147,6 @@ interface OciExtension {
 
                 fun metadata(configuration: Action<in Metadata>)
 
-                // TODO needs to be executed in a different scope, only once for a allPlatforms call for example
                 fun contents(configuration: Action<in OciCopySpec>)
 
                 fun contents(task: TaskProvider<OciLayerTask>)
@@ -164,6 +158,26 @@ interface OciExtension {
                     val comment: Property<String>
                     val annotations: MapProperty<String, String>
                 }
+            }
+        }
+
+        interface BundleScope {
+//            val layers: LayersScope
+
+            fun parentImages(configuration: Action<in Bundle.ParentImages>)
+            fun config(configuration: Action<in Bundle.Config>)
+            fun layers(configuration: Action<in LayersScope>)
+
+            interface LayersScope {
+//                val list: NamedDomainObjectList<LayerScope>
+
+                fun layer(name: String, configuration: Action<in LayerScope>)
+            }
+
+            interface LayerScope : Named {
+                fun metadata(configuration: Action<in Bundle.Layer.Metadata>)
+                fun contents(configuration: Action<in OciCopySpec>)
+                fun contents(task: TaskProvider<OciLayerTask>)
             }
         }
     }
