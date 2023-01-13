@@ -6,7 +6,9 @@ import io.github.sgtsilvio.gradle.oci.OciExtension
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.dsl.AllPlatformFilter
+import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import io.github.sgtsilvio.gradle.oci.dsl.PlatformFilter
+import io.github.sgtsilvio.gradle.oci.dsl.PlatformImpl
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
@@ -46,7 +48,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         variant: String,
         osVersion: String,
         osFeatures: Set<String>,
-    ) = Platform(os, architecture, variant, osVersion, osFeatures)
+    ) = PlatformImpl(os, architecture, variant, osVersion, osFeatures)
 
     override fun platformFilter(configuration: Action<in OciExtension.PlatformFilterBuilder>): PlatformFilter {
         val builder = objectFactory.newInstance<OciExtension.PlatformFilterBuilder>()
@@ -61,24 +63,6 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
     override fun PlatformFilter.or(configuration: Action<in OciExtension.PlatformFilterBuilder>) =
         or(platformFilter(configuration))
-
-    data class Platform(
-        override val os: String,
-        override val architecture: String,
-        override val variant: String,
-        override val osVersion: String,
-        override val osFeatures: Set<String>,
-    ) : OciExtension.Platform {
-        override fun toString(): String {
-            val s = "@$os,$architecture"
-            return when {
-                osFeatures.isNotEmpty() -> "$s,$variant,$osVersion," + osFeatures.joinToString(",")
-                osVersion.isNotEmpty() -> "$s,$variant,$osVersion"
-                variant.isNotEmpty() -> "$s,$variant"
-                else -> s
-            }
-        }
-    }
 
 
     abstract class ImageDefinition @Inject constructor(
@@ -95,7 +79,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
         private var universalBundleScope: BundleScope? = null
         private var bundleScopes: MutableMap<PlatformFilter, BundleScope>? = null
-        private var platformBundles: MutableMap<OciExtension.Platform, Bundle>? = null
+        private var platformBundles: MutableMap<Platform, Bundle>? = null
         override val component = createComponent(providerFactory)
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
@@ -126,12 +110,12 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             configuration.execute(bundleScope)
         }
 
-        override fun specificPlatform(platform: OciExtension.Platform) {
+        override fun specificPlatform(platform: Platform) {
             addPlatformInternal(platform)
         }
 
         override fun specificPlatform(
-            platform: OciExtension.Platform,
+            platform: Platform,
             configuration: Action<in OciExtension.ImageDefinition.Bundle>,
         ) = configuration.execute(addPlatformInternal(platform))
 
@@ -157,7 +141,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             configuration.execute(bundleScope)
         }
 
-        private fun addPlatformInternal(platform: OciExtension.Platform): Bundle {
+        private fun addPlatformInternal(platform: Platform): Bundle {
             var platformBundles = platformBundles
             if (platformBundles == null) {
                 if (!bundles.isEmpty()) {
@@ -599,13 +583,13 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         abstract class PlatformBundle @Inject constructor(
             imageName: String,
             imageConfiguration: Configuration,
-            val platform: OciExtension.Platform?,
+            val platform: Platform?,
             objectFactory: ObjectFactory,
             projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
         ) : Bundle(imageName, imageConfiguration, objectFactory, projectDependencyPublicationResolver)
 
 
-        class PlatformBundles(val map: Map<OciExtension.Platform, Bundle>) : BundleOrPlatformBundles {
+        class PlatformBundles(val map: Map<Platform, Bundle>) : BundleOrPlatformBundles {
             // TODO maybe remove PlatformBundles here completely as bundles collection and map should be sufficient
 
             override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {

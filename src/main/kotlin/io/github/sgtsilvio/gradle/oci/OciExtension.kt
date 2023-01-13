@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
+import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import io.github.sgtsilvio.gradle.oci.dsl.PlatformFilter
 import org.gradle.api.*
 import org.gradle.api.artifacts.ExternalModuleDependency
@@ -40,14 +41,6 @@ interface OciExtension {
 //    interface Registry : Named {
 //        var url: URI
 //    }
-
-    interface Platform {
-        val os: String
-        val architecture: String
-        val variant: String
-        val osVersion: String
-        val osFeatures: Set<String>
-    }
 
     interface PlatformFilterBuilder {
         val oses: SetProperty<String>

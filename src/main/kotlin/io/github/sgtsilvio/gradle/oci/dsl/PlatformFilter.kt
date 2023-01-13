@@ -1,13 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
-import io.github.sgtsilvio.gradle.oci.OciExtension
 import org.gradle.api.specs.Spec
 import java.util.*
 
 /**
  * @author Silvio Giebl
  */
-interface PlatformFilter : Spec<OciExtension.Platform> {
+interface PlatformFilter : Spec<Platform> {
     fun or(other: PlatformFilter): PlatformFilter
 }
 
@@ -17,7 +16,7 @@ fun PlatformFilter(oses: Set<String>, architectures: Set<String>, variants: Set<
 
 object AllPlatformFilter : PlatformFilter {
     override fun or(other: PlatformFilter) = this
-    override fun isSatisfiedBy(element: OciExtension.Platform?) = true
+    override fun isSatisfiedBy(element: Platform?) = true
     override fun toString() = ""
 }
 
@@ -40,7 +39,7 @@ private class FieldPlatformFilter(
         else -> throw IllegalStateException()
     }
 
-    override fun isSatisfiedBy(platform: OciExtension.Platform?) = (platform != null)
+    override fun isSatisfiedBy(platform: Platform?) = (platform != null)
             && (oses.isEmpty() || oses.contains(platform.os))
             && (architectures.isEmpty() || architectures.contains(platform.architecture))
             && (variants.isEmpty() || variants.contains(platform.variant))
@@ -102,7 +101,7 @@ private class OrPlatformFilter(filters: Array<FieldPlatformFilter>) : PlatformFi
         else -> throw IllegalStateException()
     }
 
-    override fun isSatisfiedBy(platform: OciExtension.Platform?) = filters.any { it.isSatisfiedBy(platform) }
+    override fun isSatisfiedBy(platform: Platform?) = filters.any { it.isSatisfiedBy(platform) }
 
     override fun toString(): String {
         val s = StringBuilder()
