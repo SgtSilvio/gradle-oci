@@ -79,7 +79,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
         private var universalBundleScope: BundleScope? = null
         private var bundleScopes: MutableMap<PlatformFilter, BundleScope>? = null
-        private var platformBundles: MutableMap<Platform, Bundle>? = null
+        private var platformBundles: MutableMap<Platform, PlatformBundle>? = null
         override val component = createComponent(providerFactory)
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
@@ -133,15 +133,15 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         }
 
         override fun specificPlatform(platform: Platform) {
-            addPlatformInternal(platform)
+            getOrCreatePlatformBundle(platform)
         }
 
         override fun specificPlatform(
             platform: Platform,
             configuration: Action<in OciExtension.ImageDefinition.Bundle>,
-        ) = configuration.execute(addPlatformInternal(platform))
+        ) = configuration.execute(getOrCreatePlatformBundle(platform))
 
-        private fun addPlatformInternal(platform: Platform): Bundle {
+        private fun getOrCreatePlatformBundle(platform: Platform): PlatformBundle {
             var platformBundles = platformBundles
             if (platformBundles == null) {
                 if (!bundles.isEmpty()) {
@@ -149,12 +149,13 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 }
                 platformBundles = mutableMapOf()
                 this.platformBundles = platformBundles
-            } else if (platform in platformBundles) {
-                throw IllegalStateException("adding platform $platform is not possible because it is already present")
             }
-            val bundle = objectFactory.newInstance<PlatformBundle>(name, imageConfiguration, platform)
-            bundles.add(bundle)
-            platformBundles[platform] = bundle
+            var bundle = platformBundles[platform]
+            if (bundle == null) {
+                bundle = objectFactory.newInstance<PlatformBundle>(name, imageConfiguration, platform)
+                bundles.add(bundle)
+                platformBundles[platform] = bundle
+            }
             return bundle
         }
 
