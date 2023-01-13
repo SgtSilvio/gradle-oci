@@ -110,15 +110,6 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             configuration.execute(bundleScope)
         }
 
-        override fun specificPlatform(platform: Platform) {
-            addPlatformInternal(platform)
-        }
-
-        override fun specificPlatform(
-            platform: Platform,
-            configuration: Action<in OciExtension.ImageDefinition.Bundle>,
-        ) = configuration.execute(addPlatformInternal(platform))
-
         override fun platformsMatching(
             platformFilter: PlatformFilter,
             configuration: Action<in OciExtension.ImageDefinition.BundleScope>,
@@ -140,6 +131,15 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             }
             configuration.execute(bundleScope)
         }
+
+        override fun specificPlatform(platform: Platform) {
+            addPlatformInternal(platform)
+        }
+
+        override fun specificPlatform(
+            platform: Platform,
+            configuration: Action<in OciExtension.ImageDefinition.Bundle>,
+        ) = configuration.execute(addPlatformInternal(platform))
 
         private fun addPlatformInternal(platform: Platform): Bundle {
             var platformBundles = platformBundles

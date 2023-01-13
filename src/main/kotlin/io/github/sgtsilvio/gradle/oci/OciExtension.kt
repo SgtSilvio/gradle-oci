@@ -70,11 +70,11 @@ interface OciExtension {
 
         fun allPlatforms(configuration: Action<in BundleScope>)
 
+        fun platformsMatching(platformFilter: PlatformFilter, configuration: Action<in BundleScope>)
+
         fun specificPlatform(platform: Platform)
 
         fun specificPlatform(platform: Platform, configuration: Action<in Bundle>)
-
-        fun platformsMatching(platformFilter: PlatformFilter, configuration: Action<in BundleScope>)
 
         interface Capabilities {
             val set: Set<Capability>
