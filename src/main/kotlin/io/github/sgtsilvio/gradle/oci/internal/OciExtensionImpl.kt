@@ -614,6 +614,3 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         }
     }
 }
-
-private fun <T, B, R> Provider<T>.zipOptional(other: Provider<B>, combiner: (T, B?) -> R) =
-    zip(other.map { Optional.ofNullable(it) }.orElse(Optional.empty())) { t, b -> combiner.invoke(t, b.orElse(null)) }
