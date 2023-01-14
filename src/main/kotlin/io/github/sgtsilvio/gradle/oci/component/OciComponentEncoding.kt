@@ -35,13 +35,17 @@ private fun encodePlatformBundles(platformBundles: OciComponent.PlatformBundles)
 }
 
 private fun encodePlatform(platform: OciComponent.Platform) = JSONObject().apply {
-    put("architecture", platform.architecture)
     put("os", platform.os)
-    put("osVersion", platform.osVersion)
+    put("architecture", platform.architecture)
+    if (platform.variant != "") {
+        put("variant", platform.variant)
+    }
+    if (platform.osVersion != "") {
+        put("osVersion", platform.osVersion)
+    }
     if (platform.osFeatures.isNotEmpty()) {
         put("osFeatures", platform.osFeatures) // TODO sorted
     }
-    put("variant", platform.variant)
 }
 
 private fun encodeBundle(bundle: OciComponent.Bundle) = JSONObject().apply {

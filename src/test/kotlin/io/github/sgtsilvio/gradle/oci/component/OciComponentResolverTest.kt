@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test
  */
 internal class OciComponentResolverTest {
 
-    private val amd64 = OciComponent.Platform("amd64", "linux", null, setOf(), null)
-    private val arm64v8 = OciComponent.Platform("arm64", "linux", null, setOf(), "v8")
-    private val arm32v7 = OciComponent.Platform("arm", "linux", null, setOf(), "v7")
+    private val amd64 = OciComponent.Platform("amd64", "linux", "", "", setOf())
+    private val arm64v8 = OciComponent.Platform("arm64", "linux", "v8", "", setOf())
+    private val arm32v7 = OciComponent.Platform("arm", "linux", "v7", "", setOf())
 
     @Test
     fun singleComponentWithoutPlatforms_resolvesToInfinitePlatforms() {

@@ -612,7 +612,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 var provider = providerFactory.provider { mutableMapOf<OciComponent.Platform, OciComponent.Bundle>() }
                 for ((platform, bundle) in map) {
                     val cPlatform = OciComponent.Platform(
-                        platform.architecture, platform.os, platform.osVersion, platform.osFeatures, platform.variant
+                        platform.os, platform.architecture, platform.variant, platform.osVersion, platform.osFeatures
                     )
                     provider = provider.zip(bundle.createComponentBundleOrPlatformBundles(providerFactory)) { map, cBundle ->
                         map[cPlatform] = cBundle

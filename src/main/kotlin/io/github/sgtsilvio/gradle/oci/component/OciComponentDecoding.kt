@@ -33,11 +33,11 @@ private fun JSONArray.decodePlatformBundles() = OciComponent.PlatformBundles(toM
 })
 
 private fun JSONObject.decodePlatform() = OciComponent.Platform(
-    key("architecture") { stringValue() },
     key("os") { stringValue() },
-    optionalKey("osVersion") { stringValue() },
+    key("architecture") { stringValue() },
+    optionalKey("variant") { stringValue() } ?: "",
+    optionalKey("osVersion") { stringValue() } ?: "",
     optionalKey("osFeatures") { arrayValue().toSet { stringValue() } } ?: setOf(),
-    optionalKey("variant") { stringValue() },
 )
 
 private fun JSONObject.decodeBundle() = OciComponent.Bundle(
