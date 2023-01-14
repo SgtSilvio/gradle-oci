@@ -187,20 +187,20 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private fun createConfigurationName(imageName: String) =
             if (imageName == "main") "ociImage" else "${imageName}OciImage"
 
-        private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> {
-            val capabilitiesProvider = providerFactory.provider {
-                capabilities.set.map { OciComponent.Capability(it.group, it.name) }.toSet()
-            }
-
-            val bundleOrPlatformBundlesProvider = providerFactory.provider { getBundleOrPlatformBundles() }
-                .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
-
-            return OciComponent.Builder().let { providerFactory.provider { it } }
-                .zip(capabilitiesProvider, OciComponent.Builder::capabilities)
-                .zip(bundleOrPlatformBundlesProvider, OciComponent.Builder::bundleOrPlatformBundles)
+        private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
+            OciComponent.Builder().let { providerFactory.provider { it } }
+                .zip(createComponentCapabilities(providerFactory), OciComponent.Builder::capabilities)
+                .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponent.Builder::bundleOrPlatformBundles)
                 .zipAbsentAsEmptyMap(indexAnnotations, OciComponent.Builder::indexAnnotations)
                 .map { it.build() }
+
+        private fun createComponentCapabilities(providerFactory: ProviderFactory) = providerFactory.provider {
+            capabilities.set.map { OciComponent.Capability(it.group, it.name) }.toSet()
         }
+
+        private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory) =
+            providerFactory.provider { getBundleOrPlatformBundles() }
+                .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
 
         private fun createComponentTask(imageName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
             taskContainer.register<OciComponentTask>(createComponentTaskName(imageName)) {
@@ -389,10 +389,27 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     }
                 }
 
-                val commandProvider = OciComponent.CommandBuilder().let { providerFactory.provider { it } }
-                    .zipAbsentAsNull(config.entryPoint, OciComponent.CommandBuilder::entryPoint)
-                    .zipAbsentAsNull(config.arguments, OciComponent.CommandBuilder::arguments)
+                return OciComponent.BundleBuilder().parentCapabilities(parentCapabilities).let { providerFactory.provider { it } }
+                    .zipAbsentAsNull(config.creationTime, OciComponent.BundleBuilder::creationTime)
+                    .zipAbsentAsNull(config.author, OciComponent.BundleBuilder::author)
+                    .zipAbsentAsNull(config.user, OciComponent.BundleBuilder::user)
+                    .zipAbsentAsEmptySet(config.ports, OciComponent.BundleBuilder::ports)
+                    .zipAbsentAsEmptyMap(config.environment, OciComponent.BundleBuilder::environment)
+                    .zip(createComponentCommand(providerFactory)) { bundleBuilder, commandBuilder -> bundleBuilder.command(commandBuilder.build()) }
+                    .zipAbsentAsEmptySet(config.volumes, OciComponent.BundleBuilder::volumes)
+                    .zipAbsentAsNull(config.workingDirectory, OciComponent.BundleBuilder::workingDirectory)
+                    .zipAbsentAsNull(config.stopSignal, OciComponent.BundleBuilder::stopSignal)
+                    .zipAbsentAsEmptyMap(config.configAnnotations, OciComponent.BundleBuilder::configAnnotations)
+                    .zipAbsentAsEmptyMap(config.configDescriptorAnnotations, OciComponent.BundleBuilder::configDescriptorAnnotations)
+                    .zipAbsentAsEmptyMap(config.manifestAnnotations, OciComponent.BundleBuilder::manifestAnnotations)
+                    .zipAbsentAsEmptyMap(config.manifestDescriptorAnnotations, OciComponent.BundleBuilder::manifestDescriptorAnnotations)
+                    .zip(createComponentLayers(providerFactory)) { bundleBuilder, layers ->
+                        bundleBuilder.layers(List(layers.size) { i -> layers[i]!! })
+                    }
+                    .map { it.build() }
+            }
 
+            private fun createComponentLayers(providerFactory: ProviderFactory): Provider<Array<OciComponent.Bundle.Layer?>> {
                 var layersProvider = arrayOfNulls<OciComponent.Bundle.Layer>(layers.list.size).let { providerFactory.provider { it } }
                 for ((i, layer) in layers.list.withIndex()) {
                     layer as Layer
@@ -401,26 +418,13 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                         layers
                     }
                 }
-
-                return OciComponent.BundleBuilder().parentCapabilities(parentCapabilities).let { providerFactory.provider { it } }
-                    .zipAbsentAsNull(config.creationTime, OciComponent.BundleBuilder::creationTime)
-                    .zipAbsentAsNull(config.author, OciComponent.BundleBuilder::author)
-                    .zipAbsentAsNull(config.user, OciComponent.BundleBuilder::user)
-                    .zipAbsentAsEmptySet(config.ports, OciComponent.BundleBuilder::ports)
-                    .zipAbsentAsEmptyMap(config.environment, OciComponent.BundleBuilder::environment)
-                    .zip(commandProvider) { bundleBuilder, commandBuilder -> bundleBuilder.command(commandBuilder.build()) }
-                    .zipAbsentAsEmptySet(config.volumes, OciComponent.BundleBuilder::volumes)
-                    .zipAbsentAsNull(config.workingDirectory, OciComponent.BundleBuilder::workingDirectory)
-                    .zipAbsentAsNull(config.stopSignal, OciComponent.BundleBuilder::stopSignal)
-                    .zipAbsentAsEmptyMap(config.configAnnotations, OciComponent.BundleBuilder::configAnnotations)
-                    .zipAbsentAsEmptyMap(config.configDescriptorAnnotations, OciComponent.BundleBuilder::configDescriptorAnnotations)
-                    .zipAbsentAsEmptyMap(config.manifestAnnotations, OciComponent.BundleBuilder::manifestAnnotations)
-                    .zipAbsentAsEmptyMap(config.manifestDescriptorAnnotations, OciComponent.BundleBuilder::manifestDescriptorAnnotations)
-                    .zip(layersProvider) { bundleBuilder, layers ->
-                        bundleBuilder.layers(List(layers.size) { i -> layers[i]!! })
-                    }
-                    .map { it.build() }
+                return layersProvider
             }
+
+            private fun createComponentCommand(providerFactory: ProviderFactory): Provider<OciComponent.CommandBuilder> =
+                OciComponent.CommandBuilder().let { providerFactory.provider { it } }
+                    .zipAbsentAsNull(config.entryPoint, OciComponent.CommandBuilder::entryPoint)
+                    .zipAbsentAsNull(config.arguments, OciComponent.CommandBuilder::arguments)
 
 
             abstract class ParentImages @Inject constructor(
@@ -550,7 +554,16 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
                 fun getTask() = externalTask ?: task
 
-                fun createComponentLayer(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer> {
+                fun createComponentLayer(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer> =
+                    OciComponent.LayerBuilder().let { providerFactory.provider { it } }
+                        .zipAbsentAsNull(metadata.creationTime, OciComponent.LayerBuilder::creationTime)
+                        .zipAbsentAsNull(metadata.author, OciComponent.LayerBuilder::author)
+                        .zipAbsentAsNull(metadata.createdBy, OciComponent.LayerBuilder::createdBy)
+                        .zipAbsentAsNull(metadata.comment, OciComponent.LayerBuilder::comment)
+                        .zip(createComponentLayerDescriptor(providerFactory)) { layerBuilder, descriptorBuilder -> layerBuilder.descriptor(descriptorBuilder.build()) }
+                        .map { it.build() }
+
+                private fun createComponentLayerDescriptor(providerFactory: ProviderFactory): Provider<OciComponent.LayerDescriptorBuilder> {
                     var descriptorProvider = OciComponent.LayerDescriptorBuilder().let { providerFactory.provider { it } }
                         .zipAbsentAsEmptyMap(metadata.annotations, OciComponent.LayerDescriptorBuilder::annotations)
                     val task = getTask()
@@ -560,14 +573,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                             .zipAbsentAsNull(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::diffId)
                             .zipAbsentAsNull(task.flatMap { it.tarFile }.map { it.asFile.length() }, OciComponent.LayerDescriptorBuilder::size)
                     }
-
-                    return OciComponent.LayerBuilder().let { providerFactory.provider { it } }
-                        .zipAbsentAsNull(metadata.creationTime, OciComponent.LayerBuilder::creationTime)
-                        .zipAbsentAsNull(metadata.author, OciComponent.LayerBuilder::author)
-                        .zipAbsentAsNull(metadata.createdBy, OciComponent.LayerBuilder::createdBy)
-                        .zipAbsentAsNull(metadata.comment, OciComponent.LayerBuilder::comment)
-                        .zip(descriptorProvider) { layerBuilder, descriptorBuilder -> layerBuilder.descriptor(descriptorBuilder.build()) }
-                        .map { it.build() }
+                    return descriptorProvider
                 }
 
                 private fun createTask(configuration: Action<in OciCopySpec>): TaskProvider<OciLayerTask> {
