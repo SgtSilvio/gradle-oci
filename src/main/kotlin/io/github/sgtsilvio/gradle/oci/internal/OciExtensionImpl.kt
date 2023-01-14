@@ -200,7 +200,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 it.createComponentBundleOrPlatformBundles(providerFactory)
             }, OciComponent.Builder::bundleOrPlatformBundles)
 
-            provider = provider.zip(indexAnnotations.orElse(mapOf()), OciComponent.Builder::indexAnnotations)
+            provider = provider.zipAbsentAsEmpty(indexAnnotations, OciComponent.Builder::indexAnnotations)
 
             return provider.map { it.build() }
         }
@@ -395,26 +395,26 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 var provider = OciComponent.BundleBuilder().parentCapabilities(parentCapabilities).let { providerFactory.provider { it } }
 
                 provider = provider
-                    .zipOptional(config.creationTime, OciComponent.BundleBuilder::creationTime)
-                    .zipOptional(config.author, OciComponent.BundleBuilder::author)
-                    .zipOptional(config.user, OciComponent.BundleBuilder::user)
-                    .zip(config.ports.orElse(setOf()), OciComponent.BundleBuilder::ports)
-                    .zip(config.environment.orElse(mapOf()), OciComponent.BundleBuilder::environment)
+                    .zipAbsentAsNull(config.creationTime, OciComponent.BundleBuilder::creationTime)
+                    .zipAbsentAsNull(config.author, OciComponent.BundleBuilder::author)
+                    .zipAbsentAsNull(config.user, OciComponent.BundleBuilder::user)
+                    .zipAbsentAsEmpty(config.ports, OciComponent.BundleBuilder::ports)
+                    .zipAbsentAsEmpty(config.environment, OciComponent.BundleBuilder::environment)
 
                 var commandProvider = OciComponent.CommandBuilder().let { providerFactory.provider { it } }
                 commandProvider = commandProvider
-                    .zipOptional(config.entryPoint, OciComponent.CommandBuilder::entryPoint)
-                    .zipOptional(config.arguments, OciComponent.CommandBuilder::arguments)
+                    .zipAbsentAsNull(config.entryPoint, OciComponent.CommandBuilder::entryPoint)
+                    .zipAbsentAsNull(config.arguments, OciComponent.CommandBuilder::arguments)
                 provider = provider.zip(commandProvider) { bundleBuilder, commandBuilder -> bundleBuilder.command(commandBuilder.build()) }
 
                 provider = provider
-                    .zip(config.volumes.orElse(setOf()), OciComponent.BundleBuilder::volumes)
-                    .zipOptional(config.workingDirectory, OciComponent.BundleBuilder::workingDirectory)
-                    .zipOptional(config.stopSignal, OciComponent.BundleBuilder::stopSignal)
-                    .zip(config.configAnnotations.orElse(mapOf()), OciComponent.BundleBuilder::configAnnotations)
-                    .zip(config.configDescriptorAnnotations.orElse(mapOf()), OciComponent.BundleBuilder::configDescriptorAnnotations)
-                    .zip(config.manifestAnnotations.orElse(mapOf()), OciComponent.BundleBuilder::manifestAnnotations)
-                    .zip(config.manifestDescriptorAnnotations.orElse(mapOf()), OciComponent.BundleBuilder::manifestDescriptorAnnotations)
+                    .zipAbsentAsEmpty(config.volumes, OciComponent.BundleBuilder::volumes)
+                    .zipAbsentAsNull(config.workingDirectory, OciComponent.BundleBuilder::workingDirectory)
+                    .zipAbsentAsNull(config.stopSignal, OciComponent.BundleBuilder::stopSignal)
+                    .zipAbsentAsEmpty(config.configAnnotations, OciComponent.BundleBuilder::configAnnotations)
+                    .zipAbsentAsEmpty(config.configDescriptorAnnotations, OciComponent.BundleBuilder::configDescriptorAnnotations)
+                    .zipAbsentAsEmpty(config.manifestAnnotations, OciComponent.BundleBuilder::manifestAnnotations)
+                    .zipAbsentAsEmpty(config.manifestDescriptorAnnotations, OciComponent.BundleBuilder::manifestDescriptorAnnotations)
 
                 var layersProvider = arrayOfNulls<OciComponent.Bundle.Layer>(layers.list.size).let { providerFactory.provider { it } }
                 for ((i, layer) in layers.list.withIndex()) {
@@ -563,19 +563,19 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     var provider = OciComponent.LayerBuilder().let { providerFactory.provider { it } }
 
                     provider = provider
-                        .zipOptional(metadata.creationTime, OciComponent.LayerBuilder::creationTime)
-                        .zipOptional(metadata.author, OciComponent.LayerBuilder::author)
-                        .zipOptional(metadata.createdBy, OciComponent.LayerBuilder::createdBy)
-                        .zipOptional(metadata.comment, OciComponent.LayerBuilder::comment)
+                        .zipAbsentAsNull(metadata.creationTime, OciComponent.LayerBuilder::creationTime)
+                        .zipAbsentAsNull(metadata.author, OciComponent.LayerBuilder::author)
+                        .zipAbsentAsNull(metadata.createdBy, OciComponent.LayerBuilder::createdBy)
+                        .zipAbsentAsNull(metadata.comment, OciComponent.LayerBuilder::comment)
 
                     var descriptorProvider = OciComponent.LayerDescriptorBuilder().let { providerFactory.provider { it } }
-                    descriptorProvider = descriptorProvider.zip(metadata.annotations.orElse(mapOf()), OciComponent.LayerDescriptorBuilder::annotations)
+                    descriptorProvider = descriptorProvider.zipAbsentAsEmpty(metadata.annotations, OciComponent.LayerDescriptorBuilder::annotations)
                     val task = getTask()
                     if (task != null) {
                         descriptorProvider = descriptorProvider
-                            .zipOptional(task.flatMap { it.digestFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::digest)
-                            .zipOptional(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::diffId)
-                            .zipOptional(task.flatMap { it.tarFile }.map { it.asFile.length() }, OciComponent.LayerDescriptorBuilder::size)
+                            .zipAbsentAsNull(task.flatMap { it.digestFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::digest)
+                            .zipAbsentAsNull(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::diffId)
+                            .zipAbsentAsNull(task.flatMap { it.tarFile }.map { it.asFile.length() }, OciComponent.LayerDescriptorBuilder::size)
                     }
                     provider = provider.zip(descriptorProvider) { layerBuilder, descriptorBuilder -> layerBuilder.descriptor(descriptorBuilder.build()) }
 
