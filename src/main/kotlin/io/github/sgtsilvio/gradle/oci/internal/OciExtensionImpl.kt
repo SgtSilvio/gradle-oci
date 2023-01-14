@@ -368,28 +368,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 }
             }
 
-            override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.Bundle> {
-                val parentCapabilities = mutableListOf<OciComponent.Capability>() // TODO not lazy
-                for (dependency in parentImages.dependencies) {
-                    val capabilities = dependency.requestedCapabilities
-                    if (capabilities.isEmpty()) { // add default capability
-                        if (dependency is ProjectDependency) {
-                            val id = projectDependencyPublicationResolver.resolve(
-                                ModuleVersionIdentifier::class.java,
-                                dependency
-                            )
-                            parentCapabilities.add(OciComponent.Capability(id.group, id.name))
-                        } else {
-                            parentCapabilities.add(OciComponent.Capability(dependency.group ?: "", dependency.name))
-                        }
-                    } else {
-                        for (capability in capabilities) {
-                            parentCapabilities.add(OciComponent.Capability(capability.group, capability.name))
-                        }
-                    }
-                }
-
-                return OciComponent.BundleBuilder().parentCapabilities(parentCapabilities).let { providerFactory.provider { it } }
+            override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.Bundle> =
+                providerFactory.provider { OciComponent.BundleBuilder() }
+                    .zip(createComponentParentCapabilities(providerFactory), OciComponent.BundleBuilder::parentCapabilities)
                     .zipAbsentAsNull(config.creationTime, OciComponent.BundleBuilder::creationTime)
                     .zipAbsentAsNull(config.author, OciComponent.BundleBuilder::author)
                     .zipAbsentAsNull(config.user, OciComponent.BundleBuilder::user)
@@ -403,23 +384,44 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     .zipAbsentAsEmptyMap(config.configDescriptorAnnotations, OciComponent.BundleBuilder::configDescriptorAnnotations)
                     .zipAbsentAsEmptyMap(config.manifestAnnotations, OciComponent.BundleBuilder::manifestAnnotations)
                     .zipAbsentAsEmptyMap(config.manifestDescriptorAnnotations, OciComponent.BundleBuilder::manifestDescriptorAnnotations)
-                    .zip(createComponentLayers(providerFactory)) { bundleBuilder, layers ->
-                        bundleBuilder.layers(List(layers.size) { i -> layers[i]!! })
-                    }
+                    .zip(createComponentLayers(providerFactory), OciComponent.BundleBuilder::layers)
                     .map { it.build() }
-            }
 
-            private fun createComponentLayers(providerFactory: ProviderFactory): Provider<Array<OciComponent.Bundle.Layer?>> {
-                var layersProvider = arrayOfNulls<OciComponent.Bundle.Layer>(layers.list.size).let { providerFactory.provider { it } }
-                for ((i, layer) in layers.list.withIndex()) { // TODO not lazy
-                    layer as Layer
-                    layersProvider = layersProvider.zip(layer.createComponentLayer(providerFactory)) { layers, cLayer ->
-                        layers[i] = cLayer
-                        layers
+            private fun createComponentParentCapabilities(providerFactory: ProviderFactory): Provider<List<OciComponent.Capability>> =
+                providerFactory.provider {
+                    val parentCapabilities = mutableListOf<OciComponent.Capability>()
+                    for (dependency in parentImages.dependencies) {
+                        val capabilities = dependency.requestedCapabilities
+                        if (capabilities.isEmpty()) { // add default capability
+                            if (dependency is ProjectDependency) {
+                                val id = projectDependencyPublicationResolver.resolve(
+                                    ModuleVersionIdentifier::class.java,
+                                    dependency
+                                )
+                                parentCapabilities.add(OciComponent.Capability(id.group, id.name))
+                            } else {
+                                parentCapabilities.add(OciComponent.Capability(dependency.group ?: "", dependency.name))
+                            }
+                        } else {
+                            for (capability in capabilities) {
+                                parentCapabilities.add(OciComponent.Capability(capability.group, capability.name))
+                            }
+                        }
                     }
+                    parentCapabilities
                 }
-                return layersProvider
-            }
+
+            private fun createComponentLayers(providerFactory: ProviderFactory): Provider<List<OciComponent.Bundle.Layer>> =
+                providerFactory.provider {
+                    var listProvider = providerFactory.provider { listOf<OciComponent.Bundle.Layer>() }
+                    for (layer in layers.list) {
+                        layer as Layer
+                        listProvider = listProvider.zip(layer.createComponentLayer(providerFactory)) { layers, cLayer ->
+                            layers + cLayer
+                        }
+                    }
+                    listProvider
+                }.flatMap { it }
 
             private fun createComponentCommand(providerFactory: ProviderFactory) =
                 providerFactory.provider { OciComponent.CommandBuilder() }
