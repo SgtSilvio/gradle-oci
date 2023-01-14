@@ -188,7 +188,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             if (imageName == "main") "ociImage" else "${imageName}OciImage"
 
         private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
-            OciComponent.Builder().let { providerFactory.provider { it } }
+            providerFactory.provider { OciComponent.Builder() }
                 .zip(createComponentCapabilities(providerFactory), OciComponent.Builder::capabilities)
                 .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponent.Builder::bundleOrPlatformBundles)
                 .zipAbsentAsEmptyMap(indexAnnotations, OciComponent.Builder::indexAnnotations)
@@ -363,13 +363,13 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     layer as Layer
                     val task = layer.getTask()
                     if (task != null) {
-                        set.add(task)
+                        set.add(task) // TODO set over TaskProvider does not work
                     }
                 }
             }
 
             override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.Bundle> {
-                val parentCapabilities = mutableListOf<OciComponent.Capability>()
+                val parentCapabilities = mutableListOf<OciComponent.Capability>() // TODO not lazy
                 for (dependency in parentImages.dependencies) {
                     val capabilities = dependency.requestedCapabilities
                     if (capabilities.isEmpty()) { // add default capability
@@ -411,7 +411,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
             private fun createComponentLayers(providerFactory: ProviderFactory): Provider<Array<OciComponent.Bundle.Layer?>> {
                 var layersProvider = arrayOfNulls<OciComponent.Bundle.Layer>(layers.list.size).let { providerFactory.provider { it } }
-                for ((i, layer) in layers.list.withIndex()) {
+                for ((i, layer) in layers.list.withIndex()) { // TODO not lazy
                     layer as Layer
                     layersProvider = layersProvider.zip(layer.createComponentLayer(providerFactory)) { layers, cLayer ->
                         layers[i] = cLayer
@@ -421,8 +421,8 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 return layersProvider
             }
 
-            private fun createComponentCommand(providerFactory: ProviderFactory): Provider<OciComponent.CommandBuilder> =
-                OciComponent.CommandBuilder().let { providerFactory.provider { it } }
+            private fun createComponentCommand(providerFactory: ProviderFactory) =
+                providerFactory.provider { OciComponent.CommandBuilder() }
                     .zipAbsentAsNull(config.entryPoint, OciComponent.CommandBuilder::entryPoint)
                     .zipAbsentAsNull(config.arguments, OciComponent.CommandBuilder::arguments)
 
@@ -555,7 +555,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 fun getTask() = externalTask ?: task
 
                 fun createComponentLayer(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer> =
-                    OciComponent.LayerBuilder().let { providerFactory.provider { it } }
+                    providerFactory.provider { OciComponent.LayerBuilder() }
                         .zipAbsentAsNull(metadata.creationTime, OciComponent.LayerBuilder::creationTime)
                         .zipAbsentAsNull(metadata.author, OciComponent.LayerBuilder::author)
                         .zipAbsentAsNull(metadata.createdBy, OciComponent.LayerBuilder::createdBy)
@@ -564,16 +564,12 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                         .map { it.build() }
 
                 private fun createComponentLayerDescriptor(providerFactory: ProviderFactory): Provider<OciComponent.LayerDescriptorBuilder> {
-                    var descriptorProvider = OciComponent.LayerDescriptorBuilder().let { providerFactory.provider { it } }
+                    val task = providerFactory.provider { getTask() }.flatMap { it }
+                    return providerFactory.provider { OciComponent.LayerDescriptorBuilder() }
                         .zipAbsentAsEmptyMap(metadata.annotations, OciComponent.LayerDescriptorBuilder::annotations)
-                    val task = getTask()
-                    if (task != null) {
-                        descriptorProvider = descriptorProvider
-                            .zipAbsentAsNull(task.flatMap { it.digestFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::digest)
-                            .zipAbsentAsNull(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::diffId)
-                            .zipAbsentAsNull(task.flatMap { it.tarFile }.map { it.asFile.length() }, OciComponent.LayerDescriptorBuilder::size)
-                    }
-                    return descriptorProvider
+                        .zipAbsentAsNull(task.flatMap { it.digestFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::digest)
+                        .zipAbsentAsNull(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponent.LayerDescriptorBuilder::diffId)
+                        .zipAbsentAsNull(task.flatMap { it.tarFile }.map { it.asFile.length() }, OciComponent.LayerDescriptorBuilder::size)
                 }
 
                 private fun createTask(configuration: Action<in OciCopySpec>): TaskProvider<OciLayerTask> {
@@ -604,7 +600,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
             override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.PlatformBundles> {
                 var provider = providerFactory.provider { mutableMapOf<OciComponent.Platform, OciComponent.Bundle>() }
-                for ((platform, bundle) in map) {
+                for ((platform, bundle) in map) { // TODO not lazy
                     val cPlatform = OciComponent.Platform(
                         platform.os, platform.architecture, platform.variant, platform.osVersion, platform.osFeatures
                     )
