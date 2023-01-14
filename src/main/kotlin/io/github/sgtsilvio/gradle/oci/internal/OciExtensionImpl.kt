@@ -411,6 +411,11 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     parentCapabilities
                 }
 
+            private fun createComponentCommand(providerFactory: ProviderFactory) =
+                providerFactory.provider { OciComponent.CommandBuilder() }
+                    .zipAbsentAsNull(config.entryPoint, OciComponent.CommandBuilder::entryPoint)
+                    .zipAbsentAsNull(config.arguments, OciComponent.CommandBuilder::arguments)
+
             private fun createComponentLayers(providerFactory: ProviderFactory): Provider<List<OciComponent.Bundle.Layer>> =
                 providerFactory.provider {
                     var listProvider = providerFactory.provider { listOf<OciComponent.Bundle.Layer>() }
@@ -422,11 +427,6 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     }
                     listProvider
                 }.flatMap { it }
-
-            private fun createComponentCommand(providerFactory: ProviderFactory) =
-                providerFactory.provider { OciComponent.CommandBuilder() }
-                    .zipAbsentAsNull(config.entryPoint, OciComponent.CommandBuilder::entryPoint)
-                    .zipAbsentAsNull(config.arguments, OciComponent.CommandBuilder::arguments)
 
 
             abstract class ParentImages @Inject constructor(
