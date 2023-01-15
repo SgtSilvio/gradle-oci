@@ -78,9 +78,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
         private var allPlatformBundleScope: BundleScope? = null
-        private var platformBundleScopes: MutableMap<PlatformFilter, BundleScope>? = null
+        private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
         private var universalBundle: Bundle? = null
-        private var platformBundles: MutableMap<Platform, Bundle>? = null
+        private var platformBundles: HashMap<Platform, Bundle>? = null
         override val component = createComponent(providerFactory)
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
@@ -121,7 +121,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             var bundleScopes = platformBundleScopes
             var bundleScope: BundleScope? = null
             if (bundleScopes == null) {
-                bundleScopes = mutableMapOf()
+                bundleScopes = HashMap(4)
                 platformBundleScopes = bundleScopes
             } else {
                 bundleScope = bundleScopes[platformFilter]
@@ -145,7 +145,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private fun getOrCreatePlatformBundle(platform: Platform): Bundle {
             var platformBundles = platformBundles
             if (platformBundles == null) {
-                platformBundles = mutableMapOf()
+                platformBundles = HashMap(4)
                 this.platformBundles = platformBundles
             }
             var bundle = platformBundles[platform]
