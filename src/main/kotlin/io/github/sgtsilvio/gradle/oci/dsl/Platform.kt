@@ -14,13 +14,14 @@ interface Platform : Comparable<Platform>, Serializable {
     val osFeatures: Set<String>
 }
 
-data class PlatformImpl(
+class PlatformImpl(
     override val os: String,
     override val architecture: String,
     override val variant: String,
     override val osVersion: String,
-    override val osFeatures: Set<String>, // TODO sorted
+    osFeatures: Set<String>,
 ) : Platform {
+    override val osFeatures = osFeatures.toSortedSet().toSet()
 
     override fun toString(): String {
         val s = "@$os,$architecture"
@@ -39,5 +40,25 @@ data class PlatformImpl(
         osVersion.compareTo(other.osVersion).also { if (it != 0) return it }
         osFeatures.compareTo(other.osFeatures).also { if (it != 0) return it }
         return 0
+    }
+
+    override fun equals(other: Any?) = when {
+        this === other -> true
+        other !is PlatformImpl -> false
+        os != other.os -> false
+        architecture != other.architecture -> false
+        variant != other.variant -> false
+        osVersion != other.osVersion -> false
+        osFeatures != other.osFeatures -> false
+        else -> true
+    }
+
+    override fun hashCode(): Int {
+        var result = os.hashCode()
+        result = 31 * result + architecture.hashCode()
+        result = 31 * result + variant.hashCode()
+        result = 31 * result + osVersion.hashCode()
+        result = 31 * result + osFeatures.hashCode()
+        return result
     }
 }

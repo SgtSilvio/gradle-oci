@@ -66,6 +66,13 @@ private class FieldPlatformFilter(
         return if (needsPostfix) "$s,+" else s
     }
 
+    override fun compareTo(other: FieldPlatformFilter): Int {
+        oses.compareTo(other.oses).also { if (it != 0) return it }
+        architectures.compareTo(other.architectures).also { if (it != 0) return it }
+        variants.compareTo(other.variants).also { if (it != 0) return it }
+        return osVersions.compareTo(other.osVersions)
+    }
+
     override fun equals(other: Any?) = when {
         this === other -> true
         other !is FieldPlatformFilter -> false
@@ -82,13 +89,6 @@ private class FieldPlatformFilter(
         result = 31 * result + variants.hashCode()
         result = 31 * result + osVersions.hashCode()
         return result
-    }
-
-    override fun compareTo(other: FieldPlatformFilter): Int {
-        oses.compareTo(other.oses).also { if (it != 0) return it }
-        architectures.compareTo(other.architectures).also { if (it != 0) return it }
-        variants.compareTo(other.variants).also { if (it != 0) return it }
-        return osVersions.compareTo(other.osVersions)
     }
 }
 
