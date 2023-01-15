@@ -224,7 +224,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
             private val filteredBundles =
                 if (platformFilter == AllPlatformFilter) bundles
-                else bundles.matching { bundle -> platformFilter.isSatisfiedBy(bundle.platform) }
+                else bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
             private val layers = objectFactory.newInstance<LayersScope>(platformFilter, imageName, filteredBundles)
 
             override fun parentImages(configuration: Action<in OciExtension.ImageDefinition.Bundle.ParentImages>) =

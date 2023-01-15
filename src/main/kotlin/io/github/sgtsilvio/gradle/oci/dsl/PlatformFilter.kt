@@ -1,14 +1,14 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.internal.compareTo
-import org.gradle.api.specs.Spec
 import java.util.*
 
 /**
  * @author Silvio Giebl
  */
-interface PlatformFilter : Spec<Platform> {
+interface PlatformFilter {
     fun or(other: PlatformFilter): PlatformFilter
+    fun matches(platform: Platform?): Boolean
 }
 
 fun PlatformFilter(oses: Set<String>, architectures: Set<String>, variants: Set<String>, osVersions: Set<String>) =
@@ -17,7 +17,7 @@ fun PlatformFilter(oses: Set<String>, architectures: Set<String>, variants: Set<
 
 object AllPlatformFilter : PlatformFilter {
     override fun or(other: PlatformFilter) = this
-    override fun isSatisfiedBy(element: Platform?) = true
+    override fun matches(platform: Platform?) = true
     override fun toString() = ""
 }
 
@@ -40,7 +40,7 @@ private class FieldPlatformFilter(
         else -> throw IllegalStateException()
     }
 
-    override fun isSatisfiedBy(platform: Platform?) = (platform != null)
+    override fun matches(platform: Platform?) = (platform != null)
             && (oses.isEmpty() || oses.contains(platform.os))
             && (architectures.isEmpty() || architectures.contains(platform.architecture))
             && (variants.isEmpty() || variants.contains(platform.variant))
@@ -102,7 +102,7 @@ private class OrPlatformFilter(filters: Array<FieldPlatformFilter>) : PlatformFi
         else -> throw IllegalStateException()
     }
 
-    override fun isSatisfiedBy(platform: Platform?) = filters.any { it.isSatisfiedBy(platform) }
+    override fun matches(platform: Platform?) = filters.any { it.matches(platform) }
 
     override fun toString(): String {
         val s = StringBuilder()
