@@ -280,7 +280,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     }
                     var task = task
                     if (task == null) {
-                        task = createTask(configuration)
+                        task = taskContainer.createLayerTask(
+                            imageName, name, platformFilter.toString(), projectLayout, configuration
+                        )
                         this.task = task
                         bundles.configureEach {
                             layers.layer(name).contents(task)
@@ -298,20 +300,6 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                         layers.layer(name).contents(task)
                     }
                 }
-
-                private fun createTask(configuration: Action<in OciCopySpec>): TaskProvider<OciLayerTask> {
-                    val imageName = imageName
-                    val layerName = name
-                    val platformString = platformFilter.toString()
-                    return taskContainer.register<OciLayerTask>(createTaskName(imageName, layerName, platformString)) {
-                        outputDirectory.convention(projectLayout.buildDirectory.dir("oci/$imageName/$layerName$platformString"))
-                        contents(configuration)
-                    }
-                }
-
-                private fun createTaskName(imageName: String, layerName: String, platformString: String) =
-                    if (imageName == "main") "${layerName}OciLayer$platformString"
-                    else "$imageName${layerName.capitalize()}OciLayer$platformString"
             }
         }
 
@@ -541,7 +529,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                     }
                     var task = task
                     if (task == null) {
-                        task = createTask(configuration)
+                        task = taskContainer.createLayerTask(
+                            imageName, name, platform?.toString() ?: "", projectLayout, configuration
+                        )
                         this.task = task
                     } else {
                         task.configure {
@@ -573,20 +563,6 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                         .zipAbsentAsNull(task.flatMap { it.diffIdFile }.map { it.asFile.readText() }, OciComponentBundleLayerDescriptorBuilder::diffId)
                         .zipAbsentAsNull(task.flatMap { it.tarFile }.map { it.asFile.length() }, OciComponentBundleLayerDescriptorBuilder::size)
                 }
-
-                private fun createTask(configuration: Action<in OciCopySpec>): TaskProvider<OciLayerTask> {
-                    val imageName = imageName
-                    val layerName = name
-                    val platformString = platform?.toString() ?: ""
-                    return taskContainer.register<OciLayerTask>(createTaskName(imageName, layerName, platformString)) {
-                        outputDirectory.convention(projectLayout.buildDirectory.dir("oci/$imageName/$layerName$platformString"))
-                        contents(configuration)
-                    }
-                }
-
-                private fun createTaskName(imageName: String, layerName: String, platformString: String) =
-                    if (imageName == "main") "${layerName}OciLayer$platformString"
-                    else "$imageName${layerName.capitalize()}OciLayer$platformString"
             }
         }
 
@@ -616,3 +592,18 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         }
     }
 }
+
+private fun TaskContainer.createLayerTask(
+    imageName: String,
+    layerName: String,
+    platformString: String,
+    projectLayout: ProjectLayout,
+    configuration: Action<in OciCopySpec>,
+) = register<OciLayerTask>(createLayerTaskName(imageName, layerName, platformString)) {
+    outputDirectory.convention(projectLayout.buildDirectory.dir("oci/$imageName/$layerName$platformString"))
+    contents(configuration)
+}
+
+private fun createLayerTaskName(imageName: String, layerName: String, platformString: String) =
+    if (imageName == "main") "${layerName}OciLayer$platformString"
+    else "$imageName${layerName.capitalize()}OciLayer$platformString"
