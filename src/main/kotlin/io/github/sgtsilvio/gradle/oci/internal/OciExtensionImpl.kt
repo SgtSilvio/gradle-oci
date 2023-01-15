@@ -77,8 +77,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
         override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
         private val bundles = objectFactory.domainObjectSet(Bundle::class)
-        private var universalBundleScope: BundleScope? = null
-        private var bundleScopes: MutableMap<PlatformFilter, BundleScope>? = null
+        private var allPlatformBundleScope: BundleScope? = null
+        private var platformBundleScopes: MutableMap<PlatformFilter, BundleScope>? = null
+        private var universalBundle: Bundle? = null
         private var platformBundles: MutableMap<Platform, Bundle>? = null
         override val component = createComponent(providerFactory)
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
@@ -102,10 +103,10 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             configuration.execute(capabilities)
 
         override fun allPlatforms(configuration: Action<in OciExtension.ImageDefinition.BundleScope>) {
-            var bundleScope = universalBundleScope
+            var bundleScope = allPlatformBundleScope
             if (bundleScope == null) {
                 bundleScope = objectFactory.newInstance<BundleScope>(AllPlatformFilter, name, bundles)
-                universalBundleScope = bundleScope
+                allPlatformBundleScope = bundleScope
             }
             configuration.execute(bundleScope)
         }
@@ -117,11 +118,11 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             if (platformFilter == AllPlatformFilter) {
                 return allPlatforms(configuration)
             }
-            var bundleScopes = bundleScopes
+            var bundleScopes = platformBundleScopes
             var bundleScope: BundleScope? = null
             if (bundleScopes == null) {
                 bundleScopes = mutableMapOf()
-                this.bundleScopes = bundleScopes
+                platformBundleScopes = bundleScopes
             } else {
                 bundleScope = bundleScopes[platformFilter]
             }
@@ -144,9 +145,6 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private fun getOrCreatePlatformBundle(platform: Platform): Bundle {
             var platformBundles = platformBundles
             if (platformBundles == null) {
-                if (!bundles.isEmpty()) {
-                    throw IllegalStateException("adding platform $platform is not possible because multi-platform is already declared")
-                }
                 platformBundles = mutableMapOf()
                 this.platformBundles = platformBundles
             }
@@ -160,12 +158,17 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         }
 
         private fun getBundleOrPlatformBundles(): BundleOrPlatformBundles {
-            val platformBundles = platformBundles ?: return when (bundles.size) {
-                0 -> objectFactory.newInstance<Bundle>(name, imageConfiguration, Optional.empty<Bundle>()).also { bundles.add(it) }
-                1 -> bundles.first()
-                else -> throw IllegalStateException("bug: multiple bundles without platform are not possible")
+            val platformBundles = platformBundles
+            if (platformBundles != null) {
+                return PlatformBundles(platformBundles)
             }
-            return PlatformBundles(platformBundles)
+            var universalBundle = universalBundle
+            if (universalBundle == null) {
+                universalBundle = objectFactory.newInstance<Bundle>(name, imageConfiguration, Optional.empty<Bundle>())
+                bundles.add(universalBundle)
+                this.universalBundle = universalBundle
+            }
+            return universalBundle
         }
 
         private fun createConfiguration(
