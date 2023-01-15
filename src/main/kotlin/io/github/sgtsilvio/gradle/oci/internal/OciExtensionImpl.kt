@@ -80,7 +80,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private var allPlatformBundleScope: BundleScope? = null
         private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
         private var universalBundle: Bundle? = null
-        private var platformBundles: HashMap<Platform, Bundle>? = null
+        private var platformBundles: TreeMap<Platform, Bundle>? = null
         override val component = createComponent(providerFactory)
         private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
@@ -145,7 +145,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private fun getOrCreatePlatformBundle(platform: Platform): Bundle {
             var platformBundles = platformBundles
             if (platformBundles == null) {
-                platformBundles = HashMap(4)
+                platformBundles = TreeMap()
                 this.platformBundles = platformBundles
             }
             var bundle = platformBundles[platform]
@@ -570,7 +570,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         }
 
 
-        class PlatformBundles(val map: Map<Platform, Bundle>) : BundleOrPlatformBundles {
+        class PlatformBundles(val map: TreeMap<Platform, Bundle>) : BundleOrPlatformBundles {
             // TODO maybe remove PlatformBundles here completely as bundles collection and map should be sufficient
 
             override fun collectLayerTasks(linkedMap: LinkedHashMap<String, TaskProvider<OciLayerTask>>) {
