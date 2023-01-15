@@ -77,9 +77,10 @@ class OciComponentBundleCommandBuilder : Serializable {
     fun entryPoint(v: List<String>?) = apply { entryPoint = v }
     fun arguments(v: List<String>?) = apply { arguments = v }
 
-    fun build() =
-        if ((entryPoint == null) && (arguments == null)) null
-        else OciComponent.Bundle.Command(entryPoint, arguments ?: listOf())
+    fun build() = when {
+        (entryPoint == null) && (arguments == null) -> null
+        else -> OciComponent.Bundle.Command(entryPoint, arguments ?: listOf())
+    }
 }
 
 class OciComponentBundleLayerBuilder : Serializable {
@@ -109,7 +110,8 @@ class OciComponentBundleLayerDescriptorBuilder : Serializable {
     fun size(v: Long?) = apply { size = v }
     fun annotations(v: Map<String, String>) = apply { annotations = v }
 
-    fun build() = if ((digest == null) && (diffId == null) && (size == null) && (annotations.isEmpty())) null else {
-        OciComponent.Bundle.Layer.Descriptor(digest!!, diffId!!, size!!, annotations)
+    fun build() = when {
+        (digest == null) && (diffId == null) && (size == null) && annotations.isEmpty() -> null
+        else -> OciComponent.Bundle.Layer.Descriptor(digest!!, diffId!!, size!!, annotations)
     }
 }
