@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.dsl.PlatformImpl
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -32,7 +33,7 @@ private fun JSONArray.decodePlatformBundles() = OciComponent.PlatformBundles(toM
     }
 })
 
-private fun JSONObject.decodePlatform() = OciComponent.Platform(
+private fun JSONObject.decodePlatform() = PlatformImpl(
     key("os") { stringValue() },
     key("architecture") { stringValue() },
     optionalKey("variant") { stringValue() } ?: "",

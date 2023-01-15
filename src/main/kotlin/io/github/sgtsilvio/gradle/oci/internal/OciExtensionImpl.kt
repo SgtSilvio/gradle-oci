@@ -580,13 +580,10 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             }
 
             override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.PlatformBundles> {
-                var provider = providerFactory.provider { mutableMapOf<OciComponent.Platform, OciComponent.Bundle>() }
+                var provider = providerFactory.provider { mutableMapOf<Platform, OciComponent.Bundle>() }
                 for ((platform, bundle) in map) { // TODO not lazy
-                    val cPlatform = OciComponent.Platform(
-                        platform.os, platform.architecture, platform.variant, platform.osVersion, platform.osFeatures
-                    )
                     provider = provider.zip(bundle.createComponentBundleOrPlatformBundles(providerFactory)) { map, cBundle ->
-                        map[cPlatform] = cBundle
+                        map[platform] = cBundle
                         map
                     }
                 }

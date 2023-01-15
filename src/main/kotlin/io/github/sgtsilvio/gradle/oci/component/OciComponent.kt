@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
 import java.io.Serializable
 import java.time.Instant
@@ -18,14 +19,6 @@ data class OciComponent(
     sealed interface BundleOrPlatformBundles
 
     data class PlatformBundles(val map: Map<Platform, Bundle>) : BundleOrPlatformBundles, Serializable
-
-    data class Platform(
-        val os: String,
-        val architecture: String,
-        val variant: String,
-        val osVersion: String,
-        val osFeatures: Set<String>,
-    ) : Serializable
 
     data class Bundle(
         val creationTime: Instant?,

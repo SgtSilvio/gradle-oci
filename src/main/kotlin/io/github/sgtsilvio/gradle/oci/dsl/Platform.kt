@@ -1,11 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.internal.compareTo
+import java.io.Serializable
 
 /**
  * @author Silvio Giebl
  */
-interface Platform : Comparable<Platform> {
+interface Platform : Comparable<Platform>, Serializable {
     val os: String
     val architecture: String
     val variant: String

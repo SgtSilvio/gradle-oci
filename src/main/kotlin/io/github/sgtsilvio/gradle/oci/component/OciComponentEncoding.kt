@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -34,7 +35,7 @@ private fun encodePlatformBundles(platformBundles: OciComponent.PlatformBundles)
     }
 }
 
-private fun encodePlatform(platform: OciComponent.Platform) = JSONObject().apply {
+private fun encodePlatform(platform: Platform) = JSONObject().apply {
     put("os", platform.os)
     put("architecture", platform.architecture)
     if (platform.variant != "") {

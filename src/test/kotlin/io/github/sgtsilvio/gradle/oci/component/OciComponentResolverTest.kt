@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.dsl.PlatformImpl
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -8,9 +9,9 @@ import org.junit.jupiter.api.Test
  */
 internal class OciComponentResolverTest {
 
-    private val amd64 = OciComponent.Platform("amd64", "linux", "", "", setOf())
-    private val arm64v8 = OciComponent.Platform("arm64", "linux", "v8", "", setOf())
-    private val arm32v7 = OciComponent.Platform("arm", "linux", "v7", "", setOf())
+    private val amd64 = PlatformImpl("amd64", "linux", "", "", setOf())
+    private val arm64v8 = PlatformImpl("arm64", "linux", "v8", "", setOf())
+    private val arm32v7 = PlatformImpl("arm", "linux", "v7", "", setOf())
 
     @Test
     fun singleComponentWithoutPlatforms_resolvesToInfinitePlatforms() {

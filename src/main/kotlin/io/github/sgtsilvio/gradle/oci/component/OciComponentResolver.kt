@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.dsl.Platform
+
 class OciComponentResolver {
     private val resolvableComponents = mutableMapOf<OciComponent.Capability, ResolvableOciComponent>()
     private var rootResolvableComponent: ResolvableOciComponent? = null
@@ -26,7 +28,7 @@ class OciComponentResolver {
         return rootComponent.resolvePlatforms()
     }
 
-    fun collectBundlesForPlatform(platform: OciComponent.Platform): List<OciComponent.Bundle> =
+    fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> =
         getRootComponent().collectBundlesForPlatform(platform)
 
     private fun getRootComponent() =
@@ -48,7 +50,7 @@ class OciComponentResolver {
 
         fun resolvePlatforms() = bundleOrPlatformBundles.resolvePlatforms()
 
-        fun collectBundlesForPlatform(platform: OciComponent.Platform): List<OciComponent.Bundle> {
+        fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
             val result = linkedSetOf<Bundle>()
             bundleOrPlatformBundles.collectBundlesForPlatform(platform, result)
             return result.map { it.bundle }
@@ -56,7 +58,7 @@ class OciComponentResolver {
 
         private sealed interface BundleOrPlatformBundles {
             fun resolvePlatforms(): PlatformSet
-            fun collectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>)
+            fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>)
         }
 
         private sealed class StatefulBundleOrPlatformBundles(protected val platforms: PlatformSet) :
@@ -94,20 +96,14 @@ class OciComponentResolver {
 
             protected abstract fun doResolvePlatforms()
 
-            final override fun collectBundlesForPlatform(
-                platform: OciComponent.Platform,
-                result: LinkedHashSet<Bundle>,
-            ) {
+            final override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) {
                 if (state != State.RESOLVED) {
                     throw IllegalStateException("collectBundlesForPlatform can not be called in state $state")
                 }
                 doCollectBundlesForPlatform(platform, result)
             }
 
-            protected abstract fun doCollectBundlesForPlatform(
-                platform: OciComponent.Platform,
-                result: LinkedHashSet<Bundle>,
-            )
+            protected abstract fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>)
         }
 
         private class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
@@ -128,7 +124,7 @@ class OciComponentResolver {
                 }
             }
 
-            override fun doCollectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>) {
+            override fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) {
                 if (this !in result) {
                     for (dependency in dependencies) {
                         dependency.collectBundlesForPlatform(platform, result)
@@ -158,28 +154,28 @@ class OciComponentResolver {
                 }
             }
 
-            override fun doCollectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>) =
+            override fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
                 getBundleForPlatform(platform).collectBundlesForPlatform(platform, result)
 
-            private fun getBundleForPlatform(platform: OciComponent.Platform) = map[platform] ?: UnresolvedBundle
+            private fun getBundleForPlatform(platform: Platform) = map[platform] ?: UnresolvedBundle
         }
 
         private object UnresolvedBundle : BundleOrPlatformBundles {
             override fun resolvePlatforms() = PlatformSet(false)
-            override fun collectBundlesForPlatform(platform: OciComponent.Platform, result: LinkedHashSet<Bundle>) =
+            override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
                 throw IllegalStateException("unresolved dependency for platform $platform")
         }
     }
 
-    class PlatformSet : Iterable<OciComponent.Platform> {
+    class PlatformSet : Iterable<Platform> {
         var isInfinite: Boolean private set
-        private val set = hashSetOf<OciComponent.Platform>()
+        private val set = hashSetOf<Platform>()
 
         constructor(isInfinite: Boolean) {
             this.isInfinite = isInfinite
         }
 
-        constructor(platform: OciComponent.Platform) {
+        constructor(platform: Platform) {
             isInfinite = false
             set.add(platform)
         }
@@ -208,7 +204,7 @@ class OciComponentResolver {
             }
         }
 
-        override fun iterator(): Iterator<OciComponent.Platform> {
+        override fun iterator(): Iterator<Platform> {
             if (isInfinite) {
                 throw UnsupportedOperationException("iterating an infinite set is not possible")
             }

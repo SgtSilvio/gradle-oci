@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
 import io.github.sgtsilvio.gradle.oci.component.decodeComponent
+import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
@@ -27,7 +28,7 @@ abstract class OciMetadataTask : DefaultTask() {
         }
         val platforms = ociComponentResolver.resolvePlatforms()
         val configs = mutableListOf<OciComponent.DataDescriptor>()
-        val manifests = mutableListOf<Pair<OciComponent.Platform, OciComponent.DataDescriptor>>()
+        val manifests = mutableListOf<Pair<Platform, OciComponent.DataDescriptor>>()
         for (platform in platforms) {
             val bundlesForPlatform = ociComponentResolver.collectBundlesForPlatform(platform)
             val config = createConfig(platform, bundlesForPlatform)
@@ -51,10 +52,7 @@ abstract class OciMetadataTask : DefaultTask() {
         }
     }
 
-    private fun createConfig(
-        platform: OciComponent.Platform,
-        bundles: List<OciComponent.Bundle>,
-    ): OciComponent.DataDescriptor {
+    private fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciComponent.DataDescriptor {
         var user: String? = null
         val ports = mutableSetOf<String>()
         val environment = mutableMapOf<String, String>()
@@ -173,7 +171,7 @@ abstract class OciMetadataTask : DefaultTask() {
     }
 
     private fun createIndex(
-        manifestDescriptors: List<Pair<OciComponent.Platform, OciComponent.Descriptor>>,
+        manifestDescriptors: List<Pair<Platform, OciComponent.Descriptor>>,
         component: OciComponent,
     ): OciComponent.DataDescriptor {
         val data = jsonObject { rootObject ->
@@ -203,7 +201,7 @@ abstract class OciMetadataTask : DefaultTask() {
 
     private fun JsonValueStringBuilder.addOciManifestDescriptor(
         descriptor: OciComponent.Descriptor,
-        platform: OciComponent.Platform,
+        platform: Platform,
     ) = addObject { descriptorObject ->
         // sorted for canonical json: annotations, data, digest, mediaType, size, urls
         descriptorObject.addOptionalKeyAndObject("annotations", descriptor.annotations)
