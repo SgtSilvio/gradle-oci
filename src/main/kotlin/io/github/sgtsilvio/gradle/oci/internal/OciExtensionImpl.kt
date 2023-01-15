@@ -91,9 +91,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         private fun registerArtifacts(providerFactory: ProviderFactory) {
             imageConfiguration.outgoing.artifact(componentTask)
             imageConfiguration.outgoing.artifacts(providerFactory.provider {
-                val linkedSet = linkedSetOf<TaskProvider<OciLayerTask>>()
-                getBundleOrPlatformBundles().collectLayerTasks(linkedSet)
-                linkedSet.map { taskProvider -> taskProvider.flatMap { it.tarFile } }
+                val linkedMap = LinkedHashMap<String, TaskProvider<OciLayerTask>>()
+                getBundleOrPlatformBundles().collectLayerTasks(linkedMap)
+                linkedMap.map { (_, taskProvider) -> taskProvider.flatMap { it.tarFile } }
             })
         }
 
@@ -319,7 +319,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
 
         sealed interface BundleOrPlatformBundles {
-            fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>)
+            fun collectLayerTasks(linkedMap: LinkedHashMap<String, TaskProvider<OciLayerTask>>)
             fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<out OciComponent.BundleOrPlatformBundles>
         }
 
@@ -349,12 +349,12 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             override fun layers(configuration: Action<in OciExtension.ImageDefinition.Bundle.Layers>) =
                 configuration.execute(layers)
 
-            override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {
+            override fun collectLayerTasks(linkedMap: LinkedHashMap<String, TaskProvider<OciLayerTask>>) {
                 for (layer in layers.list) {
                     layer as Layer
                     val task = layer.getTask()
                     if (task != null) {
-                        set.add(task) // TODO set over TaskProvider does not work
+                        linkedMap.putIfAbsent(task.name, task)
                     }
                 }
             }
@@ -573,9 +573,9 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         class PlatformBundles(val map: Map<Platform, Bundle>) : BundleOrPlatformBundles {
             // TODO maybe remove PlatformBundles here completely as bundles collection and map should be sufficient
 
-            override fun collectLayerTasks(set: LinkedHashSet<TaskProvider<OciLayerTask>>) {
+            override fun collectLayerTasks(linkedMap: LinkedHashMap<String, TaskProvider<OciLayerTask>>) {
                 for (bundle in map.values) {
-                    bundle.collectLayerTasks(set)
+                    bundle.collectLayerTasks(linkedMap)
                 }
             }
 
