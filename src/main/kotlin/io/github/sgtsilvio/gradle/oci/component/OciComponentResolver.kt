@@ -91,7 +91,7 @@ class OciComponentResolver {
                     platforms
                 }
 
-                else -> throw IllegalStateException("resolveAvailablePlatforms can not be called in state $state")
+                else -> throw IllegalStateException("resolvePlatforms can not be called in state $state")
             }
 
             protected abstract fun doResolvePlatforms()
