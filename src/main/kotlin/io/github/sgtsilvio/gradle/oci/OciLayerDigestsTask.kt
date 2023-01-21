@@ -5,6 +5,7 @@ import io.github.sgtsilvio.gradle.oci.component.decodeComponent
 import io.github.sgtsilvio.gradle.oci.internal.writeProperty
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
+import org.gradle.kotlin.dsl.listProperty
 
 /**
  * @author Silvio Giebl
@@ -15,9 +16,8 @@ abstract class OciLayerDigestsTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.NONE)
     val componentFiles = project.objects.fileCollection()
 
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.ABSOLUTE)
-    val layerFiles = project.objects.fileCollection()//.elements.map { set -> set.map { it.asFile.absolutePath } }
+    @get:Input
+    val layerPaths = project.objects.listProperty<String>()
 
     @get:OutputFile
     val digestToLayerPathPropertiesFile = project.objects.fileProperty()
@@ -25,7 +25,7 @@ abstract class OciLayerDigestsTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val digestToLayerPath = LinkedHashMap<String, String>()
-        val layerFiles = layerFiles.files.toList()
+        val layerPaths = layerPaths.get()
         var i = 0
         for (componentFile in componentFiles) {
             val component = decodeComponent(componentFile.readText())
@@ -34,14 +34,14 @@ abstract class OciLayerDigestsTask : DefaultTask() {
                 if (layer.descriptor != null) {
                     val digest = layer.descriptor.digest
                     if (componentDigests.add(digest)) {
-                        digestToLayerPath[digest] = layerFiles[i].absolutePath
+                        digestToLayerPath[digest] = layerPaths[i]
                         i++
                     }
                 }
             }
         }
-        if (i != layerFiles.size) {
-            throw IllegalStateException("componentFiles and layerFiles inputs do not match: number of unique digests ($i) differs from number of layer files (${layerFiles.size})")
+        if (i != layerPaths.size) {
+            throw IllegalStateException("componentFiles and layerFiles inputs do not match: number of unique digests ($i) differs from number of layer files (${layerPaths.size})")
         }
         digestToLayerPathPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             for ((digest, layerPath) in digestToLayerPath) {
