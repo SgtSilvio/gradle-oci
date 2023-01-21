@@ -72,6 +72,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         configurationContainer: ConfigurationContainer,
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
+        private val project: Project,
     ) : OciExtension.ImageDefinition {
 
         private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
@@ -199,6 +200,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
 
         private fun createComponentCapabilities(providerFactory: ProviderFactory) = providerFactory.provider {
             capabilities.set.map { OciComponent.Capability(it.group, it.name) }.toSet()
+                .ifEmpty { setOf(OciComponent.Capability(project.group.toString(), project.name)) }
         }
 
         private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory) =
