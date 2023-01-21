@@ -10,12 +10,17 @@ import java.util.*
  * @author Silvio Giebl
  */
 data class OciComponent(
-    val capabilities: Set<Capability>, // TODO sorted
+    val capabilities: SortedSet<Capability>,
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
     val indexAnnotations: SortedMap<String, String>,
 ) : Serializable {
 
-    data class Capability(val group: String, val name: String) : Serializable
+    data class Capability(val group: String, val name: String) : Comparable<Capability>, Serializable {
+        override fun compareTo(other: Capability): Int {
+            group.compareTo(other.group).also { if (it != 0) return it }
+            return name.compareTo(other.name)
+        }
+    }
 
     sealed interface BundleOrPlatformBundles
 

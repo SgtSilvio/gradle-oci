@@ -54,15 +54,6 @@ inline fun <T> JSONArray.toList(transformer: Any.() -> T): List<T> {
     }
 }
 
-inline fun <T> JSONArray.toSet(transformer: Any.() -> T): Set<T> {
-    var i = 0
-    try {
-        return mapTo(mutableSetOf()) { transformer.invoke(it).also { i++ } }
-    } catch (e: JsonException) {
-        throw JsonException(i, e)
-    }
-}
-
 inline fun <T, S : MutableSet<in T>> JSONArray.toSet(destination: S, transformer: Any.() -> T): S {
     var i = 0
     try {

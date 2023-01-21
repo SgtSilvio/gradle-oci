@@ -15,7 +15,7 @@ class OciComponentBuilder : Serializable {
     fun bundleOrPlatformBundles(v: OciComponent.BundleOrPlatformBundles) = apply { bundleOrPlatformBundles = v }
     fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
 
-    fun build() = OciComponent(capabilities!!, bundleOrPlatformBundles!!, indexAnnotations.toSortedMap())
+    fun build() = OciComponent(capabilities!!.toSortedSet(), bundleOrPlatformBundles!!, indexAnnotations.toSortedMap())
 }
 
 class OciComponentBundleBuilder : Serializable {

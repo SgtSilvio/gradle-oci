@@ -38,7 +38,6 @@ data class PlatformImpl(
         architecture.compareTo(other.architecture).also { if (it != 0) return it }
         variant.compareTo(other.variant).also { if (it != 0) return it }
         osVersion.compareTo(other.osVersion).also { if (it != 0) return it }
-        osFeatures.compareTo(other.osFeatures).also { if (it != 0) return it }
-        return 0
+        return osFeatures.compareTo(other.osFeatures)
     }
 }

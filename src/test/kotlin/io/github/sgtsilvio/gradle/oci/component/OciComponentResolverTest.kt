@@ -17,7 +17,7 @@ internal class OciComponentResolverTest {
     fun singleComponentWithoutPlatforms_resolvesToInfinitePlatforms() {
         val bundle = createBundle("bundle")
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             bundle,
             sortedMapOf(),
         )
@@ -36,7 +36,7 @@ internal class OciComponentResolverTest {
         val bundleAmd64 = createBundle("bundleAmd64")
         val bundleArm64v8 = createBundle("bundleArm64v8")
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
             sortedMapOf(),
         )
@@ -56,14 +56,14 @@ internal class OciComponentResolverTest {
         val baseBundleAmd64 = createBundle("baseBundleAmd64")
         val baseBundleArm64v8 = createBundle("baseBundleArm64v8")
         val baseComponent = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base")),
+            sortedSetOf(OciComponent.Capability("org.example", "base")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to baseBundleAmd64, arm64v8 to baseBundleArm64v8)),
             sortedMapOf(),
         )
 
         val bundle = createBundle("bundle", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             bundle,
             sortedMapOf(),
         )
@@ -83,7 +83,7 @@ internal class OciComponentResolverTest {
     fun baseComponentWithoutButComponentWithPlatforms_resolvesToPlatforms() {
         val baseBundle = createBundle("baseBundle")
         val baseComponent = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base")),
+            sortedSetOf(OciComponent.Capability("org.example", "base")),
             baseBundle,
             sortedMapOf(),
         )
@@ -91,7 +91,7 @@ internal class OciComponentResolverTest {
         val bundleAmd64 = createBundle("bundleAmd64", listOf(OciComponent.Capability("org.example", "base")))
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
             sortedMapOf(),
         )
@@ -112,7 +112,7 @@ internal class OciComponentResolverTest {
         val baseBundleAmd64 = createBundle("baseBundleAmd64")
         val baseBundleArm64v8 = createBundle("baseBundleArm64v8")
         val baseComponent = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base")),
+            sortedSetOf(OciComponent.Capability("org.example", "base")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to baseBundleAmd64, arm64v8 to baseBundleArm64v8)),
             sortedMapOf(),
         )
@@ -120,7 +120,7 @@ internal class OciComponentResolverTest {
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base")))
         val bundleArm32v7 = createBundle("bundleArm32v7", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(sortedMapOf(arm64v8 to bundleArm64v8, arm32v7 to bundleArm32v7)),
             sortedMapOf(),
         )
@@ -139,14 +139,14 @@ internal class OciComponentResolverTest {
     fun componentsWithContradictingPlatforms_resolvesNoPlatforms() {
         val baseBundleAmd64 = createBundle("baseBundleAmd64")
         val baseComponent = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base")),
+            sortedSetOf(OciComponent.Capability("org.example", "base")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to baseBundleAmd64)),
             sortedMapOf(),
         )
 
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base")))
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(sortedMapOf(arm64v8 to bundleArm64v8)),
             sortedMapOf(),
         )
@@ -164,14 +164,14 @@ internal class OciComponentResolverTest {
     fun differentBaseComponentsWithDifferentPlatforms_resolvesUnionOfPlatforms() {
         val base1BundleAmd64 = createBundle("base1BundleAmd64")
         val base1Component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base1")),
+            sortedSetOf(OciComponent.Capability("org.example", "base1")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to base1BundleAmd64)),
             sortedMapOf(),
         )
 
         val base2BundleArm64v8 = createBundle("base2BundleArm64v8")
         val base2Component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base2")),
+            sortedSetOf(OciComponent.Capability("org.example", "base2")),
             OciComponent.PlatformBundles(sortedMapOf(arm64v8 to base2BundleArm64v8)),
             sortedMapOf(),
         )
@@ -179,7 +179,7 @@ internal class OciComponentResolverTest {
         val bundleAmd64 = createBundle("bundleAmd64", listOf(OciComponent.Capability("org.example", "base1")))
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(OciComponent.Capability("org.example", "base2")))
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
             sortedMapOf(),
         )
@@ -206,14 +206,14 @@ internal class OciComponentResolverTest {
             ),
         )
         val component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "test")),
+            sortedSetOf(OciComponent.Capability("org.example", "test")),
             bundle,
             sortedMapOf(),
         )
 
         val base1Bundle = createBundle("base1Bundle", listOf(OciComponent.Capability("org.example", "base2")))
         val base1Component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base1")),
+            sortedSetOf(OciComponent.Capability("org.example", "base1")),
             base1Bundle,
             sortedMapOf(),
         )
@@ -222,28 +222,28 @@ internal class OciComponentResolverTest {
         val base2BundleArm64v8 =
             createBundle("base2BundleArm64v8", listOf(OciComponent.Capability("org.example", "base5")))
         val base2Component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base2")),
+            sortedSetOf(OciComponent.Capability("org.example", "base2")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to base2BundleAmd64, arm64v8 to base2BundleArm64v8)),
             sortedMapOf(),
         )
 
         val base3Bundle = createBundle("base3Bundle", listOf(OciComponent.Capability("org.example", "base4")))
         val base3Component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base3")),
+            sortedSetOf(OciComponent.Capability("org.example", "base3")),
             base3Bundle,
             sortedMapOf(),
         )
 
         val base4Bundle = createBundle("base4Bundle", listOf(OciComponent.Capability("org.example", "base5")))
         val base4Component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base4")),
+            sortedSetOf(OciComponent.Capability("org.example", "base4")),
             base4Bundle,
             sortedMapOf(),
         )
 
         val base5Bundle = createBundle("base5Bundle")
         val base5Component = OciComponent(
-            setOf(OciComponent.Capability("org.example", "base5")),
+            sortedSetOf(OciComponent.Capability("org.example", "base5")),
             base5Bundle,
             sortedMapOf(),
         )

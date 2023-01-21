@@ -10,7 +10,7 @@ import java.util.*
 fun decodeComponent(string: String) = JSONObject(string).decodeComponent()
 
 private fun JSONObject.decodeComponent() = OciComponent(
-    key("capabilities") { arrayValue().toSet { objectValue().decodeCapability() } },
+    key("capabilities") { arrayValue().toSet(TreeSet()) { objectValue().decodeCapability() } },
     if (has("bundle")) {
         if (has("platformBundles")) throw JsonException("bundle|platformBundles", "must not both be present")
         key("bundle") { objectValue().decodeBundle() }
