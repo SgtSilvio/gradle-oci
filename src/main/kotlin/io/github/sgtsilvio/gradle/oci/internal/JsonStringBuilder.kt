@@ -96,7 +96,7 @@ fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) {
     addArray { jsonArray -> iterable.forEach { jsonArray.addString(it) } }
 }
 
-fun JsonObjectStringBuilder.addOptionalKeyAndString(key: String, value: String?) {
+fun JsonObjectStringBuilder.addKeyAndStringIfNotNull(key: String, value: String?) {
     if (value != null) {
         addKey(key).addString(value)
     }
@@ -108,19 +108,19 @@ fun JsonObjectStringBuilder.addKeyAndStringIfNotEmpty(key: String, value: String
     }
 }
 
-fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, map: Map<String, String>?) {
+fun JsonObjectStringBuilder.addKeyAndObjectIfNotEmpty(key: String, map: Map<String, String>?) {
     if (!map.isNullOrEmpty()) {
         addKey(key).addObject(map)
     }
 }
 
-fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, set: Set<String>?) {
+fun JsonObjectStringBuilder.addKeyAndObjectIfNotEmpty(key: String, set: Set<String>?) {
     if (!set.isNullOrEmpty()) {
         addKey(key).addObject(set)
     }
 }
 
-fun JsonObjectStringBuilder.addOptionalKeyAndArray(key: String, list: Collection<String>?) {
+fun JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<String>?) {
     if (!list.isNullOrEmpty()) {
         addKey(key).addArray(list)
     }

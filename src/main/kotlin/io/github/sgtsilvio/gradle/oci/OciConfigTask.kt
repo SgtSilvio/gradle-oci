@@ -113,28 +113,28 @@ abstract class OciConfigTask : DefaultTask() {
         val jsonBytes = jsonObject { rootObject ->
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
             rootObject.addKey("architecture").addString(platform.architecture.get())
-            rootObject.addOptionalKeyAndString("author", author.orNull)
+            rootObject.addKeyAndStringIfNotNull("author", author.orNull)
             rootObject.addKey("config").addObject { configObject ->
                 // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
-                configObject.addOptionalKeyAndArray("Cmd", arguments.orNull)
-                configObject.addOptionalKeyAndArray("Entrypoint", entryPoint.orNull)
-                configObject.addOptionalKeyAndArray("Env", environment.orNull?.map { "${it.key}=${it.value}" })
-                configObject.addOptionalKeyAndObject("ExposedPorts", ports.orNull)
-                configObject.addOptionalKeyAndObject("Labels", annotations.orNull)
-                configObject.addOptionalKeyAndString("StopSignal", stopSignal.orNull)
-                configObject.addOptionalKeyAndString("User", user.orNull)
-                configObject.addOptionalKeyAndObject("Volumes", volumes.orNull)
-                configObject.addOptionalKeyAndString("WorkingDir", workingDirectory.orNull)
+                configObject.addKeyAndArrayIfNotEmpty("Cmd", arguments.orNull)
+                configObject.addKeyAndArrayIfNotEmpty("Entrypoint", entryPoint.orNull)
+                configObject.addKeyAndArrayIfNotEmpty("Env", environment.orNull?.map { "${it.key}=${it.value}" })
+                configObject.addKeyAndObjectIfNotEmpty("ExposedPorts", ports.orNull)
+                configObject.addKeyAndObjectIfNotEmpty("Labels", annotations.orNull)
+                configObject.addKeyAndStringIfNotNull("StopSignal", stopSignal.orNull)
+                configObject.addKeyAndStringIfNotNull("User", user.orNull)
+                configObject.addKeyAndObjectIfNotEmpty("Volumes", volumes.orNull)
+                configObject.addKeyAndStringIfNotNull("WorkingDir", workingDirectory.orNull)
             }
-            rootObject.addOptionalKeyAndString("created", creationTime.orNull?.toString())
+            rootObject.addKeyAndStringIfNotNull("created", creationTime.orNull?.toString())
             rootObject.addKey("history").addArray { historyArray ->
                 for (layer in layers) {
                     historyArray.addObject { historyObject ->
                         // sorted for canonical json: author, comment, created, created_by, empty_layer
-                        historyObject.addOptionalKeyAndString("author", layer.author.orNull)
-                        historyObject.addOptionalKeyAndString("comment", layer.comment.orNull)
-                        historyObject.addOptionalKeyAndString("created", layer.creationTime.orNull?.toString())
-                        historyObject.addOptionalKeyAndString("created_by", layer.createdBy.orNull)
+                        historyObject.addKeyAndStringIfNotNull("author", layer.author.orNull)
+                        historyObject.addKeyAndStringIfNotNull("comment", layer.comment.orNull)
+                        historyObject.addKeyAndStringIfNotNull("created", layer.creationTime.orNull?.toString())
+                        historyObject.addKeyAndStringIfNotNull("created_by", layer.createdBy.orNull)
                         if (!layer.diffId.isPresent) {
                             historyObject.addKey("empty_layer").addBoolean(true)
                         }
@@ -142,8 +142,8 @@ abstract class OciConfigTask : DefaultTask() {
                 }
             }
             rootObject.addKey("os").addString(platform.os.get())
-            rootObject.addOptionalKeyAndArray("os.features", platform.osFeatures.orNull)
-            rootObject.addOptionalKeyAndString("os.version", platform.osVersion.orNull)
+            rootObject.addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures.orNull)
+            rootObject.addKeyAndStringIfNotNull("os.version", platform.osVersion.orNull)
             rootObject.addKey("rootfs").addObject { rootfsObject ->
                 // sorted for canonical json: diff_ids, type
                 rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
@@ -155,7 +155,7 @@ abstract class OciConfigTask : DefaultTask() {
                 }
                 rootfsObject.addKey("type").addString("layers")
             }
-            rootObject.addOptionalKeyAndString("variant", platform.variant.orNull)
+            rootObject.addKeyAndStringIfNotNull("variant", platform.variant.orNull)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)

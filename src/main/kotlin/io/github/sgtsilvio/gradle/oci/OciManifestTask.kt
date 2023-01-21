@@ -49,7 +49,7 @@ abstract class OciManifestTask : DefaultTask() {
     protected fun run() {
         val jsonBytes = jsonObject { rootObject ->
             // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-            rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
+            rootObject.addKeyAndObjectIfNotEmpty("annotations", annotations.orNull)
             rootObject.addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
             rootObject.addKey("layers").addArray { layersObject ->
                 for (layerDescriptor in layerDescriptors) {

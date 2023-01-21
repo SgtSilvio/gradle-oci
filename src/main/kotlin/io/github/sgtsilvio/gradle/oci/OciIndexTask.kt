@@ -44,7 +44,7 @@ abstract class OciIndexTask : DefaultTask() {
     protected fun run() {
         val jsonBytes = jsonObject { rootObject ->
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
-            rootObject.addOptionalKeyAndObject("annotations", annotations.orNull)
+            rootObject.addKeyAndObjectIfNotEmpty("annotations", annotations.orNull)
             rootObject.addKey("manifests").addArray { layersObject ->
                 for (manifestDescriptor in manifestDescriptors) {
                     layersObject.addOciManifestDescriptor(manifestDescriptor)
