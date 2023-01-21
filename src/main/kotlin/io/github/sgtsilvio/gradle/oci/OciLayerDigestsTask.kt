@@ -17,24 +17,31 @@ abstract class OciLayerDigestsTask : DefaultTask() {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
-    val layerFiles = project.objects.fileCollection()
+    val layerFiles = project.objects.fileCollection()//.elements.map { set -> set.map { it.asFile.absolutePath } }
 
     @get:OutputFile
     val digestToLayerPathPropertiesFile = project.objects.fileProperty()
 
     @TaskAction
     protected fun run() {
-        val digestToLayerPath = mutableMapOf<String, String>()
+        val digestToLayerPath = LinkedHashMap<String, String>()
         val layerFiles = layerFiles.files.toList()
         var i = 0
-        for (file in componentFiles) {
-            val component = decodeComponent(file.readText())
+        for (componentFile in componentFiles) {
+            val component = decodeComponent(componentFile.readText())
+            val componentDigests = HashSet<String>()
             iterateLayers(component) { layer ->
                 if (layer.descriptor != null) {
-                    digestToLayerPath[layer.descriptor.digest] = layerFiles[i].absolutePath
-                    i++
+                    val digest = layer.descriptor.digest
+                    if (componentDigests.add(digest)) {
+                        digestToLayerPath[digest] = layerFiles[i].absolutePath
+                        i++
+                    }
                 }
             }
+        }
+        if (i != layerFiles.size) {
+            throw IllegalStateException("componentFiles and layerFiles inputs do not match: number of unique digests ($i) differs from number of layer files (${layerFiles.size})")
         }
         digestToLayerPathPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             for ((digest, layerPath) in digestToLayerPath) {
