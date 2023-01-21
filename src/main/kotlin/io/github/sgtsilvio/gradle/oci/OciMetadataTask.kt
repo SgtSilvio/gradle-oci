@@ -122,7 +122,7 @@ abstract class OciMetadataTask : DefaultTask() {
             }
             rootObject.addKey("os").addString(platform.os)
             rootObject.addOptionalKeyAndArray("os.features", platform.osFeatures)
-            rootObject.addOptionalKeyAndString("os.version", platform.osVersion)
+            rootObject.addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
             rootObject.addKey("rootfs").addObject { rootfsObject ->
                 // sorted for canonical json: diff_ids, type
                 rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
@@ -136,7 +136,7 @@ abstract class OciMetadataTask : DefaultTask() {
                 }
                 rootfsObject.addKey("type").addString("layers")
             }
-            rootObject.addOptionalKeyAndString("variant", platform.variant)
+            rootObject.addKeyAndStringIfNotEmpty("variant", platform.variant)
         }.toByteArray()
         return OciComponent.DataDescriptor(data, descriptorAnnotations)
     }
@@ -214,8 +214,8 @@ abstract class OciMetadataTask : DefaultTask() {
             platformObject.addKey("architecture").addString(platform.architecture)
             platformObject.addKey("os").addString(platform.os)
             platformObject.addOptionalKeyAndArray("os.features", platform.osFeatures)
-            platformObject.addOptionalKeyAndString("os.version", platform.osVersion)
-            platformObject.addOptionalKeyAndString("variant", platform.variant)
+            platformObject.addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
+            platformObject.addKeyAndStringIfNotEmpty("variant", platform.variant)
         }
         descriptorObject.addKey("size").addNumber(descriptor.size)
 //            descriptorObject.addOptionalKeyAndArray("urls", descriptor.urls)

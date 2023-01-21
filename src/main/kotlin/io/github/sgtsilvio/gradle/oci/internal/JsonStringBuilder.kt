@@ -102,6 +102,12 @@ fun JsonObjectStringBuilder.addOptionalKeyAndString(key: String, value: String?)
     }
 }
 
+fun JsonObjectStringBuilder.addKeyAndStringIfNotEmpty(key: String, value: String?) {
+    if (!value.isNullOrEmpty()) {
+        addKey(key).addString(value)
+    }
+}
+
 fun JsonObjectStringBuilder.addOptionalKeyAndObject(key: String, map: Map<String, String>?) {
     if (!map.isNullOrEmpty()) {
         addKey(key).addObject(map)
