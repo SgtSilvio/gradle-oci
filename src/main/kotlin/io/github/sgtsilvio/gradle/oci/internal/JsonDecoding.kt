@@ -42,8 +42,8 @@ inline fun <T> JSONObject.optionalKey(key: String, transformer: Any.() -> T): T?
     }
 }
 
-inline fun <T> JSONObject.toMap(transformer: Any.() -> T): Map<String, T> =
-    toMap().mapValues { transformer.invoke(it.value) }
+inline fun <T, M : MutableMap<in String, in T>> JSONObject.toMap(destination: M, transformer: Any.() -> T): M =
+    toMap().mapValuesTo(destination) { transformer.invoke(it.value) }
 
 inline fun <T> JSONArray.toList(transformer: Any.() -> T): List<T> {
     var i = 0
@@ -63,10 +63,19 @@ inline fun <T> JSONArray.toSet(transformer: Any.() -> T): Set<T> {
     }
 }
 
-inline fun <K, V> JSONArray.toMap(transformer: Any.() -> Pair<K, V>): Map<K, V> {
+inline fun <T, S : MutableSet<in T>> JSONArray.toSet(destination: S, transformer: Any.() -> T): S {
     var i = 0
     try {
-        return associate { transformer.invoke(it).also { i++ } }
+        return mapTo(destination) { transformer.invoke(it).also { i++ } }
+    } catch (e: JsonException) {
+        throw JsonException(i, e)
+    }
+}
+
+inline fun <K, V, M : MutableMap<in K, in V>> JSONArray.toMap(destination: M, transformer: Any.() -> Pair<K, V>): M {
+    var i = 0
+    try {
+        return associateTo(destination) { transformer.invoke(it).also { i++ } }
     } catch (e: JsonException) {
         throw JsonException(i, e)
     }

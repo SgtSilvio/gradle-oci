@@ -48,7 +48,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
         variant: String,
         osVersion: String,
         osFeatures: Set<String>,
-    ) = PlatformImpl(os, architecture, variant, osVersion, osFeatures)
+    ) = PlatformImpl(os, architecture, variant, osVersion, osFeatures.toSortedSet())
 
     override fun platformFilter(configuration: Action<in OciExtension.PlatformFilterBuilder>): PlatformFilter {
         val builder = objectFactory.newInstance<OciExtension.PlatformFilterBuilder>()
@@ -580,7 +580,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             }
 
             override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.PlatformBundles> {
-                var provider = providerFactory.provider { mutableMapOf<Platform, OciComponent.Bundle>() }
+                var provider = providerFactory.provider { TreeMap<Platform, OciComponent.Bundle>() }
                 for ((platform, bundle) in map) { // TODO not lazy
                     provider = provider.zip(bundle.createComponentBundleOrPlatformBundles(providerFactory)) { map, cBundle ->
                         map[platform] = cBundle

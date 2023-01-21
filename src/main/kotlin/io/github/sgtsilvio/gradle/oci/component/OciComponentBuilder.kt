@@ -15,7 +15,7 @@ class OciComponentBuilder : Serializable {
     fun bundleOrPlatformBundles(v: OciComponent.BundleOrPlatformBundles) = apply { bundleOrPlatformBundles = v }
     fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
 
-    fun build() = OciComponent(capabilities!!, bundleOrPlatformBundles!!, indexAnnotations)
+    fun build() = OciComponent(capabilities!!, bundleOrPlatformBundles!!, indexAnnotations.toSortedMap())
 }
 
 class OciComponentBundleBuilder : Serializable {
@@ -55,16 +55,16 @@ class OciComponentBundleBuilder : Serializable {
         creationTime,
         author,
         user,
-        ports,
-        environment,
+        ports.toSortedSet(),
+        environment.toSortedMap(),
         command,
-        volumes,
+        volumes.toSortedSet(),
         workingDirectory,
         stopSignal,
-        configAnnotations,
-        configDescriptorAnnotations,
-        manifestAnnotations,
-        manifestDescriptorAnnotations,
+        configAnnotations.toSortedMap(),
+        configDescriptorAnnotations.toSortedMap(),
+        manifestAnnotations.toSortedMap(),
+        manifestDescriptorAnnotations.toSortedMap(),
         parentCapabilities,
         layers,
     )
@@ -112,6 +112,6 @@ class OciComponentBundleLayerDescriptorBuilder : Serializable {
 
     fun build() = when {
         (digest == null) && (diffId == null) && (size == null) && annotations.isEmpty() -> null
-        else -> OciComponent.Bundle.Layer.Descriptor(digest!!, diffId!!, size!!, annotations)
+        else -> OciComponent.Bundle.Layer.Descriptor(digest!!, diffId!!, size!!, annotations.toSortedMap())
     }
 }

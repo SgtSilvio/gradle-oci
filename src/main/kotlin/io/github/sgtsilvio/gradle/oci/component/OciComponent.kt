@@ -4,36 +4,37 @@ import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
 import java.io.Serializable
 import java.time.Instant
+import java.util.*
 
 /**
  * @author Silvio Giebl
  */
 data class OciComponent(
-    val capabilities: Set<Capability>,
+    val capabilities: Set<Capability>, // TODO sorted
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
-    val indexAnnotations: Map<String, String>,
+    val indexAnnotations: SortedMap<String, String>,
 ) : Serializable {
 
     data class Capability(val group: String, val name: String) : Serializable
 
     sealed interface BundleOrPlatformBundles
 
-    data class PlatformBundles(val map: Map<Platform, Bundle>) : BundleOrPlatformBundles, Serializable
+    data class PlatformBundles(val map: SortedMap<Platform, Bundle>) : BundleOrPlatformBundles, Serializable
 
     data class Bundle(
         val creationTime: Instant?,
         val author: String?,
         val user: String?,
-        val ports: Set<String>,
-        val environment: Map<String, String>,
+        val ports: SortedSet<String>,
+        val environment: SortedMap<String, String>,
         val command: Command?,
-        val volumes: Set<String>,
+        val volumes: SortedSet<String>,
         val workingDirectory: String?,
         val stopSignal: String?,
-        val configAnnotations: Map<String, String>,
-        val configDescriptorAnnotations: Map<String, String>,
-        val manifestAnnotations: Map<String, String>,
-        val manifestDescriptorAnnotations: Map<String, String>,
+        val configAnnotations: SortedMap<String, String>,
+        val configDescriptorAnnotations: SortedMap<String, String>,
+        val manifestAnnotations: SortedMap<String, String>,
+        val manifestDescriptorAnnotations: SortedMap<String, String>,
         val parentCapabilities: List<Capability>,
         val layers: List<Layer>,
     ) : BundleOrPlatformBundles, Serializable {
@@ -55,7 +56,7 @@ data class OciComponent(
                 override val digest: String,
                 val diffId: String,
                 override val size: Long,
-                override val annotations: Map<String, String>,
+                override val annotations: SortedMap<String, String>,
             ) : OciComponent.Descriptor, Serializable
         }
     }
@@ -63,12 +64,12 @@ data class OciComponent(
     interface Descriptor {
         val digest: String
         val size: Long
-        val annotations: Map<String, String>
+        val annotations: SortedMap<String, String>
     }
 
     class DataDescriptor(
         val data: ByteArray,
-        override val annotations: Map<String, String>,
+        override val annotations: SortedMap<String, String>,
     ) : Descriptor {
         override val digest = calculateSha256Digest(data)
         override val size get() = data.size.toLong()

@@ -7,6 +7,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
+import java.util.*
 
 /**
  * @author Silvio Giebl
@@ -62,7 +63,7 @@ abstract class OciMetadataTask : DefaultTask() {
         var workingDirectory: String? = null
         var stopSignal: String? = null
         val annotations = mutableMapOf<String, String>()
-        val descriptorAnnotations = mutableMapOf<String, String>()
+        val descriptorAnnotations = TreeMap<String, String>()
         for (bundle in bundles) {
             if (bundle.user != null) {
                 user = bundle.user
@@ -145,7 +146,7 @@ abstract class OciMetadataTask : DefaultTask() {
         bundles: List<OciComponent.Bundle>,
     ): OciComponent.DataDescriptor {
         val annotations = mutableMapOf<String, String>()
-        val descriptorAnnotations = mutableMapOf<String, String>()
+        val descriptorAnnotations = TreeMap<String, String>()
         for (bundle in bundles) {
             annotations += bundle.manifestAnnotations
             descriptorAnnotations += bundle.manifestDescriptorAnnotations
@@ -185,7 +186,7 @@ abstract class OciMetadataTask : DefaultTask() {
             rootObject.addKey("mediaType").addString(INDEX_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addNumber(2)
         }.toByteArray()
-        return OciComponent.DataDescriptor(data, mapOf())
+        return OciComponent.DataDescriptor(data, sortedMapOf())
     }
 
     private fun JsonValueStringBuilder.addOciDescriptor(mediaType: String, descriptor: OciComponent.Descriptor) =
