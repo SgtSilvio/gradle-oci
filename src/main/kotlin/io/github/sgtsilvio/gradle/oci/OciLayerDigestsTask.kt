@@ -34,6 +34,9 @@ abstract class OciLayerDigestsTask : DefaultTask() {
                 if (layer.descriptor != null) {
                     val digest = layer.descriptor.digest
                     if (componentDigests.add(digest)) {
+                        if (i >= layerPaths.size) {
+                            throw IllegalStateException("componentFiles and layerPaths inputs do not match: number of unique digests (>=$i) differs from number of layer paths (${layerPaths.size})")
+                        }
                         digestToLayerPath[digest] = layerPaths[i]
                         i++
                     }
@@ -41,7 +44,7 @@ abstract class OciLayerDigestsTask : DefaultTask() {
             }
         }
         if (i != layerPaths.size) {
-            throw IllegalStateException("componentFiles and layerFiles inputs do not match: number of unique digests ($i) differs from number of layer files (${layerPaths.size})")
+            throw IllegalStateException("componentFiles and layerPaths inputs do not match: number of unique digests ($i) differs from number of layer paths (${layerPaths.size})")
         }
         digestToLayerPathPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             for ((digest, layerPath) in digestToLayerPath) {
