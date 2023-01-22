@@ -177,96 +177,6 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         if (imageName == "main") "ociComponent" else "${imageName}OciComponent"
 
 
-    abstract class BundleScope @Inject constructor(
-        private val platformFilter: PlatformFilter,
-        imageName: String,
-        bundles: DomainObjectSet<Bundle>,
-        objectFactory: ObjectFactory,
-    ) : OciImageDefinition.BundleScope {
-
-        private val filteredBundles =
-            if (platformFilter == AllPlatformFilter) bundles
-            else bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
-        override val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
-
-        override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
-            filteredBundles.configureEach { parentImages(configuration) }
-
-        override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
-            filteredBundles.configureEach { config(configuration) }
-
-        override fun layers(configuration: Action<in OciImageDefinition.BundleScope.Layers>) =
-            configuration.execute(layers)
-
-        abstract class Layers @Inject constructor(
-            private val platformFilter: PlatformFilter,
-            private val imageName: String,
-            private val bundles: DomainObjectSet<Bundle>,
-            private val objectFactory: ObjectFactory,
-        ) : OciImageDefinition.BundleScope.Layers {
-
-            override val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
-
-            override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.Layer>) =
-                configuration.execute(layer(name))
-
-            fun layer(name: String): Layer {
-                var layer = list.findByName(name) as Layer?
-                if (layer == null) {
-                    layer = objectFactory.newInstance<Layer>(name, platformFilter, imageName, bundles)
-                    list.add(layer)
-                }
-                return layer
-            }
-        }
-
-        abstract class Layer @Inject constructor(
-            private val name: String,
-            private val platformFilter: PlatformFilter,
-            private val imageName: String,
-            private val bundles: DomainObjectSet<Bundle>,
-            private val projectLayout: ProjectLayout,
-            private val taskContainer: TaskContainer,
-        ) : OciImageDefinition.BundleScope.Layer {
-
-            private var task: TaskProvider<OciLayerTask>? = null
-            private var externalTask: TaskProvider<OciLayerTask>? = null
-
-            override fun getName() = name
-
-            override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
-                bundles.configureEach { layers.layer(name).metadata(configuration) }
-
-            override fun contents(configuration: Action<in OciCopySpec>) {
-                if (externalTask != null) {
-                    throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
-                }
-                var task = task
-                if (task == null) {
-                    task = taskContainer.createLayerTask(
-                        imageName, name, platformFilter.toString(), projectLayout, configuration
-                    )
-                    this.task = task
-                    bundles.configureEach {
-                        layers.layer(name).contents(task)
-                    }
-                } else {
-                    task.configure {
-                        contents(configuration)
-                    }
-                }
-            }
-
-            override fun contents(task: TaskProvider<OciLayerTask>) {
-                externalTask = if (task == this.task) null else task
-                bundles.configureEach {
-                    layers.layer(name).contents(task)
-                }
-            }
-        }
-    }
-
-
     abstract class Capabilities @Inject constructor(
         private val imageConfiguration: Configuration,
     ) : OciImageDefinition.Capabilities {
@@ -545,6 +455,96 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 }
             }
             return provider.map { OciComponent.PlatformBundles(it) }
+        }
+    }
+
+
+    abstract class BundleScope @Inject constructor(
+        private val platformFilter: PlatformFilter,
+        imageName: String,
+        bundles: DomainObjectSet<Bundle>,
+        objectFactory: ObjectFactory,
+    ) : OciImageDefinition.BundleScope {
+
+        private val filteredBundles =
+            if (platformFilter == AllPlatformFilter) bundles
+            else bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
+        override val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
+
+        override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
+            filteredBundles.configureEach { parentImages(configuration) }
+
+        override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
+            filteredBundles.configureEach { config(configuration) }
+
+        override fun layers(configuration: Action<in OciImageDefinition.BundleScope.Layers>) =
+            configuration.execute(layers)
+
+        abstract class Layers @Inject constructor(
+            private val platformFilter: PlatformFilter,
+            private val imageName: String,
+            private val bundles: DomainObjectSet<Bundle>,
+            private val objectFactory: ObjectFactory,
+        ) : OciImageDefinition.BundleScope.Layers {
+
+            override val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
+
+            override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.Layer>) =
+                configuration.execute(layer(name))
+
+            fun layer(name: String): Layer {
+                var layer = list.findByName(name) as Layer?
+                if (layer == null) {
+                    layer = objectFactory.newInstance<Layer>(name, platformFilter, imageName, bundles)
+                    list.add(layer)
+                }
+                return layer
+            }
+        }
+
+        abstract class Layer @Inject constructor(
+            private val name: String,
+            private val platformFilter: PlatformFilter,
+            private val imageName: String,
+            private val bundles: DomainObjectSet<Bundle>,
+            private val projectLayout: ProjectLayout,
+            private val taskContainer: TaskContainer,
+        ) : OciImageDefinition.BundleScope.Layer {
+
+            private var task: TaskProvider<OciLayerTask>? = null
+            private var externalTask: TaskProvider<OciLayerTask>? = null
+
+            override fun getName() = name
+
+            override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
+                bundles.configureEach { layers.layer(name).metadata(configuration) }
+
+            override fun contents(configuration: Action<in OciCopySpec>) {
+                if (externalTask != null) {
+                    throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
+                }
+                var task = task
+                if (task == null) {
+                    task = taskContainer.createLayerTask(
+                        imageName, name, platformFilter.toString(), projectLayout, configuration
+                    )
+                    this.task = task
+                    bundles.configureEach {
+                        layers.layer(name).contents(task)
+                    }
+                } else {
+                    task.configure {
+                        contents(configuration)
+                    }
+                }
+            }
+
+            override fun contents(task: TaskProvider<OciLayerTask>) {
+                externalTask = if (task == this.task) null else task
+                bundles.configureEach {
+                    layers.layer(name).contents(task)
+                }
+            }
         }
     }
 }
