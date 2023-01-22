@@ -96,6 +96,16 @@ fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) {
     addArray { jsonArray -> iterable.forEach { jsonArray.addString(it) } }
 }
 
+inline fun <T> JsonValueStringBuilder.addArray(iterable: Iterable<T>, crossinline block: (JsonValueStringBuilder, T) -> Unit) {
+    addArray { jsonArray -> iterable.forEach { block(jsonArray, it) } }
+}
+
+inline fun <T> JsonObjectStringBuilder.addKeyAndValueIfNotNull(key: String, value: T?, crossinline block: (JsonValueStringBuilder, T) -> Unit) {
+    if (value != null) {
+        block(addKey(key), value)
+    }
+}
+
 fun JsonObjectStringBuilder.addKeyAndStringIfNotNull(key: String, value: String?) {
     if (value != null) {
         addKey(key).addString(value)
@@ -129,5 +139,11 @@ fun JsonObjectStringBuilder.addKeyAndArrayIfNotNull(key: String, list: Collectio
 fun JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<String>?) {
     if (!list.isNullOrEmpty()) {
         addKey(key).addArray(list)
+    }
+}
+
+inline fun <T> JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<T>?, crossinline block: JsonValueStringBuilder.(T) -> Unit) {
+    if (!list.isNullOrEmpty()) {
+        addKey(key).addArray(list, block)
     }
 }
