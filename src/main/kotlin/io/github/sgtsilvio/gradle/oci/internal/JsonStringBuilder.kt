@@ -120,6 +120,12 @@ fun JsonObjectStringBuilder.addKeyAndObjectIfNotEmpty(key: String, set: Set<Stri
     }
 }
 
+fun JsonObjectStringBuilder.addKeyAndArrayIfNotNull(key: String, list: Collection<String>?) {
+    if (list != null) {
+        addKey(key).addArray(list)
+    }
+}
+
 fun JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<String>?) {
     if (!list.isNullOrEmpty()) {
         addKey(key).addArray(list)
