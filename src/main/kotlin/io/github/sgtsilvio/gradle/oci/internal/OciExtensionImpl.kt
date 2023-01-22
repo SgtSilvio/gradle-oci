@@ -5,10 +5,10 @@ import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciExtension
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.component.*
-import io.github.sgtsilvio.gradle.oci.dsl.AllPlatformFilter
-import io.github.sgtsilvio.gradle.oci.dsl.Platform
-import io.github.sgtsilvio.gradle.oci.dsl.PlatformFilter
-import io.github.sgtsilvio.gradle.oci.dsl.PlatformImpl
+import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
+import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
+import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project

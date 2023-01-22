@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.dsl.PlatformImpl
+import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.json.JSONArray
 import org.json.JSONObject

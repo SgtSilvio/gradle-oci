@@ -2,7 +2,7 @@ package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.component.OciDescriptor
-import io.github.sgtsilvio.gradle.oci.dsl.Platform
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*

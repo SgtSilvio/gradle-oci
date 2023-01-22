@@ -1,8 +1,8 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.dsl.Platform
-import io.github.sgtsilvio.gradle.oci.dsl.PlatformFilter
+import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.*
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency

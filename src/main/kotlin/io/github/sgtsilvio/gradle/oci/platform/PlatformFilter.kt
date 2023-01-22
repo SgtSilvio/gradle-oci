@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.dsl
+package io.github.sgtsilvio.gradle.oci.platform
 
 import io.github.sgtsilvio.gradle.oci.internal.compareTo
 import java.util.*

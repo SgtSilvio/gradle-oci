@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.dsl.Platform
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 class OciComponentResolver {
     private val resolvableComponents = mutableMapOf<OciComponent.Capability, ResolvableOciComponent>()
