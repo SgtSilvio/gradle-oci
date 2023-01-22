@@ -58,7 +58,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
     private inline fun addChild(init: (OciCopySpecImpl) -> Unit, userAction: Action<in OciCopySpec>): OciCopySpecImpl {
         val child = objectFactory.newInstance<OciCopySpecImpl>()
         init(child) // invoke the action before adding the child as the action performs validations
-        children.add(child)
+        children += child
         userAction.execute(child)
         return child
     }
@@ -75,7 +75,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         if (parentPathPattern != "" && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
             throw IllegalArgumentException("parentPathPattern must match a directory ('', end with '/' or '**')")
         }
-        renamePatterns.add(Triple(parentPathPattern, fileNameRegex, replacement))
+        renamePatterns += Triple(parentPathPattern, fileNameRegex, replacement)
         return this
     }
 
@@ -89,7 +89,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         if (parentPathPattern != "" && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
             throw IllegalArgumentException("parentPathPattern must match a directory ('', end with '/' or '**')")
         }
-        movePatterns.add(Triple(parentPathPattern, directoryNameRegex, replacement))
+        movePatterns += Triple(parentPathPattern, directoryNameRegex, replacement)
         return this
     }
 
@@ -100,7 +100,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
-        permissionPatterns.add(Pair(pathPattern, permissions))
+        permissionPatterns += Pair(pathPattern, permissions)
         return this
     }
 
@@ -111,7 +111,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
-        userIdPatterns.add(Pair(pathPattern, userId))
+        userIdPatterns += Pair(pathPattern, userId)
         return this
     }
 
@@ -122,7 +122,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         if (pathPattern.startsWith('/')) {
             throw IllegalArgumentException("pathPattern must not start with '/'")
         }
-        groupIdPatterns.add(Pair(pathPattern, groupId))
+        groupIdPatterns += Pair(pathPattern, groupId)
         return this
     }
 
