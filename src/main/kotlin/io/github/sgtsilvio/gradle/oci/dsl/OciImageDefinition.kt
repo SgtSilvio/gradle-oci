@@ -18,7 +18,6 @@ import java.time.Instant
 interface OciImageDefinition : Named {
     val capabilities: Capabilities
     val indexAnnotations: MapProperty<String, String>
-
     val component: Provider<OciComponent>
 
     fun capabilities(configuration: Action<in Capabilities>)
@@ -61,10 +60,6 @@ interface OciImageDefinition : Named {
             fun add(dependencyNotation: CharSequence, configuration: Action<in ExternalModuleDependency>)
             fun add(project: Project)
             fun add(project: Project, configuration: Action<in ProjectDependency>)
-
-            // FileCollection(Dependency) does not make sense as coordinates/capabilities are required
-            // bundle does not make sense as order is very important
-            // ProviderConvertible does not make sense as can't find a usage
         }
 
         interface Config {
