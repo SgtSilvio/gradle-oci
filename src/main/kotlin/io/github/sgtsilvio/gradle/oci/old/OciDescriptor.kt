@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci
+package io.github.sgtsilvio.gradle.oci.old
 
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty

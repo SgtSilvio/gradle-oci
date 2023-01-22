@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-import io.github.sgtsilvio.gradle.oci.OciDescriptor
-import io.github.sgtsilvio.gradle.oci.OciManifestDescriptor
+import io.github.sgtsilvio.gradle.oci.old.OciDescriptor
+import io.github.sgtsilvio.gradle.oci.old.OciManifestDescriptor
 import java.security.MessageDigest
 import java.time.Instant
 

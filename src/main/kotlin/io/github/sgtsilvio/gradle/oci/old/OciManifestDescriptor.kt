@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci
+package io.github.sgtsilvio.gradle.oci.old
 
 import org.gradle.api.Action
 import org.gradle.api.tasks.Nested

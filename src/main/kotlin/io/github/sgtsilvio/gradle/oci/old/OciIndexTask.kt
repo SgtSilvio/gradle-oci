@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci
+package io.github.sgtsilvio.gradle.oci.old
 
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.Action
