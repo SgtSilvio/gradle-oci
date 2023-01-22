@@ -15,7 +15,7 @@ import org.gradle.api.provider.*
 import org.gradle.api.tasks.TaskProvider
 import java.time.Instant
 
-interface OciImageDefinition : OciExtension.UsableImage, Named {
+interface OciImageDefinition : Named {
     val capabilities: Capabilities
     val indexAnnotations: MapProperty<String, String>
 

@@ -41,15 +41,4 @@ interface OciExtension {
         val variants: SetProperty<String>
         val osVersions: SetProperty<String>
     }
-
-    interface Image {
-//        val capabilities: Set<Capability>
-//        val componentFiles: FileCollection
-//        val layerFiles: FileCollection
-    }
-
-    interface UsableImage : Image {
-//        val digestToMetadataPropertiesFile: Provider<RegularFile>
-//        val digestToLayerPathPropertiesFile: Provider<RegularFile>
-    }
 }
