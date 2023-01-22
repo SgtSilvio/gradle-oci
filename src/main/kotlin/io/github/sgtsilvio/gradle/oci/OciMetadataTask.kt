@@ -1,8 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
-import io.github.sgtsilvio.gradle.oci.component.decodeComponent
+import io.github.sgtsilvio.gradle.oci.component.*
+import io.github.sgtsilvio.gradle.oci.component.OciDescriptor
 import io.github.sgtsilvio.gradle.oci.dsl.Platform
 import io.github.sgtsilvio.gradle.oci.internal.*
 import org.gradle.api.DefaultTask
@@ -28,8 +27,8 @@ abstract class OciMetadataTask : DefaultTask() {
             ociComponentResolver.addComponent(decodeComponent(file.readText()))
         }
         val platforms = ociComponentResolver.resolvePlatforms()
-        val configs = mutableListOf<OciComponent.DataDescriptor>()
-        val manifests = mutableListOf<Pair<Platform, OciComponent.DataDescriptor>>()
+        val configs = mutableListOf<OciDataDescriptor>()
+        val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
         for (platform in platforms) {
             val bundlesForPlatform = ociComponentResolver.collectBundlesForPlatform(platform)
             val config = createConfig(platform, bundlesForPlatform)
@@ -40,7 +39,7 @@ abstract class OciMetadataTask : DefaultTask() {
         val index = createIndex(manifests, ociComponentResolver.rootComponent)
 
         digestToMetadataPropertiesFile.get().asFile.bufferedWriter().use { writer ->
-            fun writeDataDescriptor(dataDescriptor: OciComponent.DataDescriptor) {
+            fun writeDataDescriptor(dataDescriptor: OciDataDescriptor) {
                 writer.writeProperty(dataDescriptor.digest, String(dataDescriptor.data))
             }
             writeDataDescriptor(index)
@@ -53,7 +52,7 @@ abstract class OciMetadataTask : DefaultTask() {
         }
     }
 
-    private fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciComponent.DataDescriptor {
+    private fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
         var user: String? = null
         val ports = mutableSetOf<String>()
         val environment = mutableMapOf<String, String>()
@@ -138,13 +137,10 @@ abstract class OciMetadataTask : DefaultTask() {
             }
             rootObject.addKeyAndStringIfNotEmpty("variant", platform.variant)
         }.toByteArray()
-        return OciComponent.DataDescriptor(data, descriptorAnnotations)
+        return OciDataDescriptor(data, descriptorAnnotations)
     }
 
-    private fun createManifest(
-        configDescriptor: OciComponent.Descriptor,
-        bundles: List<OciComponent.Bundle>,
-    ): OciComponent.DataDescriptor {
+    private fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
         val annotations = mutableMapOf<String, String>()
         val descriptorAnnotations = TreeMap<String, String>()
         for (bundle in bundles) {
@@ -168,13 +164,13 @@ abstract class OciMetadataTask : DefaultTask() {
             rootObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addNumber(2)
         }.toByteArray()
-        return OciComponent.DataDescriptor(data, descriptorAnnotations)
+        return OciDataDescriptor(data, descriptorAnnotations)
     }
 
     private fun createIndex(
-        manifestDescriptors: List<Pair<Platform, OciComponent.Descriptor>>,
+        manifestDescriptors: List<Pair<Platform, OciDescriptor>>,
         component: OciComponent,
-    ): OciComponent.DataDescriptor {
+    ): OciDataDescriptor {
         val data = jsonObject { rootObject ->
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
             rootObject.addKeyAndObjectIfNotEmpty("annotations", component.indexAnnotations)
@@ -186,10 +182,10 @@ abstract class OciMetadataTask : DefaultTask() {
             rootObject.addKey("mediaType").addString(INDEX_MEDIA_TYPE)
             rootObject.addKey("schemaVersion").addNumber(2)
         }.toByteArray()
-        return OciComponent.DataDescriptor(data, sortedMapOf())
+        return OciDataDescriptor(data, sortedMapOf())
     }
 
-    private fun JsonValueStringBuilder.addOciDescriptor(mediaType: String, descriptor: OciComponent.Descriptor) =
+    private fun JsonValueStringBuilder.addOciDescriptor(mediaType: String, descriptor: OciDescriptor) =
         addObject { descriptorObject ->
             // sorted for canonical json: annotations, data, digest, mediaType, size, urls
             descriptorObject.addKeyAndObjectIfNotEmpty("annotations", descriptor.annotations)
@@ -200,24 +196,22 @@ abstract class OciMetadataTask : DefaultTask() {
 //            descriptorObject.addOptionalKeyAndArray("urls", descriptor.urls)
         }
 
-    private fun JsonValueStringBuilder.addOciManifestDescriptor(
-        descriptor: OciComponent.Descriptor,
-        platform: Platform,
-    ) = addObject { descriptorObject ->
-        // sorted for canonical json: annotations, data, digest, mediaType, size, urls
-        descriptorObject.addKeyAndObjectIfNotEmpty("annotations", descriptor.annotations)
+    private fun JsonValueStringBuilder.addOciManifestDescriptor(descriptor: OciDescriptor, platform: Platform) =
+        addObject { descriptorObject ->
+            // sorted for canonical json: annotations, data, digest, mediaType, size, urls
+            descriptorObject.addKeyAndObjectIfNotEmpty("annotations", descriptor.annotations)
 //            descriptorObject.addOptionalKeyAndString("data", descriptor.data.orNull)
-        descriptorObject.addKey("digest").addString(descriptor.digest)
-        descriptorObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
-        descriptorObject.addKey("platform").addObject { platformObject ->
-            // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
-            platformObject.addKey("architecture").addString(platform.architecture)
-            platformObject.addKey("os").addString(platform.os)
-            platformObject.addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures)
-            platformObject.addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
-            platformObject.addKeyAndStringIfNotEmpty("variant", platform.variant)
-        }
-        descriptorObject.addKey("size").addNumber(descriptor.size)
+            descriptorObject.addKey("digest").addString(descriptor.digest)
+            descriptorObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
+            descriptorObject.addKey("platform").addObject { platformObject ->
+                // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
+                platformObject.addKey("architecture").addString(platform.architecture)
+                platformObject.addKey("os").addString(platform.os)
+                platformObject.addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures)
+                platformObject.addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
+                platformObject.addKeyAndStringIfNotEmpty("variant", platform.variant)
+            }
+            descriptorObject.addKey("size").addNumber(descriptor.size)
 //            descriptorObject.addOptionalKeyAndArray("urls", descriptor.urls)
-    }
+        }
 }

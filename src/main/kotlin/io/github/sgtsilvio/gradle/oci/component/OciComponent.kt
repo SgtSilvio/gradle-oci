@@ -1,7 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.dsl.Platform
-import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
 import java.io.Serializable
 import java.time.Instant
 import java.util.*
@@ -62,21 +61,7 @@ data class OciComponent(
                 val diffId: String,
                 override val size: Long,
                 override val annotations: SortedMap<String, String>,
-            ) : OciComponent.Descriptor, Serializable
+            ) : OciDescriptor, Serializable
         }
-    }
-
-    interface Descriptor {
-        val digest: String
-        val size: Long
-        val annotations: SortedMap<String, String>
-    }
-
-    class DataDescriptor(
-        val data: ByteArray,
-        override val annotations: SortedMap<String, String>,
-    ) : Descriptor {
-        override val digest = calculateSha256Digest(data)
-        override val size get() = data.size.toLong()
     }
 }
