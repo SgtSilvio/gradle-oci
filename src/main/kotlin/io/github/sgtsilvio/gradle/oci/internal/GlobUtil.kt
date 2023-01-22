@@ -2,9 +2,9 @@ package io.github.sgtsilvio.gradle.oci.internal
 
 import java.util.regex.PatternSyntaxException
 
-private const val regexMetaChars = "\\^$.|?*+()[{"
+private const val REGEX_META_CHARS = "\\^$.|?*+()[{"
 
-private fun isRegexMeta(c: Char) = regexMetaChars.contains(c)
+private fun isRegexMeta(c: Char) = REGEX_META_CHARS.contains(c)
 
 fun convertToRegex(globPattern: String): String {
     val regex = StringBuilder()
