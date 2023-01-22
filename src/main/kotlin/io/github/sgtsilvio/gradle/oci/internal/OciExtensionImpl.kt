@@ -226,7 +226,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             private val filteredBundles =
                 if (platformFilter == AllPlatformFilter) bundles
                 else bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
-            private val layers = objectFactory.newInstance<LayersScope>(platformFilter, imageName, filteredBundles)
+            private val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
 
             override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
                 filteredBundles.configureEach { parentImages(configuration) }
@@ -234,39 +234,39 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
                 filteredBundles.configureEach { config(configuration) }
 
-            override fun layers(configuration: Action<in OciImageDefinition.BundleScope.LayersScope>) =
+            override fun layers(configuration: Action<in OciImageDefinition.BundleScope.Layers>) =
                 configuration.execute(layers)
 
-            abstract class LayersScope @Inject constructor(
+            abstract class Layers @Inject constructor(
                 private val platformFilter: PlatformFilter,
                 private val imageName: String,
                 private val bundles: DomainObjectSet<Bundle>,
                 private val objectFactory: ObjectFactory,
-            ) : OciImageDefinition.BundleScope.LayersScope {
+            ) : OciImageDefinition.BundleScope.Layers {
 
-                private val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.LayerScope::class)
+                private val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
 
-                override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.LayerScope>) =
+                override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.Layer>) =
                     configuration.execute(layer(name))
 
-                fun layer(name: String): LayerScope {
-                    var layer = list.findByName(name) as LayerScope?
+                fun layer(name: String): Layer {
+                    var layer = list.findByName(name) as Layer?
                     if (layer == null) {
-                        layer = objectFactory.newInstance<LayerScope>(name, platformFilter, imageName, bundles)
+                        layer = objectFactory.newInstance<Layer>(name, platformFilter, imageName, bundles)
                         list.add(layer)
                     }
                     return layer
                 }
             }
 
-            abstract class LayerScope @Inject constructor(
+            abstract class Layer @Inject constructor(
                 private val name: String,
                 private val platformFilter: PlatformFilter,
                 private val imageName: String,
                 private val bundles: DomainObjectSet<Bundle>,
                 private val projectLayout: ProjectLayout,
                 private val taskContainer: TaskContainer,
-            ) : OciImageDefinition.BundleScope.LayerScope {
+            ) : OciImageDefinition.BundleScope.Layer {
 
                 private var task: TaskProvider<OciLayerTask>? = null
                 private var externalTask: TaskProvider<OciLayerTask>? = null

@@ -114,15 +114,15 @@ interface OciImageDefinition : Named {
 
         fun parentImages(configuration: Action<in Bundle.ParentImages>)
         fun config(configuration: Action<in Bundle.Config>)
-        fun layers(configuration: Action<in LayersScope>)
+        fun layers(configuration: Action<in Layers>)
 
-        interface LayersScope {
+        interface Layers {
 //            val list: NamedDomainObjectList<LayerScope>
 
-            fun layer(name: String, configuration: Action<in LayerScope>)
+            fun layer(name: String, configuration: Action<in Layer>)
         }
 
-        interface LayerScope : Named {
+        interface Layer : Named {
             fun metadata(configuration: Action<in Bundle.Layer.Metadata>)
             fun contents(configuration: Action<in OciCopySpec>)
             fun contents(task: TaskProvider<OciLayerTask>)
