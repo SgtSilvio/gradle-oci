@@ -126,29 +126,6 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return this
     }
 
-    /**
-     * Single properties are inherited, collection properties are copied.
-     */
-    fun copy(): OciCopySpecImpl {
-        val copy = objectFactory.newInstance<OciCopySpecImpl>()
-        copy.sources.from(sources.from.toList()) // additive property -> copy (via toList)
-        copy.destinationPath.set(destinationPath) // single property -> inherit
-        copy.filter.copyFrom(filter) // additive property -> copy
-        copy.renamePatterns += renamePatterns // additive property -> copy
-        copy.movePatterns += movePatterns // additive property -> copy
-        copy.filePermissions.set(filePermissions) // single property -> inherit
-        copy.directoryPermissions.set(directoryPermissions) // single property -> inherit
-        copy.permissionPatterns += permissionPatterns // additive property -> copy
-        copy.userId.set(userId) // single property -> inherit
-        copy.userIdPatterns += userIdPatterns // additive property -> copy
-        copy.groupId.set(groupId) // single property -> inherit
-        copy.groupIdPatterns += groupIdPatterns // additive property -> copy
-        for (child in children) {
-            copy.children += child.copy() // contains additive properties -> copy
-        }
-        return copy
-    }
-
     fun asInput(providerFactory: ProviderFactory): Provider<OciCopySpecInput> {
         val lazy = lazy { OciCopySpecInput(this) }
         return providerFactory.provider { lazy.value }
