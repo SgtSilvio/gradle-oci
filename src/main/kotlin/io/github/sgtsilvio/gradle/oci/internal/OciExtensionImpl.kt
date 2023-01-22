@@ -226,7 +226,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
             private val filteredBundles =
                 if (platformFilter == AllPlatformFilter) bundles
                 else bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
-            private val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
+            override val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
 
             override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
                 filteredBundles.configureEach { parentImages(configuration) }
@@ -244,7 +244,7 @@ abstract class OciExtensionImpl @Inject constructor(private val objectFactory: O
                 private val objectFactory: ObjectFactory,
             ) : OciImageDefinition.BundleScope.Layers {
 
-                private val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
+                override val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
 
                 override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.Layer>) =
                     configuration.execute(layer(name))
