@@ -89,21 +89,16 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
     private fun escape(string: String) = string.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
-fun JsonValueStringBuilder.addObject(map: Map<String, String>) {
+fun JsonValueStringBuilder.addObject(map: Map<String, String>) =
     addObject { map.toSortedMap().forEach { addKey(it.key).addString(it.value) } }
-}
 
-fun JsonValueStringBuilder.addObject(set: Set<String>) {
+fun JsonValueStringBuilder.addObject(set: Set<String>) =
     addObject { set.toSortedSet().forEach { addKey(it).addObject {} } }
-}
 
-fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) {
-    addArray { iterable.forEach { addString(it) } }
-}
-
-inline fun <T> JsonValueStringBuilder.addArray(iterable: Iterable<T>, crossinline block: JsonValueStringBuilder.(T) -> Unit) {
+inline fun <T> JsonValueStringBuilder.addArray(iterable: Iterable<T>, crossinline block: JsonValueStringBuilder.(T) -> Unit) =
     addArray { iterable.forEach { block(it) } }
-}
+
+fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) = addArray(iterable, JsonValueStringBuilder::addString)
 
 inline fun <T> JsonObjectStringBuilder.addKeyAndValueIfNotNull(key: String, value: T?, crossinline block: JsonValueStringBuilder.(T) -> Unit) {
     if (value != null) {
@@ -111,11 +106,8 @@ inline fun <T> JsonObjectStringBuilder.addKeyAndValueIfNotNull(key: String, valu
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndStringIfNotNull(key: String, value: String?) {
-    if (value != null) {
-        addKey(key).addString(value)
-    }
-}
+fun JsonObjectStringBuilder.addKeyAndStringIfNotNull(key: String, value: String?) =
+    addKeyAndValueIfNotNull(key, value, JsonValueStringBuilder::addString)
 
 fun JsonObjectStringBuilder.addKeyAndStringIfNotEmpty(key: String, value: String?) {
     if (!value.isNullOrEmpty()) {
@@ -141,14 +133,11 @@ fun JsonObjectStringBuilder.addKeyAndArrayIfNotNull(key: String, list: Collectio
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<String>?) {
-    if (!list.isNullOrEmpty()) {
-        addKey(key).addArray(list)
-    }
-}
-
 inline fun <T> JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<T>?, crossinline block: JsonValueStringBuilder.(T) -> Unit) {
     if (!list.isNullOrEmpty()) {
         addKey(key).addArray(list, block)
     }
 }
+
+fun JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<String>?) =
+    addKeyAndArrayIfNotEmpty(key, list) { addString(it) }
