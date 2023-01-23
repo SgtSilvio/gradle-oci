@@ -1,25 +1,30 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-fun jsonObject(block: (JsonObjectStringBuilder) -> Unit): String {
+fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
     val builder = JsonStringBuilderImpl()
     builder.addObject(block)
     return builder.toString()
 }
 
-fun jsonArray(block: (JsonValueStringBuilder) -> Unit): String {
+fun jsonArray(block: JsonValueStringBuilder.() -> Unit): String {
     val builder = JsonStringBuilderImpl()
     builder.addArray(block)
     return builder.toString()
 }
 
+@DslMarker
+annotation class JsonScope
+
+@JsonScope
 interface JsonObjectStringBuilder {
     fun addKey(key: String): JsonValueStringBuilder
 }
 
+@JsonScope
 interface JsonValueStringBuilder {
-    fun addObject(block: (JsonObjectStringBuilder) -> Unit)
+    fun addObject(block: JsonObjectStringBuilder.() -> Unit)
 
-    fun addArray(block: (JsonValueStringBuilder) -> Unit)
+    fun addArray(block: JsonValueStringBuilder.() -> Unit)
 
     fun addString(value: String)
 
@@ -32,18 +37,18 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
     private val stringBuilder = StringBuilder()
     private var needsComma = false
 
-    override fun addObject(block: (JsonObjectStringBuilder) -> Unit) {
+    override fun addObject(block: JsonObjectStringBuilder.() -> Unit) {
         addCommaIfNecessary()
         stringBuilder.append('{')
-        block(this)
+        this.block()
         stringBuilder.append('}')
         needsComma = true
     }
 
-    override fun addArray(block: (JsonValueStringBuilder) -> Unit) {
+    override fun addArray(block: JsonValueStringBuilder.() -> Unit) {
         addCommaIfNecessary()
         stringBuilder.append('[')
-        block(this)
+        this.block()
         stringBuilder.append(']')
         needsComma = true
     }
@@ -85,24 +90,24 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
 }
 
 fun JsonValueStringBuilder.addObject(map: Map<String, String>) {
-    addObject { jsonObject -> map.toSortedMap().forEach { jsonObject.addKey(it.key).addString(it.value) } }
+    addObject { map.toSortedMap().forEach { addKey(it.key).addString(it.value) } }
 }
 
 fun JsonValueStringBuilder.addObject(set: Set<String>) {
-    addObject { jsonObject -> set.toSortedSet().forEach { jsonObject.addKey(it).addObject {} } }
+    addObject { set.toSortedSet().forEach { addKey(it).addObject {} } }
 }
 
 fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) {
-    addArray { jsonArray -> iterable.forEach { jsonArray.addString(it) } }
+    addArray { iterable.forEach { addString(it) } }
 }
 
-inline fun <T> JsonValueStringBuilder.addArray(iterable: Iterable<T>, crossinline block: (JsonValueStringBuilder, T) -> Unit) {
-    addArray { jsonArray -> iterable.forEach { block(jsonArray, it) } }
+inline fun <T> JsonValueStringBuilder.addArray(iterable: Iterable<T>, crossinline block: JsonValueStringBuilder.(T) -> Unit) {
+    addArray { iterable.forEach { block(it) } }
 }
 
-inline fun <T> JsonObjectStringBuilder.addKeyAndValueIfNotNull(key: String, value: T?, crossinline block: (JsonValueStringBuilder, T) -> Unit) {
+inline fun <T> JsonObjectStringBuilder.addKeyAndValueIfNotNull(key: String, value: T?, crossinline block: JsonValueStringBuilder.(T) -> Unit) {
     if (value != null) {
-        block(addKey(key), value)
+        addKey(key).block(value)
     }
 }
 

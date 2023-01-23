@@ -1,9 +1,8 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
-import io.github.sgtsilvio.gradle.oci.component.OciDescriptor
-import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.internal.*
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
 import java.util.*
@@ -86,56 +85,56 @@ abstract class OciMetadataTask : DefaultTask() {
             descriptorAnnotations += bundle.configDescriptorAnnotations
         }
 
-        val data = jsonObject { rootObject ->
+        val data = jsonObject {
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
-            rootObject.addKey("architecture").addString(platform.architecture)
-            rootObject.addKeyAndStringIfNotNull("author", bundles.last().author)
-            rootObject.addKey("config").addObject { configObject ->
+            addKey("architecture").addString(platform.architecture)
+            addKeyAndStringIfNotNull("author", bundles.last().author)
+            addKey("config").addObject {
                 // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
-                configObject.addKeyAndArrayIfNotEmpty("Cmd", arguments)
-                configObject.addKeyAndArrayIfNotEmpty("Entrypoint", entryPoint)
-                configObject.addKeyAndArrayIfNotEmpty("Env", environment.map { "${it.key}=${it.value}" })
-                configObject.addKeyAndObjectIfNotEmpty("ExposedPorts", ports)
-                configObject.addKeyAndObjectIfNotEmpty("Labels", annotations)
-                configObject.addKeyAndStringIfNotNull("StopSignal", stopSignal)
-                configObject.addKeyAndStringIfNotNull("User", user)
-                configObject.addKeyAndObjectIfNotEmpty("Volumes", volumes)
-                configObject.addKeyAndStringIfNotNull("WorkingDir", workingDirectory)
+                addKeyAndArrayIfNotEmpty("Cmd", arguments)
+                addKeyAndArrayIfNotEmpty("Entrypoint", entryPoint)
+                addKeyAndArrayIfNotEmpty("Env", environment.map { "${it.key}=${it.value}" })
+                addKeyAndObjectIfNotEmpty("ExposedPorts", ports)
+                addKeyAndObjectIfNotEmpty("Labels", annotations)
+                addKeyAndStringIfNotNull("StopSignal", stopSignal)
+                addKeyAndStringIfNotNull("User", user)
+                addKeyAndObjectIfNotEmpty("Volumes", volumes)
+                addKeyAndStringIfNotNull("WorkingDir", workingDirectory)
             }
-            rootObject.addKeyAndStringIfNotNull("created", bundles.last().creationTime?.toString())
-            rootObject.addKey("history").addArray { historyArray ->
+            addKeyAndStringIfNotNull("created", bundles.last().creationTime?.toString())
+            addKey("history").addArray {
                 for (bundle in bundles) {
                     for (layer in bundle.layers) {
-                        historyArray.addObject { historyObject ->
+                        addObject {
                             // sorted for canonical json: author, comment, created, created_by, empty_layer
-                            historyObject.addKeyAndStringIfNotNull("author", layer.author)
-                            historyObject.addKeyAndStringIfNotNull("comment", layer.comment)
-                            historyObject.addKeyAndStringIfNotNull("created", layer.creationTime?.toString())
-                            historyObject.addKeyAndStringIfNotNull("created_by", layer.createdBy)
+                            addKeyAndStringIfNotNull("author", layer.author)
+                            addKeyAndStringIfNotNull("comment", layer.comment)
+                            addKeyAndStringIfNotNull("created", layer.creationTime?.toString())
+                            addKeyAndStringIfNotNull("created_by", layer.createdBy)
                             if (layer.descriptor == null) {
-                                historyObject.addKey("empty_layer").addBoolean(true)
+                                addKey("empty_layer").addBoolean(true)
                             }
                         }
                     }
                 }
             }
-            rootObject.addKey("os").addString(platform.os)
-            rootObject.addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures)
-            rootObject.addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
-            rootObject.addKey("rootfs").addObject { rootfsObject ->
+            addKey("os").addString(platform.os)
+            addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures)
+            addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
+            addKey("rootfs").addObject {
                 // sorted for canonical json: diff_ids, type
-                rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
+                addKey("diff_ids").addArray {
                     for (bundle in bundles) {
                         for (layer in bundle.layers) {
                             if (layer.descriptor != null) {
-                                diffIdsArray.addString(layer.descriptor.diffId)
+                                addString(layer.descriptor.diffId)
                             }
                         }
                     }
                 }
-                rootfsObject.addKey("type").addString("layers")
+                addKey("type").addString("layers")
             }
-            rootObject.addKeyAndStringIfNotEmpty("variant", platform.variant)
+            addKeyAndStringIfNotEmpty("variant", platform.variant)
         }.toByteArray()
         return OciDataDescriptor(data, descriptorAnnotations)
     }
@@ -148,21 +147,21 @@ abstract class OciMetadataTask : DefaultTask() {
             descriptorAnnotations += bundle.manifestDescriptorAnnotations
         }
 
-        val data = jsonObject { rootObject ->
+        val data = jsonObject {
             // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-            rootObject.addKeyAndObjectIfNotEmpty("annotations", annotations)
-            rootObject.addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
-            rootObject.addKey("layers").addArray { layersObject ->
+            addKeyAndObjectIfNotEmpty("annotations", annotations)
+            addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
+            addKey("layers").addArray {
                 for (bundle in bundles) {
                     for (layer in bundle.layers) {
                         if (layer.descriptor != null) {
-                            layersObject.addOciDescriptor(LAYER_MEDIA_TYPE, layer.descriptor)
+                            addOciDescriptor(LAYER_MEDIA_TYPE, layer.descriptor)
                         }
                     }
                 }
             }
-            rootObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
-            rootObject.addKey("schemaVersion").addNumber(2)
+            addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
+            addKey("schemaVersion").addNumber(2)
         }.toByteArray()
         return OciDataDescriptor(data, descriptorAnnotations)
     }
@@ -171,47 +170,46 @@ abstract class OciMetadataTask : DefaultTask() {
         manifestDescriptors: List<Pair<Platform, OciDescriptor>>,
         component: OciComponent,
     ): OciDataDescriptor {
-        val data = jsonObject { rootObject ->
+        val data = jsonObject {
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
-            rootObject.addKeyAndObjectIfNotEmpty("annotations", component.indexAnnotations)
-            rootObject.addKey("manifests").addArray { layersObject ->
+            addKeyAndObjectIfNotEmpty("annotations", component.indexAnnotations)
+            addKey("manifests").addArray {
                 for ((platform, descriptor) in manifestDescriptors) {
-                    layersObject.addOciManifestDescriptor(descriptor, platform)
+                    addOciManifestDescriptor(descriptor, platform)
                 }
             }
-            rootObject.addKey("mediaType").addString(INDEX_MEDIA_TYPE)
-            rootObject.addKey("schemaVersion").addNumber(2)
+            addKey("mediaType").addString(INDEX_MEDIA_TYPE)
+            addKey("schemaVersion").addNumber(2)
         }.toByteArray()
         return OciDataDescriptor(data, sortedMapOf())
     }
 
-    private fun JsonValueStringBuilder.addOciDescriptor(mediaType: String, descriptor: OciDescriptor) =
-        addObject { descriptorObject ->
-            // sorted for canonical json: annotations, data, digest, mediaType, size, urls
-            descriptorObject.addKeyAndObjectIfNotEmpty("annotations", descriptor.annotations)
-//            descriptorObject.addOptionalKeyAndString("data", descriptor.data)
-            descriptorObject.addKey("digest").addString(descriptor.digest)
-            descriptorObject.addKey("mediaType").addString(mediaType)
-            descriptorObject.addKey("size").addNumber(descriptor.size)
-//            descriptorObject.addOptionalKeyAndArray("urls", descriptor.urls)
-        }
+    private fun JsonValueStringBuilder.addOciDescriptor(mediaType: String, descriptor: OciDescriptor) = addObject {
+        // sorted for canonical json: annotations, data, digest, mediaType, size, urls
+        addKeyAndObjectIfNotEmpty("annotations", descriptor.annotations)
+//        addOptionalKeyAndString("data", descriptor.data)
+        addKey("digest").addString(descriptor.digest)
+        addKey("mediaType").addString(mediaType)
+        addKey("size").addNumber(descriptor.size)
+//        addOptionalKeyAndArray("urls", descriptor.urls)
+    }
 
     private fun JsonValueStringBuilder.addOciManifestDescriptor(descriptor: OciDescriptor, platform: Platform) =
-        addObject { descriptorObject ->
+        addObject {
             // sorted for canonical json: annotations, data, digest, mediaType, size, urls
-            descriptorObject.addKeyAndObjectIfNotEmpty("annotations", descriptor.annotations)
-//            descriptorObject.addOptionalKeyAndString("data", descriptor.data.orNull)
-            descriptorObject.addKey("digest").addString(descriptor.digest)
-            descriptorObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
-            descriptorObject.addKey("platform").addObject { platformObject ->
+            addKeyAndObjectIfNotEmpty("annotations", descriptor.annotations)
+//            addOptionalKeyAndString("data", descriptor.data.orNull)
+            addKey("digest").addString(descriptor.digest)
+            addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
+            addKey("platform").addObject {
                 // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
-                platformObject.addKey("architecture").addString(platform.architecture)
-                platformObject.addKey("os").addString(platform.os)
-                platformObject.addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures)
-                platformObject.addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
-                platformObject.addKeyAndStringIfNotEmpty("variant", platform.variant)
+                addKey("architecture").addString(platform.architecture)
+                addKey("os").addString(platform.os)
+                addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures)
+                addKeyAndStringIfNotEmpty("os.version", platform.osVersion)
+                addKeyAndStringIfNotEmpty("variant", platform.variant)
             }
-            descriptorObject.addKey("size").addNumber(descriptor.size)
-//            descriptorObject.addOptionalKeyAndArray("urls", descriptor.urls)
+            addKey("size").addNumber(descriptor.size)
+//            addOptionalKeyAndArray("urls", descriptor.urls)
         }
 }

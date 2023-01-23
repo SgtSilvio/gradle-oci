@@ -110,52 +110,52 @@ abstract class OciConfigTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val jsonBytes = jsonObject { rootObject ->
+        val jsonBytes = jsonObject {
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
-            rootObject.addKey("architecture").addString(platform.architecture.get())
-            rootObject.addKeyAndStringIfNotNull("author", author.orNull)
-            rootObject.addKey("config").addObject { configObject ->
+            addKey("architecture").addString(platform.architecture.get())
+            addKeyAndStringIfNotNull("author", author.orNull)
+            addKey("config").addObject {
                 // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
-                configObject.addKeyAndArrayIfNotEmpty("Cmd", arguments.orNull)
-                configObject.addKeyAndArrayIfNotEmpty("Entrypoint", entryPoint.orNull)
-                configObject.addKeyAndArrayIfNotEmpty("Env", environment.orNull?.map { "${it.key}=${it.value}" })
-                configObject.addKeyAndObjectIfNotEmpty("ExposedPorts", ports.orNull)
-                configObject.addKeyAndObjectIfNotEmpty("Labels", annotations.orNull)
-                configObject.addKeyAndStringIfNotNull("StopSignal", stopSignal.orNull)
-                configObject.addKeyAndStringIfNotNull("User", user.orNull)
-                configObject.addKeyAndObjectIfNotEmpty("Volumes", volumes.orNull)
-                configObject.addKeyAndStringIfNotNull("WorkingDir", workingDirectory.orNull)
+                addKeyAndArrayIfNotEmpty("Cmd", arguments.orNull)
+                addKeyAndArrayIfNotEmpty("Entrypoint", entryPoint.orNull)
+                addKeyAndArrayIfNotEmpty("Env", environment.orNull?.map { "${it.key}=${it.value}" })
+                addKeyAndObjectIfNotEmpty("ExposedPorts", ports.orNull)
+                addKeyAndObjectIfNotEmpty("Labels", annotations.orNull)
+                addKeyAndStringIfNotNull("StopSignal", stopSignal.orNull)
+                addKeyAndStringIfNotNull("User", user.orNull)
+                addKeyAndObjectIfNotEmpty("Volumes", volumes.orNull)
+                addKeyAndStringIfNotNull("WorkingDir", workingDirectory.orNull)
             }
-            rootObject.addKeyAndStringIfNotNull("created", creationTime.orNull?.toString())
-            rootObject.addKey("history").addArray { historyArray ->
+            addKeyAndStringIfNotNull("created", creationTime.orNull?.toString())
+            addKey("history").addArray {
                 for (layer in layers) {
-                    historyArray.addObject { historyObject ->
+                    addObject {
                         // sorted for canonical json: author, comment, created, created_by, empty_layer
-                        historyObject.addKeyAndStringIfNotNull("author", layer.author.orNull)
-                        historyObject.addKeyAndStringIfNotNull("comment", layer.comment.orNull)
-                        historyObject.addKeyAndStringIfNotNull("created", layer.creationTime.orNull?.toString())
-                        historyObject.addKeyAndStringIfNotNull("created_by", layer.createdBy.orNull)
+                        addKeyAndStringIfNotNull("author", layer.author.orNull)
+                        addKeyAndStringIfNotNull("comment", layer.comment.orNull)
+                        addKeyAndStringIfNotNull("created", layer.creationTime.orNull?.toString())
+                        addKeyAndStringIfNotNull("created_by", layer.createdBy.orNull)
                         if (!layer.diffId.isPresent) {
-                            historyObject.addKey("empty_layer").addBoolean(true)
+                            addKey("empty_layer").addBoolean(true)
                         }
                     }
                 }
             }
-            rootObject.addKey("os").addString(platform.os.get())
-            rootObject.addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures.orNull)
-            rootObject.addKeyAndStringIfNotNull("os.version", platform.osVersion.orNull)
-            rootObject.addKey("rootfs").addObject { rootfsObject ->
+            addKey("os").addString(platform.os.get())
+            addKeyAndArrayIfNotEmpty("os.features", platform.osFeatures.orNull)
+            addKeyAndStringIfNotNull("os.version", platform.osVersion.orNull)
+            addKey("rootfs").addObject {
                 // sorted for canonical json: diff_ids, type
-                rootfsObject.addKey("diff_ids").addArray { diffIdsArray ->
+                addKey("diff_ids").addArray {
                     for (layer in layers) {
                         if (layer.diffId.isPresent) {
-                            diffIdsArray.addString(layer.diffId.get())
+                            addString(layer.diffId.get())
                         }
                     }
                 }
-                rootfsObject.addKey("type").addString("layers")
+                addKey("type").addString("layers")
             }
-            rootObject.addKeyAndStringIfNotNull("variant", platform.variant.orNull)
+            addKeyAndStringIfNotNull("variant", platform.variant.orNull)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)

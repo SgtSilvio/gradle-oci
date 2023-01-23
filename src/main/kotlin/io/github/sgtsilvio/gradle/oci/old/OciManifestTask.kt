@@ -47,17 +47,17 @@ abstract class OciManifestTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val jsonBytes = jsonObject { rootObject ->
+        val jsonBytes = jsonObject {
             // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-            rootObject.addKeyAndObjectIfNotEmpty("annotations", annotations.orNull)
-            rootObject.addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
-            rootObject.addKey("layers").addArray { layersObject ->
+            addKeyAndObjectIfNotEmpty("annotations", annotations.orNull)
+            addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
+            addKey("layers").addArray {
                 for (layerDescriptor in layerDescriptors) {
-                    layersObject.addOciDescriptor(LAYER_MEDIA_TYPE, layerDescriptor)
+                    addOciDescriptor(LAYER_MEDIA_TYPE, layerDescriptor)
                 }
             }
-            rootObject.addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
-            rootObject.addKey("schemaVersion").addNumber(2)
+            addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
+            addKey("schemaVersion").addNumber(2)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)

@@ -1,6 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.old
 
-import io.github.sgtsilvio.gradle.oci.internal.*
+import io.github.sgtsilvio.gradle.oci.internal.INDEX_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.internal.addKeyAndObjectIfNotEmpty
+import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
+import io.github.sgtsilvio.gradle.oci.internal.jsonObject
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -42,16 +45,16 @@ abstract class OciIndexTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val jsonBytes = jsonObject { rootObject ->
+        val jsonBytes = jsonObject {
             // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
-            rootObject.addKeyAndObjectIfNotEmpty("annotations", annotations.orNull)
-            rootObject.addKey("manifests").addArray { layersObject ->
+            addKeyAndObjectIfNotEmpty("annotations", annotations.orNull)
+            addKey("manifests").addArray {
                 for (manifestDescriptor in manifestDescriptors) {
-                    layersObject.addOciManifestDescriptor(manifestDescriptor)
+                    addOciManifestDescriptor(manifestDescriptor)
                 }
             }
-            rootObject.addKey("mediaType").addString(INDEX_MEDIA_TYPE)
-            rootObject.addKey("schemaVersion").addNumber(2)
+            addKey("mediaType").addString(INDEX_MEDIA_TYPE)
+            addKey("schemaVersion").addNumber(2)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)
