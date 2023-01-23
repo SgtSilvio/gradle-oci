@@ -22,8 +22,6 @@ abstract class OciComponentTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val encodedComponent = encodeComponent(component.get())
-        componentFile.get().asFile.bufferedWriter().use { writer ->
-            encodedComponent.write(writer)
-        }
+        componentFile.get().asFile.writeText(encodedComponent)
     }
 }

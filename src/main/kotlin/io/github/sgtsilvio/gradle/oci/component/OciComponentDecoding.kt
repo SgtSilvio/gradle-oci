@@ -212,5 +212,6 @@ fun main() {
     }
     """.trimIndent()
     val ociComponent = decodeComponent(string)
-    println(encodeComponent(ociComponent).toString(2))
+    println(encodeComponent(ociComponent))
+    println(JSONObject(encodeComponent(ociComponent)).toString(2))
 }
