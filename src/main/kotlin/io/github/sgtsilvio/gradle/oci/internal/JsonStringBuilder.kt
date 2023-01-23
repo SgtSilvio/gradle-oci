@@ -55,6 +55,12 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
     private val stringBuilder = StringBuilder()
     private var needsComma = false
 
+    override fun addKey(key: String): JsonValueStringBuilder {
+        addCommaIfNecessary()
+        stringBuilder.append('"').append(escape(key)).append("\":")
+        return this
+    }
+
     override fun startObject(): JsonObjectStringBuilder {
         addCommaIfNecessary()
         stringBuilder.append('{')
@@ -77,15 +83,9 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
         needsComma = true
     }
 
-    override fun addKey(key: String): JsonValueStringBuilder {
-        addCommaIfNecessary()
-        stringBuilder.append("\"").append(escape(key)).append("\":")
-        return this
-    }
-
     override fun addString(value: String) {
         addCommaIfNecessary()
-        stringBuilder.append("\"").append(escape(value)).append("\"")
+        stringBuilder.append('"').append(escape(value)).append('"')
         needsComma = true
     }
 
