@@ -116,10 +116,7 @@ fun JsonValueStringBuilder.addObject(map: Map<String, String>) =
 fun JsonValueStringBuilder.addObject(set: Set<String>) =
     addObject { set.toSortedSet().forEach { addKey(it).addObject {} } }
 
-inline fun <T> JsonValueStringBuilder.addArray(iterable: Iterable<T>, block: JsonValueStringBuilder.(T) -> Unit) =
-    addArray { iterable.forEach { block(it) } }
-
-fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) = addArray(iterable, JsonValueStringBuilder::addString)
+fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) = addArray { iterable.forEach { addString(it) } }
 
 inline fun <T> JsonObjectStringBuilder.addKeyAndValueIfNotNull(
     key: String,
@@ -164,7 +161,7 @@ inline fun <T> JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(
     block: JsonValueStringBuilder.(T) -> Unit,
 ) {
     if (!list.isNullOrEmpty()) {
-        addKey(key).addArray(list, block)
+        addKey(key).addArray { list.forEach { block(it) } }
     }
 }
 
