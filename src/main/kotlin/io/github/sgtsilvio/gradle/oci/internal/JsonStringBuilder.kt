@@ -1,14 +1,11 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
-    val builder = JsonStringBuilderImpl()
-    builder.addObject(block)
-    return builder.toString()
-}
+@PublishedApi
+internal fun jsonStringBuilder(): JsonValueStringBuilder = JsonStringBuilderImpl()
 
-fun jsonArray(block: JsonValueStringBuilder.() -> Unit): String {
-    val builder = JsonStringBuilderImpl()
-    builder.addArray(block)
+inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
+    val builder = jsonStringBuilder()
+    builder.addObject(block)
     return builder.toString()
 }
 
