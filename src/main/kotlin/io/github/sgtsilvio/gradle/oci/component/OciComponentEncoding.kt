@@ -35,7 +35,7 @@ private fun JsonObjectStringBuilder.encodePlatform(platform: Platform) {
 }
 
 private fun JsonObjectStringBuilder.encodeBundle(bundle: OciComponent.Bundle) {
-    addStringIfNotNull("creationTime", bundle.creationTime?.run { toString() })
+    addStringIfNotNull("creationTime", bundle.creationTime?.toString())
     addStringIfNotNull("author", bundle.author)
     addStringIfNotNull("user", bundle.user)
     addArrayIfNotEmpty("ports", bundle.ports)
@@ -66,7 +66,7 @@ private fun JsonObjectStringBuilder.encodeLayer(layer: OciComponent.Bundle.Layer
         addNumber("size", layer.descriptor.size)
         addObjectIfNotEmpty("annotations", layer.descriptor.annotations)
     }
-    addStringIfNotNull("creationTime", layer.creationTime?.run { toString() })
+    addStringIfNotNull("creationTime", layer.creationTime?.toString())
     addStringIfNotNull("author", layer.author)
     addStringIfNotNull("createdBy", layer.createdBy)
     addStringIfNotNull("comment", layer.comment)

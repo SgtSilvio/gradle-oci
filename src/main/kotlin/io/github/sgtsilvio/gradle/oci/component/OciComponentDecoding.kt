@@ -43,7 +43,7 @@ private fun JSONObject.decodePlatform() = PlatformImpl(
 )
 
 private fun JSONObject.decodeBundle() = OciComponent.Bundle(
-    optionalKey("creationTime") { stringValue() }?.let(Instant::parse),
+    optionalKey("creationTime") { Instant.parse(stringValue()) },
     optionalKey("author") { stringValue() },
     optionalKey("user") { stringValue() },
     optionalKey("ports") { arrayValue().toSet(TreeSet()) { stringValue() } } ?: sortedSetOf(),
@@ -74,7 +74,7 @@ private fun JSONObject.decodeLayer() = OciComponent.Bundle.Layer(
             optionalKey("annotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
         )
     } else null,
-    optionalKey("creationTime") { stringValue() }?.let(Instant::parse),
+    optionalKey("creationTime") { Instant.parse(stringValue()) },
     optionalKey("author") { stringValue() },
     optionalKey("createdBy") { stringValue() },
     optionalKey("comment") { stringValue() },
