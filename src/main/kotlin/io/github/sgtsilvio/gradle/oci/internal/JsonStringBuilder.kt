@@ -42,7 +42,6 @@ inline fun JsonArrayStringBuilder.addArray(block: JsonArrayStringBuilder.() -> U
 @PublishedApi
 internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringBuilder {
     private val stringBuilder = StringBuilder()
-    private var needsComma = false
 
     fun addKey(key: String) {
         addCommaIfNecessary()
@@ -56,7 +55,6 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
 
     fun endObject() {
         stringBuilder.append('}')
-        needsComma = true
     }
 
     fun startArray() {
@@ -66,7 +64,6 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
 
     fun endArray() {
         stringBuilder.append(']')
-        needsComma = true
     }
 
     inline fun addObject(key: String, block: JsonObjectStringBuilder.() -> Unit) {
@@ -109,26 +106,22 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
     override fun addString(value: String) {
         addCommaIfNecessary()
         stringBuilder.append('"').append(escape(value)).append('"')
-        needsComma = true
     }
 
     override fun addNumber(value: Long) {
         addCommaIfNecessary()
         stringBuilder.append(value.toString())
-        needsComma = true
     }
 
     override fun addBoolean(value: Boolean) {
         addCommaIfNecessary()
         stringBuilder.append(value.toString())
-        needsComma = true
     }
 
     override fun toString() = stringBuilder.toString()
 
     private fun addCommaIfNecessary() {
-        if (needsComma) {
-            needsComma = false
+        if (stringBuilder.isNotEmpty() && (stringBuilder.last() !in "{[:")) {
             stringBuilder.append(',')
         }
     }
