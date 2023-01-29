@@ -53,14 +53,14 @@ abstract class OciMetadataTask : DefaultTask() {
 
     private fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
         var user: String? = null
-        val ports = mutableSetOf<String>()
-        val environment = mutableMapOf<String, String>()
+        val ports = TreeSet<String>()
+        val environment = TreeMap<String, String>()
         var entryPoint = listOf<String>()
         var arguments = listOf<String>()
-        val volumes = mutableSetOf<String>()
+        val volumes = TreeSet<String>()
         var workingDirectory: String? = null
         var stopSignal: String? = null
-        val annotations = mutableMapOf<String, String>()
+        val annotations = TreeMap<String, String>()
         val descriptorAnnotations = TreeMap<String, String>()
         for (bundle in bundles) {
             if (bundle.user != null) {
@@ -140,7 +140,7 @@ abstract class OciMetadataTask : DefaultTask() {
     }
 
     private fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
-        val annotations = mutableMapOf<String, String>()
+        val annotations = TreeMap<String, String>()
         val descriptorAnnotations = TreeMap<String, String>()
         for (bundle in bundles) {
             annotations += bundle.manifestAnnotations
