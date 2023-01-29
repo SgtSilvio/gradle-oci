@@ -3,7 +3,9 @@ package io.github.sgtsilvio.gradle.oci.component
 import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
-fun encodeComponent(component: OciComponent) = jsonObject {
+fun encodeComponent(component: OciComponent) = jsonObject { encodeComponent(component) }
+
+private fun JsonObjectStringBuilder.encodeComponent(component: OciComponent) {
     addArray("capabilities", component.capabilities) { addObject { encodeCapability(it) } }
     when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> addObject("bundle") { encodeBundle(bundleOrPlatformBundles) }
