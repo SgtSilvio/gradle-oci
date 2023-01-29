@@ -49,15 +49,11 @@ abstract class OciManifestTask : DefaultTask() {
     protected fun run() {
         val jsonBytes = jsonObject {
             // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-            addKeyAndObjectIfNotEmpty("annotations", annotations.orNull)
-            addKey("config").addOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor)
-            addKey("layers").addArray {
-                for (layerDescriptor in layerDescriptors) {
-                    addOciDescriptor(LAYER_MEDIA_TYPE, layerDescriptor)
-                }
-            }
-            addKey("mediaType").addString(MANIFEST_MEDIA_TYPE)
-            addKey("schemaVersion").addNumber(2)
+            addObjectIfNotEmpty("annotations", annotations.orNull)
+            addObject("config") { encodeOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor) }
+            addArray("layers", layerDescriptors) { addObject { encodeOciDescriptor(LAYER_MEDIA_TYPE, it) } }
+            addString("mediaType", MANIFEST_MEDIA_TYPE)
+            addNumber("schemaVersion", 2)
         }.toByteArray()
 
         jsonFile.get().asFile.writeBytes(jsonBytes)

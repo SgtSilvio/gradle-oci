@@ -1,10 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-@PublishedApi
-internal fun jsonStringBuilder(): JsonValueStringBuilder = JsonStringBuilderImpl()
-
 inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
-    val builder = jsonStringBuilder()
+    val builder = JsonStringBuilderImpl()
     builder.addObject(block)
     return builder.toString()
 }
@@ -13,71 +10,100 @@ inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
 annotation class JsonScope
 
 @JsonScope
-interface JsonObjectStringBuilder {
-    fun addKey(key: String): JsonValueStringBuilder
+sealed interface JsonObjectStringBuilder {
+    fun addString(key: String, value: String)
+
+    fun addNumber(key: String, value: Long)
+
+    fun addBoolean(key: String, value: Boolean)
 }
+
+inline fun JsonObjectStringBuilder.addObject(key: String, block: JsonObjectStringBuilder.() -> Unit) =
+    (this as JsonStringBuilderImpl).addObject(key, block)
+
+inline fun JsonObjectStringBuilder.addArray(key: String, block: JsonArrayStringBuilder.() -> Unit) =
+    (this as JsonStringBuilderImpl).addArray(key, block)
 
 @JsonScope
-abstract class JsonValueStringBuilder {
-    @PublishedApi
-    internal abstract fun startObject(): JsonObjectStringBuilder
+sealed interface JsonArrayStringBuilder {
+    fun addString(value: String)
 
-    @PublishedApi
-    internal abstract fun endObject()
+    fun addNumber(value: Long)
 
-    inline fun addObject(block: JsonObjectStringBuilder.() -> Unit) {
-        startObject().block()
-        endObject()
-    }
-
-    @PublishedApi
-    internal abstract fun startArray(): JsonValueStringBuilder
-
-    @PublishedApi
-    internal abstract fun endArray()
-
-    inline fun addArray(block: JsonValueStringBuilder.() -> Unit) {
-        startArray().block()
-        endArray()
-    }
-
-    abstract fun addString(value: String)
-
-    abstract fun addNumber(value: Long)
-
-    abstract fun addBoolean(value: Boolean)
+    fun addBoolean(value: Boolean)
 }
 
-private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBuilder() {
+inline fun JsonArrayStringBuilder.addObject(block: JsonObjectStringBuilder.() -> Unit) =
+    (this as JsonStringBuilderImpl).addObject(block)
+
+inline fun JsonArrayStringBuilder.addArray(block: JsonArrayStringBuilder.() -> Unit) =
+    (this as JsonStringBuilderImpl).addArray(block)
+
+@PublishedApi
+internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringBuilder {
     private val stringBuilder = StringBuilder()
     private var needsComma = false
 
-    override fun addKey(key: String): JsonValueStringBuilder {
+    fun addKey(key: String) {
         addCommaIfNecessary()
         stringBuilder.append('"').append(escape(key)).append("\":")
-        return this
     }
 
-    override fun startObject(): JsonObjectStringBuilder {
+    fun startObject() {
         addCommaIfNecessary()
         stringBuilder.append('{')
-        return this
     }
 
-    override fun endObject() {
+    fun endObject() {
         stringBuilder.append('}')
         needsComma = true
     }
 
-    override fun startArray(): JsonValueStringBuilder {
+    fun startArray() {
         addCommaIfNecessary()
         stringBuilder.append('[')
-        return this
     }
 
-    override fun endArray() {
+    fun endArray() {
         stringBuilder.append(']')
         needsComma = true
+    }
+
+    inline fun addObject(key: String, block: JsonObjectStringBuilder.() -> Unit) {
+        addKey(key)
+        addObject(block)
+    }
+
+    inline fun addArray(key: String, block: JsonArrayStringBuilder.() -> Unit) {
+        addKey(key)
+        addArray(block)
+    }
+
+    override fun addString(key: String, value: String) {
+        addKey(key)
+        addString(value)
+    }
+
+    override fun addNumber(key: String, value: Long) {
+        addKey(key)
+        addNumber(value)
+    }
+
+    override fun addBoolean(key: String, value: Boolean) {
+        addKey(key)
+        addBoolean(value)
+    }
+
+    inline fun addObject(block: JsonObjectStringBuilder.() -> Unit) {
+        startObject()
+        block()
+        endObject()
+    }
+
+    inline fun addArray(block: JsonArrayStringBuilder.() -> Unit) {
+        startArray()
+        block()
+        endArray()
     }
 
     override fun addString(value: String) {
@@ -110,60 +136,62 @@ private class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonValueStringBu
     private fun escape(string: String) = string.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
-fun JsonValueStringBuilder.addObject(map: Map<String, String>) =
-    addObject { map.toSortedMap().forEach { addKey(it.key).addString(it.value) } }
+fun JsonObjectStringBuilder.addAll(map: Map<String, String>) = map.toSortedMap().forEach { addString(it.key, it.value) }
+fun JsonObjectStringBuilder.addAll(set: Set<String>) = set.toSortedSet().forEach { addObject(it) {} }
+fun JsonArrayStringBuilder.addAll(list: Iterable<String>) = list.forEach { addString(it) }
 
-fun JsonValueStringBuilder.addObject(set: Set<String>) =
-    addObject { set.toSortedSet().forEach { addKey(it).addObject {} } }
+fun JsonObjectStringBuilder.addObject(key: String, map: Map<String, String>) = addObject(key) { addAll(map) }
+fun JsonObjectStringBuilder.addObject(key: String, set: Set<String>) = addObject(key) { addAll(set) }
+fun JsonObjectStringBuilder.addArray(key: String, list: Iterable<String>) = addArray(key) { addAll(list) }
 
-fun JsonValueStringBuilder.addArray(iterable: Iterable<String>) = addArray { iterable.forEach { addString(it) } }
-
-inline fun <T> JsonObjectStringBuilder.addKeyAndValueIfNotNull(
-    key: String,
-    value: T?,
-    block: JsonValueStringBuilder.(T) -> Unit,
-) {
+fun JsonObjectStringBuilder.addStringIfNotNull(key: String, value: String?) {
     if (value != null) {
-        addKey(key).block(value)
+        addString(key, value)
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndStringIfNotNull(key: String, value: String?) =
-    addKeyAndValueIfNotNull(key, value, JsonValueStringBuilder::addString)
-
-fun JsonObjectStringBuilder.addKeyAndStringIfNotEmpty(key: String, value: String?) {
+fun JsonObjectStringBuilder.addStringIfNotEmpty(key: String, value: String?) {
     if (!value.isNullOrEmpty()) {
-        addKey(key).addString(value)
+        addString(key, value)
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndObjectIfNotEmpty(key: String, map: Map<String, String>?) {
+fun JsonObjectStringBuilder.addObjectIfNotEmpty(key: String, map: Map<String, String>?) {
     if (!map.isNullOrEmpty()) {
-        addKey(key).addObject(map)
+        addObject(key, map)
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndObjectIfNotEmpty(key: String, set: Set<String>?) {
+fun JsonObjectStringBuilder.addObjectIfNotEmpty(key: String, set: Set<String>?) {
     if (!set.isNullOrEmpty()) {
-        addKey(key).addObject(set)
+        addObject(key, set)
     }
 }
 
-fun JsonObjectStringBuilder.addKeyAndArrayIfNotNull(key: String, list: Collection<String>?) {
+fun JsonObjectStringBuilder.addArrayIfNotNull(key: String, list: Collection<String>?) {
     if (list != null) {
-        addKey(key).addArray(list)
+        addArray(key, list)
     }
 }
 
-inline fun <T> JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(
+fun JsonObjectStringBuilder.addArrayIfNotEmpty(key: String, list: Collection<String>?) {
+    if (!list.isNullOrEmpty()) {
+        addArray(key, list)
+    }
+}
+
+inline fun <T> JsonObjectStringBuilder.addArray(
+    key: String,
+    list: Iterable<T>,
+    block: JsonArrayStringBuilder.(T) -> Unit,
+) = addArray(key) { list.forEach { block(it) } }
+
+inline fun <T> JsonObjectStringBuilder.addArrayIfNotEmpty(
     key: String,
     list: Collection<T>?,
-    block: JsonValueStringBuilder.(T) -> Unit,
+    block: JsonArrayStringBuilder.(T) -> Unit,
 ) {
     if (!list.isNullOrEmpty()) {
-        addKey(key).addArray { list.forEach { block(it) } }
+        addArray(key, list, block)
     }
 }
-
-fun JsonObjectStringBuilder.addKeyAndArrayIfNotEmpty(key: String, list: Collection<String>?) =
-    addKeyAndArrayIfNotEmpty(key, list) { addString(it) }
