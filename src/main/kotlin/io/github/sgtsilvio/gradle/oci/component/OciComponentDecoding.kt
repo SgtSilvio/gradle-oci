@@ -1,18 +1,20 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.internal.JsonArray
+import io.github.sgtsilvio.gradle.oci.internal.JsonException
+import io.github.sgtsilvio.gradle.oci.internal.JsonObject
+import io.github.sgtsilvio.gradle.oci.internal.jsonObject
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
-import io.github.sgtsilvio.gradle.oci.internal.*
-import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 import java.util.*
 
-fun decodeComponent(string: String) = JSONObject(string).decodeComponent()
+fun decodeComponent(string: String) = jsonObject(string).decodeComponent()
 
-private fun JSONObject.decodeComponent() = OciComponent(
+private fun JsonObject.decodeComponent() = OciComponent(
     key("capabilities") { arrayValue().toSet(TreeSet()) { objectValue().decodeCapability() } },
-    if (has("bundle")) {
-        if (has("platformBundles")) throw JsonException("bundle|platformBundles", "must not both be present")
+    if (hasKey("bundle")) {
+        if (hasKey("platformBundles")) throw JsonException("bundle|platformBundles", "must not both be present")
         key("bundle") { objectValue().decodeBundle() }
     } else {
         key("platformBundles") { arrayValue().decodePlatformBundles() }
@@ -20,12 +22,12 @@ private fun JSONObject.decodeComponent() = OciComponent(
     optionalKey("indexAnnotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
 )
 
-private fun JSONObject.decodeCapability() = OciComponent.Capability(
+private fun JsonObject.decodeCapability() = OciComponent.Capability(
     key("group") { stringValue() },
     key("name") { stringValue() },
 )
 
-private fun JSONArray.decodePlatformBundles() = OciComponent.PlatformBundles(toMap(TreeMap()) {
+private fun JsonArray.decodePlatformBundles() = OciComponent.PlatformBundles(toMap(TreeMap()) {
     objectValue().run {
         Pair(
             key("platform") { objectValue().decodePlatform() },
@@ -34,7 +36,7 @@ private fun JSONArray.decodePlatformBundles() = OciComponent.PlatformBundles(toM
     }
 })
 
-private fun JSONObject.decodePlatform() = PlatformImpl(
+private fun JsonObject.decodePlatform() = PlatformImpl(
     key("os") { stringValue() },
     key("architecture") { stringValue() },
     optionalKey("variant") { stringValue() } ?: "",
@@ -42,7 +44,7 @@ private fun JSONObject.decodePlatform() = PlatformImpl(
     optionalKey("osFeatures") { arrayValue().toSet(TreeSet()) { stringValue() } } ?: sortedSetOf(),
 )
 
-private fun JSONObject.decodeBundle() = OciComponent.Bundle(
+private fun JsonObject.decodeBundle() = OciComponent.Bundle(
     optionalKey("creationTime") { Instant.parse(stringValue()) },
     optionalKey("author") { stringValue() },
     optionalKey("user") { stringValue() },
@@ -60,13 +62,13 @@ private fun JSONObject.decodeBundle() = OciComponent.Bundle(
     key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
 )
 
-private fun JSONObject.decodeCommand() = OciComponent.Bundle.Command(
+private fun JsonObject.decodeCommand() = OciComponent.Bundle.Command(
     optionalKey("entryPoint") { arrayValue().toList { stringValue() } },
     key("arguments") { arrayValue().toList { stringValue() } },
 )
 
-private fun JSONObject.decodeLayer() = OciComponent.Bundle.Layer(
-    if (has("digest") || has("diffId") || has("size") || has("annotations")) {
+private fun JsonObject.decodeLayer() = OciComponent.Bundle.Layer(
+    if (hasKey("digest") || hasKey("diffId") || hasKey("size") || hasKey("annotations")) {
         OciComponent.Bundle.Layer.Descriptor(
             key("digest") { stringValue() },
             key("diffId") { stringValue() },
