@@ -7,9 +7,9 @@ inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
 }
 
 @DslMarker
-annotation class JsonScope
+annotation class JsonStringBuilderDsl
 
-@JsonScope
+@JsonStringBuilderDsl
 sealed interface JsonObjectStringBuilder {
     fun addString(key: String, value: String)
 
@@ -24,7 +24,7 @@ inline fun JsonObjectStringBuilder.addObject(key: String, block: JsonObjectStrin
 inline fun JsonObjectStringBuilder.addArray(key: String, block: JsonArrayStringBuilder.() -> Unit) =
     (this as JsonStringBuilderImpl).addArray(key, block)
 
-@JsonScope
+@JsonStringBuilderDsl
 sealed interface JsonArrayStringBuilder {
     fun addString(value: String)
 
