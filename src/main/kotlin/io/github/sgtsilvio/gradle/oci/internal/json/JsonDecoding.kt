@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.json
 
 import org.json.JSONArray
 import org.json.JSONObject

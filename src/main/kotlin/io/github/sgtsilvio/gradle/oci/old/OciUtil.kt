@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.old
 
-import io.github.sgtsilvio.gradle.oci.internal.*
+import io.github.sgtsilvio.gradle.oci.internal.MANIFEST_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.internal.json.*
 
 fun JsonObjectStringBuilder.encodeOciDescriptor(mediaType: String, ociDescriptor: OciDescriptor) {
     // sorted for canonical json: annotations, data, digest, mediaType, size, urls

@@ -1,6 +1,13 @@
 package io.github.sgtsilvio.gradle.oci.old
 
-import io.github.sgtsilvio.gradle.oci.internal.*
+import io.github.sgtsilvio.gradle.oci.internal.CONFIG_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.internal.LAYER_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.internal.MANIFEST_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
+import io.github.sgtsilvio.gradle.oci.internal.json.addArray
+import io.github.sgtsilvio.gradle.oci.internal.json.addObject
+import io.github.sgtsilvio.gradle.oci.internal.json.addObjectIfNotEmpty
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty

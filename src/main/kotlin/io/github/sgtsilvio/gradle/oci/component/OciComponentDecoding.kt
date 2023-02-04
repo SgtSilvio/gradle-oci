@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.internal.JsonArray
-import io.github.sgtsilvio.gradle.oci.internal.JsonException
-import io.github.sgtsilvio.gradle.oci.internal.JsonObject
-import io.github.sgtsilvio.gradle.oci.internal.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.json.JsonArray
+import io.github.sgtsilvio.gradle.oci.internal.json.JsonException
+import io.github.sgtsilvio.gradle.oci.internal.json.JsonObject
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import org.json.JSONObject
 import java.time.Instant

@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.json
 
 inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
     val builder = JsonStringBuilderImpl()
