@@ -34,6 +34,7 @@ java {
 afterEvaluate {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         kotlinOptions {
+            apiVersion = "1.5"
             languageVersion = "1.5"
             freeCompilerArgs += "-Xsam-conversions=class"
         }
