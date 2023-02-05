@@ -580,4 +580,4 @@ private fun TaskContainer.createLayerTask(
 
 private fun createLayerTaskName(imageName: String, layerName: String, platformString: String) =
     if (imageName == "main") "${layerName}OciLayer$platformString"
-    else "$imageName${layerName.capitalize()}OciLayer$platformString"
+    else "$imageName${layerName.replaceFirstChar(Char::uppercaseChar)}OciLayer$platformString"

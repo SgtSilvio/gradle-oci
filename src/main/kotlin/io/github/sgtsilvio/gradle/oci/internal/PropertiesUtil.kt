@@ -11,7 +11,7 @@ fun String.escapePropertiesValue(): String {
 
 fun Writer.writeProperty(key: String, value: String) {
     write(key.escapePropertiesKey())
-    write('='.toInt())
+    write('='.code)
     write(value.escapePropertiesValue())
-    write('\n'.toInt())
+    write('\n'.code)
 }
