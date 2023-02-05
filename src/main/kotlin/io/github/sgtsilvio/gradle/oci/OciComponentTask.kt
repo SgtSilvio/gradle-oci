@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.encodeComponent
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
@@ -13,15 +14,17 @@ import org.gradle.kotlin.dsl.property
  */
 abstract class OciComponentTask : DefaultTask() {
 
-    @get:Input
+    @get:Internal
     val component = project.objects.property<OciComponent>()
+
+    @get:Input
+    val encodedComponent = project.objects.property<String>().apply { set(component.map(::encodeComponent)) }
 
     @get:OutputFile
     val componentFile = project.objects.fileProperty()
 
     @TaskAction
     protected fun run() {
-        val encodedComponent = encodeComponent(component.get())
-        componentFile.get().asFile.writeText(encodedComponent)
+        componentFile.get().asFile.writeText(encodedComponent.get())
     }
 }
