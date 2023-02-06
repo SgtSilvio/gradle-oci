@@ -45,7 +45,7 @@ fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
                     )
                 }
             }
-        }
+        },
     )
     allFiles.clear()
 }
@@ -165,7 +165,9 @@ private fun convertRenamePatterns(
         val pathRegex = convertToRegex(pattern.first)
         convertedPatterns.add(
             Triple(
-                GlobMatcher("^$pathRegex$", destinationPath.length), Regex("^${pattern.second}$"), pattern.third
+                GlobMatcher("^$pathRegex$", destinationPath.length),
+                Regex("^${pattern.second}$"),
+                pattern.third,
             )
         )
     }
