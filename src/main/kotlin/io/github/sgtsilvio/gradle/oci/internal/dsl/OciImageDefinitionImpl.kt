@@ -1,10 +1,14 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciComponentTask
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
+import io.github.sgtsilvio.gradle.oci.internal.DISTRIBUTION_TYPE_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptyMap
+import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptySet
+import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsNull
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter

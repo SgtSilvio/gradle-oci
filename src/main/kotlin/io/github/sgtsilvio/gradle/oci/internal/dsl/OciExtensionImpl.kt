@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
