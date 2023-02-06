@@ -6,7 +6,7 @@ private const val REGEX_META_CHARS = "\\^$.|?*+()[{"
 
 private fun isRegexMeta(c: Char) = REGEX_META_CHARS.contains(c)
 
-fun convertToRegex(globPattern: String): String {
+fun convertGlobToRegex(globPattern: String): String {
     val regex = StringBuilder()
     var i = 0
     while (i < globPattern.length) {

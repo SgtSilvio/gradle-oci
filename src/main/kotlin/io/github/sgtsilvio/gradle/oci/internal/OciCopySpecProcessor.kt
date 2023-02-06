@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
 import io.github.sgtsilvio.gradle.oci.internal.glob.GlobMatcher
-import io.github.sgtsilvio.gradle.oci.internal.glob.convertToRegex
+import io.github.sgtsilvio.gradle.oci.internal.glob.convertGlobToRegex
 import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.ReproducibleFileVisitor
@@ -162,7 +162,7 @@ private fun convertRenamePatterns(
         }
     }
     for (pattern in patterns) {
-        val pathRegex = convertToRegex(pattern.first)
+        val pathRegex = convertGlobToRegex(pattern.first)
         convertedPatterns.add(
             Triple(
                 GlobMatcher("^$pathRegex$", destinationPath.length),
@@ -258,7 +258,7 @@ private fun <T> convertPatterns(
         }
     }
     for (pattern in patterns) {
-        val pathRegex = convertToRegex(pattern.first)
+        val pathRegex = convertGlobToRegex(pattern.first)
         convertedPatterns.add(Pair(GlobMatcher("^$pathRegex$", destinationPath.length), pattern.second))
     }
     return convertedPatterns
