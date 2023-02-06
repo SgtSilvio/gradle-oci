@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.glob
 
 import java.util.regex.Pattern
 

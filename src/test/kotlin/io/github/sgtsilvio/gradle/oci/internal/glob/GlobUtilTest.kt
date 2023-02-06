@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.glob
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

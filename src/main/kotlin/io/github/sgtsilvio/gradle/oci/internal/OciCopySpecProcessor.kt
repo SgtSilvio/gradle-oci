@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
+import io.github.sgtsilvio.gradle.oci.internal.glob.GlobMatcher
+import io.github.sgtsilvio.gradle.oci.internal.glob.convertToRegex
 import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.ReproducibleFileVisitor
