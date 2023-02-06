@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.copyspec
 
 import io.github.sgtsilvio.gradle.oci.internal.glob.GlobMatcher
 import io.github.sgtsilvio.gradle.oci.internal.glob.convertGlobToRegex
@@ -6,12 +6,14 @@ import org.gradle.api.file.FileTreeElement
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.ReproducibleFileVisitor
 import java.io.OutputStream
+import java.time.Instant
 import java.util.*
 
 const val DEFAULT_FILE_PERMISSIONS = 0b110_100_100
 const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
 const val DEFAULT_USER_ID = 0L
 const val DEFAULT_GROUP_ID = 0L
+val DEFAULT_MODIFICATION_TIME: Instant = Instant.ofEpochSecond(1)
 
 fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
     val allFiles = HashMap<String, FileMetadata>()

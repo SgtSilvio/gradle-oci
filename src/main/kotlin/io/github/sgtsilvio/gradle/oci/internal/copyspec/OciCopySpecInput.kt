@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.copyspec
 
 import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.*

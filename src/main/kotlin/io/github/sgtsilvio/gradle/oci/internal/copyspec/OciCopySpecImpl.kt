@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.copyspec
 
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import org.gradle.api.Action

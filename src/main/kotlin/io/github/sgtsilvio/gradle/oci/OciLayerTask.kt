@@ -1,6 +1,8 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.internal.*
+import io.github.sgtsilvio.gradle.oci.internal.copyspec.*
+import io.github.sgtsilvio.gradle.oci.internal.formatSha256Digest
+import io.github.sgtsilvio.gradle.oci.internal.newSha256MessageDigest
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
