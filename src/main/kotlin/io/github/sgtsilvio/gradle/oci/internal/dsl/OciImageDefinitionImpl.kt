@@ -187,7 +187,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
         override val set: Set<Capability> get() = imageConfiguration.outgoing.capabilities.toSet()
 
-        override fun add(group: String, name: String) = imageConfiguration.outgoing.capability("$group:$name:default")
+        override fun add(notation: String) = imageConfiguration.outgoing.capability(notation)
     }
 
 

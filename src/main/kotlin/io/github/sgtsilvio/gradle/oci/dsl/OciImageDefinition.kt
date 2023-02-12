@@ -33,7 +33,7 @@ interface OciImageDefinition : Named {
     interface Capabilities {
         val set: Set<Capability>
 
-        fun add(group: String, name: String)
+        fun add(notation: String)
     }
 
     interface Bundle {
