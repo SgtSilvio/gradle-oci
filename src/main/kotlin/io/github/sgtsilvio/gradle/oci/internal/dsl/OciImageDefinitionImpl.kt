@@ -19,7 +19,6 @@ import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
-import org.gradle.api.capabilities.Capability
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
 import org.gradle.api.model.ObjectFactory
@@ -163,8 +162,9 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             .map { it.build() }
 
     private fun createComponentCapabilities(providerFactory: ProviderFactory) = providerFactory.provider {
-        capabilities.set.map { OciComponent.Capability(it.group, it.name) }.toSet()
-            .ifEmpty { setOf(OciComponent.Capability(project.group.toString(), project.name)) }
+        capabilities.set.map { VersionedCapability(Capability(it.group, it.name), it.version!!) }.toSet().ifEmpty {
+            setOf(VersionedCapability(Capability(project.group.toString(), project.name), project.version.toString()))
+        }
     }
 
     private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory) =
@@ -185,7 +185,8 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         private val imageConfiguration: Configuration,
     ) : OciImageDefinition.Capabilities {
 
-        override val set: Set<Capability> get() = imageConfiguration.outgoing.capabilities.toSet()
+        override val set: Set<org.gradle.api.capabilities.Capability>
+            get() = imageConfiguration.outgoing.capabilities.toSet()
 
         override fun add(notation: String) = imageConfiguration.outgoing.capability(notation)
     }
@@ -257,9 +258,9 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 .zip(createComponentLayers(providerFactory), OciComponentBundleBuilder::layers)
                 .map { it.build() }
 
-        private fun createComponentParentCapabilities(providerFactory: ProviderFactory): Provider<List<OciComponent.Capability>> =
+        private fun createComponentParentCapabilities(providerFactory: ProviderFactory): Provider<List<Capability>> =
             providerFactory.provider {
-                val parentCapabilities = mutableListOf<OciComponent.Capability>()
+                val parentCapabilities = mutableListOf<Capability>()
                 for (dependency in parentImages.dependencies) {
                     val capabilities = dependency.requestedCapabilities
                     if (capabilities.isEmpty()) { // add default capability
@@ -268,13 +269,13 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                                 ModuleVersionIdentifier::class.java,
                                 dependency,
                             )
-                            parentCapabilities.add(OciComponent.Capability(id.group, id.name))
+                            parentCapabilities.add(Capability(id.group, id.name))
                         } else {
-                            parentCapabilities.add(OciComponent.Capability(dependency.group ?: "", dependency.name))
+                            parentCapabilities.add(Capability(dependency.group ?: "", dependency.name))
                         }
                     } else {
                         for (capability in capabilities) {
-                            parentCapabilities.add(OciComponent.Capability(capability.group, capability.name))
+                            parentCapabilities.add(Capability(capability.group, capability.name))
                         }
                     }
                 }

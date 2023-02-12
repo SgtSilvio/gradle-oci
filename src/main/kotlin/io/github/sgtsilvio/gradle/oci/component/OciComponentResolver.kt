@@ -3,7 +3,7 @@ package io.github.sgtsilvio.gradle.oci.component
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 class OciComponentResolver {
-    private val resolvableComponents = mutableMapOf<OciComponent.Capability, ResolvableOciComponent>()
+    private val resolvableComponents = mutableMapOf<Capability, ResolvableOciComponent>()
     private var rootResolvableComponent: ResolvableOciComponent? = null
     val rootComponent get() = getRootComponent().component
 
@@ -12,8 +12,8 @@ class OciComponentResolver {
         if (rootResolvableComponent == null) {
             rootResolvableComponent = resolvableComponent
         }
-        for (capability in component.capabilities) {
-            val prevComponent = resolvableComponents.put(capability, resolvableComponent)
+        for (versionedCapability in component.capabilities) {
+            val prevComponent = resolvableComponents.put(versionedCapability.capability, resolvableComponent)
             if (prevComponent != null) {
                 throw IllegalStateException("$prevComponent and $component provide the same capability")
             }
@@ -34,7 +34,7 @@ class OciComponentResolver {
     private fun getRootComponent() =
         rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
-    private fun getComponent(capability: OciComponent.Capability): ResolvableOciComponent =
+    private fun getComponent(capability: Capability): ResolvableOciComponent =
         resolvableComponents[capability] ?: throw IllegalStateException("component with capability $capability missing")
 
     private class ResolvableOciComponent(val component: OciComponent) {
