@@ -186,19 +186,16 @@ abstract class OciMetadataTask : DefaultTask() {
     }
 
     private fun JsonObjectStringBuilder.encodeOciDescriptor(mediaType: String, descriptor: OciDescriptor) {
-        // sorted for canonical json: annotations, data, digest, mediaType, size, urls
+        // sorted for canonical json: annotations, digest, mediaType, size
         addObjectIfNotEmpty("annotations", descriptor.annotations)
-//        addOptionalString("data", descriptor.data)
         addString("digest", descriptor.digest)
         addString("mediaType", mediaType)
         addNumber("size", descriptor.size)
-//        addOptionalArray("urls", descriptor.urls)
     }
 
     private fun JsonObjectStringBuilder.encodeOciManifestDescriptor(descriptor: OciDescriptor, platform: Platform) {
-        // sorted for canonical json: annotations, data, digest, mediaType, size, urls
+        // sorted for canonical json: annotations, digest, mediaType, size
         addObjectIfNotEmpty("annotations", descriptor.annotations)
-//        addOptionalString("data", descriptor.data.orNull)
         addString("digest", descriptor.digest)
         addString("mediaType", MANIFEST_MEDIA_TYPE)
         addObject("platform") {
@@ -210,6 +207,5 @@ abstract class OciMetadataTask : DefaultTask() {
             addStringIfNotEmpty("variant", platform.variant)
         }
         addNumber("size", descriptor.size)
-//        addOptionalArray("urls", descriptor.urls)
     }
 }
