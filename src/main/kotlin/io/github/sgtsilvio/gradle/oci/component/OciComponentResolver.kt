@@ -28,8 +28,7 @@ class OciComponentResolver {
         return rootComponent.resolvePlatforms()
     }
 
-    fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> =
-        getRootComponent().collectBundlesForPlatform(platform)
+    fun collectBundlesForPlatform(platform: Platform) = getRootComponent().collectBundlesForPlatform(platform)
 
     private fun getRootComponent() =
         rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
@@ -45,16 +44,16 @@ class OciComponentResolver {
 
         fun init(resolver: OciComponentResolver) = bundleOrPlatformBundles.init(resolver)
 
-        private fun getBundleForPlatforms(platforms: PlatformSet) =
-            bundleOrPlatformBundles.getBundleForPlatforms(platforms)
-
         fun resolvePlatforms() = bundleOrPlatformBundles.resolvePlatforms()
 
         fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
             val result = linkedSetOf<Bundle>()
-            bundleOrPlatformBundles.collectBundlesForPlatform(platform, result)
+            collectBundlesForPlatform(platform, result)
             return result.map { it.bundle }
         }
+
+        fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
+            bundleOrPlatformBundles.collectBundlesForPlatform(platform, result)
 
         private sealed interface BundleOrPlatformBundles {
             fun resolvePlatforms(): PlatformSet
@@ -78,8 +77,6 @@ class OciComponentResolver {
             }
 
             protected abstract fun doInit(resolver: OciComponentResolver)
-
-            abstract fun getBundleForPlatforms(platforms: PlatformSet): BundleOrPlatformBundles
 
             final override fun resolvePlatforms() = when (state) {
                 State.RESOLVING -> throw IllegalStateException("cycle in dependencies graph found")
@@ -108,15 +105,13 @@ class OciComponentResolver {
 
         private class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
             StatefulBundleOrPlatformBundles(platforms) {
-            private val dependencies = mutableListOf<BundleOrPlatformBundles>()
+            private val dependencies = mutableListOf<ResolvableOciComponent>()
 
             override fun doInit(resolver: OciComponentResolver) {
                 for (parentCapability in bundle.parentCapabilities) {
-                    dependencies += resolver.getComponent(parentCapability).getBundleForPlatforms(platforms)
+                    dependencies += resolver.getComponent(parentCapability)
                 }
             }
-
-            override fun getBundleForPlatforms(platforms: PlatformSet) = this
 
             override fun doResolvePlatforms() {
                 for (dependency in dependencies) {
@@ -144,9 +139,6 @@ class OciComponentResolver {
                     bundle.init(resolver)
                 }
             }
-
-            override fun getBundleForPlatforms(platforms: PlatformSet) =
-                if (!platforms.isInfinite && platforms.count() == 1) getBundleForPlatform(platforms.first()) else this
 
             override fun doResolvePlatforms() {
                 for ((_, bundle) in map) {
