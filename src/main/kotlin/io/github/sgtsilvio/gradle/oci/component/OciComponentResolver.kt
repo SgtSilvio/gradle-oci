@@ -5,7 +5,7 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 class OciComponentResolver {
     private val resolvableComponents = mutableMapOf<Capability, ResolvableComponent>()
     private var rootResolvableComponent: ResolvableComponent? = null
-    val rootComponent get() = getRootComponent().component
+    val rootComponent get() = getRootResolvableComponent().component
 
     fun addComponent(component: OciComponent) {
         val resolvableComponent = ResolvableComponent(component)
@@ -21,18 +21,18 @@ class OciComponentResolver {
     }
 
     fun resolvePlatforms(): PlatformSet {
-        val rootComponent = getRootComponent()
+        val rootComponent = getRootResolvableComponent()
         for ((_, component) in resolvableComponents) {
             component.init(this)
         }
         return rootComponent.resolvePlatforms()
     }
 
-    fun collectBundlesForPlatform(platform: Platform) = getRootComponent().collectBundlesForPlatform(platform)
+    fun collectBundlesForPlatform(platform: Platform) = getRootResolvableComponent().collectBundlesForPlatform(platform)
 
-    fun collectCapabilities() = getRootComponent().collectCapabilities()
+    fun collectCapabilities() = getRootResolvableComponent().collectCapabilities()
 
-    private fun getRootComponent() =
+    private fun getRootResolvableComponent() =
         rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
     private fun getComponent(capability: Capability) =
