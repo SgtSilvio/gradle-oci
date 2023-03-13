@@ -110,7 +110,8 @@ class OciComponentResolver {
             override fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
                 bundle.collectBundlesForPlatform(platform, result)
 
-            override fun doCollectCapabilities() = bundle.collectCapabilities() + component.capabilities
+            override fun doCollectCapabilities(): Set<VersionedCapability> =
+                bundle.collectCapabilities(HashSet(component.capabilities))
         }
 
         class Platforms(component: OciComponent, private val platformBundles: Map<Platform, Bundle>) :
@@ -139,17 +140,17 @@ class OciComponentResolver {
             override fun doCollectCapabilities(): Set<VersionedCapability> {
                 var capabilities: HashSet<VersionedCapability>? = null
                 for ((_, bundle) in platformBundles) {
-                    val bundleCapabilities = bundle.collectCapabilities()
+                    val bundleCapabilities = bundle.collectCapabilities(HashSet())
                     if (capabilities == null) {
-                        capabilities = HashSet(bundleCapabilities)
+                        capabilities = bundleCapabilities
                     } else {
                         capabilities.retainAll(bundleCapabilities)
                     }
                 }
                 if (capabilities == null) {
-                    return component.capabilities
+                    return HashSet(component.capabilities)
                 }
-                capabilities += component.capabilities
+                capabilities.addAll(component.capabilities)
                 return capabilities
             }
         }
@@ -179,8 +180,12 @@ class OciComponentResolver {
                 }
             }
 
-            fun collectCapabilities(): Set<VersionedCapability> =
-                dependencies.flatMapTo(HashSet()) { it.collectCapabilities() }
+            fun collectCapabilities(capabilities: HashSet<VersionedCapability>): HashSet<VersionedCapability> {
+                for (dependency in dependencies) {
+                    capabilities.addAll(dependency.collectCapabilities())
+                }
+                return capabilities
+            }
         }
     }
 
