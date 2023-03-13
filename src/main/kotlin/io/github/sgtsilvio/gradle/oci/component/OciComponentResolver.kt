@@ -156,7 +156,7 @@ class OciComponentResolver {
         }
 
         class Bundle(val bundle: OciComponent.Bundle) {
-            private val dependencies = mutableListOf<ResolvableComponent>()
+            private val dependencies = ArrayList<ResolvableComponent>(bundle.parentCapabilities.size)
 
             fun init(resolver: OciComponentResolver) {
                 for (parentCapability in bundle.parentCapabilities) {
