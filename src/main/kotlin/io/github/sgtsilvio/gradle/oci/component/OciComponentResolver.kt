@@ -3,12 +3,12 @@ package io.github.sgtsilvio.gradle.oci.component
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 class OciComponentResolver {
-    private val resolvableComponents = mutableMapOf<Capability, ResolvableOciComponent>()
-    private var rootResolvableComponent: ResolvableOciComponent? = null
+    private val resolvableComponents = mutableMapOf<Capability, ResolvableComponent>()
+    private var rootResolvableComponent: ResolvableComponent? = null
     val rootComponent get() = getRootComponent().component
 
     fun addComponent(component: OciComponent) {
-        val resolvableComponent = ResolvableOciComponent(component)
+        val resolvableComponent = ResolvableComponent(component)
         if (rootResolvableComponent == null) {
             rootResolvableComponent = resolvableComponent
         }
@@ -35,10 +35,10 @@ class OciComponentResolver {
     private fun getRootComponent() =
         rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
-    private fun getComponent(capability: Capability): ResolvableOciComponent =
+    private fun getComponent(capability: Capability) =
         resolvableComponents[capability] ?: throw IllegalStateException("component with capability $capability missing")
 
-    private class ResolvableOciComponent(val component: OciComponent) {
+    private class ResolvableComponent(val component: OciComponent) {
         private val bundleOrPlatformBundles = when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
             is OciComponent.Bundle -> Bundle(bundleOrPlatformBundles, PlatformSet(true))
             is OciComponent.PlatformBundles -> PlatformBundles(bundleOrPlatformBundles)
@@ -107,7 +107,7 @@ class OciComponentResolver {
 
         private class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
             BundleOrPlatformBundles(platforms) {
-            private val dependencies = mutableListOf<ResolvableOciComponent>()
+            private val dependencies = mutableListOf<ResolvableComponent>()
 
             override fun doInit(resolver: OciComponentResolver) {
                 for (parentCapability in bundle.parentCapabilities) {
