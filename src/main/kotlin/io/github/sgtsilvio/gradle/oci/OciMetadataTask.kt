@@ -67,7 +67,7 @@ abstract class OciMetadataTask : DefaultTask() {
             if (bundle.user != null) {
                 user = bundle.user
             }
-            ports += bundle.ports
+            ports.addAll(bundle.ports)
             environment += bundle.environment
             if (bundle.command != null) {
                 if (bundle.command.entryPoint != null) {
@@ -75,7 +75,7 @@ abstract class OciMetadataTask : DefaultTask() {
                 }
                 arguments = bundle.command.arguments
             }
-            volumes += bundle.volumes
+            volumes.addAll(bundle.volumes)
             if (bundle.workingDirectory != null) {
                 workingDirectory = bundle.workingDirectory
             }

@@ -208,7 +208,7 @@ class OciComponentResolver {
             }
             if (isInfinite) {
                 isInfinite = false
-                set += other.set
+                set.addAll(other.set)
             } else {
                 set.retainAll((other.set))
             }
@@ -222,7 +222,7 @@ class OciComponentResolver {
                 isInfinite = true
                 set.clear()
             } else {
-                set += other.set
+                set.addAll(other.set)
             }
         }
 
