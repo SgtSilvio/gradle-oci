@@ -50,8 +50,9 @@ class OciComponentResolver {
         )
     }
 
-    private sealed class ResolvableComponent(val component: OciComponent, protected val platforms: PlatformSet) {
+    private sealed class ResolvableComponent(val component: OciComponent) {
         private var state = State.NONE
+        private lateinit var platforms: PlatformSet
 
         private enum class State { NONE, INITIALIZED, RESOLVING, RESOLVED }
 
@@ -72,7 +73,7 @@ class OciComponentResolver {
             State.RESOLVED -> platforms
             State.INITIALIZED -> {
                 state = State.RESOLVING
-                doResolvePlatforms()
+                platforms = doResolvePlatforms()
                 state = State.RESOLVED
                 platforms
             }
@@ -80,7 +81,7 @@ class OciComponentResolver {
             else -> throw IllegalStateException("resolvePlatforms can not be called in state $state")
         }
 
-        protected abstract fun doResolvePlatforms()
+        protected abstract fun doResolvePlatforms(): PlatformSet
 
         fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) {
             if (state != State.RESOLVED) {
@@ -100,14 +101,11 @@ class OciComponentResolver {
 
         protected abstract fun doCollectCapabilities(): Set<VersionedCapability>
 
-        class Universal(
-            component: OciComponent,
-            private val bundle: Bundle,
-        ) : ResolvableComponent(component, PlatformSet(true)) {
+        class Universal(component: OciComponent, private val bundle: Bundle) : ResolvableComponent(component) {
 
             override fun doInit(resolver: OciComponentResolver) = bundle.init(resolver)
 
-            override fun doResolvePlatforms() = bundle.resolvePlatforms(platforms)
+            override fun doResolvePlatforms() = bundle.resolvePlatforms(PlatformSet(true))
 
             override fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
                 bundle.collectBundlesForPlatform(platform, result)
@@ -115,10 +113,8 @@ class OciComponentResolver {
             override fun doCollectCapabilities() = bundle.collectCapabilities() + component.capabilities
         }
 
-        class Platforms(
-            component: OciComponent,
-            private val platformBundles: Map<Platform, Bundle>,
-        ) : ResolvableComponent(component, PlatformSet(false)) {
+        class Platforms(component: OciComponent, private val platformBundles: Map<Platform, Bundle>) :
+            ResolvableComponent(component) {
 
             override fun doInit(resolver: OciComponentResolver) {
                 for ((_, bundle) in platformBundles) {
@@ -126,12 +122,12 @@ class OciComponentResolver {
                 }
             }
 
-            override fun doResolvePlatforms() {
+            override fun doResolvePlatforms(): PlatformSet {
+                val platforms = PlatformSet(false)
                 for ((platform, bundle) in platformBundles) {
-                    val bundlePlatforms = PlatformSet(platform)
-                    bundle.resolvePlatforms(bundlePlatforms)
-                    platforms.unionise(bundlePlatforms)
+                    platforms.unionise(bundle.resolvePlatforms(PlatformSet(platform)))
                 }
+                return platforms
             }
 
             override fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) {
@@ -167,10 +163,11 @@ class OciComponentResolver {
                 }
             }
 
-            fun resolvePlatforms(platforms: PlatformSet) {
+            fun resolvePlatforms(platforms: PlatformSet): PlatformSet {
                 for (dependency in dependencies) {
                     platforms.intersect(dependency.resolvePlatforms())
                 }
+                return platforms
             }
 
             fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) {
