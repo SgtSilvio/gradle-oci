@@ -30,6 +30,8 @@ class OciComponentResolver {
 
     fun collectBundlesForPlatform(platform: Platform) = getRootComponent().collectBundlesForPlatform(platform)
 
+    fun collectCapabilities() = getRootComponent().collectCapabilities()
+
     private fun getRootComponent() =
         rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
@@ -54,6 +56,10 @@ class OciComponentResolver {
 
         fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
             bundleOrPlatformBundles.collectBundlesForPlatform(platform, result)
+
+        fun collectCapabilities(): Set<VersionedCapability> {
+            return component.capabilities + bundleOrPlatformBundles.collectCapabilities()
+        }
 
         private sealed class BundleOrPlatformBundles(protected val platforms: PlatformSet) {
             private var state = State.NONE
@@ -95,6 +101,8 @@ class OciComponentResolver {
             }
 
             protected abstract fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>)
+
+            abstract fun collectCapabilities(): Set<VersionedCapability>
         }
 
         private class Bundle(val bundle: OciComponent.Bundle, platforms: PlatformSet) :
@@ -121,6 +129,9 @@ class OciComponentResolver {
                     result += this
                 }
             }
+
+            override fun collectCapabilities(): Set<VersionedCapability> =
+                dependencies.flatMapTo(HashSet()) { it.collectCapabilities() }
         }
 
         private class PlatformBundles(platformBundles: OciComponent.PlatformBundles) :
@@ -145,6 +156,19 @@ class OciComponentResolver {
 
             private fun getBundleForPlatform(platform: Platform) =
                 map[platform] ?: throw IllegalStateException("unresolved dependency for platform $platform")
+
+            override fun collectCapabilities(): Set<VersionedCapability> {
+                var capabilities: HashSet<VersionedCapability>? = null
+                for ((_, bundle) in map) {
+                    val bundleCapabilities = bundle.collectCapabilities()
+                    if (capabilities == null) {
+                        capabilities = HashSet(bundleCapabilities)
+                    } else {
+                        capabilities.retainAll(bundleCapabilities)
+                    }
+                }
+                return capabilities ?: emptySet()
+            }
         }
     }
 
