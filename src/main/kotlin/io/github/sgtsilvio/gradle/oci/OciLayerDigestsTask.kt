@@ -54,9 +54,9 @@ abstract class OciLayerDigestsTask : DefaultTask() {
     }
 
     private inline fun iterateLayers(component: OciComponent, action: (OciComponent.Bundle.Layer) -> Unit) {
-        when (component.bundleOrPlatformBundles) {
-            is OciComponent.Bundle -> component.bundleOrPlatformBundles.layers.forEach(action)
-            is OciComponent.PlatformBundles -> component.bundleOrPlatformBundles.map.forEach { (_, bundle) ->
+        when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
+            is OciComponent.Bundle -> bundleOrPlatformBundles.layers.forEach(action)
+            is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.forEach { (_, bundle) ->
                 bundle.layers.forEach(action)
             }
         }
