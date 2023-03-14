@@ -21,11 +21,10 @@ class OciComponentResolver {
     }
 
     fun resolvePlatforms(): PlatformSet {
-        val rootComponent = getRootResolvableComponent()
-        for ((_, component) in resolvableComponents) {
+        for (component in resolvableComponents.values) {
             component.init(this)
         }
-        return rootComponent.resolvePlatforms()
+        return getRootResolvableComponent().resolvePlatforms()
     }
 
     fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
@@ -118,7 +117,7 @@ class OciComponentResolver {
             ResolvableComponent(component) {
 
             override fun doInit(resolver: OciComponentResolver) {
-                for ((_, bundle) in platformBundles) {
+                for (bundle in platformBundles.values) {
                     bundle.init(resolver)
                 }
             }
@@ -139,7 +138,7 @@ class OciComponentResolver {
 
             override fun doCollectCapabilities(): Set<VersionedCapability> {
                 var capabilities: HashSet<VersionedCapability>? = null
-                for ((_, bundle) in platformBundles) {
+                for (bundle in platformBundles.values) {
                     val bundleCapabilities = bundle.collectCapabilities(HashSet())
                     if (capabilities == null) {
                         capabilities = bundleCapabilities
