@@ -50,7 +50,7 @@ class OciComponentResolver {
         )
     }
 
-    private sealed class ResolvableComponent(val component: OciComponent) {
+    private abstract class ResolvableComponent(val component: OciComponent) {
         private var state = State.NONE
         private lateinit var platforms: PlatformSet
 
