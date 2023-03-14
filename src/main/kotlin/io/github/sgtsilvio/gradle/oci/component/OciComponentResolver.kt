@@ -39,7 +39,7 @@ class OciComponentResolver {
     private fun getRootResolvableComponent() =
         rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
-    private fun getComponent(capability: Capability) =
+    private fun getResolvableComponent(capability: Capability) =
         resolvableComponents[capability] ?: throw IllegalStateException("component with capability $capability missing")
 
     private fun OciComponent.resolvable() = when (val b = bundleOrPlatformBundles) {
@@ -160,7 +160,7 @@ class OciComponentResolver {
 
             fun init(resolver: OciComponentResolver) {
                 for (parentCapability in bundle.parentCapabilities) {
-                    dependencies += resolver.getComponent(parentCapability)
+                    dependencies += resolver.getResolvableComponent(parentCapability)
                 }
             }
 
