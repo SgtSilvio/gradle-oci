@@ -57,6 +57,6 @@ gradlePlugin {
 
 testing {
     suites.named<JvmTestSuite>("test") {
-        useJUnitJupiter(libs.versions.junit.jupiter.get())
+        useJUnitJupiter(libs.versions.junit.jupiter)
     }
 }
