@@ -4,6 +4,8 @@ import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.decodeComponent
 import io.github.sgtsilvio.gradle.oci.internal.writeProperty
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 
@@ -14,13 +16,13 @@ abstract class OciLayerDigestsTask : DefaultTask() {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
-    val componentFiles = project.objects.fileCollection()
+    val componentFiles: ConfigurableFileCollection = project.objects.fileCollection()
 
     @get:Input
     val layerPaths = project.objects.listProperty<String>()
 
     @get:OutputFile
-    val digestToLayerPathPropertiesFile = project.objects.fileProperty()
+    val digestToLayerPathPropertiesFile: RegularFileProperty = project.objects.fileProperty()
 
     @TaskAction
     protected fun run() {

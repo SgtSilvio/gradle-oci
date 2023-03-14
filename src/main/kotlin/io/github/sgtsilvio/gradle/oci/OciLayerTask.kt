@@ -8,6 +8,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.OutputFile
@@ -32,13 +33,15 @@ abstract class OciLayerTask : DefaultTask() {
     val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
 
     @get:OutputFile
-    val tarFile = project.objects.fileProperty().convention(outputDirectory.file("layer.tar.gz"))
+    val tarFile: RegularFileProperty = project.objects.fileProperty().convention(outputDirectory.file("layer.tar.gz"))
 
     @get:OutputFile
-    val digestFile = project.objects.fileProperty().convention(outputDirectory.file("layer.digest"))
+    val digestFile: RegularFileProperty =
+        project.objects.fileProperty().convention(outputDirectory.file("layer.digest"))
 
     @get:OutputFile
-    val diffIdFile = project.objects.fileProperty().convention(outputDirectory.file("layer.diffid"))
+    val diffIdFile: RegularFileProperty =
+        project.objects.fileProperty().convention(outputDirectory.file("layer.diffid"))
 
     @get:Internal
     val contents: OciCopySpec get() = _contents

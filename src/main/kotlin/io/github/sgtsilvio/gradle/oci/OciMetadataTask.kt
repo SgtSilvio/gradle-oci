@@ -5,6 +5,8 @@ import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.*
 import java.util.*
 
@@ -15,10 +17,10 @@ abstract class OciMetadataTask : DefaultTask() {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
-    val componentFiles = project.objects.fileCollection()
+    val componentFiles: ConfigurableFileCollection = project.objects.fileCollection()
 
     @get:OutputFile
-    val digestToMetadataPropertiesFile = project.objects.fileProperty()
+    val digestToMetadataPropertiesFile: RegularFileProperty = project.objects.fileProperty()
 
     @TaskAction
     protected fun run() {
