@@ -31,16 +31,6 @@ java {
     }
 }
 
-afterEvaluate {
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        kotlinOptions {
-            apiVersion = "1.5"
-            languageVersion = "1.5"
-            freeCompilerArgs += "-Xsam-conversions=class"
-        }
-    }
-}
-
 repositories {
     mavenCentral()
 }
@@ -52,20 +42,17 @@ dependencies {
 }
 
 gradlePlugin {
+    website.set(metadata.url)
+    vcsUrl.set(metadata.scm.get().url)
     plugins {
         create("oci") {
             id = "$group.$name"
+            implementationClass = "$group.$name.OciPlugin"
             displayName = metadata.readableName.get()
             description = project.description
-            implementationClass = "$group.$name.OciPlugin"
+            tags.set(listOf("oci", "oci-image", "docker", "multi-arch"))
         }
     }
-}
-
-pluginBundle {
-    website = metadata.url.get()
-    vcsUrl = metadata.scm.get().url.get()
-    tags = listOf("oci", "oci-image", "docker", "multi-arch")
 }
 
 testing {
