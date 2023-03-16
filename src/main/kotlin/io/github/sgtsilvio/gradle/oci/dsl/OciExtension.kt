@@ -12,6 +12,7 @@ import org.gradle.api.provider.SetProperty
 interface OciExtension {
 //    val registries: NamedDomainObjectList<Registry>
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
+//    val imageDependencyContainers: NamedDomainObjectContainer<OciImageDependencyContainer>
 
 //    fun registries(configuration: Action<in Registries>)
 
@@ -41,4 +42,14 @@ interface OciExtension {
         val variants: SetProperty<String>
         val osVersions: SetProperty<String>
     }
+
+//    fun <T> NamedDomainObjectContainer<T>.name(name: String, configuration: Action<in T>): NamedDomainObjectProvider<T> = if (name in names) {
+//        named(name, configuration)
+//    } else {
+//        register(name, configuration)
+//    }
+//
+//    fun Task.taskExtension(configuration: Action<String>) {
+//
+//    }
 }
