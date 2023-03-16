@@ -3,7 +3,7 @@ package io.github.sgtsilvio.gradle.oci.component
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 class OciComponentResolver {
-    private val resolvableComponents = mutableMapOf<Capability, ResolvableComponent>()
+    private val resolvableComponents = hashMapOf<Capability, ResolvableComponent>()
     private var rootResolvableComponent: ResolvableComponent? = null
     val rootComponent get() = getRootResolvableComponent().component
 
@@ -21,10 +21,7 @@ class OciComponentResolver {
     }
 
     fun resolvePlatforms(): PlatformSet {
-        for (component in resolvableComponents.values) {
-            component.init(this)
-        }
-        return getRootResolvableComponent().resolvePlatforms()
+        return getRootResolvableComponent().resolvePlatforms(this)
     }
 
     fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
@@ -50,37 +47,23 @@ class OciComponentResolver {
     }
 
     private abstract class ResolvableComponent(val component: OciComponent) {
-        private var state = State.NONE
+        private var state = State.INITIAL
         private lateinit var platforms: PlatformSet
 
-        private enum class State { NONE, INITIALIZED, RESOLVING, RESOLVED }
+        private enum class State { INITIAL, RESOLVING, RESOLVED }
 
-        fun init(resolver: OciComponentResolver) = when (state) {
-            State.INITIALIZED -> Unit
-            State.NONE -> {
-                doInit(resolver)
-                state = State.INITIALIZED
-            }
-
-            else -> throw IllegalStateException("init can not be called in state $state")
-        }
-
-        protected abstract fun doInit(resolver: OciComponentResolver)
-
-        fun resolvePlatforms() = when (state) {
+        fun resolvePlatforms(resolver: OciComponentResolver) = when (state) {
             State.RESOLVING -> throw IllegalStateException("cycle in dependencies graph found")
             State.RESOLVED -> platforms
-            State.INITIALIZED -> {
+            State.INITIAL -> {
                 state = State.RESOLVING
-                platforms = doResolvePlatforms()
+                platforms = doResolvePlatforms(resolver)
                 state = State.RESOLVED
                 platforms
             }
-
-            else -> throw IllegalStateException("resolvePlatforms can not be called in state $state")
         }
 
-        protected abstract fun doResolvePlatforms(): PlatformSet
+        protected abstract fun doResolvePlatforms(resolver: OciComponentResolver): PlatformSet
 
         fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) {
             if (state != State.RESOLVED) {
@@ -102,9 +85,8 @@ class OciComponentResolver {
 
         class Universal(component: OciComponent, private val bundle: Bundle) : ResolvableComponent(component) {
 
-            override fun doInit(resolver: OciComponentResolver) = bundle.init(resolver)
-
-            override fun doResolvePlatforms() = bundle.resolvePlatforms(PlatformSet(true))
+            override fun doResolvePlatforms(resolver: OciComponentResolver) =
+                bundle.resolvePlatforms(resolver, PlatformSet(true))
 
             override fun doCollectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
                 bundle.collectBundlesForPlatform(platform, result)
@@ -116,16 +98,10 @@ class OciComponentResolver {
         class Platforms(component: OciComponent, private val platformBundles: Map<Platform, Bundle>) :
             ResolvableComponent(component) {
 
-            override fun doInit(resolver: OciComponentResolver) {
-                for (bundle in platformBundles.values) {
-                    bundle.init(resolver)
-                }
-            }
-
-            override fun doResolvePlatforms(): PlatformSet {
+            override fun doResolvePlatforms(resolver: OciComponentResolver): PlatformSet {
                 val platforms = PlatformSet(false)
                 for ((platform, bundle) in platformBundles) {
-                    platforms.unionise(bundle.resolvePlatforms(PlatformSet(platform)))
+                    platforms.unionise(bundle.resolvePlatforms(resolver, PlatformSet(platform)))
                 }
                 return platforms
             }
@@ -157,15 +133,12 @@ class OciComponentResolver {
         class Bundle(val bundle: OciComponent.Bundle) {
             private val dependencies = ArrayList<ResolvableComponent>(bundle.parentCapabilities.size)
 
-            fun init(resolver: OciComponentResolver) {
+            fun resolvePlatforms(resolver: OciComponentResolver, platforms: PlatformSet): PlatformSet {
                 for (parentCapability in bundle.parentCapabilities) {
                     dependencies += resolver.getResolvableComponent(parentCapability)
                 }
-            }
-
-            fun resolvePlatforms(platforms: PlatformSet): PlatformSet {
                 for (dependency in dependencies) {
-                    platforms.intersect(dependency.resolvePlatforms())
+                    platforms.intersect(dependency.resolvePlatforms(resolver))
                 }
                 return platforms
             }
