@@ -4,14 +4,9 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 class OciComponentResolver {
     private val resolvableComponents = hashMapOf<Capability, ResolvableComponent>()
-    private var rootResolvableComponent: ResolvableComponent? = null
-    val rootComponent get() = getRootResolvableComponent().component
 
     fun addComponent(component: OciComponent) {
         val resolvableComponent = component.resolvable()
-        if (rootResolvableComponent == null) {
-            rootResolvableComponent = resolvableComponent
-        }
         for (versionedCapability in component.capabilities) {
             val prevComponent = resolvableComponents.put(versionedCapability.capability, resolvableComponent)
             if (prevComponent != null) {
@@ -20,20 +15,22 @@ class OciComponentResolver {
         }
     }
 
-    fun resolvePlatforms(): PlatformSet {
-        return getRootResolvableComponent().resolvePlatforms(this)
+    inner class Root private constructor(private val resolvableComponent: ResolvableComponent) {
+        val component get() = resolvableComponent.component
+
+        constructor(capability: Capability) : this(getResolvableComponent(capability))
+        constructor(component: OciComponent) : this(component.capabilities.first().capability)
+
+        fun resolvePlatforms() = resolvableComponent.resolvePlatforms(this@OciComponentResolver)
+
+        fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
+            val result = linkedSetOf<ResolvableComponent.Bundle>()
+            resolvableComponent.collectBundlesForPlatform(platform, result)
+            return result.map { it.bundle }
+        }
+
+        fun collectCapabilities() = resolvableComponent.collectCapabilities()
     }
-
-    fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
-        val result = linkedSetOf<ResolvableComponent.Bundle>()
-        getRootResolvableComponent().collectBundlesForPlatform(platform, result)
-        return result.map { it.bundle }
-    }
-
-    fun collectCapabilities() = getRootResolvableComponent().collectCapabilities()
-
-    private fun getRootResolvableComponent() =
-        rootResolvableComponent ?: throw IllegalStateException("at least one component is required")
 
     private fun getResolvableComponent(capability: Capability) =
         resolvableComponents[capability] ?: throw IllegalStateException("component with capability $capability missing")

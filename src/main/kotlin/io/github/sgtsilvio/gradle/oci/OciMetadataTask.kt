@@ -24,21 +24,18 @@ abstract class OciMetadataTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val ociComponentResolver = OciComponentResolver()
-        for (file in componentFiles) {
-            ociComponentResolver.addComponent(decodeComponent(file.readText()))
-        }
-        val platforms = ociComponentResolver.resolvePlatforms()
+        val componentResolverRoot = createComponentResolverRoot()
+        val platforms = componentResolverRoot.resolvePlatforms()
         val configs = mutableListOf<OciDataDescriptor>()
         val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
         for (platform in platforms) {
-            val bundlesForPlatform = ociComponentResolver.collectBundlesForPlatform(platform)
+            val bundlesForPlatform = componentResolverRoot.collectBundlesForPlatform(platform)
             val config = createConfig(platform, bundlesForPlatform)
             configs.add(config)
             val manifest = createManifest(config, bundlesForPlatform)
             manifests.add(Pair(platform, manifest))
         }
-        val index = createIndex(manifests, ociComponentResolver.rootComponent)
+        val index = createIndex(manifests, componentResolverRoot.component)
 
         digestToMetadataPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             fun writeDataDescriptor(dataDescriptor: OciDataDescriptor) {
@@ -52,6 +49,22 @@ abstract class OciMetadataTask : DefaultTask() {
                 writeDataDescriptor(config)
             }
         }
+    }
+
+    private fun createComponentResolverRoot(): OciComponentResolver.Root {
+        val componentResolver = OciComponentResolver()
+        var rootComponent: OciComponent? = null
+        for (file in componentFiles) {
+            val component = decodeComponent(file.readText())
+            if (rootComponent == null) {
+                rootComponent = component
+            }
+            componentResolver.addComponent(component)
+        }
+        if (rootComponent == null) {
+            throw IllegalStateException("at least one component is required")
+        }
+        return componentResolver.Root(rootComponent)
     }
 
     private fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
