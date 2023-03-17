@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.Capability
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
-import io.github.sgtsilvio.gradle.oci.component.decodeComponent
+import io.github.sgtsilvio.gradle.oci.component.*
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
@@ -33,33 +30,38 @@ abstract class OciRegistryDataTask : DefaultTask() {
     protected fun run() {
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
 
-        val componentsAndLayerDigests = mutableListOf<Pair<OciComponent, Set<String>>>()
-        val digestToLayer = hashMapOf<String, File>()
+        val componentsAndDigestToLayers = mutableListOf<Pair<OciComponent, Map<String, File>>>()
         val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
             val componentFile = iterator.next()
             val component = decodeComponent(componentFile.readText()) // TODO check if fails
-            val componentLayerDigests = HashSet<String>()
+            val digestToLayer = hashMapOf<String, File>()
             iterateLayers(component) { layer -> // TODO double inline
                 layer.descriptor?.let {
                     val digest = it.digest
-                    if (componentLayerDigests.add(digest)) {
+                    if (digest !in digestToLayer) {
                         if (!iterator.hasNext()) {
                             throw IllegalStateException() // TODO message
                         }
-                        val layerFile = iterator.next()
-                        val prevLayerFile = digestToLayer.putIfAbsent(digest, layerFile)
-                        if (prevLayerFile != null) {
-                            if (layerFile.length() != prevLayerFile.length()) {
-                                throw IllegalStateException("hash collision") // TODO message
-                            } else {
-                                // TODO warn
-                            }
-                        }
+                        digestToLayer[digest] = iterator.next()
                     }
                 }
             }
-            componentsAndLayerDigests += Pair(component, componentLayerDigests)
+            componentsAndDigestToLayers += Pair(component, digestToLayer)
+        }
+
+        val digestToLayer = hashMapOf<String, File>()
+        for ((_, componentDigestToLayer) in componentsAndDigestToLayers) {
+            for ((digest, layer) in componentDigestToLayer) {
+                val prevLayer = digestToLayer.putIfAbsent(digest, layer)
+                if ((prevLayer != null) && (layer != prevLayer)) {
+                    if (layer.length() != prevLayer.length()) {
+                        throw IllegalStateException("hash collision") // TODO message
+                    } else {
+                        // TODO warn
+                    }
+                }
+            }
         }
 
         val blobsDirectory = registryDataDirectory.resolve("blobs")
@@ -70,12 +72,31 @@ abstract class OciRegistryDataTask : DefaultTask() {
             Files.createLink(blobDirectory.resolve("data"), layer.toPath())
         }
 
+        val repositoriesDirectory = registryDataDirectory.resolve("repositories")
         val componentResolver = OciComponentResolver()
-        for ((component, _) in componentsAndLayerDigests) {
+        for ((component, _) in componentsAndDigestToLayers) {
             componentResolver.addComponent(component)
         }
         for (rootCapability in rootCapabilities.get()) {
             val componentResolverRoot = componentResolver.Root(rootCapability)
+            componentResolverRoot.component.capabilities.forEach { versionedCapability ->
+                val imageNamespace = groupToImageNamespace(versionedCapability.capability.group)
+                val repositoryDirectory =
+                    repositoriesDirectory.resolve(imageNamespace).resolve(versionedCapability.capability.name)
+                Files.createDirectories(repositoryDirectory)
+                val layersDirectory = repositoryDirectory.resolve("_layers")
+                Files.createDirectories(layersDirectory)
+                val manifestsDirectory = repositoryDirectory.resolve("_manifests")
+                Files.createDirectories(manifestsDirectory)
+                val revisionsDirectory = manifestsDirectory.resolve("revisions")
+                Files.createDirectories(revisionsDirectory)
+                val tagDirectory = manifestsDirectory.resolve("tags").resolve(versionedCapability.version)
+                Files.createDirectories(tagDirectory)
+                val tagCurrentDirectory = tagDirectory.resolve("current")
+                Files.createDirectories(tagCurrentDirectory)
+                val tagIndexDirectory = tagDirectory.resolve("index")
+                Files.createDirectories(tagIndexDirectory)
+            }
         }
     }
 
@@ -94,5 +115,14 @@ private inline fun iterateLayers(component: OciComponent, action: (OciComponent.
         is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.forEach { bundle ->
             bundle.layers.forEach(action)
         }
+    }
+}
+
+private fun groupToImageNamespace(group: String): String {
+    val tldEndIndex = group.indexOf('.')
+    return if (tldEndIndex == -1) {
+        group
+    } else {
+        group.substring(tldEndIndex + 1).replace('.', '/')
     }
 }
