@@ -24,11 +24,11 @@ internal class OciComponentResolverTest {
 
         val ociComponentResolver = OciComponentResolver()
         ociComponentResolver.addComponent(component)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertTrue(ociComponentResolverRoot.platforms.isInfinite)
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(amd64), listOf(bundle))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(arm64v8), listOf(bundle))
+        assertTrue(resolvedComponent.platforms.isInfinite)
+        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(bundle))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(bundle))
     }
 
     @Test
@@ -43,12 +43,12 @@ internal class OciComponentResolverTest {
 
         val ociComponentResolver = OciComponentResolver()
         ociComponentResolver.addComponent(component)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertFalse(ociComponentResolverRoot.platforms.isInfinite)
-        assertEquals(ociComponentResolverRoot.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(amd64), listOf(bundleAmd64))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(arm64v8), listOf(bundleArm64v8))
+        assertFalse(resolvedComponent.platforms.isInfinite)
+        assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(bundleAmd64))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(bundleArm64v8))
     }
 
     @Test
@@ -71,12 +71,12 @@ internal class OciComponentResolverTest {
         val ociComponentResolver = OciComponentResolver()
         ociComponentResolver.addComponent(component)
         ociComponentResolver.addComponent(baseComponent)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertFalse(ociComponentResolverRoot.platforms.isInfinite)
-        assertEquals(ociComponentResolverRoot.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(amd64), listOf(baseBundleAmd64, bundle))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(arm64v8), listOf(baseBundleArm64v8, bundle))
+        assertFalse(resolvedComponent.platforms.isInfinite)
+        assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(baseBundleAmd64, bundle))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(baseBundleArm64v8, bundle))
     }
 
     @Test
@@ -99,12 +99,12 @@ internal class OciComponentResolverTest {
         val ociComponentResolver = OciComponentResolver()
         ociComponentResolver.addComponent(component)
         ociComponentResolver.addComponent(baseComponent)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertFalse(ociComponentResolverRoot.platforms.isInfinite)
-        assertEquals(ociComponentResolverRoot.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(amd64), listOf(baseBundle, bundleAmd64))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(arm64v8), listOf(baseBundle, bundleArm64v8))
+        assertFalse(resolvedComponent.platforms.isInfinite)
+        assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(baseBundle, bundleAmd64))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(baseBundle, bundleArm64v8))
     }
 
     @Test
@@ -128,14 +128,11 @@ internal class OciComponentResolverTest {
         val ociComponentResolver = OciComponentResolver()
         ociComponentResolver.addComponent(component)
         ociComponentResolver.addComponent(baseComponent)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertFalse(ociComponentResolverRoot.platforms.isInfinite)
-        assertEquals(ociComponentResolverRoot.platforms.toSet(), setOf(arm64v8))
-        assertEquals(
-            ociComponentResolverRoot.collectBundlesForPlatform(arm64v8),
-            listOf(baseBundleArm64v8, bundleArm64v8),
-        )
+        assertFalse(resolvedComponent.platforms.isInfinite)
+        assertEquals(resolvedComponent.platforms.toSet(), setOf(arm64v8))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(baseBundleArm64v8, bundleArm64v8))
     }
 
     @Test
@@ -157,10 +154,10 @@ internal class OciComponentResolverTest {
         val ociComponentResolver = OciComponentResolver()
         ociComponentResolver.addComponent(component)
         ociComponentResolver.addComponent(baseComponent)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertFalse(ociComponentResolverRoot.platforms.isInfinite)
-        assertTrue(ociComponentResolverRoot.platforms.toSet().isEmpty())
+        assertFalse(resolvedComponent.platforms.isInfinite)
+        assertTrue(resolvedComponent.platforms.toSet().isEmpty())
     }
 
     @Test
@@ -191,15 +188,12 @@ internal class OciComponentResolverTest {
         ociComponentResolver.addComponent(component)
         ociComponentResolver.addComponent(base1Component)
         ociComponentResolver.addComponent(base2Component)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertFalse(ociComponentResolverRoot.platforms.isInfinite)
-        assertEquals(ociComponentResolverRoot.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(ociComponentResolverRoot.collectBundlesForPlatform(amd64), listOf(base1BundleAmd64, bundleAmd64))
-        assertEquals(
-            ociComponentResolverRoot.collectBundlesForPlatform(arm64v8),
-            listOf(base2BundleArm64v8, bundleArm64v8),
-        )
+        assertFalse(resolvedComponent.platforms.isInfinite)
+        assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(base1BundleAmd64, bundleAmd64))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(base2BundleArm64v8, bundleArm64v8))
     }
 
     @Test
@@ -260,16 +254,16 @@ internal class OciComponentResolverTest {
         ociComponentResolver.addComponent(base3Component)
         ociComponentResolver.addComponent(base4Component)
         ociComponentResolver.addComponent(base5Component)
-        val ociComponentResolverRoot = ociComponentResolver.resolve(component)
+        val resolvedComponent = ociComponentResolver.resolve(component)
 
-        assertFalse(ociComponentResolverRoot.platforms.isInfinite)
-        assertEquals(ociComponentResolverRoot.platforms.toSet(), setOf(amd64, arm64v8))
+        assertFalse(resolvedComponent.platforms.isInfinite)
+        assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
         assertEquals(
-            ociComponentResolverRoot.collectBundlesForPlatform(amd64),
+            resolvedComponent.collectBundlesForPlatform(amd64),
             listOf(base5Bundle, base4Bundle, base3Bundle, base2BundleAmd64, base1Bundle, bundle),
         )
         assertEquals(
-            ociComponentResolverRoot.collectBundlesForPlatform(arm64v8),
+            resolvedComponent.collectBundlesForPlatform(arm64v8),
             listOf(base5Bundle, base4Bundle, base3Bundle, base2BundleArm64v8, base1Bundle, bundle),
         )
     }
