@@ -47,7 +47,7 @@ class OciComponentResolver {
         }
 
         private fun OciComponent.Bundle.resolve(resolver: OciComponentResolver) =
-            Bundle(this, parentCapabilities.map(resolver::resolveInternal))
+            ResolvedBundle(this, parentCapabilities.map(resolver::resolveInternal))
     }
 
     sealed interface ResolvedComponent {
@@ -65,20 +65,20 @@ class OciComponentResolver {
     ) : ResolvedComponent {
 
         override fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
-            val result = linkedSetOf<Bundle>()
+            val result = linkedSetOf<ResolvedBundle>()
             collectBundlesForPlatform(platform, result)
             return result.map { it.bundle }
         }
 
-        abstract fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>)
+        abstract fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedBundle>)
     }
 
     private class UniversalComponent(
         component: OciComponent,
-        private val bundle: Bundle,
+        private val bundle: ResolvedBundle,
     ) : ResolvedComponentInternal(component, bundle.resolvePlatforms(PlatformSet(true))) {
 
-        override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
+        override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedBundle>) =
             bundle.collectBundlesForPlatform(platform, result)
 
         override fun collectCapabilities(): Set<VersionedCapability> =
@@ -87,14 +87,14 @@ class OciComponentResolver {
 
     private class PlatformsComponent(
         component: OciComponent,
-        private val platformBundles: Map<Platform, Bundle>,
+        private val platformBundles: Map<Platform, ResolvedBundle>,
     ) : ResolvedComponentInternal(component, PlatformSet(false).apply {
         for ((platform, bundle) in platformBundles) {
             unionise(bundle.resolvePlatforms(PlatformSet(platform)))
         }
     }) {
 
-        override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) =
+        override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedBundle>) =
             platformBundles[platform]?.collectBundlesForPlatform(platform, result)
                 ?: throw IllegalStateException("unresolved dependency for platform $platform")
 
@@ -116,7 +116,10 @@ class OciComponentResolver {
         }
     }
 
-    private class Bundle(val bundle: OciComponent.Bundle, private val dependencies: List<ResolvedComponentInternal>) {
+    private class ResolvedBundle(
+        val bundle: OciComponent.Bundle,
+        private val dependencies: List<ResolvedComponentInternal>,
+    ) {
 
         fun resolvePlatforms(platforms: PlatformSet): PlatformSet {
             for (dependency in dependencies) {
@@ -125,7 +128,7 @@ class OciComponentResolver {
             return platforms
         }
 
-        fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<Bundle>) {
+        fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedBundle>) {
             if (this !in result) {
                 for (dependency in dependencies) {
                     dependency.collectBundlesForPlatform(platform, result)
