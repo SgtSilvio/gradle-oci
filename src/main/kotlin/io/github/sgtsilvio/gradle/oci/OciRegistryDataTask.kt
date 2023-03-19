@@ -78,8 +78,8 @@ abstract class OciRegistryDataTask : DefaultTask() {
             componentResolver.addComponent(component)
         }
         for (rootCapability in rootCapabilities.get()) {
-            val componentResolverRoot = componentResolver.Root(rootCapability)
-            componentResolverRoot.component.capabilities.forEach { versionedCapability ->
+            val resolvedComponent = componentResolver.resolve(rootCapability)
+            resolvedComponent.component.capabilities.forEach { versionedCapability ->
                 val imageNamespace = groupToImageNamespace(versionedCapability.capability.group)
                 val repositoryDirectory =
                     repositoriesDirectory.resolve(imageNamespace).resolve(versionedCapability.capability.name)

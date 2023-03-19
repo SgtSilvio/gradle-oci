@@ -24,18 +24,17 @@ abstract class OciMetadataTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val componentResolverRoot = createComponentResolverRoot()
-        val platforms = componentResolverRoot.resolvePlatforms()
+        val resolvedComponent = resolveComponent()
         val configs = mutableListOf<OciDataDescriptor>()
         val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-        for (platform in platforms) {
-            val bundlesForPlatform = componentResolverRoot.collectBundlesForPlatform(platform)
+        for (platform in resolvedComponent.platforms) {
+            val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
             val config = createConfig(platform, bundlesForPlatform)
             configs.add(config)
             val manifest = createManifest(config, bundlesForPlatform)
             manifests.add(Pair(platform, manifest))
         }
-        val index = createIndex(manifests, componentResolverRoot.component)
+        val index = createIndex(manifests, resolvedComponent.component)
 
         digestToMetadataPropertiesFile.get().asFile.bufferedWriter().use { writer ->
             fun writeDataDescriptor(dataDescriptor: OciDataDescriptor) {
@@ -51,7 +50,7 @@ abstract class OciMetadataTask : DefaultTask() {
         }
     }
 
-    private fun createComponentResolverRoot(): OciComponentResolver.Root {
+    private fun resolveComponent(): OciComponentResolver.ResolvedComponent {
         val componentResolver = OciComponentResolver()
         var rootComponent: OciComponent? = null
         for (file in componentFiles) {
@@ -64,7 +63,7 @@ abstract class OciMetadataTask : DefaultTask() {
         if (rootComponent == null) {
             throw IllegalStateException("at least one component is required")
         }
-        return componentResolver.Root(rootComponent)
+        return componentResolver.resolve(rootComponent)
     }
 
     private fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
