@@ -6,18 +6,18 @@ sealed interface OciComponentResolver {
 
     fun addComponent(component: OciComponent)
 
-    fun resolve(capability: Capability): ResolvedComponent
+    fun resolve(capability: Capability): ResolvedOciComponent
 
-    fun resolve(component: OciComponent): ResolvedComponent
+    fun resolve(component: OciComponent): ResolvedOciComponent
+}
 
-    sealed interface ResolvedComponent {
-        val component: OciComponent
-        val platforms: PlatformSet
+sealed interface ResolvedOciComponent {
+    val component: OciComponent
+    val platforms: PlatformSet
 
-        fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle>
+    fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle>
 
-        fun collectCapabilities(): Set<VersionedCapability>
-    }
+    fun collectCapabilities(): Set<VersionedCapability>
 }
 
 fun OciComponentResolver(): OciComponentResolver = OciComponentResolverImpl()
@@ -35,7 +35,7 @@ private class OciComponentResolverImpl : OciComponentResolver {
         }
     }
 
-    override fun resolve(capability: Capability): ResolvedComponentImpl =
+    override fun resolve(capability: Capability): ResolvedOciComponentImpl =
         resolvableComponents[capability]?.resolve(this)
             ?: throw IllegalStateException("component with capability $capability missing")
 
@@ -46,7 +46,7 @@ private class ResolvableComponent(component: OciComponent) {
     private var componentOrNullOrResolvedComponent: Any? = component
 
     fun resolve(resolver: OciComponentResolverImpl) = when (val component = componentOrNullOrResolvedComponent) {
-        is ResolvedComponentImpl -> component
+        is ResolvedOciComponentImpl -> component
         is OciComponent -> {
             componentOrNullOrResolvedComponent = null
             val resolvedComponent = component.resolve(resolver)
@@ -69,10 +69,10 @@ private class ResolvableComponent(component: OciComponent) {
         ResolvedBundle(this, parentCapabilities.map(resolver::resolve))
 }
 
-private sealed class ResolvedComponentImpl(
+private sealed class ResolvedOciComponentImpl(
     final override val component: OciComponent,
     final override val platforms: PlatformSet,
-) : OciComponentResolver.ResolvedComponent {
+) : ResolvedOciComponent {
 
     override fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle> {
         val result = linkedSetOf<ResolvedBundle>()
@@ -86,7 +86,7 @@ private sealed class ResolvedComponentImpl(
 private class UniversalComponent(
     component: OciComponent,
     private val bundle: ResolvedBundle,
-) : ResolvedComponentImpl(component, bundle.resolvePlatforms(PlatformSet(true))) {
+) : ResolvedOciComponentImpl(component, bundle.resolvePlatforms(PlatformSet(true))) {
 
     override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedBundle>) =
         bundle.collectBundlesForPlatform(platform, result)
@@ -98,7 +98,7 @@ private class UniversalComponent(
 private class PlatformsComponent(
     component: OciComponent,
     private val platformBundles: Map<Platform, ResolvedBundle>,
-) : ResolvedComponentImpl(component, PlatformSet(false).apply {
+) : ResolvedOciComponentImpl(component, PlatformSet(false).apply {
     for ((platform, bundle) in platformBundles) {
         unionise(bundle.resolvePlatforms(PlatformSet(platform)))
     }
@@ -128,7 +128,7 @@ private class PlatformsComponent(
 
 private class ResolvedBundle(
     val bundle: OciComponent.Bundle,
-    private val dependencies: List<ResolvedComponentImpl>,
+    private val dependencies: List<ResolvedOciComponentImpl>,
 ) {
 
     fun resolvePlatforms(platforms: PlatformSet): PlatformSet {

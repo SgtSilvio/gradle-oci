@@ -50,7 +50,7 @@ abstract class OciMetadataTask : DefaultTask() {
         }
     }
 
-    private fun resolveComponent(): OciComponentResolver.ResolvedComponent {
+    private fun resolveComponent(): ResolvedOciComponent {
         val componentResolver = OciComponentResolver()
         var rootComponent: OciComponent? = null
         for (file in componentFiles) {
