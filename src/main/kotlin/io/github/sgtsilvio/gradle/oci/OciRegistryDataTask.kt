@@ -35,7 +35,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
 
         val componentAndDigestToLayerPairs = mutableListOf<Pair<OciComponent, Map<String, File>>>()
-        val iterator = ociFiles.iterator()
+        val iterator: Iterator<File> = ociFiles.iterator()
         while (iterator.hasNext()) {
             val componentFile = iterator.next()
             val component = decodeComponent(componentFile.readText()) // TODO check if fails
@@ -68,17 +68,18 @@ abstract class OciRegistryDataTask : DefaultTask() {
             }
         }
 
-        val blobsDirectory = registryDataDirectory.resolve("blobs")
+        val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
         for ((digest, layer) in digestToLayer) {
             Files.createLink(blobsDirectory.resolveDigestDataFile(digest), layer.toPath())
         }
 
-        val repositoriesDirectory = registryDataDirectory.resolve("repositories")
+        val repositoriesDirectory: Path = registryDataDirectory.resolve("repositories")
         val componentResolver = OciComponentResolver()
         for ((component, _) in componentAndDigestToLayerPairs) {
             componentResolver.addComponent(component)
         }
-        for (rootCapability in rootCapabilities.get()) {
+        val rootCapabilities: Set<Capability> = rootCapabilities.get()
+        for (rootCapability in rootCapabilities) {
             val resolvedComponent = componentResolver.resolve(rootCapability)
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
             val imageDigests = mutableSetOf<String>()
@@ -105,27 +106,22 @@ abstract class OciRegistryDataTask : DefaultTask() {
 
             resolvedComponent.component.capabilities.forEach { versionedCapability ->
                 val imageNamespace = groupToImageNamespace(versionedCapability.capability.group)
-                val repositoryDirectory =
+                val repositoryDirectory: Path = Files.createDirectories(
                     repositoriesDirectory.resolve(imageNamespace).resolve(versionedCapability.capability.name)
-                Files.createDirectories(repositoryDirectory)
-                val layersDirectory = repositoryDirectory.resolve("_layers")
-                Files.createDirectories(layersDirectory)
+                )
+                val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
                 for (imageDigest in imageDigests) {
                     layersDirectory.writeDigestLink(imageDigest)
                 }
-                val manifestsDirectory = repositoryDirectory.resolve("_manifests")
-                Files.createDirectories(manifestsDirectory)
-                val revisionsDirectory = manifestsDirectory.resolve("revisions")
-                Files.createDirectories(revisionsDirectory)
-                revisionsDirectory.writeDigestLink(indexDigest)
-                val tagDirectory = manifestsDirectory.resolve("tags").resolve(versionedCapability.version)
-                Files.createDirectories(tagDirectory)
-                val tagCurrentDirectory = tagDirectory.resolve("current")
-                Files.createDirectories(tagCurrentDirectory)
-                Files.write(tagCurrentDirectory.resolve("link"), indexDigest.toByteArray())
-                val tagIndexDirectory = tagDirectory.resolve("index")
-                Files.createDirectories(tagIndexDirectory)
-                tagIndexDirectory.writeDigestLink(indexDigest)
+                val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_manifests"))
+                Files.createDirectories(manifestsDirectory.resolve("revisions")).writeDigestLink(indexDigest)
+                val tagDirectory: Path =
+                    Files.createDirectories(manifestsDirectory.resolve("tags").resolve(versionedCapability.version))
+                Files.write(
+                    Files.createDirectories(tagDirectory.resolve("current")).resolve("link"),
+                    indexDigest.toByteArray(),
+                )
+                Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
             }
         }
     }
