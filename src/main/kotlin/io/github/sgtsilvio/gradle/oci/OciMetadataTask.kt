@@ -30,9 +30,9 @@ abstract class OciMetadataTask : DefaultTask() {
         for (platform in resolvedComponent.platforms) {
             val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
             val config = createConfig(platform, bundlesForPlatform)
-            configs.add(config)
+            configs += config
             val manifest = createManifest(config, bundlesForPlatform)
-            manifests.add(Pair(platform, manifest))
+            manifests += Pair(platform, manifest)
         }
         val index = createIndex(manifests, resolvedComponent.component)
 
@@ -78,24 +78,16 @@ abstract class OciMetadataTask : DefaultTask() {
         val annotations = TreeMap<String, String>()
         val descriptorAnnotations = TreeMap<String, String>()
         for (bundle in bundles) {
-            if (bundle.user != null) {
-                user = bundle.user
-            }
+            bundle.user?.let { user = it }
             ports.addAll(bundle.ports)
             environment += bundle.environment
-            if (bundle.command != null) {
-                if (bundle.command.entryPoint != null) {
-                    entryPoint = bundle.command.entryPoint
-                }
-                arguments = bundle.command.arguments
+            bundle.command?.let { command ->
+                command.entryPoint?.let { entryPoint = it }
+                arguments = command.arguments
             }
             volumes.addAll(bundle.volumes)
-            if (bundle.workingDirectory != null) {
-                workingDirectory = bundle.workingDirectory
-            }
-            if (bundle.stopSignal != null) {
-                stopSignal = bundle.stopSignal
-            }
+            bundle.workingDirectory?.let { workingDirectory = it }
+            bundle.stopSignal?.let { stopSignal = it }
             annotations += bundle.configAnnotations
             descriptorAnnotations += bundle.configDescriptorAnnotations
         }
@@ -141,8 +133,8 @@ abstract class OciMetadataTask : DefaultTask() {
                 addArray("diff_ids") {
                     for (bundle in bundles) {
                         for (layer in bundle.layers) {
-                            if (layer.descriptor != null) {
-                                addString(layer.descriptor.diffId)
+                            layer.descriptor?.let {
+                                addString(it.diffId)
                             }
                         }
                     }
@@ -169,8 +161,8 @@ abstract class OciMetadataTask : DefaultTask() {
             addArray("layers") {
                 for (bundle in bundles) {
                     for (layer in bundle.layers) {
-                        if (layer.descriptor != null) {
-                            addObject { encodeOciDescriptor(LAYER_MEDIA_TYPE, layer.descriptor) }
+                        layer.descriptor?.let {
+                            addObject { encodeOciDescriptor(LAYER_MEDIA_TYPE, it) }
                         }
                     }
                 }
