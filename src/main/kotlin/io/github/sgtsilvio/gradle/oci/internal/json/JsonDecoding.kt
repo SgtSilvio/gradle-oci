@@ -15,23 +15,23 @@ value class JsonValue @PublishedApi internal constructor(private val delegate: A
 
     fun asObject() = when (delegate) {
         is JSONObject -> JsonObject(delegate)
-        else -> throw JsonException("", "must be an object, but is '$delegate'")
+        else -> throw JsonException.create("", "must be an object, but is '$delegate'")
     }
 
     fun asArray() = when (delegate) {
         is JSONArray -> JsonArray(delegate)
-        else -> throw JsonException("", "must be an array, but is '$delegate'")
+        else -> throw JsonException.create("", "must be an array, but is '$delegate'")
     }
 
     fun asString() = when (delegate) {
         is String -> delegate
-        else -> throw JsonException("", "must be a string, but is '$delegate'")
+        else -> throw JsonException.create("", "must be a string, but is '$delegate'")
     }
 
     fun asLong() = when (delegate) {
         is Long -> delegate
         is Int -> delegate.toLong()
-        else -> throw JsonException("", "must be a long, but is '$delegate'")
+        else -> throw JsonException.create("", "must be a long, but is '$delegate'")
     }
 }
 
@@ -42,11 +42,11 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
     fun hasKey(key: String) = delegate.has(key)
 
     inline fun <T> get(key: String, transformer: JsonValue.() -> T): T {
-        val value = delegate.opt(key) ?: throw JsonException(key, "is required, but is missing")
+        val value = delegate.opt(key) ?: throw JsonException.create(key, "is required, but is missing")
         try {
             return transformer.invoke(JsonValue(value))
-        } catch (e: JsonException) {
-            throw JsonException(key, e)
+        } catch (e: Throwable) {
+            throw JsonException.create(key, e)
         }
     }
 
@@ -54,8 +54,8 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
         val value = delegate.opt(key) ?: return null
         try {
             return transformer.invoke(JsonValue(value))
-        } catch (e: JsonException) {
-            throw JsonException(key, e)
+        } catch (e: Throwable) {
+            throw JsonException.create(key, e)
         }
     }
 
@@ -84,8 +84,8 @@ value class JsonArray internal constructor(@PublishedApi internal val delegate: 
         var i = 0
         try {
             return delegate.map { transformer.invoke(JsonValue(it)).also { i++ } }
-        } catch (e: JsonException) {
-            throw JsonException(i, e)
+        } catch (e: Throwable) {
+            throw JsonException.create(i, e)
         }
     }
 
@@ -93,8 +93,8 @@ value class JsonArray internal constructor(@PublishedApi internal val delegate: 
         var i = 0
         try {
             return delegate.mapTo(destination) { transformer.invoke(JsonValue(it)).also { i++ } }
-        } catch (e: JsonException) {
-            throw JsonException(i, e)
+        } catch (e: Throwable) {
+            throw JsonException.create(i, e)
         }
     }
 
@@ -102,8 +102,8 @@ value class JsonArray internal constructor(@PublishedApi internal val delegate: 
         var i = 0
         try {
             return delegate.associateTo(destination) { transformer.invoke(JsonValue(it)).also { i++ } }
-        } catch (e: JsonException) {
-            throw JsonException(i, e)
+        } catch (e: Throwable) {
+            throw JsonException.create(i, e)
         }
     }
 }
@@ -112,19 +112,30 @@ fun JsonArray.toStringList() = toList { asString() }
 
 fun JsonArray.toStringSet() = toSet(TreeSet()) { asString() }
 
-class JsonException constructor(
+class JsonException private constructor(
     private val path: String,
     messageWithoutPath: String,
-) : RuntimeException(messageWithoutPath, null, false, false) {
+    cause: Throwable?,
+) : RuntimeException(messageWithoutPath, cause, false, false) {
+
+    companion object {
+        fun create(path: String, messageWithoutPath: String) = JsonException(path, messageWithoutPath, null)
+
+        fun create(path: String, cause: Throwable) = when (cause) {
+            is JsonException -> JsonException(combineJsonPaths(path, cause.path), cause.messageWithoutPath, cause.cause)
+            else -> JsonException("", "not valid: " + cause.message, cause)
+        }
+
+        fun create(arrayIndex: Int, cause: Throwable) = create("[$arrayIndex]", cause)
+
+        private fun combineJsonPaths(parentPath: String, childPath: String) = when {
+            childPath.isEmpty() -> parentPath
+            childPath.startsWith("[") -> "$parentPath$childPath"
+            else -> "$parentPath.$childPath"
+        }
+    }
 
     private val messageWithoutPath get() = super.message.toString()
 
     override val message get() = "'$path' $messageWithoutPath"
-
-    constructor(parentPath: String, e: JsonException) : this(combineJsonPaths(parentPath, e.path), e.messageWithoutPath)
-
-    constructor(arrayIndex: Int, e: JsonException) : this("[$arrayIndex]", e)
 }
-
-private fun combineJsonPaths(parentPath: String, path: String): String =
-    if (path.isEmpty()) parentPath else if (path.startsWith("[")) "$parentPath$path" else "$parentPath.$path"
