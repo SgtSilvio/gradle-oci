@@ -94,10 +94,14 @@ value class JsonArray internal constructor(@PublishedApi internal val delegate: 
     }
 }
 
-class JsonException constructor(private val path: String, private val messageWithoutPath: String) :
-    RuntimeException(messageWithoutPath, null, false, false) {
+class JsonException constructor(
+    private val path: String,
+    messageWithoutPath: String,
+) : RuntimeException(messageWithoutPath, null, false, false) {
 
-    override val message get() = "'$path' " + super.message
+    private val messageWithoutPath get() = super.message.toString()
+
+    override val message get() = "'$path' $messageWithoutPath"
 
     constructor(parentPath: String, e: JsonException) : this(combineJsonPaths(parentPath, e.path), e.messageWithoutPath)
 
