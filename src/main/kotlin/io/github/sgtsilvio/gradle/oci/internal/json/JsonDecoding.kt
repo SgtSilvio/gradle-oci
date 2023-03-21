@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci.internal.json
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.*
 
 fun jsonObject(string: String): JsonObject = JsonObject(JSONObject(string))
 
@@ -12,22 +13,22 @@ annotation class JsonDecodingDsl
 @JvmInline
 value class JsonValue @PublishedApi internal constructor(private val delegate: Any) {
 
-    fun objectValue() = when (delegate) {
+    fun asObject() = when (delegate) {
         is JSONObject -> JsonObject(delegate)
         else -> throw JsonException("", "must be an object, but is '$delegate'")
     }
 
-    fun arrayValue() = when (delegate) {
+    fun asArray() = when (delegate) {
         is JSONArray -> JsonArray(delegate)
         else -> throw JsonException("", "must be an array, but is '$delegate'")
     }
 
-    fun stringValue() = when (delegate) {
+    fun asString() = when (delegate) {
         is String -> delegate
         else -> throw JsonException("", "must be a string, but is '$delegate'")
     }
 
-    fun longValue() = when (delegate) {
+    fun asLong() = when (delegate) {
         is Long -> delegate
         is Int -> delegate.toLong()
         else -> throw JsonException("", "must be a long, but is '$delegate'")
@@ -40,7 +41,7 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
 
     fun hasKey(key: String) = delegate.has(key)
 
-    inline fun <T> key(key: String, transformer: JsonValue.() -> T): T {
+    inline fun <T> get(key: String, transformer: JsonValue.() -> T): T {
         val value = delegate.opt(key) ?: throw JsonException(key, "is required, but is missing")
         try {
             return transformer.invoke(JsonValue(value))
@@ -49,7 +50,7 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
         }
     }
 
-    inline fun <T> optionalKey(key: String, transformer: JsonValue.() -> T): T? {
+    inline fun <T> getOrNull(key: String, transformer: JsonValue.() -> T): T? {
         val value = delegate.opt(key) ?: return null
         try {
             return transformer.invoke(JsonValue(value))
@@ -61,6 +62,19 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
     inline fun <T, M : MutableMap<in String, in T>> toMap(destination: M, transformer: JsonValue.() -> T): M =
         delegate.toMap().mapValuesTo(destination) { transformer.invoke(JsonValue(it.value)) }
 }
+
+fun JsonObject.getString(key: String) = get(key) { asString() }
+fun JsonObject.getStringOrNull(key: String) = getOrNull(key) { asString() }
+
+fun JsonObject.getLong(key: String) = get(key) { asLong() }
+
+fun JsonObject.getStringList(key: String) = get(key) { asArray().toStringList() }
+fun JsonObject.getStringListOrNull(key: String) = getOrNull(key) { asArray().toStringList() }
+
+fun JsonObject.getStringSetOrNull(key: String) = getOrNull(key) { asArray().toStringSet() }
+
+fun JsonObject.toStringMap() = toMap(TreeMap()) { asString() }
+fun JsonObject.getStringMapOrNull(key: String) = getOrNull(key) { asObject().toStringMap() }
 
 @JsonDecodingDsl
 @JvmInline
@@ -93,6 +107,10 @@ value class JsonArray internal constructor(@PublishedApi internal val delegate: 
         }
     }
 }
+
+fun JsonArray.toStringList() = toList { asString() }
+
+fun JsonArray.toStringSet() = toSet(TreeSet()) { asString() }
 
 class JsonException constructor(
     private val path: String,

@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.internal.json.JsonArray
-import io.github.sgtsilvio.gradle.oci.internal.json.JsonException
-import io.github.sgtsilvio.gradle.oci.internal.json.JsonObject
-import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import java.time.Instant
 import java.util.*
@@ -11,77 +8,73 @@ import java.util.*
 fun decodeComponent(string: String) = jsonObject(string).decodeComponent()
 
 private fun JsonObject.decodeComponent() = OciComponent(
-    key("capabilities") { arrayValue().toSet(TreeSet()) { objectValue().decodeVersionedCapability() } },
+    get("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCapability() } },
     if (hasKey("bundle")) {
         if (hasKey("platformBundles")) throw JsonException("bundle|platformBundles", "must not both be present")
-        key("bundle") { objectValue().decodeBundle() }
+        get("bundle") { asObject().decodeBundle() }
     } else {
-        key("platformBundles") { arrayValue().decodePlatformBundles() }
+        get("platformBundles") { asArray().decodePlatformBundles() }
     },
-    optionalKey("indexAnnotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
+    getStringMapOrNull("indexAnnotations") ?: TreeMap(),
 )
 
-private fun JsonObject.decodeCapability() = Capability(
-    key("group") { stringValue() },
-    key("name") { stringValue() },
-)
+private fun JsonObject.decodeCapability() = Capability(getString("group"), getString("name"))
 
-private fun JsonObject.decodeVersionedCapability() = VersionedCapability(
-    decodeCapability(),
-    key("version") { stringValue() },
-)
+private fun JsonObject.decodeVersionedCapability() = VersionedCapability(decodeCapability(), getString("version"))
 
 private fun JsonArray.decodePlatformBundles() = OciComponent.PlatformBundles(toMap(TreeMap()) {
-    objectValue().run {
+    asObject().run {
         Pair(
-            key("platform") { objectValue().decodePlatform() },
-            key("bundle") { objectValue().decodeBundle() },
+            get("platform") { asObject().decodePlatform() },
+            get("bundle") { asObject().decodeBundle() },
         )
     }
 })
 
 private fun JsonObject.decodePlatform() = PlatformImpl(
-    key("os") { stringValue() },
-    key("architecture") { stringValue() },
-    optionalKey("variant") { stringValue() } ?: "",
-    optionalKey("osVersion") { stringValue() } ?: "",
-    optionalKey("osFeatures") { arrayValue().toSet(TreeSet()) { stringValue() } } ?: sortedSetOf(),
+    getString("os"),
+    getString("architecture"),
+    getStringOrNull("variant") ?: "",
+    getStringOrNull("osVersion") ?: "",
+    getStringSetOrNull("osFeatures") ?: TreeSet(),
 )
 
 private fun JsonObject.decodeBundle() = OciComponent.Bundle(
-    optionalKey("creationTime") { Instant.parse(stringValue()) },
-    optionalKey("author") { stringValue() },
-    optionalKey("user") { stringValue() },
-    optionalKey("ports") { arrayValue().toSet(TreeSet()) { stringValue() } } ?: sortedSetOf(),
-    optionalKey("environment") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
-    optionalKey("command") { objectValue().decodeCommand() },
-    optionalKey("volumes") { arrayValue().toSet(TreeSet()) { stringValue() } } ?: sortedSetOf(),
-    optionalKey("workingDirectory") { stringValue() },
-    optionalKey("stopSignal") { stringValue() },
-    optionalKey("configAnnotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
-    optionalKey("configDescriptorAnnotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
-    optionalKey("manifestAnnotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
-    optionalKey("manifestDescriptorAnnotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
-    optionalKey("parentCapabilities") { arrayValue().toList { objectValue().decodeCapability() } } ?: listOf(),
-    key("layers") { arrayValue().toList { objectValue().decodeLayer() } },
+    getInstantOrNull("creationTime"),
+    getStringOrNull("author"),
+    getStringOrNull("user"),
+    getStringSetOrNull("ports") ?: TreeSet(),
+    getStringMapOrNull("environment") ?: TreeMap(),
+    getOrNull("command") { asObject().decodeCommand() },
+    getStringSetOrNull("volumes") ?: TreeSet(),
+    getStringOrNull("workingDirectory"),
+    getStringOrNull("stopSignal"),
+    getStringMapOrNull("configAnnotations") ?: TreeMap(),
+    getStringMapOrNull("configDescriptorAnnotations") ?: TreeMap(),
+    getStringMapOrNull("manifestAnnotations") ?: TreeMap(),
+    getStringMapOrNull("manifestDescriptorAnnotations") ?: TreeMap(),
+    getOrNull("parentCapabilities") { asArray().toList { asObject().decodeCapability() } } ?: listOf(),
+    get("layers") { asArray().toList { asObject().decodeLayer() } },
 )
 
 private fun JsonObject.decodeCommand() = OciComponent.Bundle.Command(
-    optionalKey("entryPoint") { arrayValue().toList { stringValue() } },
-    key("arguments") { arrayValue().toList { stringValue() } },
+    getStringListOrNull("entryPoint"),
+    getStringList("arguments"),
 )
 
 private fun JsonObject.decodeLayer() = OciComponent.Bundle.Layer(
     if (hasKey("digest") || hasKey("diffId") || hasKey("size") || hasKey("annotations")) {
         OciComponent.Bundle.Layer.Descriptor(
-            key("digest") { stringValue() },
-            key("diffId") { stringValue() },
-            key("size") { longValue() },
-            optionalKey("annotations") { objectValue().toMap(TreeMap()) { stringValue() } } ?: sortedMapOf(),
+            getString("digest"),
+            getString("diffId"),
+            getLong("size"),
+            getStringMapOrNull("annotations") ?: TreeMap(),
         )
     } else null,
-    optionalKey("creationTime") { Instant.parse(stringValue()) },
-    optionalKey("author") { stringValue() },
-    optionalKey("createdBy") { stringValue() },
-    optionalKey("comment") { stringValue() },
+    getInstantOrNull("creationTime"),
+    getStringOrNull("author"),
+    getStringOrNull("createdBy"),
+    getStringOrNull("comment"),
 )
+
+private fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) }
