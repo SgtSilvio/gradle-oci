@@ -130,6 +130,40 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
+    private fun groupToImageNamespace(group: String): String {
+        val tldEndIndex = group.indexOf('.')
+        return if (tldEndIndex == -1) {
+            group
+        } else {
+            group.substring(tldEndIndex + 1).replace('.', '/')
+        }
+    }
+
+    private fun Path.resolveDigestLinkFile(digest: String): Path {
+        val (alg, hex) = digest.split(':', limit = 2)
+        return Files.createDirectories(resolve(alg).resolve(hex)).resolve("link")
+    }
+
+    private fun Path.resolveDigestDataFile(digest: String): Path {
+        val (alg, hex) = digest.split(':', limit = 2)
+        return Files.createDirectories(resolve(alg).resolve(hex.substring(0, 2)).resolve(hex)).resolve("data")
+    }
+
+    private fun Path.writeDigestLink(digest: String) {
+        Files.write(resolveDigestLinkFile(digest), digest.toByteArray())
+    }
+
+    private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
+        val digestDataFile = resolveDigestDataFile(dataDescriptor.digest)
+        try {
+            Files.write(digestDataFile, dataDescriptor.data, StandardOpenOption.CREATE_NEW)
+        } catch (e: FileAlreadyExistsException) {
+            if (!dataDescriptor.data.contentEquals(Files.readAllBytes(digestDataFile))) {
+                throw IllegalStateException("hash collision for digest ${dataDescriptor.digest}: expected file content of $digestDataFile to be the same as ${dataDescriptor.data.contentToString()}")
+            }
+        }
+    }
+
     private fun Path.writeTagLink(digest: String) {
         val tagLinkFile = Files.createDirectories(resolve("current")).resolve("link")
         val digestBytes = digest.toByteArray()
@@ -155,40 +189,6 @@ private inline fun iterateLayers(component: OciComponent, action: (OciComponent.
         is OciComponent.Bundle -> bundleOrPlatformBundles.layers.forEach(action)
         is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.forEach { bundle ->
             bundle.layers.forEach(action)
-        }
-    }
-}
-
-private fun groupToImageNamespace(group: String): String {
-    val tldEndIndex = group.indexOf('.')
-    return if (tldEndIndex == -1) {
-        group
-    } else {
-        group.substring(tldEndIndex + 1).replace('.', '/')
-    }
-}
-
-private fun Path.resolveDigestLinkFile(digest: String): Path {
-    val (alg, hex) = digest.split(':', limit = 2)
-    return Files.createDirectories(resolve(alg).resolve(hex)).resolve("link")
-}
-
-private fun Path.resolveDigestDataFile(digest: String): Path {
-    val (alg, hex) = digest.split(':', limit = 2)
-    return Files.createDirectories(resolve(alg).resolve(hex.substring(0, 2)).resolve(hex)).resolve("data")
-}
-
-private fun Path.writeDigestLink(digest: String) {
-    Files.write(resolveDigestLinkFile(digest), digest.toByteArray())
-}
-
-private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
-    val digestDataFile = resolveDigestDataFile(dataDescriptor.digest)
-    try {
-        Files.write(digestDataFile, dataDescriptor.data, StandardOpenOption.CREATE_NEW)
-    } catch (e: FileAlreadyExistsException) {
-        if (!dataDescriptor.data.contentEquals(Files.readAllBytes(digestDataFile))) {
-            throw IllegalStateException("hash collision for digest ${dataDescriptor.digest}: expected file content of $digestDataFile to be the same as ${dataDescriptor.data.contentToString()}")
         }
     }
 }
