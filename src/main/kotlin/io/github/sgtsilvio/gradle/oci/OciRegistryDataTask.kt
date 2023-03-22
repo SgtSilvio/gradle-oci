@@ -5,6 +5,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.createConfig
 import io.github.sgtsilvio.gradle.oci.metadata.createIndex
 import io.github.sgtsilvio.gradle.oci.metadata.createManifest
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
@@ -14,6 +15,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 /**
  * @author Silvio Giebl
@@ -32,46 +34,11 @@ abstract class OciRegistryDataTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
+        val componentAndDigestToLayerPairs = findComponents()
+
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
-
-        val componentAndDigestToLayerPairs = mutableListOf<Pair<OciComponent, Map<String, File>>>()
-        val iterator: Iterator<File> = ociFiles.iterator()
-        while (iterator.hasNext()) {
-            val componentFile = iterator.next()
-            val component = decodeComponent(componentFile.readText()) // TODO check if fails
-            val digestToLayer = hashMapOf<String, File>()
-            iterateLayers(component) { layer -> // TODO double inline
-                layer.descriptor?.let {
-                    val digest = it.digest
-                    if (digest !in digestToLayer) {
-                        if (!iterator.hasNext()) {
-                            throw IllegalStateException() // TODO message
-                        }
-                        digestToLayer[digest] = iterator.next()
-                    }
-                }
-            }
-            componentAndDigestToLayerPairs += Pair(component, digestToLayer)
-        }
-
-        val digestToLayer = hashMapOf<String, File>()
-        for ((_, digestToLayerPerComponent) in componentAndDigestToLayerPairs) {
-            for ((digest, layer) in digestToLayerPerComponent) {
-                val prevLayer = digestToLayer.putIfAbsent(digest, layer)
-                if (prevLayer != null) {
-                    if (layer.length() != prevLayer.length()) {
-                        throw IllegalStateException("hash collision") // TODO message
-                    } else {
-                        // TODO warn that same layer should not be provided by different components
-                    }
-                }
-            }
-        }
-
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
-        for ((digest, layer) in digestToLayer) {
-            Files.createLink(blobsDirectory.resolveDigestDataFile(digest), layer.toPath())
-        }
+        blobsDirectory.writeLayers(componentAndDigestToLayerPairs)
 
         val repositoriesDirectory: Path = registryDataDirectory.resolve("repositories")
         val componentResolver = OciComponentResolver()
@@ -117,11 +84,60 @@ abstract class OciRegistryDataTask : DefaultTask() {
                 Files.createDirectories(manifestsDirectory.resolve("revisions")).writeDigestLink(indexDigest)
                 val tagDirectory: Path =
                     Files.createDirectories(manifestsDirectory.resolve("tags").resolve(versionedCapability.version))
-                Files.write(
-                    Files.createDirectories(tagDirectory.resolve("current")).resolve("link"),
-                    indexDigest.toByteArray(),
-                )
+                tagDirectory.writeTagLink(indexDigest)
                 Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
+            }
+        }
+    }
+
+    private fun findComponents(): MutableList<Pair<OciComponent, Map<String, File>>> {
+        val componentAndDigestToLayerPairs = mutableListOf<Pair<OciComponent, Map<String, File>>>()
+        val iterator: Iterator<File> = ociFiles.iterator()
+        while (iterator.hasNext()) {
+            val componentFile = iterator.next()
+            val component = decodeComponent(componentFile.readText()) // TODO check if fails
+            val digestToLayer = hashMapOf<String, File>()
+            iterateLayers(component) { layer -> // TODO double inline
+                layer.descriptor?.let {
+                    val digest = it.digest
+                    if (digest !in digestToLayer) {
+                        if (!iterator.hasNext()) {
+                            throw IllegalStateException() // TODO message
+                        }
+                        digestToLayer[digest] = iterator.next()
+                    }
+                }
+            }
+            componentAndDigestToLayerPairs += Pair(component, digestToLayer)
+        }
+        return componentAndDigestToLayerPairs
+    }
+
+    private fun Path.writeLayers(componentAndDigestToLayerPairs: MutableList<Pair<OciComponent, Map<String, File>>>) {
+        for ((_, digestToLayerPerComponent) in componentAndDigestToLayerPairs) {
+            for ((digest, layer) in digestToLayerPerComponent) {
+                val digestDataFile = resolveDigestDataFile(digest)
+                try {
+                    Files.createLink(digestDataFile, layer.toPath())
+                } catch (e: FileAlreadyExistsException) {
+                    if (FileUtils.contentEquals(digestDataFile.toFile(), layer)) {
+                        // TODO warn that same layer should not be provided by different components
+                    } else {
+                        throw IllegalStateException("hash collision for digest $digest: expected file contents of $digestDataFile and $layer to be the same")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun Path.writeTagLink(digest: String) {
+        val tagLinkFile = Files.createDirectories(resolve("current")).resolve("link")
+        val digestBytes = digest.toByteArray()
+        try {
+            Files.write(tagLinkFile, digestBytes)
+        } catch (e: FileAlreadyExistsException) {
+            if (!digestBytes.contentEquals(Files.readAllBytes(tagLinkFile))) {
+                throw IllegalStateException("tried to link the same image name/tag to different images")
             }
         }
     }
@@ -167,5 +183,12 @@ private fun Path.writeDigestLink(digest: String) {
 }
 
 private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
-    Files.write(resolveDigestDataFile(dataDescriptor.digest), dataDescriptor.data)
+    val digestDataFile = resolveDigestDataFile(dataDescriptor.digest)
+    try {
+        Files.write(digestDataFile, dataDescriptor.data, StandardOpenOption.CREATE_NEW)
+    } catch (e: FileAlreadyExistsException) {
+        if (!dataDescriptor.data.contentEquals(Files.readAllBytes(digestDataFile))) {
+            throw IllegalStateException("hash collision for digest ${dataDescriptor.digest}: expected file content of $digestDataFile to be the same as ${dataDescriptor.data.contentToString()}")
+        }
+    }
 }
