@@ -49,7 +49,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         for (rootCapability in rootCapabilities) {
             val resolvedComponent = componentResolver.resolve(rootCapability)
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-            val imageDigests = mutableSetOf<String>()
+            val imageDigests = hashSetOf<String>()
             for (platform in resolvedComponent.platforms) {
                 val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
                 for (bundle in bundlesForPlatform) {
@@ -71,7 +71,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
             blobsDirectory.writeDigestData(index)
             val indexDigest = index.digest
 
-            resolvedComponent.component.capabilities.forEach { versionedCapability ->
+            for (versionedCapability in resolvedComponent.component.capabilities) {
                 val imageNamespace = groupToImageNamespace(versionedCapability.capability.group)
                 val repositoryDirectory: Path = Files.createDirectories(
                     repositoriesDirectory.resolve(imageNamespace).resolve(versionedCapability.capability.name)
@@ -95,14 +95,14 @@ abstract class OciRegistryDataTask : DefaultTask() {
         val iterator: Iterator<File> = ociFiles.iterator()
         while (iterator.hasNext()) {
             val componentFile = iterator.next()
-            val component = decodeComponent(componentFile.readText()) // TODO check if fails
+            val component = decodeComponent(componentFile.readText())
             val digestToLayer = hashMapOf<String, File>()
             iterateLayers(component) { layer -> // TODO double inline
                 layer.descriptor?.let {
                     val digest = it.digest
                     if (digest !in digestToLayer) {
                         if (!iterator.hasNext()) {
-                            throw IllegalStateException() // TODO message
+                            throw IllegalStateException("ociFiles are missing layers referenced in components")
                         }
                         digestToLayer[digest] = iterator.next()
                     }
@@ -121,7 +121,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
                     Files.createLink(digestDataFile, layer.toPath())
                 } catch (e: FileAlreadyExistsException) {
                     if (FileUtils.contentEquals(digestDataFile.toFile(), layer)) {
-                        // TODO warn that same layer should not be provided by different components
+                        logger.warn("the same layer ($digest) should not be provided by multiple components")
                     } else {
                         throw IllegalStateException("hash collision for digest $digest: expected file contents of $digestDataFile and $layer to be the same")
                     }
