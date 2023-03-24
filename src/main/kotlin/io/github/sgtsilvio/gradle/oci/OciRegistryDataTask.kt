@@ -97,7 +97,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
             val componentFile = iterator.next()
             val component = decodeComponent(componentFile.readText())
             val digestToLayer = hashMapOf<String, File>()
-            iterateLayers(component) { layer -> // TODO double inline
+            for (layer in component.allLayers) {
                 layer.descriptor?.let {
                     val digest = it.digest
                     if (digest !in digestToLayer) {
@@ -175,6 +175,11 @@ abstract class OciRegistryDataTask : DefaultTask() {
             }
         }
     }
+
+    private val OciComponent.allLayers get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
+        is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
+        is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
+    }
 }
 
 private fun Path.ensureEmptyDirectory(): Path {
@@ -182,13 +187,4 @@ private fun Path.ensureEmptyDirectory(): Path {
         throw IOException("$this could not be deleted")
     }
     return Files.createDirectories(this)
-}
-
-private inline fun iterateLayers(component: OciComponent, action: (OciComponent.Bundle.Layer) -> Unit) {
-    when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
-        is OciComponent.Bundle -> bundleOrPlatformBundles.layers.forEach(action)
-        is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.forEach { bundle ->
-            bundle.layers.forEach(action)
-        }
-    }
 }
