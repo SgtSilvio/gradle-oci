@@ -130,27 +130,9 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun groupToImageNamespace(group: String): String {
-        val tldEndIndex = group.indexOf('.')
-        return if (tldEndIndex == -1) {
-            group
-        } else {
-            group.substring(tldEndIndex + 1).replace('.', '/')
-        }
-    }
-
-    private fun Path.resolveDigestLinkFile(digest: String): Path {
-        val (alg, hex) = digest.split(':', limit = 2)
-        return Files.createDirectories(resolve(alg).resolve(hex)).resolve("link")
-    }
-
     private fun Path.resolveDigestDataFile(digest: String): Path {
         val (alg, hex) = digest.split(':', limit = 2)
         return Files.createDirectories(resolve(alg).resolve(hex.substring(0, 2)).resolve(hex)).resolve("data")
-    }
-
-    private fun Path.writeDigestLink(digest: String) {
-        Files.write(resolveDigestLinkFile(digest), digest.toByteArray())
     }
 
     private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
@@ -164,6 +146,11 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
+    private fun Path.writeDigestLink(digest: String) {
+        val (alg, hex) = digest.split(':', limit = 2)
+        Files.write(Files.createDirectories(resolve(alg).resolve(hex)).resolve("link"), digest.toByteArray())
+    }
+
     private fun Path.writeTagLink(digest: String) {
         val tagLinkFile = Files.createDirectories(resolve("current")).resolve("link")
         val digestBytes = digest.toByteArray()
@@ -173,6 +160,15 @@ abstract class OciRegistryDataTask : DefaultTask() {
             if (!digestBytes.contentEquals(Files.readAllBytes(tagLinkFile))) {
                 throw IllegalStateException("tried to link the same image name/tag to different images")
             }
+        }
+    }
+
+    private fun groupToImageNamespace(group: String): String {
+        val tldEndIndex = group.indexOf('.')
+        return if (tldEndIndex == -1) {
+            group
+        } else {
+            group.substring(tldEndIndex + 1).replace('.', '/')
         }
     }
 
