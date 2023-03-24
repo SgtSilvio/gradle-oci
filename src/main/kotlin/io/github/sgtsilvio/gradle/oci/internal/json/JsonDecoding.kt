@@ -1,10 +1,17 @@
 package io.github.sgtsilvio.gradle.oci.internal.json
 
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.*
 
-fun jsonObject(string: String): JsonObject = JsonObject(JSONObject(string))
+fun jsonObject(string: String): JsonObject = JsonObject(
+    try {
+        JSONObject(string)
+    } catch (e: JSONException) {
+        throw JsonException.create("<syntax>", e)
+    }
+)
 
 @DslMarker
 annotation class JsonDecodingDsl
@@ -123,7 +130,7 @@ class JsonException private constructor(
 
         fun create(path: String, cause: Throwable) = when (cause) {
             is JsonException -> JsonException(combineJsonPaths(path, cause.path), cause.messageWithoutPath, cause.cause)
-            else -> JsonException("", "not valid: " + cause.message, cause)
+            else -> JsonException(path, "not valid: " + cause.message, cause)
         }
 
         fun create(arrayIndex: Int, cause: Throwable) = create("[$arrayIndex]", cause)
