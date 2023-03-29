@@ -1,6 +1,8 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapping
+import io.github.sgtsilvio.gradle.oci.mapping.createCapabilityMapper
 import io.github.sgtsilvio.gradle.oci.metadata.createConfig
 import io.github.sgtsilvio.gradle.oci.metadata.createIndex
 import io.github.sgtsilvio.gradle.oci.metadata.createManifest
@@ -10,6 +12,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.*
+import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.setProperty
 import java.io.File
 import java.io.IOException
@@ -32,6 +35,9 @@ abstract class OciRegistryDataTask : DefaultTask() {
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
 
+    @get:Nested
+    val imageNameMapping = project.objects.newInstance<OciImageNameCapabilityMapping>()
+
     @TaskAction
     protected fun run() {
         val componentAndDigestToLayerPairs = findComponents()
@@ -45,6 +51,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         for ((component, _) in componentAndDigestToLayerPairs) {
             componentResolver.addComponent(component)
         }
+        val imageNameMapper = imageNameMapping.createCapabilityMapper()
         val rootCapabilities: Set<Capability> = rootCapabilities.get()
         for (rootCapability in rootCapabilities) {
             val resolvedComponent = componentResolver.resolve(rootCapability)
@@ -71,10 +78,13 @@ abstract class OciRegistryDataTask : DefaultTask() {
             blobsDirectory.writeDigestData(index)
             val indexDigest = index.digest
 
-            for (versionedCapability in resolvedComponent.component.capabilities) {
-                val imageNamespace = groupToImageNamespace(versionedCapability.capability.group)
+            val imageNames = imageNameMapper.map(
+                resolvedComponent.component.capabilities,
+                resolvedComponent.collectCapabilities(),
+            )
+            for (imageName in imageNames) {
                 val repositoryDirectory: Path = Files.createDirectories(
-                    repositoriesDirectory.resolve(imageNamespace).resolve(versionedCapability.capability.name)
+                    repositoriesDirectory.resolve(imageName.namespace).resolve(imageName.name)
                 )
                 val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
                 for (imageDigest in imageDigests) {
@@ -83,7 +93,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
                 val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_manifests"))
                 Files.createDirectories(manifestsDirectory.resolve("revisions")).writeDigestLink(indexDigest)
                 val tagDirectory: Path =
-                    Files.createDirectories(manifestsDirectory.resolve("tags").resolve(versionedCapability.version))
+                    Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageName.tag))
                 tagDirectory.writeTagLink(indexDigest)
                 Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
             }
@@ -163,19 +173,11 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun groupToImageNamespace(group: String): String {
-        val tldEndIndex = group.indexOf('.')
-        return if (tldEndIndex == -1) {
-            group
-        } else {
-            group.substring(tldEndIndex + 1).replace('.', '/')
+    private val OciComponent.allLayers
+        get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
+            is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
+            is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
         }
-    }
-
-    private val OciComponent.allLayers get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
-        is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
-        is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
-    }
 }
 
 private fun Path.ensureEmptyDirectory(): Path {
