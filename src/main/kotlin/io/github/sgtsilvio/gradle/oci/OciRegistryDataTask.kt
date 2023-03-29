@@ -10,6 +10,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.createManifest
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
+import org.gradle.api.NonExtensible
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.SetProperty
@@ -28,6 +29,7 @@ import java.nio.file.StandardOpenOption
  */
 abstract class OciRegistryDataTask : DefaultTask() {
 
+    @NonExtensible
     interface Images {
         @get:InputFiles
         @get:PathSensitive(PathSensitivity.NONE)
