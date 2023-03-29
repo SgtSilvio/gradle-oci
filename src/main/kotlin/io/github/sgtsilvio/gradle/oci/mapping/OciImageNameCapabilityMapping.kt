@@ -13,7 +13,7 @@ interface OciImageNameCapabilityMapping : OciImageNameMapping {
     val customMappings: ListProperty<CustomOciImageNameCapabilityMapper>
 }
 
-interface CustomOciImageNameCapabilityMapper {
+fun interface CustomOciImageNameCapabilityMapper {
     fun map(
         componentCapabilities: Set<VersionedCapability>,
         allCapabilities: Set<VersionedCapability>,
