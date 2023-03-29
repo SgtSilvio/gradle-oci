@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapper
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapping
 import io.github.sgtsilvio.gradle.oci.mapping.createCapabilityMapper
 import io.github.sgtsilvio.gradle.oci.metadata.createConfig
@@ -11,11 +12,13 @@ import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
+import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
-import org.gradle.kotlin.dsl.setProperty
 import java.io.File
 import java.io.IOException
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -25,24 +28,36 @@ import java.nio.file.StandardOpenOption
  */
 abstract class OciRegistryDataTask : DefaultTask() {
 
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.NONE)
-    val ociFiles: ConfigurableFileCollection = project.objects.fileCollection()
+    interface Images {
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.NONE)
+        val ociFiles: ConfigurableFileCollection
 
-    @get:Input
-    val rootCapabilities = project.objects.setProperty<Capability>()
+        @get:Input
+        val rootCapabilities: SetProperty<Capability>
+    }
 
-    @get:OutputDirectory
-    val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
+    @get:Nested
+    val imagesList = project.objects.listProperty<Images>()
 
     @get:Nested
     val imageNameMapping = project.objects.newInstance<OciImageNameCapabilityMapping>()
 
+    @get:OutputDirectory
+    val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
+
     @TaskAction
     protected fun run() {
-        val componentAndDigestToLayerPairs = findComponents()
-
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
+        val imageNameMapper = imageNameMapping.createCapabilityMapper()
+        for (images in imagesList.get()) {
+            images.writeTo(registryDataDirectory, imageNameMapper)
+        }
+    }
+
+    private fun Images.writeTo(registryDataDirectory: Path, imageNameMapper: OciImageNameCapabilityMapper) {
+        val componentAndDigestToLayerPairs = findComponents(ociFiles)
+
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
         blobsDirectory.writeLayers(componentAndDigestToLayerPairs)
 
@@ -51,7 +66,6 @@ abstract class OciRegistryDataTask : DefaultTask() {
         for ((component, _) in componentAndDigestToLayerPairs) {
             componentResolver.addComponent(component)
         }
-        val imageNameMapper = imageNameMapping.createCapabilityMapper()
         val rootCapabilities: Set<Capability> = rootCapabilities.get()
         for (rootCapability in rootCapabilities) {
             val resolvedComponent = componentResolver.resolve(rootCapability)
@@ -100,9 +114,9 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun findComponents(): MutableList<Pair<OciComponent, Map<String, File>>> {
+    private fun findComponents(ociFiles: Iterable<File>): MutableList<Pair<OciComponent, Map<String, File>>> {
         val componentAndDigestToLayerPairs = mutableListOf<Pair<OciComponent, Map<String, File>>>()
-        val iterator: Iterator<File> = ociFiles.iterator()
+        val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
             val componentFile = iterator.next()
             val component = decodeComponent(componentFile.readText())
