@@ -31,7 +31,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
     interface Images {
         @get:InputFiles
         @get:PathSensitive(PathSensitivity.NONE)
-        val ociFiles: ConfigurableFileCollection
+        val files: ConfigurableFileCollection
 
         @get:Input
         val rootCapabilities: SetProperty<Capability>
@@ -56,7 +56,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
     }
 
     private fun Images.writeTo(registryDataDirectory: Path, imageNameMapper: OciImageNameCapabilityMapper) {
-        val componentAndDigestToLayerPairs = findComponents(ociFiles)
+        val componentAndDigestToLayerPairs = findComponents(files)
 
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
         blobsDirectory.writeLayers(componentAndDigestToLayerPairs)
@@ -114,7 +114,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun findComponents(ociFiles: Iterable<File>): MutableList<Pair<OciComponent, Map<String, File>>> {
+    private fun findComponents(ociFiles: Iterable<File>): List<Pair<OciComponent, Map<String, File>>> {
         val componentAndDigestToLayerPairs = mutableListOf<Pair<OciComponent, Map<String, File>>>()
         val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
@@ -137,7 +137,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         return componentAndDigestToLayerPairs
     }
 
-    private fun Path.writeLayers(componentAndDigestToLayerPairs: MutableList<Pair<OciComponent, Map<String, File>>>) {
+    private fun Path.writeLayers(componentAndDigestToLayerPairs: List<Pair<OciComponent, Map<String, File>>>) {
         for ((_, digestToLayerPerComponent) in componentAndDigestToLayerPairs) {
             for ((digest, layer) in digestToLayerPerComponent) {
                 val digestDataFile = resolveDigestDataFile(digest)
