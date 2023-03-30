@@ -39,7 +39,6 @@ dependencies {
     implementation(libs.commons.compress)
     implementation(libs.commons.io)
     implementation(libs.json)
-    implementation("com.google.cloud.tools:jib-core:0.21.0")
 }
 
 gradlePlugin {
