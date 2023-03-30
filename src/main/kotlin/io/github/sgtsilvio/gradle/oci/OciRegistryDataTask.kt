@@ -9,10 +9,14 @@ import io.github.sgtsilvio.gradle.oci.metadata.createIndex
 import io.github.sgtsilvio.gradle.oci.metadata.createManifest
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
+import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
@@ -38,6 +42,17 @@ abstract class OciRegistryDataTask : DefaultTask() {
 
         @get:Input
         val rootCapabilities: SetProperty<Capability>
+
+        fun from(configuration: Configuration) {
+            files.from(configuration)
+            rootCapabilities.set(configuration.incoming.resolutionResult.rootComponent.map { root ->
+                root.dependencies.filter { !it.isConstraint }.mapTo(HashSet()) { dependencyResult ->
+                    dependencyResult as ResolvedDependencyResult
+                    val capability = dependencyResult.resolvedVariant.capabilities.first()
+                    Capability(capability.group, capability.name)
+                }
+            })
+        }
     }
 
     @get:Nested
@@ -48,6 +63,15 @@ abstract class OciRegistryDataTask : DefaultTask() {
 
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
+
+    inline fun Images(action: Images.() -> Unit) = project.objects.newInstance<Images>().apply(action)
+
+    fun from(configurationsProvider: Provider<List<Configuration>>) =
+        imagesList.addAll(configurationsProvider.map { configurations ->
+            configurations.map { configuration -> Images { from(configuration) } }
+        })
+
+    fun imageNameMapping(action: Action<in OciImageNameCapabilityMapping>) = action.execute(imageNameMapping)
 
     @TaskAction
     protected fun run() {
