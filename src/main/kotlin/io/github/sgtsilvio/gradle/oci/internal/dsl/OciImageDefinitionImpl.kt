@@ -5,6 +5,7 @@ import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptySet
@@ -15,8 +16,10 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
-import org.gradle.api.artifacts.*
-import org.gradle.api.artifacts.dsl.DependencyHandler
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.ModuleVersionIdentifier
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.file.ProjectLayout
@@ -207,15 +210,14 @@ abstract class OciImageDefinitionImpl @Inject constructor(
     ) : OciImageDefinition.Bundle, BundleOrPlatformBundles {
 
         val platform: Platform? = platform.orElse(null)
-        override val parentImages = objectFactory.newInstance<ParentImages>(imageConfiguration)
+        override val parentImages = objectFactory.newInstance<OciImageDependenciesImpl>(imageConfiguration)
         override val config = objectFactory.newInstance<OciImageDefinition.Bundle.Config>().apply {
             entryPoint.convention(null)
             arguments.convention(null)
         }
         override val layers = objectFactory.newInstance<Layers>(imageName, platform)
 
-        override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
-            configuration.execute(parentImages)
+        override fun parentImages(configuration: Action<in OciImageDependencies>) = configuration.execute(parentImages)
 
         override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) = configuration.execute(config)
 
@@ -298,64 +300,6 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 }
                 listProvider
             }.flatMap { it }
-
-
-        abstract class ParentImages @Inject constructor(
-            private val imageConfiguration: Configuration,
-            private val dependencyHandler: DependencyHandler,
-        ) : OciImageDefinition.Bundle.ParentImages {
-
-            override fun add(dependency: ModuleDependency) {
-                val finalizedDependency = finalizeDependency(dependency)
-                dependencies.add(finalizedDependency)
-                imageConfiguration.dependencies.add(finalizedDependency)
-            }
-
-            override fun <D : ModuleDependency> add(dependency: D, configuration: Action<in D>) {
-                val finalizedDependency = finalizeDependency(dependency)
-                configuration.execute(finalizedDependency)
-                dependencies.add(finalizedDependency)
-                imageConfiguration.dependencies.add(finalizedDependency)
-            }
-
-            override fun add(dependencyProvider: Provider<out ModuleDependency>) {
-                val finalizedDependencyProvider = dependencyProvider.map { finalizeDependency(it) }
-                dependencies.addLater(finalizedDependencyProvider)
-                imageConfiguration.dependencies.addLater(finalizedDependencyProvider)
-            }
-
-            override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, configuration: Action<in D>) {
-                val finalizedDependencyProvider = dependencyProvider.map {
-                    val finalizedDependency = finalizeDependency(it)
-                    configuration.execute(finalizedDependency)
-                    finalizedDependency
-                }
-                dependencies.addLater(finalizedDependencyProvider)
-                imageConfiguration.dependencies.addLater(finalizedDependencyProvider)
-            }
-
-            @Suppress("UNCHECKED_CAST")
-            private fun <D : ModuleDependency> finalizeDependency(dependency: D) =
-                dependencyHandler.create(dependency) as D
-
-            override fun module(dependencyNotation: CharSequence) =
-                dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
-
-            override fun module(dependencyProvider: Provider<out MinimalExternalModuleDependency>) =
-                dependencyProvider.map { dependencyHandler.create(it) as ExternalModuleDependency }
-
-            private fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency
-
-            override fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
-
-            override fun add(dependencyNotation: CharSequence, configuration: Action<in ExternalModuleDependency>) =
-                add(module(dependencyNotation), configuration)
-
-            override fun add(project: Project) = add(project(project))
-
-            override fun add(project: Project, configuration: Action<in ProjectDependency>) =
-                add(project(project), configuration)
-        }
 
 
         abstract class Layers @Inject constructor(
@@ -494,7 +438,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         }
         override val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
 
-        override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
+        override fun parentImages(configuration: Action<in OciImageDependencies>) =
             filteredBundles.configureEach { parentImages(configuration) }
 
         override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =

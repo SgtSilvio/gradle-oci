@@ -5,11 +5,9 @@ import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
-import org.gradle.api.*
-import org.gradle.api.artifacts.ExternalModuleDependency
-import org.gradle.api.artifacts.MinimalExternalModuleDependency
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.Action
+import org.gradle.api.Named
+import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.*
 import org.gradle.api.tasks.TaskProvider
@@ -37,30 +35,13 @@ interface OciImageDefinition : Named {
     }
 
     interface Bundle {
-        val parentImages: ParentImages
+        val parentImages: OciImageDependencies
         val config: Config
         val layers: Layers
 
-        fun parentImages(configuration: Action<in ParentImages>)
+        fun parentImages(configuration: Action<in OciImageDependencies>)
         fun config(configuration: Action<in Config>)
         fun layers(configuration: Action<in Layers>)
-
-        interface ParentImages {
-            val dependencies: DomainObjectSet<ModuleDependency>
-
-            fun add(dependency: ModuleDependency)
-            fun <D : ModuleDependency> add(dependency: D, configuration: Action<in D>)
-            fun add(dependencyProvider: Provider<out ModuleDependency>)
-            fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, configuration: Action<in D>)
-
-            fun module(dependencyNotation: CharSequence): ExternalModuleDependency
-            fun module(dependencyProvider: Provider<out MinimalExternalModuleDependency>): Provider<ExternalModuleDependency>
-
-            fun add(dependencyNotation: CharSequence)
-            fun add(dependencyNotation: CharSequence, configuration: Action<in ExternalModuleDependency>)
-            fun add(project: Project)
-            fun add(project: Project, configuration: Action<in ProjectDependency>)
-        }
 
         interface Config {
             val creationTime: Property<Instant>
@@ -107,7 +88,7 @@ interface OciImageDefinition : Named {
     interface BundleScope {
         val layers: Layers
 
-        fun parentImages(configuration: Action<in Bundle.ParentImages>)
+        fun parentImages(configuration: Action<in OciImageDependencies>)
         fun config(configuration: Action<in Bundle.Config>)
         fun layers(configuration: Action<in Layers>)
 
