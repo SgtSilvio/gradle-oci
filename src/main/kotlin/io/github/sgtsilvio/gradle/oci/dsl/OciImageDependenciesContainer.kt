@@ -14,7 +14,6 @@ import org.gradle.api.provider.Provider
  */
 interface OciImageDependenciesContainer : Named {
 
-//    val dependencies: NamedDomainObjectContainer<OciImageDependencies>
     val configurations: Provider<List<Configuration>>
     val default: OciImageDependencies
 

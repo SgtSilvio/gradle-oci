@@ -12,7 +12,7 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 abstract class OciImageDependenciesImpl @Inject constructor(
-    private val configuration: Configuration,
+    final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
 ) : OciImageDependencies {
 

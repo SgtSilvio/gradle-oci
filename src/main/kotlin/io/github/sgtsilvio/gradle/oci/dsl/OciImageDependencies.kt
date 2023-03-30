@@ -3,10 +3,7 @@ package io.github.sgtsilvio.gradle.oci.dsl
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ExternalModuleDependency
-import org.gradle.api.artifacts.MinimalExternalModuleDependency
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.*
 import org.gradle.api.provider.Provider
 
 /**
@@ -14,8 +11,8 @@ import org.gradle.api.provider.Provider
  */
 interface OciImageDependencies {
 
+    val configuration: Configuration
     val dependencies: DomainObjectSet<ModuleDependency>
-//    val configuration: Configuration
 
     fun add(dependency: ModuleDependency)
     fun <D : ModuleDependency> add(dependency: D, action: Action<in D>)
