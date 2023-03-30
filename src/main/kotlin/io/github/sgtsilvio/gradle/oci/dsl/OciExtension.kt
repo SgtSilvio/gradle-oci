@@ -12,7 +12,7 @@ import org.gradle.api.provider.SetProperty
 interface OciExtension {
 //    val registries: NamedDomainObjectList<Registry>
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
-//    val imageDependencyContainers: NamedDomainObjectContainer<OciImageDependencyContainer>
+    val imageDependencies: NamedDomainObjectContainer<OciImageDependenciesContainer>
 
 //    fun registries(configuration: Action<in Registries>)
 

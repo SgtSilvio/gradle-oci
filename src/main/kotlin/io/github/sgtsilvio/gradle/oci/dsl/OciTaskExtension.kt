@@ -6,5 +6,5 @@ package io.github.sgtsilvio.gradle.oci.dsl
 interface OciTaskExtension {
     // extensions for tasks that extend JavaForkOptions
 
-    fun use(imageDependencyContainer: OciImageDependencyContainer)
+    fun use(imageDependencyContainer: OciImageDependencies)
 }
