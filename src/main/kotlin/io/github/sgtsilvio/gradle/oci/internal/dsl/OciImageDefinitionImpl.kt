@@ -10,9 +10,9 @@ import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
-import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptyMap
-import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptySet
-import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
+import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
+import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
