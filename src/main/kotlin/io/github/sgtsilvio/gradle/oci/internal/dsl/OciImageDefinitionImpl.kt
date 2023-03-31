@@ -3,10 +3,12 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 import io.github.sgtsilvio.gradle.oci.OciComponentTask
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
+import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
+import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
-import io.github.sgtsilvio.gradle.oci.internal.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsEmptySet
 import io.github.sgtsilvio.gradle.oci.internal.zipAbsentAsNull
@@ -147,8 +149,8 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         isCanBeConsumed = true
         isCanBeResolved = false
         attributes {
-            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named("distribution"))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named("oci-image"))
+            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
             attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
 //                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
         }

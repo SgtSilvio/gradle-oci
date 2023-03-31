@@ -1,7 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
+import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
+import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesContainer
-import io.github.sgtsilvio.gradle.oci.internal.DISTRIBUTION_TYPE_ATTRIBUTE
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.attributes.Bundling
@@ -40,8 +42,8 @@ abstract class OciImageDependenciesContainerImpl @Inject constructor(
             isCanBeConsumed = false
             isCanBeResolved = true
             attributes {
-                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named("distribution"))
-                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named("oci-image"))
+                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
                 attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
             }
         }
