@@ -20,12 +20,27 @@ interface OciImageDependenciesContainer : Named {
     fun scope(scope: String): OciImageDependencies
 
     operator fun OciImageDependencies.invoke(dependency: ModuleDependency) = add(dependency)
-    operator fun <D : ModuleDependency> OciImageDependencies.invoke(dependency: D, configuration: Action<in D>) = add(dependency, configuration)
-    operator fun OciImageDependencies.invoke(dependencyProvider: Provider<out ModuleDependency>) = add(dependencyProvider)
-    operator fun <D : ModuleDependency> OciImageDependencies.invoke(dependencyProvider: Provider<out D>, configuration: Action<in D>) = add(dependencyProvider, configuration)
+
+    operator fun <D : ModuleDependency> OciImageDependencies.invoke(dependency: D, configuration: Action<in D>) =
+        add(dependency, configuration)
+
+    operator fun OciImageDependencies.invoke(dependencyProvider: Provider<out ModuleDependency>) =
+        add(dependencyProvider)
+
+    operator fun <D : ModuleDependency> OciImageDependencies.invoke(
+        dependencyProvider: Provider<out D>,
+        configuration: Action<in D>,
+    ) = add(dependencyProvider, configuration)
 
     operator fun OciImageDependencies.invoke(dependencyNotation: CharSequence) = add(dependencyNotation)
-    operator fun OciImageDependencies.invoke(dependencyNotation: CharSequence, configuration: Action<in ExternalModuleDependency>) = add(dependencyNotation, configuration)
+
+    operator fun OciImageDependencies.invoke(
+        dependencyNotation: CharSequence,
+        configuration: Action<in ExternalModuleDependency>,
+    ) = add(dependencyNotation, configuration)
+
     operator fun OciImageDependencies.invoke(project: Project) = add(project)
-    operator fun OciImageDependencies.invoke(project: Project, configuration: Action<in ProjectDependency>) = add(project, configuration)
+
+    operator fun OciImageDependencies.invoke(project: Project, configuration: Action<in ProjectDependency>) =
+        add(project, configuration)
 }

@@ -26,9 +26,9 @@ interface OciExtension {
         osFeatures: Set<String> = setOf(),
     ): Platform
 
-    fun platformFilter(configuration: Action<in PlatformFilterBuilder>) : PlatformFilter
+    fun platformFilter(configuration: Action<in PlatformFilterBuilder>): PlatformFilter
 
-    fun PlatformFilter.or(configuration: Action<in PlatformFilterBuilder>) : PlatformFilter
+    fun PlatformFilter.or(configuration: Action<in PlatformFilterBuilder>): PlatformFilter
 
 //    interface Registries {
 //        fun registry(configuration: Action<in Registry>)
