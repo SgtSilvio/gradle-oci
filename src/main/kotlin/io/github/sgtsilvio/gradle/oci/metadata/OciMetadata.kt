@@ -3,17 +3,15 @@ package io.github.sgtsilvio.gradle.oci.metadata
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.OciDataDescriptor
 import io.github.sgtsilvio.gradle.oci.component.OciDescriptor
-import io.github.sgtsilvio.gradle.oci.internal.CONFIG_MEDIA_TYPE
-import io.github.sgtsilvio.gradle.oci.internal.INDEX_MEDIA_TYPE
-import io.github.sgtsilvio.gradle.oci.internal.LAYER_MEDIA_TYPE
-import io.github.sgtsilvio.gradle.oci.internal.MANIFEST_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.util.*
 
-/**
- * @author Silvio Giebl
- */
+private const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
+private const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
+private const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
+private const val LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
+
 fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
     var user: String? = null
     val ports = TreeSet<String>()
