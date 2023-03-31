@@ -12,6 +12,6 @@ import org.gradle.kotlin.dsl.create
 class OciPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        val ociExtension = project.extensions.create(OciExtension::class, "oci", OciExtensionImpl::class)
+        project.extensions.create(OciExtension::class, "oci", OciExtensionImpl::class)
     }
 }

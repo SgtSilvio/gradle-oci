@@ -44,13 +44,13 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 ) : OciImageDefinition {
 
     private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
-    override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
+    final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
     private var allPlatformBundleScope: BundleScope? = null
     private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
     private var universalBundle: Bundle? = null
     private var platformBundles: TreeMap<Platform, Bundle>? = null
-    override val component = createComponent(providerFactory)
+    final override val component = createComponent(providerFactory)
     private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
     init {
@@ -66,12 +66,12 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         })
     }
 
-    override fun getName() = name
+    final override fun getName() = name
 
-    override fun capabilities(configuration: Action<in OciImageDefinition.Capabilities>) =
+    final override fun capabilities(configuration: Action<in OciImageDefinition.Capabilities>) =
         configuration.execute(capabilities)
 
-    override fun allPlatforms(configuration: Action<in OciImageDefinition.BundleScope>) {
+    final override fun allPlatforms(configuration: Action<in OciImageDefinition.BundleScope>) {
         var bundleScope = allPlatformBundleScope
         if (bundleScope == null) {
             bundleScope = objectFactory.newInstance<BundleScope>(AllPlatformFilter, name, bundles)
@@ -80,7 +80,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         configuration.execute(bundleScope)
     }
 
-    override fun platformsMatching(
+    final override fun platformsMatching(
         platformFilter: PlatformFilter,
         configuration: Action<in OciImageDefinition.BundleScope>,
     ) {
@@ -102,11 +102,11 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         configuration.execute(bundleScope)
     }
 
-    override fun specificPlatform(platform: Platform) {
+    final override fun specificPlatform(platform: Platform) {
         getOrCreatePlatformBundle(platform)
     }
 
-    override fun specificPlatform(platform: Platform, configuration: Action<in OciImageDefinition.Bundle>) =
+    final override fun specificPlatform(platform: Platform, configuration: Action<in OciImageDefinition.Bundle>) =
         configuration.execute(getOrCreatePlatformBundle(platform))
 
     private fun getOrCreatePlatformBundle(platform: Platform): Bundle {
@@ -190,10 +190,10 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         private val imageConfiguration: Configuration,
     ) : OciImageDefinition.Capabilities {
 
-        override val set: Set<org.gradle.api.capabilities.Capability>
+        final override val set: Set<org.gradle.api.capabilities.Capability>
             get() = imageConfiguration.outgoing.capabilities.toSet()
 
-        override fun add(notation: String) = imageConfiguration.outgoing.capability(notation)
+        final override fun add(notation: String) = imageConfiguration.outgoing.capability(notation)
     }
 
 
@@ -212,20 +212,23 @@ abstract class OciImageDefinitionImpl @Inject constructor(
     ) : OciImageDefinition.Bundle, BundleOrPlatformBundles {
 
         val platform: Platform? = platform.orElse(null)
-        override val parentImages = objectFactory.newInstance<OciImageDependenciesImpl>(imageConfiguration)
-        override val config = objectFactory.newInstance<OciImageDefinition.Bundle.Config>().apply {
+        final override val parentImages = objectFactory.newInstance<OciImageDependenciesImpl>(imageConfiguration)
+        final override val config = objectFactory.newInstance<OciImageDefinition.Bundle.Config>().apply {
             entryPoint.convention(null)
             arguments.convention(null)
         }
-        override val layers = objectFactory.newInstance<Layers>(imageName, platform)
+        final override val layers = objectFactory.newInstance<Layers>(imageName, platform)
 
-        override fun parentImages(configuration: Action<in OciImageDependencies>) = configuration.execute(parentImages)
+        final override fun parentImages(configuration: Action<in OciImageDependencies>) =
+            configuration.execute(parentImages)
 
-        override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) = configuration.execute(config)
+        final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
+            configuration.execute(config)
 
-        override fun layers(configuration: Action<in OciImageDefinition.Bundle.Layers>) = configuration.execute(layers)
+        final override fun layers(configuration: Action<in OciImageDefinition.Bundle.Layers>) =
+            configuration.execute(layers)
 
-        override fun collectLayerTasks(linkedMap: LinkedHashMap<String, TaskProvider<OciLayerTask>>) {
+        final override fun collectLayerTasks(linkedMap: LinkedHashMap<String, TaskProvider<OciLayerTask>>) {
             for (layer in layers.list) {
                 layer as Layer
                 val task = layer.getTask()
@@ -235,7 +238,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             }
         }
 
-        override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.Bundle> =
+        final override fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.Bundle> =
             providerFactory.provider { OciComponentBundleBuilder() }
                 .zip(createComponentParentCapabilities(providerFactory), OciComponentBundleBuilder::parentCapabilities)
                 .zipAbsentAsNull(config.creationTime, OciComponentBundleBuilder::creationTime)
@@ -311,9 +314,9 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         ) : OciImageDefinition.Bundle.Layers {
 
             private val platform: Platform? = platform.orElse(null)
-            override val list = objectFactory.namedDomainObjectList(OciImageDefinition.Bundle.Layer::class)
+            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.Bundle.Layer::class)
 
-            override fun layer(name: String, configuration: Action<in OciImageDefinition.Bundle.Layer>) =
+            final override fun layer(name: String, configuration: Action<in OciImageDefinition.Bundle.Layer>) =
                 configuration.execute(layer(name))
 
             fun layer(name: String): Layer {
@@ -337,19 +340,19 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         ) : OciImageDefinition.Bundle.Layer {
 
             private val platform: Platform? = platform.orElse(null)
-            override val metadata = objectFactory.newInstance<OciImageDefinition.Bundle.Layer.Metadata>().apply {
+            final override val metadata = objectFactory.newInstance<OciImageDefinition.Bundle.Layer.Metadata>().apply {
                 createdBy.convention("gradle-oci: $name")
             }
 
             private var task: TaskProvider<OciLayerTask>? = null
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
-            override fun getName() = name
+            final override fun getName() = name
 
-            override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
+            final override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
                 configuration.execute(metadata)
 
-            override fun contents(configuration: Action<in OciCopySpec>) {
+            final override fun contents(configuration: Action<in OciCopySpec>) {
                 if (externalTask != null) {
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
@@ -366,7 +369,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 }
             }
 
-            override fun contents(task: TaskProvider<OciLayerTask>) {
+            final override fun contents(task: TaskProvider<OciLayerTask>) {
                 externalTask = if (task == this.task) null else task
             }
 
@@ -438,15 +441,15 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             AllPlatformFilter -> bundles
             else -> bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
         }
-        override val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
+        final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
 
-        override fun parentImages(configuration: Action<in OciImageDependencies>) =
+        final override fun parentImages(configuration: Action<in OciImageDependencies>) =
             filteredBundles.configureEach { parentImages(configuration) }
 
-        override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
+        final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
             filteredBundles.configureEach { config(configuration) }
 
-        override fun layers(configuration: Action<in OciImageDefinition.BundleScope.Layers>) =
+        final override fun layers(configuration: Action<in OciImageDefinition.BundleScope.Layers>) =
             configuration.execute(layers)
 
         abstract class Layers @Inject constructor(
@@ -456,9 +459,9 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             private val objectFactory: ObjectFactory,
         ) : OciImageDefinition.BundleScope.Layers {
 
-            override val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
+            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
 
-            override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.Layer>) =
+            final override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.Layer>) =
                 configuration.execute(layer(name))
 
             fun layer(name: String): Layer {
@@ -483,12 +486,12 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             private var task: TaskProvider<OciLayerTask>? = null
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
-            override fun getName() = name
+            final override fun getName() = name
 
-            override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
+            final override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
                 bundles.configureEach { layers.layer(name).metadata(configuration) }
 
-            override fun contents(configuration: Action<in OciCopySpec>) {
+            final override fun contents(configuration: Action<in OciCopySpec>) {
                 if (externalTask != null) {
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
@@ -508,7 +511,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 }
             }
 
-            override fun contents(task: TaskProvider<OciLayerTask>) {
+            final override fun contents(task: TaskProvider<OciLayerTask>) {
                 externalTask = if (task == this.task) null else task
                 bundles.configureEach {
                     layers.layer(name).contents(task)
