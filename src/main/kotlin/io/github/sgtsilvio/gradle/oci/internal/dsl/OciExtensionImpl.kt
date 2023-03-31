@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
+import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesContainer
@@ -79,7 +80,7 @@ abstract class OciExtensionImpl @Inject constructor(
             taskContainer.named<OciRegistryDataTask>(registryDataTaskName)
         } else {
             val registryDataTask = taskContainer.register<OciRegistryDataTask>(registryDataTaskName) {
-                group = "oci"
+                group = TASK_GROUP_NAME
                 description = "Creates a Docker registry data directory to be used by the $name task."
             }
             testTask.configure {

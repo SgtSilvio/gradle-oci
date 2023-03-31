@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 import io.github.sgtsilvio.gradle.oci.OciComponentTask
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
+import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
@@ -178,7 +179,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     private fun createComponentTask(imageName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
         taskContainer.register<OciComponentTask>(createComponentTaskName(imageName)) {
-            group = "oci"
+            group = TASK_GROUP_NAME
             description = "Assembles an OCI component json file for the $imageName image."
             component.set(this@OciImageDefinitionImpl.component)
             componentFile.set(projectLayout.buildDirectory.file("oci/images/$imageName/component.json"))
@@ -530,9 +531,9 @@ private fun TaskContainer.createLayerTask(
     projectLayout: ProjectLayout,
     configuration: Action<in OciCopySpec>,
 ) = register<OciLayerTask>(createLayerTaskName(imageName, layerName, platformString)) {
-    group = "oci"
+    group = TASK_GROUP_NAME
     description = "Assembles the OCI layer '$layerName' for the $imageName image."
-    outputDirectory.convention(projectLayout.buildDirectory.dir("oci/images/$imageName/$layerName$platformString"))
+    outputDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageName/$layerName$platformString"))
     contents(configuration)
 }
 
