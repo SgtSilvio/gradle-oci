@@ -179,7 +179,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             group = "oci"
             description = "Assembles an OCI component json file for the $imageName image."
             component.set(this@OciImageDefinitionImpl.component)
-            componentFile.set(projectLayout.buildDirectory.file("oci/$imageName/component.json"))
+            componentFile.set(projectLayout.buildDirectory.file("oci/images/$imageName/component.json"))
         }
 
     private fun createComponentTaskName(imageName: String) =
@@ -527,7 +527,7 @@ private fun TaskContainer.createLayerTask(
 ) = register<OciLayerTask>(createLayerTaskName(imageName, layerName, platformString)) {
     group = "oci"
     description = "Assembles the OCI layer '$layerName' for the $imageName image."
-    outputDirectory.convention(projectLayout.buildDirectory.dir("oci/$imageName/$layerName$platformString"))
+    outputDirectory.convention(projectLayout.buildDirectory.dir("oci/images/$imageName/$layerName$platformString"))
     contents(configuration)
 }
 
