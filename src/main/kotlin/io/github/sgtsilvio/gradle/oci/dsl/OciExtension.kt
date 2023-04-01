@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameMapping
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
@@ -12,11 +13,14 @@ import org.gradle.api.tasks.testing.Test
  * @author Silvio Giebl
  */
 interface OciExtension {
-//    val registries: NamedDomainObjectList<Registry>
+    val registries: OciRegistries
+    val imageNameMapping: OciImageNameMapping
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
     val imageDependencies: NamedDomainObjectContainer<OciImageDependenciesContainer>
 
-//    fun registries(configuration: Action<in Registries>)
+    fun registries(configuration: Action<in OciRegistries>)
+
+    fun imageNameMapping(configuration: Action<in OciImageNameMapping>)
 
     fun platform(
         os: String,
@@ -30,14 +34,6 @@ interface OciExtension {
 
     fun PlatformFilter.or(configuration: Action<in PlatformFilterBuilder>): PlatformFilter
 
-//    interface Registries {
-//        fun registry(configuration: Action<in Registry>)
-//    }
-
-//    interface Registry : Named {
-//        var url: URI
-//    }
-
     interface PlatformFilterBuilder {
         val oses: SetProperty<String>
         val architectures: SetProperty<String>
@@ -49,10 +45,6 @@ interface OciExtension {
 //        named(name, configuration)
 //    } else {
 //        register(name, configuration)
-//    }
-//
-//    fun Task.taskExtension(configuration: Action<String>) {
-//
 //    }
 
     fun NamedDomainObjectContainer<OciImageDependenciesContainer>.forTest(
