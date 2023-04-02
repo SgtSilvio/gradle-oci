@@ -5,7 +5,9 @@ import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
 import org.gradle.api.Action
+import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.credentials.Credentials
 import org.gradle.api.model.ObjectFactory
@@ -18,6 +20,7 @@ import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.*
 import javax.inject.Inject
 
 /**
@@ -25,16 +28,25 @@ import javax.inject.Inject
  */
 abstract class OciRegistriesImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
+    project: Project,
     configurationContainer: ConfigurationContainer,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
     final override val repositoryPort = objectFactory.property<Int>().convention(5123)
 
     init {
+        project.afterEvaluate {
+            afterEvaluate()
+        }
         configurationContainer.configureEach {
             incoming.beforeResolve {
-                if (attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE) {
-                    beforeResolve()
+                if (resolvesOciImages()) {
+                    startRepository()
+                }
+            }
+            incoming.afterResolve {
+                if (resolvesOciImages()) {
+                    stopRepository()
                 }
             }
         }
@@ -52,10 +64,21 @@ abstract class OciRegistriesImpl @Inject constructor(
     private fun getOrCreateRegistry(name: String): OciRegistry =
         list.findByName(name) ?: objectFactory.newInstance<OciRegistryImpl>(name, this).also { list += it }
 
-    private fun beforeResolve() {
+    private fun ResolvableDependencies.resolvesOciImages() =
+        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE
+
+    private fun afterEvaluate() {
         for (registry in list) {
-            (registry as OciRegistryImpl).beforeResolve()
+            (registry as OciRegistryImpl).afterEvaluate()
         }
+    }
+
+    private fun startRepository() {
+        // TODO start server on repositoryPort.get() if not yet started
+    }
+
+    private fun stopRepository() {
+        // TODO stop server if started, count beforeResolve calls via atomic integer
     }
 }
 
@@ -81,12 +104,12 @@ abstract class OciRegistryImpl @Inject constructor(
     }
 
     private val repositoryUrl: Provider<URI> = url.zip(registries.repositoryPort) { url, repositoryPort ->
-        URI("http://localhost:$repositoryPort/" + URLEncoder.encode(url.toString(), StandardCharsets.UTF_8.name()))
+        URI("http://localhost:$repositoryPort/" + Base64.getUrlEncoder().encodeToString(url.toString().toByteArray()))
     }
 
     final override fun getName() = name
 
-    fun beforeResolve() {
+    fun afterEvaluate() {
         repository.url = repositoryUrl.get()
     }
 }
