@@ -41,12 +41,6 @@ interface OciExtension {
         val osVersions: SetProperty<String>
     }
 
-//    fun <T> NamedDomainObjectContainer<T>.name(name: String, configuration: Action<in T>): NamedDomainObjectProvider<T> = if (name in names) {
-//        named(name, configuration)
-//    } else {
-//        register(name, configuration)
-//    }
-
     fun NamedDomainObjectContainer<OciImageDependenciesContainer>.forTest(
         testTask: TaskProvider<Test>,
         action: Action<in OciImageDependenciesContainer>,
