@@ -12,7 +12,7 @@ import org.gradle.api.provider.Provider
 interface OciImageDependencies {
 
     val configuration: Configuration
-    val dependencies: DomainObjectSet<ModuleDependency>
+    val set: DomainObjectSet<ModuleDependency>
 
     fun add(dependency: ModuleDependency)
     fun <D : ModuleDependency> add(dependency: D, action: Action<in D>)

@@ -271,7 +271,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         private fun createComponentParentCapabilities(providerFactory: ProviderFactory): Provider<List<Capability>> =
             providerFactory.provider {
                 val parentCapabilities = mutableListOf<Capability>()
-                for (dependency in parentImages.dependencies) {
+                for (dependency in parentImages.set) {
                     val capabilities = dependency.requestedCapabilities
                     if (capabilities.isEmpty()) { // add default capability
                         if (dependency is ProjectDependency) {

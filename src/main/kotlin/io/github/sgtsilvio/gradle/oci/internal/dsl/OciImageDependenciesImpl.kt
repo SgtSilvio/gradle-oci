@@ -6,6 +6,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.provider.Provider
+import org.gradle.kotlin.dsl.withType
 import javax.inject.Inject
 
 /**
@@ -15,23 +16,21 @@ abstract class OciImageDependenciesImpl @Inject constructor(
     final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
 ) : OciImageDependencies {
+    final override val set = configuration.dependencies.withType(ModuleDependency::class)
 
     final override fun add(dependency: ModuleDependency) {
         val finalizedDependency = finalizeDependency(dependency)
-        dependencies.add(finalizedDependency)
         configuration.dependencies.add(finalizedDependency)
     }
 
     final override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>) {
         val finalizedDependency = finalizeDependency(dependency)
         action.execute(finalizedDependency)
-        dependencies.add(finalizedDependency)
         configuration.dependencies.add(finalizedDependency)
     }
 
     final override fun add(dependencyProvider: Provider<out ModuleDependency>) {
         val finalizedDependencyProvider = dependencyProvider.map { finalizeDependency(it) }
-        dependencies.addLater(finalizedDependencyProvider)
         configuration.dependencies.addLater(finalizedDependencyProvider)
     }
 
@@ -41,7 +40,6 @@ abstract class OciImageDependenciesImpl @Inject constructor(
             action.execute(finalizedDependency)
             finalizedDependency
         }
-        dependencies.addLater(finalizedDependencyProvider)
         configuration.dependencies.addLater(finalizedDependencyProvider)
     }
 
