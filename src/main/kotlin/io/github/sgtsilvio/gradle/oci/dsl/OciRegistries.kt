@@ -23,19 +23,4 @@ interface OciRegistry : Named {
     val url: Property<URI>
     val credentials: Property<Credentials>
     val repository: MavenArtifactRepository
-    // TODO all other repos content.notForConfigurations? => no, user should configure
-
-    // exclusiveContent handling stays in repositories
-    /*
-    oci {
-        registries {
-            registry("docker-hub") {
-                url.set("
-                repositories.exclusiveContent {
-                    forRepository(repository)
-                    filter {  }
-                }
-            }
-        }
-     */
 }
