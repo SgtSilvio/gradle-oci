@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.commons.compress)
     implementation(libs.commons.io)
     implementation(libs.json)
+    implementation(libs.okhttp)
 }
 
 gradlePlugin {
