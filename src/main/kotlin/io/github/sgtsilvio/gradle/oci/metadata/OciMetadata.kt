@@ -7,10 +7,10 @@ import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.util.*
 
-private const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
-private const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
-private const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
-private const val LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
+const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
+const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
+const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
+const val LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
 
 fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
     var user: String? = null

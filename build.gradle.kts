@@ -26,7 +26,7 @@ metadata {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(11))
     }
 }
 
@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.commons.io)
     implementation(libs.json)
     implementation(libs.okhttp)
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.2.1")
 }
 
 gradlePlugin {
