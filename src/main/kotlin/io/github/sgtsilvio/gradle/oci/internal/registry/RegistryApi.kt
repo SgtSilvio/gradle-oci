@@ -1,140 +1,170 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
+import io.github.sgtsilvio.gradle.oci.internal.json.getString
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
-import okhttp3.*
-import okio.use
-import org.apache.hc.client5.http.async.methods.SimpleHttpRequest
-import org.apache.hc.client5.http.async.methods.SimpleHttpResponse
-import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder
-import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder
-import org.apache.hc.core5.concurrent.FutureCallback
-import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import java.net.http.HttpResponse.BodyHandlers
+import java.net.http.HttpResponse.BodySubscribers
+import java.util.*
+import java.util.concurrent.*
 
 /**
  * @author Silvio Giebl
  */
 class RegistryApi {
 
-    private val httpClient = OkHttpClient.Builder().build()
+    private val httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
+    private val authorizationCache = ConcurrentHashMap<TokenCacheKey, String>()
 
-    fun pullManifest(registry: String, name: String, reference: String) {
-        val request = Request.Builder()
-            .get()
-            .url("$registry/v2/$name/manifests/$reference")
-            .header(
+    private data class TokenCacheKey(val registry: String, val credentials: Credentials?, val operation: String)
+
+    data class Credentials(val username: String, val password: String)
+
+    fun pullManifest(
+        registry: String,
+        imageName: String,
+        reference: String,
+        credentials: Credentials?,
+    ): CompletableFuture<String> {
+        return send(
+            registry,
+            imageName,
+            "manifests/$reference",
+            credentials,
+            "pull",
+            HttpRequest.newBuilder().GET().header(
                 "Accept",
                 "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
-            )
-            .build()
-        val countDownLatch = CountDownLatch(1)
-        httpClient.newCall(request).enqueue(object : Callback {
-            override fun onResponse(call: Call, response: Response) {
-//                println(
-//                    """
-//                    |${response.isSuccessful}
-//                    |${response.code}
-//                    |${response.message}
-//                    |${response.protocol}
-//                    |---
-//                    |${response.headers}
-//                    |---
-//                    |${response.body?.string()}
-//                    |---
-//                    |${response.challenges()}
-//                    """.trimMargin()
-//                )
-                response.body?.close()
-                response.close()
-                countDownLatch.countDown()
+            ),
+        ) { responseInfo ->
+            if (responseInfo.statusCode() == 200) {
+                BodyHandlers.ofString().apply(responseInfo)
+            } else {
+                createErrorBodySubscriber(responseInfo)
             }
-
-            override fun onFailure(call: Call, e: IOException) {
-                e.printStackTrace()
-            }
-        })
-        println("shutdown")
-        httpClient.dispatcher.executorService.shutdown()
-        println("shutdown")
-        countDownLatch.await()
+        }.thenApply { it.body() }
     }
 
-    fun pullManifest2(registry: String, name: String, reference: String) {
-        SimpleRequestBuilder.get()
-        val request = SimpleHttpRequest.create("GET", "$registry/v2/$name/manifests/$reference")
-//        val request = HttpGet("$registry/v2/$name/manifests/$reference")
-        request.addHeader(
-            "Accept",
-            "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
-        )
-        val httpClient = HttpAsyncClientBuilder.create().build()
-        httpClient.start()
-        httpClient.use { httpClient ->
-//        HttpClientBuilder.create().build().use { httpClient ->
-            httpClient.execute(request, object : FutureCallback<SimpleHttpResponse> {
-                override fun completed(response: SimpleHttpResponse) {
-//                    println(
-//                        """
-//                        |${response.code}
-//                        |${response.reasonPhrase}
-//                        |${response.version}
-//                        |---
-//                        |${response.headers.contentToString()}
-//                        |---
-//                        |${response.bodyText}
-//                        """.trimMargin()
-//                    )
-                }
-
-                override fun failed(ex: Exception) {
-                }
-
-                override fun cancelled() {
-                }
-            }).get()
-//            httpClient.execute(request) { response ->
-//                println(
-//                    """
-//                    |${response.code}
-//                    |${response.reasonPhrase}
-//                    |${response.version}
-//                    |---
-//                    |${response.headers.contentToString()}
-//                    |---
-//                    """.trimMargin()
-//                )
-//            }
+    private fun <T> send(
+        registry: String,
+        imageName: String,
+        path: String,
+        credentials: Credentials?,
+        operation: String,
+        requestBuilder: HttpRequest.Builder,
+        responseBodyHandler: HttpResponse.BodyHandler<T>
+    ): CompletableFuture<HttpResponse<T>> {
+        requestBuilder.uri(URI("$registry/v2/$imageName/$path"))
+        getAuthorization(registry, credentials, operation)?.let { requestBuilder.authorization(it) }
+        return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
+            if (error !is HttpResponseException) throw error
+            if (error.statusCode != 401) throw error
+            tryAuthorize(error, registry, imageName, credentials, operation)?.thenCompose { authorization ->
+                httpClient.sendAsync(requestBuilder.authorization(authorization).build(), responseBodyHandler)
+            } ?: throw error
         }
     }
 
-    fun pullManifest3(registry: String, name: String, reference: String) {
-        val client = HttpClient.newBuilder().build()
-        val request = HttpRequest.newBuilder()
-            .GET()
-            .uri(URI.create("$registry/v2/$name/manifests/$reference"))
-            .header(
-                "Accept",
-                "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
-            )
-            .build()
-        client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).whenComplete { response, error ->
-//            println(
-//                """
-//                |${response.statusCode()}
-//                |${response.version()}
-//                |---
-//                |${response.headers()}
-//                |---
-//                |${response.body()}
-//                """.trimMargin()
-//            )
-        }.get()
+    private fun tryAuthorize(
+        responseException: HttpResponseException,
+        registry: String,
+        imageName: String,
+        credentials: Credentials?,
+        operation: String
+    ): CompletableFuture<String>? {
+        val bearerParams = decodeBearerParams(responseException.headers) ?: return null
+        val realm = bearerParams["realm"] ?: return null
+        val service = bearerParams["service"] ?: registry
+        val scope = bearerParams["scope"] ?: "repository:$imageName:$operation"
+        val requestBuilder = HttpRequest.newBuilder(URI("$realm?service=$service&scope=$scope")).GET()
+        if (credentials != null) {
+            requestBuilder.authorization(encodeBasicAuthorization(credentials))
+        }
+        return httpClient.sendAsync(requestBuilder.build()) { responseInfo ->
+            if (responseInfo.statusCode() == 200) {
+                BodyHandlers.ofString().apply(responseInfo)
+            } else {
+                createErrorBodySubscriber(responseInfo)
+            }
+        }.thenApply { response ->
+            val authorization = "Bearer " + jsonObject(response.body()).run {
+                if (hasKey("token")) getString("token") else getString("access_token")
+            }
+            authorizationCache[TokenCacheKey(registry, credentials, operation)] = authorization
+            authorization
+        }
+    }
+
+    private fun getAuthorization(registry: String, credentials: Credentials?, operation: String) =
+        authorizationCache[TokenCacheKey(registry, credentials, operation)]
+            ?: credentials?.let(::encodeBasicAuthorization)
+
+    private fun HttpRequest.Builder.authorization(value: String): HttpRequest.Builder =
+        setHeader("Authorization", value)
+
+    private fun encodeBasicAuthorization(credentials: Credentials) =
+        "Basic " + Base64.getEncoder().encodeToString("${credentials.username}:${credentials.password}".toByteArray())
+
+    private fun decodeBearerParams(headers: Map<String, List<String>>): Map<String, String>? {
+        val authHeader = headers["WWW-Authenticate"]?.firstOrNull() ?: return null
+        if (!authHeader.startsWith("Bearer ")) return null
+        val authParamString = authHeader.substring("Bearer ".length)
+        val map = HashMap<String, String>()
+        var i = 0
+        while (true) {
+            val keyEndIndex = authParamString.indexOf('=', i)
+            if (keyEndIndex == -1) break
+            val key = authParamString.substring(i, keyEndIndex).trim()
+            val valueStartIndex = authParamString.indexOf('"', keyEndIndex + 1)
+            if (valueStartIndex == -1) break
+            val valueEndIndex = authParamString.indexOf('"', valueStartIndex + 1)
+            if (valueEndIndex == -1) break
+            val value = authParamString.substring(valueStartIndex + 1, valueEndIndex).trim()
+            map[key] = value
+            i = authParamString.indexOf(',', valueEndIndex + 1)
+            if (i == -1) break
+            i++
+        }
+        return map
+    }
+
+    private fun <T> createErrorBodySubscriber(responseInfo: HttpResponse.ResponseInfo) =
+        BodyHandlers.ofString().apply(responseInfo).map<String, T> { body ->
+            throw HttpResponseException(responseInfo.statusCode(), responseInfo.headers().map(), body)
+        }
+
+    private fun <T, R> HttpResponse.BodySubscriber<T>.map(mapper: (T) -> R): HttpResponse.BodySubscriber<R> =
+        BodySubscribers.mapping(this, mapper)
+
+    private fun <T> CompletableFuture<T>.flatMapError(mapper: (Throwable) -> CompletionStage<T>): CompletableFuture<T> =
+        handle { t, error ->
+            if (t != null) return@handle CompletableFuture.completedFuture(t)
+            var unpackedError = error
+            while (unpackedError is CompletionException) {
+                unpackedError = unpackedError.cause
+            }
+            mapper.invoke(unpackedError)
+        }.thenCompose { it }
+}
+
+class HttpResponseException(
+    val statusCode: Int,
+    val headers: Map<String, List<String>>,
+    val body: String,
+) : RuntimeException("unexpected http response", null, false, false) {
+    override val message get() = super.message + ": " + responseToString()
+
+    private fun responseToString() = buildString {
+        append(statusCode).append('\n')
+        for ((key, value) in headers) {
+            append(key).append(": ").append(value).append('\n')
+        }
+        append(body)
     }
 }
 
@@ -142,15 +172,17 @@ const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution
 const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
 
 fun main() {
-    for (i in 0..100) {
-        val t1 = System.nanoTime()
-        RegistryApi().pullManifest("https://registry-1.docker.io", "registry", "2")
-        val t2 = System.nanoTime()
-        println(TimeUnit.NANOSECONDS.toMillis(t2 - t1))
-        RegistryApi().pullManifest2("https://registry-1.docker.io", "registry", "2")
+    val registryApi = RegistryApi()
+    for (i in 0..1) {
         val t3 = System.nanoTime()
-        println(TimeUnit.NANOSECONDS.toMillis(t3 - t2))
-        RegistryApi().pullManifest3("https://registry-1.docker.io", "registry", "2")
+        println(
+            registryApi.pullManifest(
+                "https://registry-1.docker.io",
+                "library/registry",
+                "2",
+                null,
+            ).get()
+        )
         val t4 = System.nanoTime()
         println(TimeUnit.NANOSECONDS.toMillis(t4 - t3))
     }
