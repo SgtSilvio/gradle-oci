@@ -29,12 +29,14 @@ class RegistryApi {
 
     data class Credentials(val username: String, val password: String)
 
+    data class Manifest(val mediaType: String, val data: String)
+
     fun pullManifest(
         registry: String,
         imageName: String,
         reference: String,
         credentials: Credentials?,
-    ): CompletableFuture<String> {
+    ): CompletableFuture<Manifest> {
         return send(
             registry,
             imageName,
@@ -47,7 +49,10 @@ class RegistryApi {
             ),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
-                200 -> BodyHandlers.ofString().apply(responseInfo)
+                200 -> responseInfo.headers().firstValue("Content-Type").orElse(null)?.let { contentType ->
+                    BodyHandlers.ofString().apply(responseInfo).map { Manifest(contentType, it) }
+                } ?: createErrorBodySubscriber(responseInfo)
+
                 else -> createErrorBodySubscriber(responseInfo)
             }
         }.thenApply { it.body() }
@@ -161,8 +166,7 @@ class RegistryApi {
         imageName: String,
         reference: String,
         credentials: Credentials?,
-        manifest: String,
-        mediaType: String,
+        manifest: Manifest,
     ): CompletableFuture<Void> {
         return send(
             registry,
@@ -170,7 +174,8 @@ class RegistryApi {
             "manifests/$reference",
             credentials,
             "pull,push",
-            HttpRequest.newBuilder().PUT(BodyPublishers.ofString(manifest)).header("Content-Type", mediaType)
+            HttpRequest.newBuilder().PUT(BodyPublishers.ofString(manifest.data))
+                .header("Content-Type", manifest.mediaType)
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
                 201 -> BodySubscribers.discarding()
