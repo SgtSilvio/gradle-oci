@@ -43,7 +43,7 @@ class RegistryApi {
             "manifests/$reference",
             credentials,
             "pull",
-            HttpRequest.newBuilder().GET().header(
+            HttpRequest.newBuilder().GET().setHeader(
                 "Accept",
                 "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
             ),
@@ -134,7 +134,7 @@ class RegistryApi {
             credentials,
             "pull,push",
             HttpRequest.newBuilder(URI("$uri?digest=$digest")).PUT(BodyPublishers.ofFile(blob))
-                .header("Content-Type", "application/octet-stream")
+                .setHeader("Content-Type", "application/octet-stream")
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
                 201 -> BodySubscribers.discarding()
@@ -175,7 +175,7 @@ class RegistryApi {
             credentials,
             "pull,push",
             HttpRequest.newBuilder().PUT(BodyPublishers.ofString(manifest.data))
-                .header("Content-Type", manifest.mediaType)
+                .setHeader("Content-Type", manifest.mediaType)
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
                 201 -> BodySubscribers.discarding()
@@ -209,12 +209,15 @@ class RegistryApi {
         requestBuilder: HttpRequest.Builder,
         responseBodyHandler: HttpResponse.BodyHandler<T>
     ): CompletableFuture<HttpResponse<T>> {
-        getAuthorization(registry, credentials, operation)?.let { requestBuilder.authorization(it) }
+        getAuthorization(registry, credentials, operation)?.let { requestBuilder.setHeader("Authorization", it) }
         return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
             if (error !is HttpResponseException) throw error
             if (error.statusCode != 401) throw error
             tryAuthorize(error, registry, imageName, credentials, operation)?.thenCompose { authorization ->
-                httpClient.sendAsync(requestBuilder.authorization(authorization).build(), responseBodyHandler)
+                httpClient.sendAsync(
+                    requestBuilder.setHeader("Authorization", authorization).build(),
+                    responseBodyHandler,
+                )
             } ?: throw error
         }
     }
@@ -232,7 +235,7 @@ class RegistryApi {
         val scope = bearerParams["scope"] ?: "repository:$imageName:$operation"
         val requestBuilder = HttpRequest.newBuilder(URI("$realm?service=$service&scope=$scope")).GET()
         if (credentials != null) {
-            requestBuilder.authorization(encodeBasicAuthorization(credentials))
+            requestBuilder.setHeader("Authorization", encodeBasicAuthorization(credentials))
         }
         return httpClient.sendAsync(requestBuilder.build()) { responseInfo ->
             if (responseInfo.statusCode() == 200) {
@@ -252,9 +255,6 @@ class RegistryApi {
     private fun getAuthorization(registry: String, credentials: Credentials?, operation: String) =
         authorizationCache[TokenCacheKey(registry, credentials, operation)]
             ?: credentials?.let(::encodeBasicAuthorization)
-
-    private fun HttpRequest.Builder.authorization(value: String): HttpRequest.Builder =
-        setHeader("Authorization", value)
 
     private fun encodeBasicAuthorization(credentials: Credentials) =
         "Basic " + Base64.getEncoder().encodeToString("${credentials.username}:${credentials.password}".toByteArray())
