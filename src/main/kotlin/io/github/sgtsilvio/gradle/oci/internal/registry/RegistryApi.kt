@@ -7,9 +7,13 @@ import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
+import java.net.http.HttpRequest.BodyPublishers
 import java.net.http.HttpResponse
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.HttpResponse.BodySubscribers
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.util.*
 import java.util.concurrent.*
 
@@ -42,12 +46,137 @@ class RegistryApi {
                 "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
             ),
         ) { responseInfo ->
-            if (responseInfo.statusCode() == 200) {
-                BodyHandlers.ofString().apply(responseInfo)
-            } else {
-                createErrorBodySubscriber(responseInfo)
+            when (responseInfo.statusCode()) {
+                200 -> BodyHandlers.ofString().apply(responseInfo)
+                else -> createErrorBodySubscriber(responseInfo)
             }
         }.thenApply { it.body() }
+    }
+
+    fun pullBlob(
+        registry: String,
+        imageName: String,
+        digest: String,
+        credentials: Credentials?,
+    ): CompletableFuture<Path> {
+        return send(
+            registry,
+            imageName,
+            "blobs/$digest",
+            credentials,
+            "pull",
+            HttpRequest.newBuilder().GET(),
+        ) { responseInfo ->
+            when (responseInfo.statusCode()) {
+                200 -> BodySubscribers.ofFile(Files.createTempFile(null, null), StandardOpenOption.WRITE)
+                else -> createErrorBodySubscriber(responseInfo)
+            }
+        }.thenApply { it.body() }
+    }
+
+    fun isBlobPresent(
+        registry: String,
+        imageName: String,
+        digest: String,
+        credentials: Credentials?,
+    ): CompletableFuture<Boolean> {
+        return send(
+            registry,
+            imageName,
+            "blobs/$digest",
+            credentials,
+            "pull",
+            HttpRequest.newBuilder().method("HEAD", BodyPublishers.noBody()),
+        ) { responseInfo ->
+            when (responseInfo.statusCode()) {
+                200 -> BodySubscribers.replacing(true)
+                404 -> BodySubscribers.replacing(false)
+                else -> createErrorBodySubscriber(responseInfo)
+            }
+        }.thenApply { it.body() }
+    }
+
+    fun startBlobPush(registry: String, imageName: String, credentials: Credentials?): CompletableFuture<URI> {
+        return send(
+            registry,
+            imageName,
+            "blobs/uploads",
+            credentials,
+            "pull,push",
+            HttpRequest.newBuilder().POST(BodyPublishers.noBody()),
+        ) { responseInfo ->
+            when (responseInfo.statusCode()) {
+                202 -> responseInfo.headers().firstValue("Location").orElse(null)?.let { location ->
+                    BodySubscribers.replacing(URI(location))
+                } ?: createErrorBodySubscriber(responseInfo)
+
+                else -> createErrorBodySubscriber(responseInfo)
+            }
+        }.thenApply { it.body() }
+    }
+
+    fun pushBlob(
+        registry: String,
+        imageName: String,
+        digest: String,
+        credentials: Credentials?,
+        uri: URI,
+        blob: Path,
+    ): CompletableFuture<Void> {
+        return send(
+            registry,
+            imageName,
+            credentials,
+            "pull,push",
+            HttpRequest.newBuilder(URI("$uri?digest=$digest")).PUT(BodyPublishers.ofFile(blob))
+                .header("Content-Type", "application/octet-stream")
+        ) { responseInfo ->
+            when (responseInfo.statusCode()) {
+                201 -> BodySubscribers.discarding()
+                else -> createErrorBodySubscriber(responseInfo)
+            }
+        }.thenApply { null }
+    }
+
+    fun pushBlobIfNotPresent(
+        registry: String,
+        imageName: String,
+        digest: String,
+        credentials: Credentials?,
+        blob: Path,
+    ): CompletableFuture<Void> {
+        return isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
+            if (present) {
+                CompletableFuture.completedFuture(null)
+            } else {
+                startBlobPush(registry, imageName, credentials).thenCompose { uri ->
+                    pushBlob(registry, imageName, digest, credentials, uri, blob)
+                }
+            }
+        }
+    }
+
+    fun pushManifest(
+        registry: String,
+        imageName: String,
+        reference: String,
+        credentials: Credentials?,
+        manifest: String,
+        mediaType: String,
+    ): CompletableFuture<Void> {
+        return send(
+            registry,
+            imageName,
+            "manifests/$reference",
+            credentials,
+            "pull,push",
+            HttpRequest.newBuilder().PUT(BodyPublishers.ofString(manifest)).header("Content-Type", mediaType)
+        ) { responseInfo ->
+            when (responseInfo.statusCode()) {
+                201 -> BodySubscribers.discarding()
+                else -> createErrorBodySubscriber(responseInfo)
+            }
+        }.thenApply { null }
     }
 
     private fun <T> send(
@@ -58,8 +187,23 @@ class RegistryApi {
         operation: String,
         requestBuilder: HttpRequest.Builder,
         responseBodyHandler: HttpResponse.BodyHandler<T>
+    ) = send(
+        registry,
+        imageName,
+        credentials,
+        operation,
+        requestBuilder.uri(URI("$registry/v2/$imageName/$path")),
+        responseBodyHandler
+    )
+
+    private fun <T> send(
+        registry: String,
+        imageName: String,
+        credentials: Credentials?,
+        operation: String,
+        requestBuilder: HttpRequest.Builder,
+        responseBodyHandler: HttpResponse.BodyHandler<T>
     ): CompletableFuture<HttpResponse<T>> {
-        requestBuilder.uri(URI("$registry/v2/$imageName/$path"))
         getAuthorization(registry, credentials, operation)?.let { requestBuilder.authorization(it) }
         return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
             if (error !is HttpResponseException) throw error
@@ -173,13 +317,53 @@ const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.mani
 
 fun main() {
     val registryApi = RegistryApi()
-    for (i in 0..1) {
+    for (i in 0..0) {
         val t3 = System.nanoTime()
         println(
             registryApi.pullManifest(
                 "https://registry-1.docker.io",
                 "library/registry",
                 "2",
+                null,
+            ).get()
+        )
+        println(
+            registryApi.pullManifest(
+                "https://registry-1.docker.io",
+                "library/registry",
+                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb",
+                null,
+            ).get()
+        )
+        println(
+            registryApi.pullBlob(
+                "https://registry-1.docker.io",
+                "library/registry",
+                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd",
+                null,
+            ).get()
+        )
+        println(
+            registryApi.pullBlob(
+                "https://registry-1.docker.io",
+                "library/registry",
+                "sha256:91d30c5bc19582de1415b18f1ec5bcbf52a558b62cf6cc201c9669df9f748c22",
+                null,
+            ).get()
+        )
+        println(
+            registryApi.isBlobPresent(
+                "https://registry-1.docker.io",
+                "library/registry",
+                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb",
+                null,
+            ).get()
+        )
+        println(
+            registryApi.isBlobPresent(
+                "https://registry-1.docker.io",
+                "library/registry",
+                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd",
                 null,
             ).get()
         )
