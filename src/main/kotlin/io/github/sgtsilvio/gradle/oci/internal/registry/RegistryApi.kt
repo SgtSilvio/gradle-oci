@@ -10,7 +10,9 @@ import java.net.http.HttpRequest
 import java.net.http.HttpRequest.BodyPublishers
 import java.net.http.HttpResponse
 import java.net.http.HttpResponse.BodyHandlers
+import java.net.http.HttpResponse.BodySubscriber
 import java.net.http.HttpResponse.BodySubscribers
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -58,12 +60,34 @@ class RegistryApi {
         }.thenApply { it.body() }
     }
 
+    fun pullBlobAsString(
+        registry: String,
+        imageName: String,
+        digest: String,
+        credentials: Credentials?,
+    ): CompletableFuture<String> =
+        pullBlob(registry, imageName, digest, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
+
     fun pullBlob(
         registry: String,
         imageName: String,
         digest: String,
         credentials: Credentials?,
-    ): CompletableFuture<Path> {
+    ): CompletableFuture<Path> = pullBlob(
+        registry,
+        imageName,
+        digest,
+        credentials,
+        BodySubscribers.ofFile(Files.createTempFile(null, null), StandardOpenOption.WRITE), // TODO dest file
+    )
+
+    private fun <T> pullBlob(
+        registry: String,
+        imageName: String,
+        digest: String,
+        credentials: Credentials?,
+        bodySubscriber: BodySubscriber<T>,
+    ): CompletableFuture<T> {
         return send(
             registry,
             imageName,
@@ -73,7 +97,7 @@ class RegistryApi {
             HttpRequest.newBuilder().GET(),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
-                200 -> BodySubscribers.ofFile(Files.createTempFile(null, null), StandardOpenOption.WRITE)
+                200 -> bodySubscriber
                 else -> createErrorBodySubscriber(responseInfo)
             }
         }.thenApply { it.body() }
@@ -340,7 +364,7 @@ fun main() {
             ).get()
         )
         println(
-            registryApi.pullBlob(
+            registryApi.pullBlobAsString(
                 "https://registry-1.docker.io",
                 "library/registry",
                 "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd",
