@@ -44,7 +44,7 @@ class RegistryApi {
             imageName,
             "manifests/$reference",
             credentials,
-            "pull",
+            PULL_PERMISSION,
             HttpRequest.newBuilder().GET().setHeader(
                 "Accept",
                 "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
@@ -93,7 +93,7 @@ class RegistryApi {
             imageName,
             "blobs/$digest",
             credentials,
-            "pull",
+            PULL_PERMISSION,
             HttpRequest.newBuilder().GET(),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
@@ -114,7 +114,7 @@ class RegistryApi {
             imageName,
             "blobs/$digest",
             credentials,
-            "pull",
+            PULL_PERMISSION,
             HttpRequest.newBuilder().method("HEAD", BodyPublishers.noBody()),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
@@ -131,7 +131,7 @@ class RegistryApi {
             imageName,
             "blobs/uploads",
             credentials,
-            "pull,push",
+            PUSH_PERMISSION,
             HttpRequest.newBuilder().POST(BodyPublishers.noBody()),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
@@ -156,7 +156,7 @@ class RegistryApi {
             registry,
             imageName,
             credentials,
-            "pull,push",
+            PUSH_PERMISSION,
             HttpRequest.newBuilder(URI("$uri?digest=$digest")).PUT(BodyPublishers.ofFile(blob))
                 .setHeader("Content-Type", "application/octet-stream")
         ) { responseInfo ->
@@ -197,7 +197,7 @@ class RegistryApi {
             imageName,
             "manifests/$reference",
             credentials,
-            "pull,push",
+            PUSH_PERMISSION,
             HttpRequest.newBuilder().PUT(BodyPublishers.ofString(manifest.data))
                 .setHeader("Content-Type", manifest.mediaType)
         ) { responseInfo ->
@@ -213,14 +213,14 @@ class RegistryApi {
         imageName: String,
         path: String,
         credentials: Credentials?,
-        operation: String,
+        permission: String,
         requestBuilder: HttpRequest.Builder,
         responseBodyHandler: HttpResponse.BodyHandler<T>
     ) = send(
         registry,
         imageName,
         credentials,
-        operation,
+        permission,
         requestBuilder.uri(URI("$registry/v2/$imageName/$path")),
         responseBodyHandler
     )
@@ -229,7 +229,7 @@ class RegistryApi {
         registry: String,
         imageName: String,
         credentials: Credentials?,
-        operation: String,
+        permission: String,
         requestBuilder: HttpRequest.Builder,
         responseBodyHandler: HttpResponse.BodyHandler<T>
     ): CompletableFuture<HttpResponse<T>> {
@@ -237,7 +237,7 @@ class RegistryApi {
         return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
             if (error !is HttpResponseException) throw error
             if (error.statusCode != 401) throw error
-            tryAuthorize(error, registry, imageName, credentials, operation)?.thenCompose { authorization ->
+            tryAuthorize(error, registry, imageName, credentials, permission)?.thenCompose { authorization ->
                 httpClient.sendAsync(
                     requestBuilder.setHeader("Authorization", authorization).build(),
                     responseBodyHandler,
@@ -251,12 +251,12 @@ class RegistryApi {
         registry: String,
         imageName: String,
         credentials: Credentials?,
-        operation: String
+        permission: String
     ): CompletableFuture<String>? {
         val bearerParams = decodeBearerParams(responseException.headers) ?: return null
         val realm = bearerParams["realm"] ?: return null
         val service = bearerParams["service"] ?: registry
-        val scope = bearerParams["scope"] ?: "repository:$imageName:$operation"
+        val scope = bearerParams["scope"] ?: "repository:$imageName:$permission"
         val requestBuilder = HttpRequest.newBuilder(URI("$realm?service=$service&scope=$scope")).GET()
         if (credentials != null) {
             requestBuilder.setHeader("Authorization", encodeBasicAuthorization(credentials))
@@ -340,8 +340,10 @@ class HttpResponseException(
     }
 }
 
-const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
-const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+private const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
+private const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+private const val PULL_PERMISSION = "pull"
+private const val PUSH_PERMISSION = "pull,push"
 
 fun main() {
     val registryApi = RegistryApi()
