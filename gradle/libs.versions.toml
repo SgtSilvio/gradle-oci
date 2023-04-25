@@ -1,15 +1,17 @@
 [versions]
 commons-codec = "1.15"
-commons-compress = "1.22"
+commons-compress = "1.23.0"
 commons-io = "2.11.0"
-json = "20220924"
-junit-jupiter = "5.9.1"
+json = "20230227"
+junit-jupiter = "5.9.2"
+reactor-netty = "1.1.6"
 
 [libraries]
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 json = { module = "org.json:json", version.ref = "json" }
+reactor-netty = { module = "io.projectreactor.netty:reactor-netty", version.ref = "reactor-netty" }
 
 [plugins]
 plugin-publish = { id = "com.gradle.plugin-publish", version = "1.2.0" }
