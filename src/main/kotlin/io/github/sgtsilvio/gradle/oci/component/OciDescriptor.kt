@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.internal.calculateSha256Digest
+import io.github.sgtsilvio.gradle.oci.internal.OciDigestAlgorithm
+import io.github.sgtsilvio.gradle.oci.internal.calculateOciDigest
 import java.util.*
 
 /**
@@ -16,6 +17,6 @@ class OciDataDescriptor(
     val data: ByteArray,
     override val annotations: SortedMap<String, String>,
 ) : OciDescriptor {
-    override val digest = calculateSha256Digest(data)
+    override val digest = data.calculateOciDigest(OciDigestAlgorithm.SHA_256).toString()
     override val size get() = data.size.toLong()
 }

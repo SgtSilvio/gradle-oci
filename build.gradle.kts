@@ -35,6 +35,7 @@ repositories {
 }
 
 dependencies {
+    implementation(libs.commons.codec)
     implementation(libs.commons.compress)
     implementation(libs.commons.io)
     implementation(libs.json)

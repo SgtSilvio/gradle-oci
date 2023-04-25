@@ -1,8 +1,9 @@
 package io.github.sgtsilvio.gradle.oci
 
+import io.github.sgtsilvio.gradle.oci.internal.OciDigest
+import io.github.sgtsilvio.gradle.oci.internal.OciDigestAlgorithm
+import io.github.sgtsilvio.gradle.oci.internal.calculateOciDigest
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.*
-import io.github.sgtsilvio.gradle.oci.internal.formatSha256Digest
-import io.github.sgtsilvio.gradle.oci.internal.newSha256MessageDigest
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
@@ -16,7 +17,6 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.newInstance
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
-import java.security.DigestOutputStream
 import java.util.zip.GZIPOutputStream
 
 /**
@@ -55,46 +55,43 @@ abstract class OciLayerTask : DefaultTask() {
         val digestFile = digestFile.get().asFile
         val diffIdFile = diffIdFile.get().asFile
 
-        FileOutputStream(tarFile).use { fos ->
-            DigestOutputStream(fos, newSha256MessageDigest()).use { dos ->
-                GZIPOutputStream(dos).use { gos ->
-                    DigestOutputStream(gos, newSha256MessageDigest()).use { dos2 ->
-                        TarArchiveOutputStream(dos2, StandardCharsets.UTF_8.name()).use { tos ->
-                            tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
-                            tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
-                            copySpecInput.process(object : OciCopySpecVisitor {
-                                override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
-                                    tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
-                                        setPermissions(fileMetadata.permissions)
-                                        setUserId(fileMetadata.userId)
-                                        setGroupId(fileMetadata.groupId)
-                                        setModTime(fileMetadata.modificationTime.toEpochMilli())
-                                        size = fileMetadata.size
-                                    })
-                                    fileSource.copyTo(tos)
-                                    tos.closeArchiveEntry()
-                                }
-
-                                override fun visitDirectory(fileMetadata: FileMetadata) {
-                                    tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
-                                        setPermissions(fileMetadata.permissions)
-                                        setUserId(fileMetadata.userId)
-                                        setGroupId(fileMetadata.groupId)
-                                        setModTime(fileMetadata.modificationTime.toEpochMilli())
-                                    })
-                                    tos.closeArchiveEntry()
-                                }
-
-                                private fun TarArchiveEntry.setPermissions(permissions: Int) {
-                                    mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
-                                }
+        val digest: OciDigest
+        val diffId = FileOutputStream(tarFile).calculateOciDigest(OciDigestAlgorithm.SHA_256) { compressedDos ->
+            digest = GZIPOutputStream(compressedDos).calculateOciDigest(OciDigestAlgorithm.SHA_256) { dos ->
+                TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tos ->
+                    tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
+                    tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
+                    copySpecInput.process(object : OciCopySpecVisitor {
+                        override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
+                            tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                                setPermissions(fileMetadata.permissions)
+                                setUserId(fileMetadata.userId)
+                                setGroupId(fileMetadata.groupId)
+                                setModTime(fileMetadata.modificationTime.toEpochMilli())
+                                size = fileMetadata.size
                             })
+                            fileSource.copyTo(tos)
+                            tos.closeArchiveEntry()
                         }
-                        diffIdFile.writeText(formatSha256Digest(dos2.messageDigest.digest()))
-                    }
+
+                        override fun visitDirectory(fileMetadata: FileMetadata) {
+                            tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                                setPermissions(fileMetadata.permissions)
+                                setUserId(fileMetadata.userId)
+                                setGroupId(fileMetadata.groupId)
+                                setModTime(fileMetadata.modificationTime.toEpochMilli())
+                            })
+                            tos.closeArchiveEntry()
+                        }
+
+                        private fun TarArchiveEntry.setPermissions(permissions: Int) {
+                            mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
+                        }
+                    })
                 }
-                digestFile.writeText(formatSha256Digest(dos.messageDigest.digest()))
             }
         }
+        diffIdFile.writeText(digest.toString())
+        digestFile.writeText(diffId.toString())
     }
 }
