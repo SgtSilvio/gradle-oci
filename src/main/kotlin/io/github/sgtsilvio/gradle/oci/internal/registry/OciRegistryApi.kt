@@ -1,21 +1,26 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
+import io.github.sgtsilvio.gradle.oci.internal.OciDigest
+import io.github.sgtsilvio.gradle.oci.internal.calculateOciDigest
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.toOciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
+import org.apache.commons.codec.binary.Hex
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpRequest.BodyPublishers
 import java.net.http.HttpResponse
-import java.net.http.HttpResponse.BodyHandlers
-import java.net.http.HttpResponse.BodySubscriber
-import java.net.http.HttpResponse.BodySubscribers
+import java.net.http.HttpResponse.*
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.security.DigestException
+import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.*
 
@@ -60,10 +65,24 @@ class RegistryApi {
         }.thenApply { it.body() }
     }
 
+    fun pullManifest(
+        registry: String,
+        imageName: String,
+        digest: OciDigest,
+        credentials: Credentials?,
+    ): CompletableFuture<Manifest> =
+        pullManifest(registry, imageName, digest.toString(), credentials).thenApply { manifest ->
+            val actualDigest = manifest.data.toByteArray().calculateOciDigest(digest.algorithm)
+            if (digest != actualDigest) {
+                throw digestMismatchException(digest.hash, actualDigest.hash)
+            }
+            manifest
+        }
+
     fun pullBlobAsString(
         registry: String,
         imageName: String,
-        digest: String,
+        digest: OciDigest,
         credentials: Credentials?,
     ): CompletableFuture<String> =
         pullBlob(registry, imageName, digest, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
@@ -71,7 +90,7 @@ class RegistryApi {
     fun pullBlob(
         registry: String,
         imageName: String,
-        digest: String,
+        digest: OciDigest,
         credentials: Credentials?,
     ): CompletableFuture<Path> = pullBlob(
         registry,
@@ -84,7 +103,7 @@ class RegistryApi {
     private fun <T> pullBlob(
         registry: String,
         imageName: String,
-        digest: String,
+        digest: OciDigest,
         credentials: Credentials?,
         bodySubscriber: BodySubscriber<T>,
     ): CompletableFuture<T> {
@@ -97,7 +116,7 @@ class RegistryApi {
             HttpRequest.newBuilder().GET(),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
-                200 -> bodySubscriber
+                200 -> bodySubscriber.verify(digest)
                 else -> createErrorBodySubscriber(responseInfo)
             }
         }.thenApply { it.body() }
@@ -106,7 +125,7 @@ class RegistryApi {
     fun isBlobPresent(
         registry: String,
         imageName: String,
-        digest: String,
+        digest: OciDigest,
         credentials: Credentials?,
     ): CompletableFuture<Boolean> {
         return send(
@@ -147,7 +166,7 @@ class RegistryApi {
     fun pushBlob(
         registry: String,
         imageName: String,
-        digest: String,
+        digest: OciDigest,
         credentials: Credentials?,
         uri: URI,
         blob: Path,
@@ -170,7 +189,7 @@ class RegistryApi {
     fun pushBlobIfNotPresent(
         registry: String,
         imageName: String,
-        digest: String,
+        digest: OciDigest,
         credentials: Credentials?,
         blob: Path,
     ): CompletableFuture<Void> {
@@ -207,6 +226,14 @@ class RegistryApi {
             }
         }.thenApply { null }
     }
+
+    fun pushManifest(
+        registry: String,
+        imageName: String,
+        digest: OciDigest,
+        credentials: Credentials?,
+        manifest: Manifest,
+    ) = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
 
     private fun <T> send(
         registry: String,
@@ -324,6 +351,44 @@ class RegistryApi {
         }.thenCompose { it }
 }
 
+class DigestBodySubscriber<T>(
+    private val bodySubscriber: BodySubscriber<T>,
+    private val messageDigest: MessageDigest,
+    private val expectedDigest: ByteArray,
+) : BodySubscriber<T> {
+
+    override fun onSubscribe(subscription: Flow.Subscription?) = bodySubscriber.onSubscribe(subscription)
+
+    override fun onNext(item: MutableList<ByteBuffer>) {
+        for (byteBuffer in item) {
+            messageDigest.update(byteBuffer)
+        }
+        bodySubscriber.onNext(item)
+    }
+
+    override fun onError(throwable: Throwable?) = bodySubscriber.onError(throwable)
+
+    override fun onComplete() {
+        val actualDigest = messageDigest.digest()
+        if (expectedDigest.contentEquals(actualDigest)) {
+            bodySubscriber.onComplete()
+        } else {
+            bodySubscriber.onError(digestMismatchException(expectedDigest, actualDigest))
+        }
+    }
+
+    override fun getBody(): CompletionStage<T> = bodySubscriber.body
+}
+
+private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: ByteArray): DigestException {
+    val expectedHex = Hex.encodeHexString(expectedDigest)
+    val actualHex = Hex.encodeHexString(actualDigest)
+    return DigestException("expected and actual digests do not match (expected: $expectedHex, actual: $actualHex)")
+}
+
+fun <T> BodySubscriber<T>.verify(digest: OciDigest) =
+    DigestBodySubscriber(this, digest.algorithm.createMessageDigest(), digest.hash)
+
 class HttpResponseException(
     val statusCode: Int,
     val headers: Map<String, List<String>>,
@@ -361,7 +426,7 @@ fun main() {
             registryApi.pullManifest(
                 "https://registry-1.docker.io",
                 "library/registry",
-                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb",
+                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb".toOciDigest(),
                 null,
             ).get()
         )
@@ -369,7 +434,7 @@ fun main() {
             registryApi.pullBlobAsString(
                 "https://registry-1.docker.io",
                 "library/registry",
-                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd",
+                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd".toOciDigest(),
                 null,
             ).get()
         )
@@ -377,7 +442,7 @@ fun main() {
             registryApi.pullBlob(
                 "https://registry-1.docker.io",
                 "library/registry",
-                "sha256:91d30c5bc19582de1415b18f1ec5bcbf52a558b62cf6cc201c9669df9f748c22",
+                "sha256:91d30c5bc19582de1415b18f1ec5bcbf52a558b62cf6cc201c9669df9f748c22".toOciDigest(),
                 null,
             ).get()
         )
@@ -385,7 +450,7 @@ fun main() {
             registryApi.isBlobPresent(
                 "https://registry-1.docker.io",
                 "library/registry",
-                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb",
+                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb".toOciDigest(),
                 null,
             ).get()
         )
@@ -393,7 +458,7 @@ fun main() {
             registryApi.isBlobPresent(
                 "https://registry-1.docker.io",
                 "library/registry",
-                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd",
+                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd".toOciDigest(),
                 null,
             ).get()
         )
