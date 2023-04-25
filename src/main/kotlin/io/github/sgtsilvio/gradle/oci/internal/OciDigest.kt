@@ -10,12 +10,20 @@ import kotlin.contracts.contract
 
 // https://github.com/opencontainers/image-spec/blob/main/descriptor.md#registered-algorithms
 // https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest
-enum class OciDigestAlgorithm(val algorithmName: String, val ociPrefix: String) {
-    SHA_256("SHA-256", "sha256:"),
-    SHA_512("SHA-512", "sha512:");
+enum class OciDigestAlgorithm(val algorithmName: String, val ociPrefix: String, private val hashByteLength: Int) {
+    SHA_256("SHA-256", "sha256:", 32),
+    SHA_512("SHA-512", "sha512:", 64);
 
-    fun decode(string: String): ByteArray = Hex.decodeHex(string)
-    fun encode(bytes: ByteArray): String = Hex.encodeHexString(bytes)
+    fun decode(hash: String): ByteArray =
+        if (hash.length == (hashByteLength * 2)) Hex.decodeHex(hash) else throw IllegalArgumentException(
+            "hash '$hash' has wrong length ${hash.length}, algorithm $algorithmName requires ${hashByteLength * 2}"
+        )
+
+    fun encode(hash: ByteArray): String =
+        if (hash.size == hashByteLength) Hex.encodeHexString(hash) else throw IllegalArgumentException(
+            "hash has wrong length ${hash.size}, algorithm $algorithmName requires $hashByteLength"
+        )
+
     fun createMessageDigest(): MessageDigest = MessageDigest.getInstance(algorithmName)
 }
 
@@ -40,7 +48,7 @@ data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) {
 fun String.toOciDigest() = when {
     startsWith(OciDigestAlgorithm.SHA_256.ociPrefix) -> OciDigestAlgorithm.SHA_256
     startsWith(OciDigestAlgorithm.SHA_512.ociPrefix) -> OciDigestAlgorithm.SHA_512
-    else -> throw IllegalArgumentException("unsupported digest algorithm in digest '$this'")
+    else -> throw IllegalArgumentException("unsupported algorithm in digest '$this'")
 }.let { algorithm -> OciDigest(algorithm, algorithm.decode(substring(algorithm.ociPrefix.length))) }
 
 fun ByteArray.calculateOciDigest(algorithm: OciDigestAlgorithm) =
