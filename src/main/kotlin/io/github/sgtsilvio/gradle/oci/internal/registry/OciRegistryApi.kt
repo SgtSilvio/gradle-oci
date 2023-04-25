@@ -242,7 +242,7 @@ class RegistryApi {
         credentials: Credentials?,
         permission: String,
         requestBuilder: HttpRequest.Builder,
-        responseBodyHandler: HttpResponse.BodyHandler<T>
+        responseBodyHandler: BodyHandler<T>
     ) = send(
         registry,
         imageName,
@@ -258,7 +258,7 @@ class RegistryApi {
         credentials: Credentials?,
         permission: String,
         requestBuilder: HttpRequest.Builder,
-        responseBodyHandler: HttpResponse.BodyHandler<T>
+        responseBodyHandler: BodyHandler<T>
     ): CompletableFuture<HttpResponse<T>> {
         getAuthorization(registry, credentials)?.let { requestBuilder.setHeader("Authorization", it) }
         return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
@@ -332,12 +332,12 @@ class RegistryApi {
         return map
     }
 
-    private fun <T> createErrorBodySubscriber(responseInfo: HttpResponse.ResponseInfo) =
+    private fun <T> createErrorBodySubscriber(responseInfo: ResponseInfo) =
         BodyHandlers.ofString().apply(responseInfo).map<String, T> { body ->
             throw HttpResponseException(responseInfo.statusCode(), responseInfo.headers().map(), body)
         }
 
-    private fun <T, R> HttpResponse.BodySubscriber<T>.map(mapper: (T) -> R): HttpResponse.BodySubscriber<R> =
+    private fun <T, R> BodySubscriber<T>.map(mapper: (T) -> R): BodySubscriber<R> =
         BodySubscribers.mapping(this, mapper)
 
     private fun <T> CompletableFuture<T>.flatMapError(mapper: (Throwable) -> CompletionStage<T>): CompletableFuture<T> =
