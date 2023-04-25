@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.metadata.OciDescriptor
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.io.Serializable
 import java.time.Instant

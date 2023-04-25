@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapper
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapping
 import io.github.sgtsilvio.gradle.oci.mapping.createCapabilityMapper
+import io.github.sgtsilvio.gradle.oci.metadata.OciDataDescriptor
 import io.github.sgtsilvio.gradle.oci.metadata.createConfig
 import io.github.sgtsilvio.gradle.oci.metadata.createIndex
 import io.github.sgtsilvio.gradle.oci.metadata.createManifest

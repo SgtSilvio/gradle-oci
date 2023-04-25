@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.metadata
 
 import org.apache.commons.codec.binary.Hex
 import java.io.OutputStream

@@ -1,7 +1,5 @@
-package io.github.sgtsilvio.gradle.oci.component
+package io.github.sgtsilvio.gradle.oci.metadata
 
-import io.github.sgtsilvio.gradle.oci.internal.OciDigestAlgorithm
-import io.github.sgtsilvio.gradle.oci.internal.calculateOciDigest
 import java.util.*
 
 /**

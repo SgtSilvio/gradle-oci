@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.internal.OciDigest
-import io.github.sgtsilvio.gradle.oci.internal.OciDigestAlgorithm
-import io.github.sgtsilvio.gradle.oci.internal.calculateOciDigest
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.*
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigestAlgorithm
+import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action

@@ -1,12 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
-import io.github.sgtsilvio.gradle.oci.internal.OciDigest
-import io.github.sgtsilvio.gradle.oci.internal.calculateOciDigest
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
-import io.github.sgtsilvio.gradle.oci.internal.toOciDigest
-import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
-import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.metadata.*
 import org.apache.commons.codec.binary.Hex
 import java.net.URI
 import java.net.http.HttpClient
