@@ -383,7 +383,7 @@ private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: Byt
 }
 
 fun <T> BodySubscriber<T>.verify(digest: OciDigest) =
-    DigestBodySubscriber(this, digest.algorithm.createMessageDigest(), digest.hash)
+    DigestBodySubscriber(this, digest.algorithm.createMessageDigest(), digest.hash) // TODO verify size
 
 class HttpResponseException(
     val statusCode: Int,
@@ -401,8 +401,10 @@ class HttpResponseException(
     }
 }
 
-private const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
-private const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
+const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+const val DOCKER_CONFIG_MEDIA_TYPE = "application/vnd.docker.container.image.v1+json"
+const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.tar.gzip"
 private const val PULL_PERMISSION = "pull"
 private const val PUSH_PERMISSION = "pull,push"
 

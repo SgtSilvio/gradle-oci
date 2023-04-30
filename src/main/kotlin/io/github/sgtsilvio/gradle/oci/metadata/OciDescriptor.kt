@@ -11,6 +11,12 @@ interface OciDescriptor {
     val annotations: SortedMap<String, String>
 }
 
+data class OciDescriptorImpl(
+    override val digest: String,
+    override val size: Long,
+    override val annotations: SortedMap<String, String>,
+) : OciDescriptor
+
 class OciDataDescriptor(
     val data: ByteArray,
     override val annotations: SortedMap<String, String>,
