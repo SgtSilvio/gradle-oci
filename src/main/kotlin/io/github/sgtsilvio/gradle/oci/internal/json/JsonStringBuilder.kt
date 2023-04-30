@@ -45,7 +45,7 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
 
     fun addKey(key: String) {
         addCommaIfNecessary()
-        stringBuilder.append('"').append(escape(key)).append("\":")
+        stringBuilder.append('"').append(key.jsonEscape()).append("\":")
     }
 
     fun startObject() {
@@ -105,7 +105,7 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
 
     override fun addString(value: String) {
         addCommaIfNecessary()
-        stringBuilder.append('"').append(escape(value)).append('"')
+        stringBuilder.append('"').append(value.jsonEscape()).append('"')
     }
 
     override fun addNumber(value: Long) {
@@ -125,10 +125,24 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
             stringBuilder.append(',')
         }
     }
-
-    private fun escape(string: String) = string.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
+private val jsonEscapeRegex = Regex("[\u0000-\u0019\"\\\\]")
+
+internal fun String.jsonEscape() = replace(jsonEscapeRegex) {
+    when (val c = it.value[0]) {
+        '"' -> "\\\""
+        '\\' -> "\\\\"
+        '\b' -> "\\b"
+        '\t' -> "\\t"
+        '\n' -> "\\n"
+        '\u000C' -> "\\f"
+        '\r' -> "\\r"
+        else -> "\\u%04X".format(c.code)
+    }
+}
+
+// TODO no sorting, use supplied sorting => ensure we always pass a sorted map
 fun JsonObjectStringBuilder.addAll(map: Map<String, String>) = map.toSortedMap().forEach { addString(it.key, it.value) }
 fun JsonObjectStringBuilder.addAll(set: Set<String>) = set.toSortedSet().forEach { addObject(it) {} }
 fun JsonArrayStringBuilder.addAll(list: Iterable<String>) = list.forEach { addString(it) }
