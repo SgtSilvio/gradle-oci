@@ -41,6 +41,11 @@ value class JsonValue @PublishedApi internal constructor(private val delegate: A
         is Int -> delegate.toLong()
         else -> throw JsonException.create("", "must be a long, but is '$delegate'")
     }
+
+    fun asBoolean() = when(delegate) {
+        is Boolean -> delegate
+        else -> throw JsonException.create("", "must be a boolean, but is '$delegate'")
+    }
 }
 
 @JsonDecodingDsl
@@ -75,6 +80,8 @@ fun JsonObject.getString(key: String) = get(key) { asString() }
 fun JsonObject.getStringOrNull(key: String) = getOrNull(key) { asString() }
 
 fun JsonObject.getLong(key: String) = get(key) { asLong() }
+
+fun JsonObject.getBooleanOrNull(key: String) = getOrNull(key) { asBoolean() }
 
 fun JsonObject.getStringList(key: String) = get(key) { asArray().toStringList() }
 fun JsonObject.getStringListOrNull(key: String) = getOrNull(key) { asArray().toStringList() }
