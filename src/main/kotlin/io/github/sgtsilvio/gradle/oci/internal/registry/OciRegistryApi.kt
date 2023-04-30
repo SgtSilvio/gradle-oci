@@ -65,12 +65,12 @@ class RegistryApi {
         registry: String,
         imageName: String,
         digest: OciDigest,
-        credentials: Credentials?,
+        credentials: Credentials?
     ): CompletableFuture<Manifest> =
         pullManifest(registry, imageName, digest.toString(), credentials).thenApply { manifest ->
             val actualDigest = manifest.data.toByteArray().calculateOciDigest(digest.algorithm)
             if (digest != actualDigest) {
-                throw digestMismatchException(digest.hash, actualDigest.hash)
+                throw digestMismatchException(digest.hash, actualDigest.hash) // TODO verify size
             }
             manifest
         }
@@ -357,7 +357,7 @@ class DigestBodySubscriber<T>(
 
     override fun onNext(item: MutableList<ByteBuffer>) {
         for (byteBuffer in item) {
-            messageDigest.update(byteBuffer)
+            messageDigest.update(byteBuffer.duplicate())
         }
         bodySubscriber.onNext(item)
     }
