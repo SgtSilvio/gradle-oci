@@ -9,7 +9,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
-import org.gradle.api.credentials.Credentials
+import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.named
@@ -90,7 +90,7 @@ abstract class OciRegistryImpl @Inject constructor(
 ) : OciRegistry {
 
     final override val url = objectFactory.property<URI>()
-    final override val credentials = objectFactory.property<Credentials>()
+    final override val credentials = objectFactory.property<PasswordCredentials>()
     final override val repository = repositoryHandler.maven {
         this.name = "${name}OciRegistry"
         isAllowInsecureProtocol = true
