@@ -22,6 +22,7 @@ value class JsonValue @PublishedApi internal constructor(private val delegate: A
 
     fun asObject() = when (delegate) {
         is JSONObject -> JsonObject(delegate)
+        is Map<*, *> -> JsonObject(JSONObject(delegate))
         else -> throw JsonException.create("", "must be an object, but is '$delegate'")
     }
 
@@ -49,7 +50,7 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
     fun hasKey(key: String) = delegate.has(key)
 
     inline fun <T> get(key: String, transformer: JsonValue.() -> T): T {
-        val value = delegate.opt(key) ?: throw JsonException.create(key, "is required, but is missing")
+        val value = delegate.getOrNull(key) ?: throw JsonException.create(key, "is required, but is missing")
         try {
             return transformer.invoke(JsonValue(value))
         } catch (e: Throwable) {
@@ -58,7 +59,7 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
     }
 
     inline fun <T> getOrNull(key: String, transformer: JsonValue.() -> T): T? {
-        val value = delegate.opt(key) ?: return null
+        val value = delegate.getOrNull(key) ?: return null
         try {
             return transformer.invoke(JsonValue(value))
         } catch (e: Throwable) {
@@ -146,3 +147,5 @@ class JsonException private constructor(
 
     override val message get() = "'$path' $messageWithoutPath"
 }
+
+fun JSONObject.getOrNull(key: String) = opt(key)?.takeIf { it != JSONObject.NULL }
