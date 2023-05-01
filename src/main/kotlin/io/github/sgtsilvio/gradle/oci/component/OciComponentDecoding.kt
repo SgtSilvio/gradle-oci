@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
+import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import java.time.Instant
 import java.util.*
@@ -65,8 +66,8 @@ private fun JsonObject.decodeCommand() = OciComponent.Bundle.Command(
 private fun JsonObject.decodeLayer() = OciComponent.Bundle.Layer(
     if (hasKey("digest") || hasKey("diffId") || hasKey("size") || hasKey("annotations")) {
         OciComponent.Bundle.Layer.Descriptor(
-            getString("digest"),
-            getString("diffId"),
+            getOciDigest("digest"),
+            getOciDigest("diffId"),
             getLong("size"),
             getStringMapOrNull("annotations") ?: TreeMap(),
         )

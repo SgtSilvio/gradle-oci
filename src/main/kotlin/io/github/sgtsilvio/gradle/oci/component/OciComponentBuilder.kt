@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import java.io.Serializable
 import java.time.Instant
 
@@ -100,13 +101,13 @@ class OciComponentBundleLayerBuilder : Serializable {
 }
 
 class OciComponentBundleLayerDescriptorBuilder : Serializable {
-    private var digest: String? = null
-    private var diffId: String? = null
+    private var digest: OciDigest? = null
+    private var diffId: OciDigest? = null
     private var size: Long? = null
     private var annotations: Map<String, String> = mapOf()
 
-    fun digest(v: String?) = apply { digest = v }
-    fun diffId(v: String?) = apply { diffId = v }
+    fun digest(v: OciDigest?) = apply { digest = v }
+    fun diffId(v: OciDigest?) = apply { diffId = v }
     fun size(v: Long?) = apply { size = v }
     fun annotations(v: Map<String, String>) = apply { annotations = v }
 

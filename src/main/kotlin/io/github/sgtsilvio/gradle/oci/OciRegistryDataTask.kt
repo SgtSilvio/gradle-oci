@@ -4,10 +4,7 @@ import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapper
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapping
 import io.github.sgtsilvio.gradle.oci.mapping.createCapabilityMapper
-import io.github.sgtsilvio.gradle.oci.metadata.OciDataDescriptor
-import io.github.sgtsilvio.gradle.oci.metadata.createConfig
-import io.github.sgtsilvio.gradle.oci.metadata.createIndex
-import io.github.sgtsilvio.gradle.oci.metadata.createManifest
+import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.Action
@@ -92,7 +89,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         while (iterator.hasNext()) {
             val componentFile = iterator.next()
             val component = decodeComponent(componentFile.readText())
-            val digestToLayer = hashMapOf<String, File>()
+            val digestToLayer = hashMapOf<OciDigest, File>()
             for (layer in component.allLayers) {
                 layer.descriptor?.let {
                     val digest = it.digest
@@ -111,7 +108,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
 
     private fun writeLayers(registryDataDirectory: Path, processedImagesList: List<ProcessedImages>) {
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
-        val digestToComponentLayer = mutableMapOf<String, Pair<OciComponent, File>>()
+        val digestToComponentLayer = mutableMapOf<OciDigest, Pair<OciComponent, File>>()
         for ((componentLayersList, _) in processedImagesList) {
             for ((component, digestToLayers) in componentLayersList) {
                 for ((digest, layer) in digestToLayers) {
@@ -141,7 +138,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         for (rootCapability in rootCapabilities) {
             val resolvedComponent = componentResolver.resolve(rootCapability)
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-            val imageDigests = hashSetOf<String>()
+            val imageDigests = hashSetOf<OciDigest>()
             for (platform in resolvedComponent.platforms) {
                 val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
                 for (bundle in bundlesForPlatform) {
@@ -185,9 +182,11 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun Path.resolveDigestDataFile(digest: String): Path {
-        val (alg, hex) = digest.split(':', limit = 2)
-        return Files.createDirectories(resolve(alg).resolve(hex.substring(0, 2)).resolve(hex)).resolve("data")
+    private fun Path.resolveDigestDataFile(digest: OciDigest): Path {
+        val encodedHash = digest.encodedHash
+        return Files.createDirectories(
+            resolve(digest.algorithm.ociPrefix).resolve(encodedHash.substring(0, 2)).resolve(encodedHash)
+        ).resolve("data")
     }
 
     private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
@@ -201,14 +200,16 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun Path.writeDigestLink(digest: String) {
-        val (alg, hex) = digest.split(':', limit = 2)
-        Files.write(Files.createDirectories(resolve(alg).resolve(hex)).resolve("link"), digest.toByteArray())
+    private fun Path.writeDigestLink(digest: OciDigest) {
+        Files.write(
+            Files.createDirectories(resolve(digest.algorithm.ociPrefix).resolve(digest.encodedHash)).resolve("link"),
+            digest.toString().toByteArray()
+        )
     }
 
-    private fun Path.writeTagLink(digest: String) {
+    private fun Path.writeTagLink(digest: OciDigest) {
         val tagLinkFile = Files.createDirectories(resolve("current")).resolve("link")
-        val digestBytes = digest.toByteArray()
+        val digestBytes = digest.toString().toByteArray()
         try {
             Files.write(tagLinkFile, digestBytes)
         } catch (e: FileAlreadyExistsException) {
@@ -224,7 +225,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
             is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
         }
 
-    private data class ComponentLayers(val component: OciComponent, val digestToLayers: Map<String, File>)
+    private data class ComponentLayers(val component: OciComponent, val digestToLayers: Map<OciDigest, File>)
     private data class ProcessedImages(
         val componentLayersList: List<ComponentLayers>,
         val rootCapabilities: Set<Capability>,

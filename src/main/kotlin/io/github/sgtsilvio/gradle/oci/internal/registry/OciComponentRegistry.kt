@@ -96,7 +96,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         val manifestFutures = indexJsonObject.get("manifests") {
             asArray().toList {
                 val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType)
-                registryApi.pullManifest(registry, imageName, manifestDescriptor.digest.toOciDigest(), credentials).thenCompose { manifest -> // TODO toOciDigest should be not necessary
+                registryApi.pullManifest(registry, imageName, manifestDescriptor.digest, credentials).thenCompose { manifest ->
                     if (manifest.mediaType != manifestMediaType) { // TODO support nested index
                         throw IllegalArgumentException("expected \"$manifestMediaType\" as manifest media type, but is \"${manifest.mediaType}\"")
                     }
@@ -165,7 +165,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
             manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor(layerMediaType) } } ?: listOf() // TODO support other layer mediatype, needs support in OciComponent as well
         manifestJsonObject.requireStringOrNull("mediaType", manifestMediaType)
         manifestJsonObject.requireLong("schemaVersion", 2)
-        return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest.toOciDigest(), credentials).thenApply { config -> // TODO toOciDigest should be not necessary
+        return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest, credentials).thenApply { config ->
             val configJsonObject = jsonObject(config)
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
             val architecture = configJsonObject.getString("architecture")
@@ -223,7 +223,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
                 asObject().run {
                     // sorted for canonical json: diff_ids, type
                     requireString("type", "layers")
-                    getStringList("diff_ids")
+                    get("diff_ids") { asArray().toList { asString().toOciDigest() } }
                 }
             }
             val variant = configJsonObject.getStringOrNull("variant") ?: ""
@@ -307,7 +307,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         // TODO support data
         requireString("mediaType", mediaType)
         return OciDescriptorImpl(
-            getString("digest"),
+            getOciDigest("digest"),
             getLong("size"),
             getStringMapOrNull("annotations") ?: TreeMap()
         )

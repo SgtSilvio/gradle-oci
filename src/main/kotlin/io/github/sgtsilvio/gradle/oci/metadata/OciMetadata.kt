@@ -78,7 +78,7 @@ fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDat
                 for (bundle in bundles) {
                     for (layer in bundle.layers) {
                         layer.descriptor?.let {
-                            addString(it.diffId)
+                            addString(it.diffId.toString())
                         }
                     }
                 }
@@ -138,7 +138,7 @@ fun createIndex(
 private fun JsonObjectStringBuilder.encodeOciDescriptor(mediaType: String, descriptor: OciDescriptor) {
     // sorted for canonical json: annotations, digest, mediaType, size
     addObjectIfNotEmpty("annotations", descriptor.annotations)
-    addString("digest", descriptor.digest)
+    addString("digest", descriptor.digest.toString())
     addString("mediaType", mediaType)
     addNumber("size", descriptor.size)
 }
@@ -146,7 +146,7 @@ private fun JsonObjectStringBuilder.encodeOciDescriptor(mediaType: String, descr
 private fun JsonObjectStringBuilder.encodeOciManifestDescriptor(descriptor: OciDescriptor, platform: Platform) {
     // sorted for canonical json: annotations, digest, mediaType, size
     addObjectIfNotEmpty("annotations", descriptor.annotations)
-    addString("digest", descriptor.digest)
+    addString("digest", descriptor.digest.toString())
     addString("mediaType", MANIFEST_MEDIA_TYPE)
     addObject("platform") {
         // sorted for canonical json: architecture, os, osFeatures, osVersion, variant

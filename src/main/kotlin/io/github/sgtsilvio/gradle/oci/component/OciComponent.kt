@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.metadata.OciDescriptor
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.io.Serializable
 import java.time.Instant
@@ -51,8 +52,8 @@ data class OciComponent(
         ) : Serializable {
 
             data class Descriptor(
-                override val digest: String,
-                val diffId: String,
+                override val digest: OciDigest,
+                val diffId: OciDigest,
                 override val size: Long,
                 override val annotations: SortedMap<String, String>,
             ) : OciDescriptor, Serializable

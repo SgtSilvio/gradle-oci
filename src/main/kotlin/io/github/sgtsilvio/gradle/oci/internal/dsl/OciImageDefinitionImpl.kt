@@ -13,6 +13,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
@@ -394,11 +395,11 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 return providerFactory.provider { OciComponentBundleLayerDescriptorBuilder() }
                     .zipAbsentAsEmptyMap(metadata.annotations, OciComponentBundleLayerDescriptorBuilder::annotations)
                     .zipAbsentAsNull(
-                        task.flatMap { it.digestFile }.map { it.asFile.readText() },
+                        task.flatMap { it.digestFile }.map { it.asFile.readText().toOciDigest() },
                         OciComponentBundleLayerDescriptorBuilder::digest,
                     )
                     .zipAbsentAsNull(
-                        task.flatMap { it.diffIdFile }.map { it.asFile.readText() },
+                        task.flatMap { it.diffIdFile }.map { it.asFile.readText().toOciDigest() },
                         OciComponentBundleLayerDescriptorBuilder::diffId,
                     )
                     .zipAbsentAsNull(

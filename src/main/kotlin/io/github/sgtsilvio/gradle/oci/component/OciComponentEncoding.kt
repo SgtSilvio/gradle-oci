@@ -67,9 +67,9 @@ private fun JsonObjectStringBuilder.encodeCommand(command: OciComponent.Bundle.C
 }
 
 private fun JsonObjectStringBuilder.encodeLayer(layer: OciComponent.Bundle.Layer) {
-    if (layer.descriptor != null) {
-        addString("digest", layer.descriptor.digest)
-        addString("diffId", layer.descriptor.diffId)
+    if (layer.descriptor != null) { // TODO multiple layer.descriptor
+        addString("digest", layer.descriptor.digest.toString())
+        addString("diffId", layer.descriptor.diffId.toString())
         addNumber("size", layer.descriptor.size)
         addObjectIfNotEmpty("annotations", layer.descriptor.annotations)
     }

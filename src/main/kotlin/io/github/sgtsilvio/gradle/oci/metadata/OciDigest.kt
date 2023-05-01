@@ -1,7 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.metadata
 
+import io.github.sgtsilvio.gradle.oci.internal.json.JsonObject
 import org.apache.commons.codec.binary.Hex
 import java.io.OutputStream
+import java.io.Serializable
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 import kotlin.contracts.ExperimentalContracts
@@ -11,8 +13,8 @@ import kotlin.contracts.contract
 // https://github.com/opencontainers/image-spec/blob/main/descriptor.md#registered-algorithms
 // https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest
 enum class OciDigestAlgorithm(val algorithmName: String, val ociPrefix: String, private val hashByteLength: Int) {
-    SHA_256("SHA-256", "sha256:", 32),
-    SHA_512("SHA-512", "sha512:", 64);
+    SHA_256("SHA-256", "sha256", 32),
+    SHA_512("SHA-512", "sha512", 64);
 
     fun decode(hash: String): ByteArray =
         if (hash.length == (hashByteLength * 2)) Hex.decodeHex(hash) else throw IllegalArgumentException(
@@ -27,7 +29,9 @@ enum class OciDigestAlgorithm(val algorithmName: String, val ociPrefix: String, 
     fun createMessageDigest(): MessageDigest = MessageDigest.getInstance(algorithmName)
 }
 
-data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) {
+data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) : Serializable {
+    val encodedHash get() = algorithm.encode(hash)
+
     override fun equals(other: Any?) = when {
         this === other -> true
         other !is OciDigest -> false
@@ -42,14 +46,14 @@ data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) {
         return result
     }
 
-    override fun toString() = algorithm.ociPrefix + algorithm.encode(hash)
+    override fun toString() = algorithm.ociPrefix + ":" + encodedHash
 }
 
 fun String.toOciDigest() = when {
     startsWith(OciDigestAlgorithm.SHA_256.ociPrefix) -> OciDigestAlgorithm.SHA_256
     startsWith(OciDigestAlgorithm.SHA_512.ociPrefix) -> OciDigestAlgorithm.SHA_512
     else -> throw IllegalArgumentException("unsupported algorithm in digest '$this'")
-}.let { algorithm -> OciDigest(algorithm, algorithm.decode(substring(algorithm.ociPrefix.length))) }
+}.let { algorithm -> OciDigest(algorithm, algorithm.decode(substring(algorithm.ociPrefix.length + 1))) }
 
 fun ByteArray.calculateOciDigest(algorithm: OciDigestAlgorithm) =
     OciDigest(algorithm, algorithm.createMessageDigest().digest(this))
@@ -66,3 +70,5 @@ inline fun OutputStream.calculateOciDigest(
     DigestOutputStream(this, messageDigest).use { block.invoke(it) }
     return OciDigest(algorithm, messageDigest.digest())
 }
+
+fun JsonObject.getOciDigest(key: String) = get(key) { asString().toOciDigest() }
