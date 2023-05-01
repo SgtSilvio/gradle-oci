@@ -204,17 +204,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
             }
             val creationTime = configJsonObject.getInstantOrNull("created")
             val history = configJsonObject.getOrNull("history") {
-                asArray().toList {
-                    asObject().run {
-                        HistoryEntry(
-                            getInstantOrNull("created"),
-                            getStringOrNull("author"),
-                            getStringOrNull("created_by"),
-                            getStringOrNull("comment"),
-                            getBooleanOrNull("empty_layer") ?: false,
-                        )
-                    }
-                }
+                asArray().toList { asObject().decodeHistoryEntry() }
             }
             val os = configJsonObject.getString("os")
             val osFeatures = configJsonObject.getStringSetOrNull("os.features") ?: TreeSet()
@@ -294,14 +284,6 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
     private fun mapImageNameToCapabilities(imageName: OciImageName): SortedSet<VersionedCapability> =
         sortedSetOf(VersionedCapability(Capability(imageName.namespace.replace('/', '.'), imageName.name), imageName.tag))
 
-    private class HistoryEntry(
-        val creationTime: Instant?,
-        val author: String?,
-        val createdBy: String?,
-        val comment: String?,
-        val emptyLayer: Boolean,
-    )
-
     private fun JsonObject.decodeOciDescriptor(mediaType: String): OciDescriptor {
         // TODO order?
         // TODO support data
@@ -325,6 +307,22 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         getStringOrNull("os.version") ?: "",
         getStringSetOrNull("os.features") ?: TreeSet(),
     ) // TODO order?
+
+    private class HistoryEntry(
+        val creationTime: Instant?,
+        val author: String?,
+        val createdBy: String?,
+        val comment: String?,
+        val emptyLayer: Boolean,
+    )
+
+    private fun JsonObject.decodeHistoryEntry() = HistoryEntry(
+        getInstantOrNull("created"),
+        getStringOrNull("author"),
+        getStringOrNull("created_by"),
+        getStringOrNull("comment"),
+        getBooleanOrNull("empty_layer") ?: false,
+    )
 
     private fun JsonObject.getStringSetOrNull(key: String) = // TODO function name
         getOrNull(key) { asObject().toMap(TreeMap()) { asObject() }.keys.toSortedSet() }
