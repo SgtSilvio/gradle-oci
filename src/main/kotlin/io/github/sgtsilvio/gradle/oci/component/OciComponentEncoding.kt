@@ -47,8 +47,8 @@ private fun JsonObjectStringBuilder.encodeBundle(bundle: OciComponent.Bundle) {
     addStringIfNotNull("user", bundle.user)
     addArrayIfNotEmpty("ports", bundle.ports)
     addObjectIfNotEmpty("environment", bundle.environment)
-    if (bundle.command != null) {
-        addObject("command") { encodeCommand(bundle.command) }
+    bundle.command?.let { command ->
+        addObject("command") { encodeCommand(command) }
     }
     addArrayIfNotEmpty("volumes", bundle.volumes)
     addStringIfNotNull("workingDirectory", bundle.workingDirectory)
@@ -67,11 +67,11 @@ private fun JsonObjectStringBuilder.encodeCommand(command: OciComponent.Bundle.C
 }
 
 private fun JsonObjectStringBuilder.encodeLayer(layer: OciComponent.Bundle.Layer) {
-    if (layer.descriptor != null) { // TODO multiple layer.descriptor
-        addString("digest", layer.descriptor.digest.toString())
-        addString("diffId", layer.descriptor.diffId.toString())
-        addNumber("size", layer.descriptor.size)
-        addObjectIfNotEmpty("annotations", layer.descriptor.annotations)
+    layer.descriptor?.let { descriptor ->
+        addString("digest", descriptor.digest.toString())
+        addString("diffId", descriptor.diffId.toString())
+        addNumber("size", descriptor.size)
+        addObjectIfNotEmpty("annotations", descriptor.annotations)
     }
     addStringIfNotNull("creationTime", layer.creationTime?.toString())
     addStringIfNotNull("author", layer.author)
