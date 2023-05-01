@@ -3,7 +3,6 @@ package io.github.sgtsilvio.gradle.oci.component
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
-import java.time.Instant
 import java.util.*
 
 fun decodeComponent(string: String) = jsonObject(string).decodeComponent()
@@ -77,5 +76,3 @@ private fun JsonObject.decodeLayer() = OciComponent.Bundle.Layer(
     getStringOrNull("createdBy"),
     getStringOrNull("comment"),
 )
-
-private fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) }

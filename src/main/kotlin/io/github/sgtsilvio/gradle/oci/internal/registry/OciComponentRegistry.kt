@@ -326,8 +326,6 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         getStringSetOrNull("os.features") ?: TreeSet(),
     ) // TODO order?
 
-    private fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) } // TODO dedup
-
     private fun JsonObject.getStringSetOrNull(key: String) = // TODO function name
         getOrNull(key) { asObject().toMap(TreeMap()) { asObject() }.keys.toSortedSet() }
 

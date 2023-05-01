@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal.json
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.time.Instant
 import java.util.*
 
 fun jsonObject(string: String): JsonObject = JsonObject(
@@ -42,7 +43,7 @@ value class JsonValue @PublishedApi internal constructor(private val delegate: A
         else -> throw JsonException.create("", "must be a long, but is '$delegate'")
     }
 
-    fun asBoolean() = when(delegate) {
+    fun asBoolean() = when (delegate) {
         is Boolean -> delegate
         else -> throw JsonException.create("", "must be a boolean, but is '$delegate'")
     }
@@ -90,6 +91,8 @@ fun JsonObject.getStringSetOrNull(key: String) = getOrNull(key) { asArray().toSt
 
 fun JsonObject.toStringMap() = toMap(TreeMap()) { asString() }
 fun JsonObject.getStringMapOrNull(key: String) = getOrNull(key) { asObject().toStringMap() }
+
+fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) }
 
 @JsonDecodingDsl
 @JvmInline
