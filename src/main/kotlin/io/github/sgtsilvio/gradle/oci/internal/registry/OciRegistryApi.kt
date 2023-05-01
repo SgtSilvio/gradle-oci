@@ -65,33 +65,39 @@ class RegistryApi {
         registry: String,
         imageName: String,
         digest: OciDigest,
-        credentials: Credentials?
+        size: Long,
+        credentials: Credentials?,
     ): CompletableFuture<Manifest> =
         pullManifest(registry, imageName, digest.toString(), credentials).thenApply { manifest ->
-            val actualDigest = manifest.data.toByteArray().calculateOciDigest(digest.algorithm)
-            if (digest != actualDigest) {
-                throw digestMismatchException(digest.hash, actualDigest.hash) // TODO verify size
+            val manifestBytes = manifest.data.toByteArray()
+            val actualDigest = manifestBytes.calculateOciDigest(digest.algorithm)
+            when {
+                digest != actualDigest -> throw digestMismatchException(digest.hash, actualDigest.hash)
+                size != manifestBytes.size.toLong() -> throw sizeMismatchException(size, manifestBytes.size.toLong())
+                else -> manifest
             }
-            manifest
         }
 
     fun pullBlobAsString(
         registry: String,
         imageName: String,
         digest: OciDigest,
+        size: Long,
         credentials: Credentials?,
     ): CompletableFuture<String> =
-        pullBlob(registry, imageName, digest, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
+        pullBlob(registry, imageName, digest, size, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
 
     fun pullBlob(
         registry: String,
         imageName: String,
         digest: OciDigest,
+        size: Long,
         credentials: Credentials?,
     ): CompletableFuture<Path> = pullBlob(
         registry,
         imageName,
         digest,
+        size,
         credentials,
         BodySubscribers.ofFile(Files.createTempFile(null, null), StandardOpenOption.WRITE), // TODO dest file
     )
@@ -100,6 +106,7 @@ class RegistryApi {
         registry: String,
         imageName: String,
         digest: OciDigest,
+        size: Long,
         credentials: Credentials?,
         bodySubscriber: BodySubscriber<T>,
     ): CompletableFuture<T> {
@@ -112,7 +119,7 @@ class RegistryApi {
             HttpRequest.newBuilder().GET(),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
-                200 -> bodySubscriber.verify(digest)
+                200 -> bodySubscriber.verify(digest, size)
                 else -> createErrorBodySubscriber(responseInfo)
             }
         }.thenApply { it.body() }
@@ -238,7 +245,7 @@ class RegistryApi {
         credentials: Credentials?,
         permission: String,
         requestBuilder: HttpRequest.Builder,
-        responseBodyHandler: BodyHandler<T>
+        responseBodyHandler: BodyHandler<T>,
     ) = send(
         registry,
         imageName,
@@ -254,7 +261,7 @@ class RegistryApi {
         credentials: Credentials?,
         permission: String,
         requestBuilder: HttpRequest.Builder,
-        responseBodyHandler: BodyHandler<T>
+        responseBodyHandler: BodyHandler<T>,
     ): CompletableFuture<HttpResponse<T>> {
         getAuthorization(registry, credentials)?.let { requestBuilder.setHeader("Authorization", it) }
         return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
@@ -274,7 +281,7 @@ class RegistryApi {
         registry: String,
         imageName: String,
         credentials: Credentials?,
-        permission: String
+        permission: String,
     ): CompletableFuture<String>? {
         val bearerParams = decodeBearerParams(responseException.headers) ?: return null
         val realm = bearerParams["realm"] ?: return null
@@ -351,13 +358,16 @@ class DigestBodySubscriber<T>(
     private val bodySubscriber: BodySubscriber<T>,
     private val messageDigest: MessageDigest,
     private val expectedDigest: ByteArray,
+    private val expectedSize: Long,
 ) : BodySubscriber<T> {
+    private var actualSize = 0L
 
     override fun onSubscribe(subscription: Flow.Subscription?) = bodySubscriber.onSubscribe(subscription)
 
     override fun onNext(item: MutableList<ByteBuffer>) {
         for (byteBuffer in item) {
             messageDigest.update(byteBuffer.duplicate())
+            actualSize += byteBuffer.remaining()
         }
         bodySubscriber.onNext(item)
     }
@@ -366,10 +376,12 @@ class DigestBodySubscriber<T>(
 
     override fun onComplete() {
         val actualDigest = messageDigest.digest()
-        if (expectedDigest.contentEquals(actualDigest)) {
-            bodySubscriber.onComplete()
-        } else {
+        if (!expectedDigest.contentEquals(actualDigest)) {
             bodySubscriber.onError(digestMismatchException(expectedDigest, actualDigest))
+        } else if (expectedSize != actualSize) {
+            bodySubscriber.onError(sizeMismatchException(expectedSize, actualSize))
+        } else {
+            bodySubscriber.onComplete()
         }
     }
 
@@ -382,8 +394,11 @@ private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: Byt
     return DigestException("expected and actual digests do not match (expected: $expectedHex, actual: $actualHex)")
 }
 
-fun <T> BodySubscriber<T>.verify(digest: OciDigest) =
-    DigestBodySubscriber(this, digest.algorithm.createMessageDigest(), digest.hash) // TODO verify size
+private fun sizeMismatchException(expectedSize: Long, actualSize: Long) =
+    DigestException("expected and actual size do not match (expected: $expectedSize, actual: $actualSize)")
+
+fun <T> BodySubscriber<T>.verify(digest: OciDigest, size: Long) =
+    DigestBodySubscriber(this, digest.algorithm.createMessageDigest(), digest.hash, size)
 
 class HttpResponseException(
     val statusCode: Int,
@@ -425,6 +440,7 @@ fun main() {
                 "https://registry-1.docker.io",
                 "library/registry",
                 "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb".toOciDigest(),
+                1363,
                 null,
             ).get()
         )
@@ -433,6 +449,7 @@ fun main() {
                 "https://registry-1.docker.io",
                 "library/registry",
                 "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd".toOciDigest(),
+                4122,
                 null,
             ).get()
         )
@@ -441,6 +458,7 @@ fun main() {
                 "https://registry-1.docker.io",
                 "library/registry",
                 "sha256:91d30c5bc19582de1415b18f1ec5bcbf52a558b62cf6cc201c9669df9f748c22".toOciDigest(),
+                2807803,
                 null,
             ).get()
         )

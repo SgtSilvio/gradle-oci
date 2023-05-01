@@ -96,7 +96,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         val manifestFutures = indexJsonObject.get("manifests") {
             asArray().toList {
                 val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType)
-                registryApi.pullManifest(registry, imageName, manifestDescriptor.digest, credentials).thenCompose { manifest ->
+                registryApi.pullManifest(registry, imageName, manifestDescriptor.digest, manifestDescriptor.size, credentials).thenCompose { manifest ->
                     if (manifest.mediaType != manifestMediaType) { // TODO support nested index
                         throw IllegalArgumentException("expected \"$manifestMediaType\" as manifest media type, but is \"${manifest.mediaType}\"")
                     }
@@ -165,7 +165,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
             manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor(layerMediaType) } } ?: listOf() // TODO support other layer mediatype, needs support in OciComponent as well
         manifestJsonObject.requireStringOrNull("mediaType", manifestMediaType)
         manifestJsonObject.requireLong("schemaVersion", 2)
-        return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest, credentials).thenApply { config ->
+        return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest, configDescriptor.size, credentials).thenApply { config ->
             val configJsonObject = jsonObject(config)
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
             val architecture = configJsonObject.getString("architecture")
