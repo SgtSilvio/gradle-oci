@@ -73,8 +73,8 @@ private fun JsonObjectStringBuilder.encodeLayer(layer: OciComponent.Bundle.Layer
             addString("mediaType", descriptor.mediaType)
         }
         addString("digest", descriptor.digest.toString())
-        addString("diffId", descriptor.diffId.toString())
         addNumber("size", descriptor.size)
+        addString("diffId", descriptor.diffId.toString())
         addObjectIfNotEmpty("annotations", descriptor.annotations)
     }
     addStringIfNotNull("creationTime", layer.creationTime?.toString())

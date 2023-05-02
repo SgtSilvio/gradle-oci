@@ -68,8 +68,8 @@ private fun JsonObject.decodeLayer() = OciComponent.Bundle.Layer(
         OciComponent.Bundle.Layer.Descriptor(
             getStringOrNull("metadata") ?: LAYER_MEDIA_TYPE,
             getOciDigest("digest"),
-            getOciDigest("diffId"),
             getLong("size"),
+            getOciDigest("diffId"),
             getStringMapOrNull("annotations") ?: TreeMap(),
         )
     } else null,

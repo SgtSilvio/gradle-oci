@@ -103,13 +103,13 @@ class OciComponentBundleLayerBuilder : Serializable {
 
 class OciComponentBundleLayerDescriptorBuilder : Serializable {
     private var digest: OciDigest? = null
-    private var diffId: OciDigest? = null
     private var size: Long? = null
+    private var diffId: OciDigest? = null
     private var annotations: Map<String, String> = mapOf()
 
     fun digest(v: OciDigest?) = apply { digest = v }
-    fun diffId(v: OciDigest?) = apply { diffId = v }
     fun size(v: Long?) = apply { size = v }
+    fun diffId(v: OciDigest?) = apply { diffId = v }
     fun annotations(v: Map<String, String>) = apply { annotations = v }
 
     fun build() = when {
@@ -117,8 +117,8 @@ class OciComponentBundleLayerDescriptorBuilder : Serializable {
         else -> OciComponent.Bundle.Layer.Descriptor(
             LAYER_MEDIA_TYPE,
             digest!!,
-            diffId!!,
             size!!,
+            diffId!!,
             annotations.toSortedMap(),
         )
     }

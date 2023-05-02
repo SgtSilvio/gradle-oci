@@ -399,12 +399,12 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                         OciComponentBundleLayerDescriptorBuilder::digest,
                     )
                     .zipAbsentAsNull(
-                        task.flatMap { it.diffIdFile }.map { it.asFile.readText().toOciDigest() },
-                        OciComponentBundleLayerDescriptorBuilder::diffId,
-                    )
-                    .zipAbsentAsNull(
                         task.flatMap { it.tarFile }.map { it.asFile.length() },
                         OciComponentBundleLayerDescriptorBuilder::size,
+                    )
+                    .zipAbsentAsNull(
+                        task.flatMap { it.diffIdFile }.map { it.asFile.readText().toOciDigest() },
+                        OciComponentBundleLayerDescriptorBuilder::diffId,
                     )
             }
         }

@@ -232,8 +232,8 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
                         OciComponent.Bundle.Layer.Descriptor(
                             descriptor.mediaType,
                             descriptor.digest,
-                            diffId,
                             descriptor.size,
+                            diffId,
                             descriptor.annotations,
                         )
                     },
@@ -248,8 +248,8 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
                     OciComponent.Bundle.Layer.Descriptor(
                         descriptor.mediaType,
                         descriptor.digest,
-                        diffId,
                         descriptor.size,
+                        diffId,
                         descriptor.annotations,
                     ),
                     null,
