@@ -230,6 +230,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
                         val diffId = diffIds[i]
                         i++
                         OciComponent.Bundle.Layer.Descriptor(
+                            descriptor.mediaType,
                             descriptor.digest,
                             diffId,
                             descriptor.size,
@@ -245,6 +246,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
             } ?: layerDescriptors.zip(diffIds) { descriptor, diffId ->
                 OciComponent.Bundle.Layer(
                     OciComponent.Bundle.Layer.Descriptor(
+                        descriptor.mediaType,
                         descriptor.digest,
                         diffId,
                         descriptor.size,
@@ -289,6 +291,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         // TODO support data
         requireString("mediaType", mediaType)
         return OciDescriptorImpl(
+            mediaType,
             getOciDigest("digest"),
             getLong("size"),
             getStringMapOrNull("annotations") ?: TreeMap()

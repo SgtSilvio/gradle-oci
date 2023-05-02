@@ -52,6 +52,7 @@ data class OciComponent(
         ) : Serializable {
 
             data class Descriptor(
+                override val mediaType: String,
                 override val digest: OciDigest,
                 val diffId: OciDigest,
                 override val size: Long,

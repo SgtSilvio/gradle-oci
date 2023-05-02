@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import java.io.Serializable
 import java.time.Instant
@@ -113,6 +114,12 @@ class OciComponentBundleLayerDescriptorBuilder : Serializable {
 
     fun build() = when {
         (digest == null) && (diffId == null) && (size == null) && annotations.isEmpty() -> null
-        else -> OciComponent.Bundle.Layer.Descriptor(digest!!, diffId!!, size!!, annotations.toSortedMap())
+        else -> OciComponent.Bundle.Layer.Descriptor(
+            LAYER_MEDIA_TYPE,
+            digest!!,
+            diffId!!,
+            size!!,
+            annotations.toSortedMap(),
+        )
     }
 }

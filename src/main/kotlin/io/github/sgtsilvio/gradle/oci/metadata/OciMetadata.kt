@@ -87,7 +87,7 @@ fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDat
         }
         addStringIfNotEmpty("variant", platform.variant)
     }.toByteArray()
-    return OciDataDescriptor(data, descriptorAnnotations)
+    return OciDataDescriptor(CONFIG_MEDIA_TYPE, data, descriptorAnnotations)
 }
 
 fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
@@ -114,7 +114,7 @@ fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.B
         addString("mediaType", MANIFEST_MEDIA_TYPE)
         addNumber("schemaVersion", 2)
     }.toByteArray()
-    return OciDataDescriptor(data, descriptorAnnotations)
+    return OciDataDescriptor(MANIFEST_MEDIA_TYPE, data, descriptorAnnotations)
 }
 
 fun createIndex(
@@ -132,7 +132,7 @@ fun createIndex(
         addString("mediaType", INDEX_MEDIA_TYPE)
         addNumber("schemaVersion", 2)
     }.toByteArray()
-    return OciDataDescriptor(data, sortedMapOf())
+    return OciDataDescriptor(INDEX_MEDIA_TYPE, data, sortedMapOf())
 }
 
 private fun JsonObjectStringBuilder.encodeOciDescriptor(mediaType: String, descriptor: OciDescriptor) {
