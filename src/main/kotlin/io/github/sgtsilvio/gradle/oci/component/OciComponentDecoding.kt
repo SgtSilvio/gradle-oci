@@ -64,17 +64,17 @@ private fun JsonObject.decodeCommand() = OciComponent.Bundle.Command(
 )
 
 private fun JsonObject.decodeLayer() = OciComponent.Bundle.Layer(
-    if (hasKey("digest") || hasKey("diffId") || hasKey("size") || hasKey("annotations")) {
-        OciComponent.Bundle.Layer.Descriptor(
-            getStringOrNull("metadata") ?: LAYER_MEDIA_TYPE,
-            getOciDigest("digest"),
-            getLong("size"),
-            getOciDigest("diffId"),
-            getStringMapOrNull("annotations") ?: TreeMap(),
-        )
-    } else null,
+    getOrNull("descriptor") { asObject().decodeLayerDescriptor() },
     getInstantOrNull("creationTime"),
     getStringOrNull("author"),
     getStringOrNull("createdBy"),
     getStringOrNull("comment"),
+)
+
+private fun JsonObject.decodeLayerDescriptor() = OciComponent.Bundle.Layer.Descriptor(
+    getStringOrNull("metadata") ?: LAYER_MEDIA_TYPE,
+    getOciDigest("digest"),
+    getLong("size"),
+    getOciDigest("diffId"),
+    getStringMapOrNull("annotations") ?: TreeMap(),
 )

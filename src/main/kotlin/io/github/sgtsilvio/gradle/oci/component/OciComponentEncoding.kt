@@ -69,16 +69,20 @@ private fun JsonObjectStringBuilder.encodeCommand(command: OciComponent.Bundle.C
 
 private fun JsonObjectStringBuilder.encodeLayer(layer: OciComponent.Bundle.Layer) {
     layer.descriptor?.let { descriptor ->
-        if (descriptor.mediaType != LAYER_MEDIA_TYPE) {
-            addString("mediaType", descriptor.mediaType)
-        }
-        addString("digest", descriptor.digest.toString())
-        addNumber("size", descriptor.size)
-        addString("diffId", descriptor.diffId.toString())
-        addObjectIfNotEmpty("annotations", descriptor.annotations)
+        addObject("descriptor") { encodeLayerDescriptor(descriptor) }
     }
     addStringIfNotNull("creationTime", layer.creationTime?.toString())
     addStringIfNotNull("author", layer.author)
     addStringIfNotNull("createdBy", layer.createdBy)
     addStringIfNotNull("comment", layer.comment)
+}
+
+private fun JsonObjectStringBuilder.encodeLayerDescriptor(descriptor: OciComponent.Bundle.Layer.Descriptor) {
+    if (descriptor.mediaType != LAYER_MEDIA_TYPE) {
+        addString("mediaType", descriptor.mediaType)
+    }
+    addString("digest", descriptor.digest.toString())
+    addNumber("size", descriptor.size)
+    addString("diffId", descriptor.diffId.toString())
+    addObjectIfNotEmpty("annotations", descriptor.annotations)
 }
