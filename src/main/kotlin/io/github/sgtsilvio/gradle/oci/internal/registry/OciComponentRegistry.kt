@@ -230,7 +230,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
                         val diffId = diffIds[i]
                         i++
                         OciComponent.Bundle.Layer.Descriptor(
-                            descriptor.mediaType,
+                            normalizeLayerMediaType(descriptor.mediaType),
                             descriptor.digest,
                             descriptor.size,
                             diffId,
@@ -246,7 +246,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
             } ?: layerDescriptors.zip(diffIds) { descriptor, diffId ->
                 OciComponent.Bundle.Layer(
                     OciComponent.Bundle.Layer.Descriptor(
-                        descriptor.mediaType,
+                        normalizeLayerMediaType(descriptor.mediaType),
                         descriptor.digest,
                         descriptor.size,
                         diffId,
@@ -285,6 +285,11 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
     // TODO proper mapping
     private fun mapImageNameToCapabilities(imageName: OciImageName): SortedSet<VersionedCapability> =
         sortedSetOf(VersionedCapability(Capability(imageName.namespace.replace('/', '.'), imageName.name), imageName.tag))
+
+    private fun normalizeLayerMediaType(mediaType: String) = when (mediaType) {
+        DOCKER_LAYER_MEDIA_TYPE -> LAYER_MEDIA_TYPE
+        else -> mediaType
+    }
 
     private fun JsonObject.decodeOciDescriptor(mediaType: String): OciDescriptor {
         // TODO order?
