@@ -16,13 +16,13 @@ import java.util.concurrent.CompletableFuture
 /**
  * @author Silvio Giebl
  */
-class OciComponentRegistry(private val registryApi: RegistryApi) {
+class OciComponentRegistry(val registryApi: OciRegistryApi) {
 
     fun pullComponent(
         registry: String,
         imageName: String,
         reference: String,
-        credentials: RegistryApi.Credentials?,
+        credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> {
         val namespaceEndIndex = imageName.lastIndexOf('/') // TODO use OciImageName from the beginning
         val ociImageName = if (namespaceEndIndex == -1) {
@@ -84,7 +84,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         registry: String,
         imageName: String,
         index: String,
-        credentials: RegistryApi.Credentials?,
+        credentials: OciRegistryApi.Credentials?,
         capabilities: SortedSet<VersionedCapability>,
         indexMediaType: String,
         manifestMediaType: String,
@@ -128,7 +128,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         registry: String,
         imageName: String,
         manifest: String,
-        credentials: RegistryApi.Credentials?,
+        credentials: OciRegistryApi.Credentials?,
         capabilities: SortedSet<VersionedCapability>,
         manifestMediaType: String,
         configMediaType: String,
@@ -153,7 +153,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
         imageName: String,
         manifest: String,
         manifestDescriptorAnnotations: SortedMap<String, String>,
-        credentials: RegistryApi.Credentials?,
+        credentials: OciRegistryApi.Credentials?,
         manifestMediaType: String,
         configMediaType: String,
         layerMediaType: String,
@@ -358,7 +358,7 @@ class OciComponentRegistry(private val registryApi: RegistryApi) {
 }
 
 fun main() {
-    val componentRegistry = OciComponentRegistry(RegistryApi())
+    val componentRegistry = OciComponentRegistry(OciRegistryApi())
     println(
         encodeComponent(componentRegistry.pullComponent(
             "https://registry-1.docker.io",

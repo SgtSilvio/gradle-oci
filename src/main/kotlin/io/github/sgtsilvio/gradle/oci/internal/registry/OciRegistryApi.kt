@@ -23,7 +23,7 @@ import java.util.concurrent.*
 /**
  * @author Silvio Giebl
  */
-class RegistryApi {
+class OciRegistryApi {
 
     private val httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
     private val authorizationCache = ConcurrentHashMap<TokenCacheKey, String>()
@@ -424,7 +424,7 @@ private const val PULL_PERMISSION = "pull"
 private const val PUSH_PERMISSION = "pull,push"
 
 fun main() {
-    val registryApi = RegistryApi()
+    val registryApi = OciRegistryApi()
     for (i in 0..0) {
         val t3 = System.nanoTime()
         println(
