@@ -138,23 +138,22 @@ abstract class OciRegistryDataTask : DefaultTask() {
         for (rootCapability in rootCapabilities) {
             val resolvedComponent = componentResolver.resolve(rootCapability)
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-            val imageDigests = hashSetOf<OciDigest>()
+            val blobDigests = hashSetOf<OciDigest>()
             for (platform in resolvedComponent.platforms) {
                 val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
                 for (bundle in bundlesForPlatform) {
                     for (layer in bundle.layers) {
                         layer.descriptor?.let {
-                            imageDigests += it.digest
+                            blobDigests += it.digest
                         }
                     }
                 }
                 val config = createConfig(platform, bundlesForPlatform)
                 blobsDirectory.writeDigestData(config)
-                imageDigests += config.digest
+                blobDigests += config.digest
                 val manifest = createManifest(config, bundlesForPlatform)
                 blobsDirectory.writeDigestData(manifest)
                 manifests += Pair(platform, manifest)
-                imageDigests += manifest.digest
             }
             val index = createIndex(manifests, resolvedComponent.component)
             blobsDirectory.writeDigestData(index)
@@ -169,11 +168,15 @@ abstract class OciRegistryDataTask : DefaultTask() {
                     repositoriesDirectory.resolve(imageName.namespace).resolve(imageName.name)
                 )
                 val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
-                for (imageDigest in imageDigests) {
-                    layersDirectory.writeDigestLink(imageDigest)
+                for (blobDigest in blobDigests) {
+                    layersDirectory.writeDigestLink(blobDigest)
                 }
                 val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_manifests"))
-                Files.createDirectories(manifestsDirectory.resolve("revisions")).writeDigestLink(indexDigest)
+                val manifestRevisionsDirectory: Path = Files.createDirectories(manifestsDirectory.resolve("revisions"))
+                for ((_, manifestDescriptor) in manifests) {
+                    manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
+                }
+                manifestRevisionsDirectory.writeDigestLink(indexDigest)
                 val tagDirectory: Path =
                     Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageName.tag))
                 tagDirectory.writeTagLink(indexDigest)
