@@ -5,7 +5,6 @@ import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCapability
 import io.github.sgtsilvio.gradle.oci.component.encodeComponent
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageName
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
@@ -22,15 +21,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageName: String,
         reference: String,
+        capabilities: SortedSet<VersionedCapability>,
         credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> {
-        val namespaceEndIndex = imageName.lastIndexOf('/') // TODO use OciImageName from the beginning
-        val ociImageName = if (namespaceEndIndex == -1) {
-            OciImageName("", imageName, reference)
-        } else {
-            OciImageName(imageName.substring(0, namespaceEndIndex), imageName.substring(namespaceEndIndex + 1), reference)
-        }
-        val capabilities = mapImageNameToCapabilities(ociImageName)
         return registryApi.pullManifest(registry, imageName, reference, credentials).thenCompose { manifest ->
             when (manifest.mediaType) {
                 INDEX_MEDIA_TYPE -> transformIndexToComponent(
@@ -282,10 +275,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         }
     }
 
-    // TODO proper mapping
-    private fun mapImageNameToCapabilities(imageName: OciImageName): SortedSet<VersionedCapability> =
-        sortedSetOf(VersionedCapability(Capability(imageName.namespace.replace('/', '.'), imageName.name), imageName.tag))
-
     private fun normalizeLayerMediaType(mediaType: String) = when (mediaType) {
         DOCKER_LAYER_MEDIA_TYPE -> LAYER_MEDIA_TYPE
         else -> mediaType
@@ -364,6 +353,7 @@ fun main() {
             "https://registry-1.docker.io",
             "library/registry",
             "2",
+            sortedSetOf(VersionedCapability(Capability("library", "registry"), "2")),
             null,
         ).get())
     )
