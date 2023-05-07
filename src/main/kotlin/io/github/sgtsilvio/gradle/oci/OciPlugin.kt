@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
+import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import org.gradle.api.Plugin
@@ -13,6 +14,7 @@ class OciPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         project.extensions.create(OciExtension::class, EXTENSION_NAME, OciExtensionImpl::class)
+        project.dependencies.attributesSchema.attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
     }
 }
 
