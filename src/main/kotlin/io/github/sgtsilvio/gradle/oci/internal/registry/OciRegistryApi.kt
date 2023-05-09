@@ -359,31 +359,57 @@ class DigestBodySubscriber<T>(
     private val messageDigest: MessageDigest,
     private val expectedDigest: ByteArray,
     private val expectedSize: Long,
-) : BodySubscriber<T> {
+) : BodySubscriber<T>, Flow.Subscription {
+    private lateinit var subscription: Flow.Subscription
     private var actualSize = 0L
+    private var done = false
 
-    override fun onSubscribe(subscription: Flow.Subscription?) = bodySubscriber.onSubscribe(subscription)
+    override fun onSubscribe(subscription: Flow.Subscription) {
+        this.subscription = subscription
+        bodySubscriber.onSubscribe(this)
+    }
 
     override fun onNext(item: MutableList<ByteBuffer>) {
+        if (done) return
         for (byteBuffer in item) {
             messageDigest.update(byteBuffer.duplicate())
             actualSize += byteBuffer.remaining()
         }
+        if (actualSize >= expectedSize) {
+            if (actualSize > expectedSize) {
+                subscription.cancel()
+                done = true
+                bodySubscriber.onError(sizeMismatchException(expectedSize, actualSize))
+                return
+            }
+            val actualDigest = messageDigest.digest()
+            if (!expectedDigest.contentEquals(actualDigest)) {
+                subscription.cancel()
+                done = true
+                bodySubscriber.onError(digestMismatchException(expectedDigest, actualDigest))
+                return
+            }
+        }
         bodySubscriber.onNext(item)
     }
 
-    override fun onError(throwable: Throwable?) = bodySubscriber.onError(throwable)
+    override fun onError(throwable: Throwable?) {
+        if (done) return else done = true
+        bodySubscriber.onError(throwable)
+    }
 
     override fun onComplete() {
-        val actualDigest = messageDigest.digest()
-        if (!expectedDigest.contentEquals(actualDigest)) {
-            bodySubscriber.onError(digestMismatchException(expectedDigest, actualDigest))
-        } else if (expectedSize != actualSize) {
+        if (done) return else done = true
+        if (actualSize < expectedSize) {
             bodySubscriber.onError(sizeMismatchException(expectedSize, actualSize))
         } else {
             bodySubscriber.onComplete()
         }
     }
+
+    override fun request(n: Long) = subscription.request(n)
+
+    override fun cancel() = subscription.cancel()
 
     override fun getBody(): CompletionStage<T> = bodySubscriber.body
 }
