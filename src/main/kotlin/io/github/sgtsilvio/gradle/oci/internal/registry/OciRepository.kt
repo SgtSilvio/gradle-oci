@@ -78,7 +78,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                     )
 
                     segments.size < 7 -> response.sendNotFound()
-                    last == "oci-component.json" -> handleOciComponent(
+                    last.endsWith("oci-component.json") -> handleOciComponent(
                         registryUri,
                         decodeGroup(segments, segments.size - 4),
                         segments[segments.lastIndex - 3],
@@ -87,25 +87,31 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                         response,
                     )
 
-                    segments.size < 9 -> response.sendNotFound()
-                    segments[segments.lastIndex - 2] == "layer" -> handleLayer(
-                        registryUri,
-                        decodeGroup(segments, segments.size - 6),
-                        segments[segments.lastIndex - 5],
-                        segments[segments.lastIndex - 4],
-                        segments[segments.lastIndex - 3],
-                        try {
-                            segments[segments.lastIndex - 1].toOciDigest()
-                        } catch (e: IllegalArgumentException) {
+                    last.startsWith("oci-layer-") -> {
+                        val digestStartIndex = "oci-layer-".length
+                        val digestEndIndex = last.lastIndexOf('-')
+                        if (digestEndIndex < digestStartIndex) {
                             return response.sendNotFound()
-                        },
-                        try {
-                            last.toLong()
-                        } catch (e: NumberFormatException) {
-                            return response.sendNotFound()
-                        },
-                        response,
-                    )
+                        }
+                        handleLayer(
+                            registryUri,
+                            decodeGroup(segments, segments.size - 4),
+                            segments[segments.lastIndex - 3],
+                            segments[segments.lastIndex - 2],
+                            segments[segments.lastIndex - 1],
+                            try {
+                                last.substring(digestStartIndex, digestEndIndex).toOciDigest()
+                            } catch (e: IllegalArgumentException) {
+                                return response.sendNotFound()
+                            },
+                            try {
+                                last.substring(digestEndIndex + 1).toLong()
+                            } catch (e: NumberFormatException) {
+                                return response.sendNotFound()
+                            },
+                            response,
+                        )
+                    }
 
                     else -> response.sendNotFound()
                 }
@@ -156,8 +162,9 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                         addArray("files") {
                             addObject {
                                 val encodedOciComponent = encodeComponent(ociComponent).toByteArray()
-                                addString("name", "$name${if (variantName == "main") "" else "-$variantName"}-$version-oci-component.json")
-                                addString("url", "$variantName/oci-component.json")
+                                val ociComponentName = "$name${if (variantName == "main") "" else "-$variantName"}-$version-oci-component.json"
+                                addString("name", ociComponentName)
+                                addString("url", "$variantName/$ociComponentName")
                                 addNumber("size", encodedOciComponent.size.toLong())
                                 addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(encodedOciComponent)))
                                 addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(encodedOciComponent)))
@@ -167,8 +174,9 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                             for ((digest, size) in ociComponent.collectLayerDigestSizePairs()) {
                                 val layerVariantName = layerDigestToVariantName.putIfAbsent(digest, variantName) ?: variantName
                                 addObject {
-                                    addString("name", "oci-layer-${digest.algorithm.ociPrefix}-${digest.encodedHash}")
-                                    addString("url", "$layerVariantName/layer/$digest/$size")
+                                    val layerName = "oci-layer-$digest-$size"
+                                    addString("name", layerName.replace(':', '-'))
+                                    addString("url", "$layerVariantName/$layerName")
                                     addNumber("size", size)
                                     addString(digest.algorithm.ociPrefix, digest.encodedHash)
                                 }
