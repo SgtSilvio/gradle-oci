@@ -2,7 +2,10 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
-import io.github.sgtsilvio.gradle.oci.metadata.*
+import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
 import org.apache.commons.codec.binary.Hex
 import java.net.URI
 import java.net.http.HttpClient
@@ -12,9 +15,7 @@ import java.net.http.HttpResponse
 import java.net.http.HttpResponse.*
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardOpenOption
 import java.security.DigestException
 import java.security.MessageDigest
 import java.util.*
@@ -86,21 +87,6 @@ class OciRegistryApi {
         credentials: Credentials?,
     ): CompletableFuture<String> =
         pullBlob(registry, imageName, digest, size, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
-
-    fun pullBlob(
-        registry: String,
-        imageName: String,
-        digest: OciDigest,
-        size: Long,
-        credentials: Credentials?,
-    ): CompletableFuture<Path> = pullBlob(
-        registry,
-        imageName,
-        digest,
-        size,
-        credentials,
-        BodySubscribers.ofFile(Files.createTempFile(null, null), StandardOpenOption.WRITE), // TODO dest file
-    )
 
     fun <T> pullBlob(
         registry: String,
@@ -448,63 +434,3 @@ const val DOCKER_CONFIG_MEDIA_TYPE = "application/vnd.docker.container.image.v1+
 const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.tar.gzip"
 private const val PULL_PERMISSION = "pull"
 private const val PUSH_PERMISSION = "pull,push"
-
-fun main() {
-    val registryApi = OciRegistryApi()
-    for (i in 0..0) {
-        val t3 = System.nanoTime()
-        println(
-            registryApi.pullManifest(
-                "https://registry-1.docker.io",
-                "library/registry",
-                "2",
-                null,
-            ).get()
-        )
-        println(
-            registryApi.pullManifest(
-                "https://registry-1.docker.io",
-                "library/registry",
-                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb".toOciDigest(),
-                1363,
-                null,
-            ).get()
-        )
-        println(
-            registryApi.pullBlobAsString(
-                "https://registry-1.docker.io",
-                "library/registry",
-                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd".toOciDigest(),
-                4122,
-                null,
-            ).get()
-        )
-        println(
-            registryApi.pullBlob(
-                "https://registry-1.docker.io",
-                "library/registry",
-                "sha256:91d30c5bc19582de1415b18f1ec5bcbf52a558b62cf6cc201c9669df9f748c22".toOciDigest(),
-                2807803,
-                null,
-            ).get()
-        )
-        println(
-            registryApi.isBlobPresent(
-                "https://registry-1.docker.io",
-                "library/registry",
-                "sha256:7c8b70990dad7e4325bf26142f59f77c969c51e079918f4631767ac8d49e22fb".toOciDigest(),
-                null,
-            ).get()
-        )
-        println(
-            registryApi.isBlobPresent(
-                "https://registry-1.docker.io",
-                "library/registry",
-                "sha256:8db46f9d755043e6c427912d5c36b4375d68d31ab46ef9782fef06bdee1ed2cd".toOciDigest(),
-                null,
-            ).get()
-        )
-        val t4 = System.nanoTime()
-        println(TimeUnit.NANOSECONDS.toMillis(t4 - t3))
-    }
-}

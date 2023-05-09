@@ -34,7 +34,6 @@ import java.net.http.HttpResponse
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 
 /**
  * @author Silvio Giebl
@@ -56,7 +55,6 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
 
     private fun handle(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
         val segments = request.uri().substring(1).split('/')
-        println(segments)
         if (segments[0] == "v1") {
             if (segments.size < 6) {
                 response.sendNotFound()
@@ -233,21 +231,9 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         size: Long,
         response: HttpServerResponse
     ): Publisher<Void> {
-//        if (size > 100000) {
-//            return response.status(HttpResponseStatus(555, "digest mismatch")).send()
-//        }
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         response.header("Content-Length", size.toString())
-//        return Mono.fromFuture(
-//            componentRegistry.registryApi.pullBlob(
-//                registryUri.toString(),
-//                variant.imageName,
-//                digest,
-//                size,
-//                null, // TODO credentials
-//            )
-//        ).flatMapMany { response.sendFile(it) }
         return response.send(Mono.fromFuture(
             componentRegistry.registryApi.pullBlob(
                 registryUri.toString(),
@@ -270,7 +256,6 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
             version,
             mapOf(
                 "main" to MappedComponent.Variant(
-//                    sortedSetOf(VersionedCapability(Capability(group, name), version)),
                     sortedSetOf(),
                     group.replace('.', '/') + '/' + name,
                     version,
@@ -295,84 +280,3 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         return digests
     }
 }
-
-fun main() {
-    println(Base64.getUrlEncoder().encodeToString("https://registry-1.docker.io".toByteArray()))
-    val ociRepository = OciRepository(OciComponentRegistry(OciRegistryApi()))
-    ociRepository.start(12345)
-    TimeUnit.MINUTES.sleep(3)
-    ociRepository.stop()
-}
-
-
-/*
-{
-  "formatVersion": "1.1",
-  "component": {
-    "group": "<group>",
-    "module": "<name>",
-    "version": "<version>",
-    "attributes": {
-      "org.gradle.status": "release"
-    }
-  },
-  "variants": [
-    {
-      "name": "ociImage|<featureVariant>OciImage",
-      "attributes": {
-        "io.github.sgtsilvio.gradle.distributiontype": "oci-image",
-        "org.gradle.category": "distribution",
-        "org.gradle.dependency.bundling": "external",
-        "org.gradle.usage": "release" // maybe remove
-      },
-      "files": [
-        {
-          "name": "<name>[-<featureVariant>]-<version>-oci-component.json",
-          "url": "<featureVariant>/oci-component.json",
-          "size": <size>,
-          "sha512": "<computed-128chars>",
-          "sha256": "<computed-64chars>",
-          "sha1": "<computed-40chars>",
-          "md5": "<computed-32chars>"
-        },
-        {
-          "name": "oci-layer-<(layer1-digest).replace(':', ',')>",
-          "url": "layer/<layer1-digest>/<layer1-size>",
-          "size": <layer1-size>,
-          "<alg>": "<layer1-digest-without-alg>"
-        },
-        {
-          "name": "oci-layer-<(layer2-digest).replace(':', ',')>",
-          "url": "layer/<layer2-digest>/<layer2-size>",
-          "size": <layer2-size>,
-          "<alg>": "<layer2-digest-without-alg>"
-        }
-      ],
-      "capabilities": [ // optional
-        {
-          "group": "<cap1-group>",
-          "name": "<cap1-name>",
-          "version": "<cap1-version>"
-        },
-        {
-          "group": "<cap2-group>",
-          "name": "<cap2-name>",
-          "version": "<cap2-version>"
-        }
-      ]
-    }
-  ]
-}
-
-REST API
-/v1/{registryUri}/{group}/{name}/{version}/module.json
-/v1/{registryUri}/{group}/{name}/{version}/{featureVariant}/oci-component.json
-/v1/{registryUri}/{group}/{name}/{version}/layer/{digest}-{size}
-
-Example
-/v1/{registryUri}/com/hivemq/hivemq-server/4.14.0/module.json
-/v1/{registryUri}/com/hivemq/hivemq-server/4.14.0/main/oci-component.json
-/v1/{registryUri}/com/hivemq/hivemq-server/4.14.0/dns/oci-component.json
-/v1/{registryUri}/com/hivemq/hivemq-server/4.14.0/main/layer/sha265:abc123...abc123/13452
-/v1/{registryUri}/com/hivemq/hivemq-server/4.14.0/dns/layer/sha265:abc456...abc456/325976
- */
