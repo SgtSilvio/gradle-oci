@@ -4,6 +4,9 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
+import io.github.sgtsilvio.gradle.oci.internal.registry.OciComponentRegistry
+import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
+import io.github.sgtsilvio.gradle.oci.internal.registry.OciRepository
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
@@ -17,9 +20,6 @@ import org.gradle.kotlin.dsl.namedDomainObjectList
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
 import java.net.URI
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.util.*
 import javax.inject.Inject
 
@@ -73,12 +73,35 @@ abstract class OciRegistriesImpl @Inject constructor(
         }
     }
 
+//    private var server: DisposableServer? = null
+    private val repository = OciRepository(OciComponentRegistry(OciRegistryApi()))
+
     private fun startRepository() {
         // TODO start server on repositoryPort.get() if not yet started
+//        server = HttpServer.create()
+//            .bindAddress { InetSocketAddress("localhost", repositoryPort.get()) }
+//            .route { routes ->
+//                routes.get("/v1/{registryUri}/{group}/{name}/{version}/{artifact}") { request, response ->
+//                    println(request)
+//                    val registryUri = String(Base64.getUrlDecoder().decode(request.param("registryUri")))
+//                    val group = request.param("group")!!
+//                    val name = request.param("name")!!
+//                    val version = request.param("version")!!
+//                    val artifact = request.param("artifact")!!
+//                    val registryApi = RegistryApi()
+//                    val manifestFuture = registryApi.pullManifest(registryUri, "$group/$name", version, null)
+//                    Mono.fromFuture(manifestFuture).doOnNext { println(it) }.then(response.sendNotFound())
+//                }
+//            }
+//            .bindNow()
+        repository.stop()
+        repository.start(repositoryPort.get())
     }
 
     private fun stopRepository() {
         // TODO stop server if started, count beforeResolve calls via atomic integer
+//        server?.disposeNow()
+//        repository.stop()
     }
 }
 
@@ -104,7 +127,7 @@ abstract class OciRegistryImpl @Inject constructor(
     }
 
     private val repositoryUrl: Provider<URI> = url.zip(registries.repositoryPort) { url, repositoryPort ->
-        URI("http://localhost:$repositoryPort/" + Base64.getUrlEncoder().encodeToString(url.toString().toByteArray()))
+        URI("http://localhost:$repositoryPort/v1/" + Base64.getUrlEncoder().encodeToString(url.toString().toByteArray()))
     }
 
     final override fun getName() = name
@@ -132,7 +155,7 @@ fun main() {
 //    println(connection.responseCode)
 //    Thread.sleep(1000)
 //    server.stop(0)
-    val uri = URI(
+    /*val uri = URI(
         "http",
         null,
         "localhost",
@@ -146,5 +169,18 @@ fun main() {
     println(URLDecoder.decode(uri.path, StandardCharsets.UTF_8.name()))
     println(uri.rawPath)
     println(URLDecoder.decode(uri.rawPath, StandardCharsets.UTF_8.name()))
-    println(URLDecoder.decode(URLDecoder.decode(uri.rawPath, StandardCharsets.UTF_8.name()), StandardCharsets.UTF_8.name()))
+    println(
+        URLDecoder.decode(
+            URLDecoder.decode(uri.rawPath, StandardCharsets.UTF_8.name()), StandardCharsets.UTF_8.name()
+        )
+    )*/
+//    HttpServer.create()
+//        .bindAddress { InetSocketAddress("localhost", 5123) }
+//        .handle { request, response ->
+//            println(request)
+//            println(Thread.currentThread())
+//            response.sendFile(Path.of("gradle.properties"))
+//        }
+//        .bindNow()
+//    Thread.sleep(100000)
 }

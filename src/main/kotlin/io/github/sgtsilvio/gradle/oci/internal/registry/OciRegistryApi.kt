@@ -102,7 +102,7 @@ class OciRegistryApi {
         BodySubscribers.ofFile(Files.createTempFile(null, null), StandardOpenOption.WRITE), // TODO dest file
     )
 
-    private fun <T> pullBlob(
+    fun <T> pullBlob(
         registry: String,
         imageName: String,
         digest: OciDigest,
