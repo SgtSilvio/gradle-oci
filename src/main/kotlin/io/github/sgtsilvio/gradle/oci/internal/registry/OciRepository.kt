@@ -87,7 +87,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 val group = decodeGroup(segments, segments.size - 3)
                 val name = segments[segments.lastIndex - 2]
                 val version = segments[segments.lastIndex - 1]
-                getOrHeadModule(registryUri, group, name, version, isGET, response)
+                getOrHeadGradleModuleMetadata(registryUri, group, name, version, isGET, response)
             }
 
             segments.size < 6 -> response.sendNotFound()
@@ -97,7 +97,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 val name = segments[segments.lastIndex - 3]
                 val version = segments[segments.lastIndex - 2]
                 val variantName = segments[segments.lastIndex - 1]
-                getOrHeadOciComponent(registryUri, group, name, version, variantName, isGET, response)
+                getOrHeadComponent(registryUri, group, name, version, variantName, isGET, response)
             }
 
             last.startsWith("oci-layer-") -> {
@@ -132,7 +132,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
 
     private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(1, toIndex).joinToString(".")
 
-    private fun getOrHeadModule(
+    private fun getOrHeadGradleModuleMetadata(
         registryUri: URI,
         group: String,
         name: String,
@@ -141,13 +141,13 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
-        val ociComponentFutures = mappedComponent.variants.map { (_, variant) ->
-            getOciComponent(registryUri, mappedComponent, variant, null) // TODO credentials
+        val componentFutures = mappedComponent.variants.map { (_, variant) ->
+            getComponent(registryUri, mappedComponent, variant, null) // TODO credentials
         }
-        val moduleJsonFuture = CompletableFuture.allOf(*ociComponentFutures.toTypedArray()).thenApply {
-            val variantNameOciComponentPairs: List<Pair<String, OciComponent>> =
-                mappedComponent.variants.keys.zip(ociComponentFutures) { variantName, ociComponentFuture ->
-                    Pair(variantName, ociComponentFuture.get())
+        val moduleJsonFuture = CompletableFuture.allOf(*componentFutures.toTypedArray()).thenApply {
+            val variantNameComponentPairs: List<Pair<String, OciComponent>> =
+                mappedComponent.variants.keys.zip(componentFutures) { variantName, componentFuture ->
+                    Pair(variantName, componentFuture.get())
                 }
             jsonObject {
                 addString("formatVersion", "1.1")
@@ -160,7 +160,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                     }
                 }
                 val layerDigestToVariantName = mutableMapOf<OciDigest, String>()
-                addArray("variants", variantNameOciComponentPairs) { (variantName, ociComponent) ->
+                addArray("variants", variantNameComponentPairs) { (variantName, component) ->
                     addObject {
                         addString("name", if (variantName == "main") "ociImage" else variantName + "OciImage")
                         addObject("attributes") {
@@ -171,17 +171,17 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                         }
                         addArray("files") {
                             addObject {
-                                val encodedOciComponent = encodeComponent(ociComponent).toByteArray()
-                                val ociComponentName = "$name${if (variantName == "main") "" else "-$variantName"}-$version-oci-component.json"
-                                addString("name", ociComponentName)
-                                addString("url", "$variantName/$ociComponentName")
-                                addNumber("size", encodedOciComponent.size.toLong())
-                                addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(encodedOciComponent)))
-                                addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(encodedOciComponent)))
-                                addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(encodedOciComponent)))
-                                addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(encodedOciComponent)))
+                                val encodedComponent = encodeComponent(component).toByteArray()
+                                val componentName = "$name${if (variantName == "main") "" else "-$variantName"}-$version-oci-component.json"
+                                addString("name", componentName)
+                                addString("url", "$variantName/$componentName")
+                                addNumber("size", encodedComponent.size.toLong())
+                                addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(encodedComponent)))
+                                addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(encodedComponent)))
+                                addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(encodedComponent)))
+                                addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(encodedComponent)))
                             }
-                            for ((digest, size) in ociComponent.collectLayerDigestSizePairs()) {
+                            for ((digest, size) in component.collectLayerDigestSizePairs()) {
                                 val layerVariantName = layerDigestToVariantName.putIfAbsent(digest, variantName) ?: variantName
                                 addObject {
                                     val layerName = "oci-layer-$digest-$size"
@@ -192,8 +192,8 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                                 }
                             }
                         }
-                        if (ociComponent.capabilities != setOf(VersionedCapability(Capability(group, name), version))) {
-                            addArrayIfNotEmpty("capabilities", ociComponent.capabilities) { versionedCapability ->
+                        if (component.capabilities != setOf(VersionedCapability(Capability(group, name), version))) {
+                            addArrayIfNotEmpty("capabilities", component.capabilities) { versionedCapability ->
                                 addObject {
                                     addString("group", versionedCapability.capability.group)
                                     addString("name", versionedCapability.capability.name)
@@ -209,7 +209,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         return response.sendByteArray(Mono.fromFuture(moduleJsonFuture), isGET)
     }
 
-    private fun getOrHeadOciComponent(
+    private fun getOrHeadComponent(
         registryUri: URI,
         group: String,
         name: String,
@@ -220,14 +220,14 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
-        val componentJsonFuture = getOciComponent(registryUri, mappedComponent, variant, null).thenApply { ociComponent -> // TODO credentials
-            encodeComponent(ociComponent).toByteArray()
+        val componentJsonFuture = getComponent(registryUri, mappedComponent, variant, null).thenApply { component -> // TODO credentials
+            encodeComponent(component).toByteArray()
         }
         response.header("Content-Type", "application/json")
         return response.sendByteArray(Mono.fromFuture(componentJsonFuture), isGET)
     }
 
-    private fun getOciComponent(
+    private fun getComponent(
         registryUri: URI,
         mappedComponent: MappedComponent,
         variant: MappedComponent.Variant,
