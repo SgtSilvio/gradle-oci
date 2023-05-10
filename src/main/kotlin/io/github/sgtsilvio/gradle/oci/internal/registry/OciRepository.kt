@@ -66,15 +66,20 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         segments: List<String>,
         response: HttpServerResponse,
     ): Publisher<Void> {
+        val isGET = when (request.method()) {
+            HttpMethod.GET -> true
+            HttpMethod.HEAD -> false
+            else -> return response.sendNotFound()
+        }
         if (segments.size < 5) {
             response.sendNotFound()
         }
         val registryUri = try {
             URI(String(Base64.getUrlDecoder().decode(segments[0])))
         } catch (e: IllegalArgumentException) {
-            return response.sendNotFound()
+            return response.sendBadRequest()
         } catch (e: URISyntaxException) {
-            return response.sendNotFound()
+            return response.sendBadRequest()
         }
         val last = segments[segments.lastIndex]
         return when {
@@ -82,8 +87,8 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 val group = decodeGroup(segments, segments.size - 3)
                 val name = segments[segments.lastIndex - 2]
                 val version = segments[segments.lastIndex - 1]
-                when (request.method()) {
-                    HttpMethod.GET -> handleModule(registryUri, group, name, version, response)
+                when {
+                    isGET -> handleModule(registryUri, group, name, version, response)
                     else -> response.sendNotFound()
                 }
             }
@@ -95,8 +100,8 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 val name = segments[segments.lastIndex - 3]
                 val version = segments[segments.lastIndex - 2]
                 val variantName = segments[segments.lastIndex - 1]
-                when (request.method()) {
-                    HttpMethod.GET -> handleOciComponent(registryUri, group, name, version, variantName, response)
+                when {
+                    isGET -> handleOciComponent(registryUri, group, name, version, variantName, response)
                     else -> response.sendNotFound()
                 }
             }
@@ -109,22 +114,21 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 val digestStartIndex = "oci-layer-".length
                 val digestEndIndex = last.lastIndexOf('-')
                 if (digestEndIndex < digestStartIndex) {
-                    return response.sendNotFound()
+                    return response.sendBadRequest()
                 }
                 val digest = try {
                     last.substring(digestStartIndex, digestEndIndex).toOciDigest()
                 } catch (e: IllegalArgumentException) {
-                    return response.sendNotFound()
+                    return response.sendBadRequest()
                 }
                 val size = try {
                     last.substring(digestEndIndex + 1).toLong()
                 } catch (e: NumberFormatException) {
-                    return response.sendNotFound()
+                    return response.sendBadRequest()
                 }
-                when (request.method()) {
-                    HttpMethod.GET -> getLayer(registryUri, group, name, version, variantName, digest, size, response)
-                    HttpMethod.HEAD -> headLayer(registryUri, group, name, version, variantName, digest, size, response)
-                    else -> response.sendNotFound()
+                when {
+                    isGET -> getLayer(registryUri, group, name, version, variantName, digest, size, response)
+                    else -> headLayer(registryUri, group, name, version, variantName, digest, size, response)
                 }
             }
 
@@ -318,4 +322,6 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         }
         return digests
     }
+
+    private fun HttpServerResponse.sendBadRequest() = status(400).send()
 }
