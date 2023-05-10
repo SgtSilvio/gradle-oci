@@ -87,10 +87,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 val group = decodeGroup(segments, segments.size - 3)
                 val name = segments[segments.lastIndex - 2]
                 val version = segments[segments.lastIndex - 1]
-                when {
-                    isGET -> handleModule(registryUri, group, name, version, response)
-                    else -> response.sendNotFound()
-                }
+                getOrHeadModule(registryUri, group, name, version, isGET, response)
             }
 
             segments.size < 6 -> response.sendNotFound()
@@ -100,10 +97,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 val name = segments[segments.lastIndex - 3]
                 val version = segments[segments.lastIndex - 2]
                 val variantName = segments[segments.lastIndex - 1]
-                when {
-                    isGET -> handleOciComponent(registryUri, group, name, version, variantName, response)
-                    else -> response.sendNotFound()
-                }
+                getOrHeadOciComponent(registryUri, group, name, version, variantName, isGET, response)
             }
 
             last.startsWith("oci-layer-") -> {
@@ -138,11 +132,12 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
 
     private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(1, toIndex).joinToString(".")
 
-    private fun handleModule(
+    private fun getOrHeadModule(
         registryUri: URI,
         group: String,
         name: String,
         version: String,
+        isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
@@ -210,16 +205,17 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                 }
             }.toByteArray()
         }
-        return response.header("Content-Type", "application/vnd.org.gradle.module+json") // TODO constants
-            .sendByteArray(Mono.fromFuture(moduleJsonFuture))
+        response.header("Content-Type", "application/vnd.org.gradle.module+json") // TODO constants
+        return response.sendByteArray(Mono.fromFuture(moduleJsonFuture), isGET)
     }
 
-    private fun handleOciComponent(
+    private fun getOrHeadOciComponent(
         registryUri: URI,
         group: String,
         name: String,
         version: String,
         variantName: String,
+        isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
@@ -227,7 +223,8 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         val componentJsonFuture = getOciComponent(registryUri, mappedComponent, variant, null).thenApply { ociComponent -> // TODO credentials
             encodeComponent(ociComponent).toByteArray()
         }
-        return response.header("Content-Type", "application/json").sendByteArray(Mono.fromFuture(componentJsonFuture))
+        response.header("Content-Type", "application/json")
+        return response.sendByteArray(Mono.fromFuture(componentJsonFuture), isGET)
     }
 
     private fun getOciComponent(
@@ -324,4 +321,9 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
     }
 
     private fun HttpServerResponse.sendBadRequest() = status(400).send()
+
+    private fun HttpServerResponse.sendByteArray(data: Mono<ByteArray>, isGETelseHEAD: Boolean): Publisher<Void> {
+        val dataAfterSetContentLength = data.doOnNext { bytes -> header("Content-Length", bytes.size.toString()) }
+        return sendByteArray(if (isGETelseHEAD) dataAfterSetContentLength else dataAfterSetContentLength.ignoreElement())
+    }
 }
