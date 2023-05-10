@@ -127,7 +127,7 @@ abstract class OciRegistryImpl @Inject constructor(
     }
 
     private val repositoryUrl: Provider<URI> = url.zip(registries.repositoryPort) { url, repositoryPort ->
-        URI("http://localhost:$repositoryPort/v1/" + Base64.getUrlEncoder().encodeToString(url.toString().toByteArray()))
+        URI("http://localhost:$repositoryPort/v1/repository/" + Base64.getUrlEncoder().encodeToString(url.toString().toByteArray()))
     }
 
     final override fun getName() = name

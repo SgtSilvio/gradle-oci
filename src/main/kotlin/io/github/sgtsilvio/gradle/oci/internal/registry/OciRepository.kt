@@ -55,12 +55,12 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
 
     private fun handle(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
         val segments = request.uri().substring(1).split('/')
-        if (segments[0] == "v1") {
-            if (segments.size < 6) {
+        if ((segments[0] == "v1") && (segments[1] == "repository")) {
+            if (segments.size < 7) {
                 response.sendNotFound()
             }
             val registryUri = try {
-                URI(String(Base64.getUrlDecoder().decode(segments[1])))
+                URI(String(Base64.getUrlDecoder().decode(segments[2])))
             } catch (e: IllegalArgumentException) {
                 return response.sendNotFound()
             } catch (e: URISyntaxException) {
@@ -77,7 +77,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                         response,
                     )
 
-                    segments.size < 7 -> response.sendNotFound()
+                    segments.size < 8 -> response.sendNotFound()
                     last.endsWith("oci-component.json") -> handleOciComponent(
                         registryUri,
                         decodeGroup(segments, segments.size - 4),
@@ -121,14 +121,14 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         return response.sendNotFound()
     }
 
-    private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(2, toIndex).joinToString(".")
+    private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(3, toIndex).joinToString(".")
 
     private fun handleModule(
         registryUri: URI,
         group: String,
         name: String,
         version: String,
-        response: HttpServerResponse
+        response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
         val ociComponentFutures = mappedComponent.variants.map { (_, variant) ->
@@ -203,7 +203,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         name: String,
         version: String,
         variantName: String,
-        response: HttpServerResponse
+        response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
@@ -237,7 +237,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         variantName: String,
         digest: OciDigest,
         size: Long,
-        response: HttpServerResponse
+        response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
