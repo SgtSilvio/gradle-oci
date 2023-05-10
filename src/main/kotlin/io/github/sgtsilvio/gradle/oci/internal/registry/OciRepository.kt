@@ -79,25 +79,28 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         if (request.method() == HttpMethod.GET) {
             val last = segments[segments.lastIndex]
             return when {
-                last.endsWith(".module") -> handleModule(
-                    registryUri,
-                    decodeGroup(segments, segments.size - 3),
-                    segments[segments.lastIndex - 2],
-                    segments[segments.lastIndex - 1],
-                    response,
-                )
+                last.endsWith(".module") -> {
+                    val group = decodeGroup(segments, segments.size - 3)
+                    val name = segments[segments.lastIndex - 2]
+                    val version = segments[segments.lastIndex - 1]
+                    handleModule(registryUri, group, name, version, response)
+                }
 
                 segments.size < 6 -> response.sendNotFound()
-                last.endsWith("oci-component.json") -> handleOciComponent(
-                    registryUri,
-                    decodeGroup(segments, segments.size - 4),
-                    segments[segments.lastIndex - 3],
-                    segments[segments.lastIndex - 2],
-                    segments[segments.lastIndex - 1],
-                    response,
-                )
+
+                last.endsWith("oci-component.json") -> {
+                    val group = decodeGroup(segments, segments.size - 4)
+                    val name = segments[segments.lastIndex - 3]
+                    val version = segments[segments.lastIndex - 2]
+                    val variantName = segments[segments.lastIndex - 1]
+                    handleOciComponent(registryUri, group, name, version, variantName, response)
+                }
 
                 last.startsWith("oci-layer-") -> {
+                    val group = decodeGroup(segments, segments.size - 4)
+                    val name = segments[segments.lastIndex - 3]
+                    val version = segments[segments.lastIndex - 2]
+                    val variantName = segments[segments.lastIndex - 1]
                     val digestStartIndex = "oci-layer-".length
                     val digestEndIndex = last.lastIndexOf('-')
                     if (digestEndIndex < digestStartIndex) {
@@ -113,16 +116,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                     } catch (e: NumberFormatException) {
                         return response.sendNotFound()
                     }
-                    handleLayer(
-                        registryUri,
-                        decodeGroup(segments, segments.size - 4),
-                        segments[segments.lastIndex - 3],
-                        segments[segments.lastIndex - 2],
-                        segments[segments.lastIndex - 1],
-                        digest,
-                        size,
-                        response,
-                    )
+                    handleLayer(registryUri, group, name, version, variantName, digest, size, response)
                 }
 
                 else -> response.sendNotFound()
