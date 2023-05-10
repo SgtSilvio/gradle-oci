@@ -182,11 +182,13 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                                 }
                             }
                         }
-                        addArrayIfNotEmpty("capabilities", ociComponent.capabilities) { versionedCapability ->
-                            addObject {
-                                addString("group", versionedCapability.capability.group)
-                                addString("name", versionedCapability.capability.name)
-                                addString("version", versionedCapability.version)
+                        if (ociComponent.capabilities != setOf(VersionedCapability(Capability(group, name), version))) {
+                            addArrayIfNotEmpty("capabilities", ociComponent.capabilities) { versionedCapability ->
+                                addObject {
+                                    addString("group", versionedCapability.capability.group)
+                                    addString("name", versionedCapability.capability.name)
+                                    addString("version", versionedCapability.version)
+                                }
                             }
                         }
                     }
