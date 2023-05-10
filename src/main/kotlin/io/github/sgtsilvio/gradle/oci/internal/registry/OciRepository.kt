@@ -145,9 +145,9 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                     addString("group", group)
                     addString("module", name)
                     addString("version", version)
-//                    addObject("attributes") {
-//                        addString("org.gradle.status", "release")
-//                    }
+                    addObject("attributes") {
+                        addString("org.gradle.status", "release")
+                    }
                 }
                 val layerDigestToVariantName = mutableMapOf<OciDigest, String>()
                 addArray("variants", variantNameOciComponentPairs) { (variantName, ociComponent) ->
