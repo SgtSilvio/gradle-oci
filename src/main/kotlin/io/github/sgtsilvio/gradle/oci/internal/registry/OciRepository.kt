@@ -76,53 +76,60 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         } catch (e: URISyntaxException) {
             return response.sendNotFound()
         }
-        if (request.method() == HttpMethod.GET) {
-            val last = segments[segments.lastIndex]
-            return when {
-                last.endsWith(".module") -> {
-                    val group = decodeGroup(segments, segments.size - 3)
-                    val name = segments[segments.lastIndex - 2]
-                    val version = segments[segments.lastIndex - 1]
-                    handleModule(registryUri, group, name, version, response)
+        val last = segments[segments.lastIndex]
+        return when {
+            last.endsWith(".module") -> {
+                val group = decodeGroup(segments, segments.size - 3)
+                val name = segments[segments.lastIndex - 2]
+                val version = segments[segments.lastIndex - 1]
+                when (request.method()) {
+                    HttpMethod.GET -> handleModule(registryUri, group, name, version, response)
+                    else -> response.sendNotFound()
                 }
-
-                segments.size < 6 -> response.sendNotFound()
-
-                last.endsWith("oci-component.json") -> {
-                    val group = decodeGroup(segments, segments.size - 4)
-                    val name = segments[segments.lastIndex - 3]
-                    val version = segments[segments.lastIndex - 2]
-                    val variantName = segments[segments.lastIndex - 1]
-                    handleOciComponent(registryUri, group, name, version, variantName, response)
-                }
-
-                last.startsWith("oci-layer-") -> {
-                    val group = decodeGroup(segments, segments.size - 4)
-                    val name = segments[segments.lastIndex - 3]
-                    val version = segments[segments.lastIndex - 2]
-                    val variantName = segments[segments.lastIndex - 1]
-                    val digestStartIndex = "oci-layer-".length
-                    val digestEndIndex = last.lastIndexOf('-')
-                    if (digestEndIndex < digestStartIndex) {
-                        return response.sendNotFound()
-                    }
-                    val digest = try {
-                        last.substring(digestStartIndex, digestEndIndex).toOciDigest()
-                    } catch (e: IllegalArgumentException) {
-                        return response.sendNotFound()
-                    }
-                    val size = try {
-                        last.substring(digestEndIndex + 1).toLong()
-                    } catch (e: NumberFormatException) {
-                        return response.sendNotFound()
-                    }
-                    handleLayer(registryUri, group, name, version, variantName, digest, size, response)
-                }
-
-                else -> response.sendNotFound()
             }
+
+            segments.size < 6 -> response.sendNotFound()
+
+            last.endsWith("oci-component.json") -> {
+                val group = decodeGroup(segments, segments.size - 4)
+                val name = segments[segments.lastIndex - 3]
+                val version = segments[segments.lastIndex - 2]
+                val variantName = segments[segments.lastIndex - 1]
+                when (request.method()) {
+                    HttpMethod.GET -> handleOciComponent(registryUri, group, name, version, variantName, response)
+                    else -> response.sendNotFound()
+                }
+            }
+
+            last.startsWith("oci-layer-") -> {
+                val group = decodeGroup(segments, segments.size - 4)
+                val name = segments[segments.lastIndex - 3]
+                val version = segments[segments.lastIndex - 2]
+                val variantName = segments[segments.lastIndex - 1]
+                val digestStartIndex = "oci-layer-".length
+                val digestEndIndex = last.lastIndexOf('-')
+                if (digestEndIndex < digestStartIndex) {
+                    return response.sendNotFound()
+                }
+                val digest = try {
+                    last.substring(digestStartIndex, digestEndIndex).toOciDigest()
+                } catch (e: IllegalArgumentException) {
+                    return response.sendNotFound()
+                }
+                val size = try {
+                    last.substring(digestEndIndex + 1).toLong()
+                } catch (e: NumberFormatException) {
+                    return response.sendNotFound()
+                }
+                when (request.method()) {
+                    HttpMethod.GET -> getLayer(registryUri, group, name, version, variantName, digest, size, response)
+                    HttpMethod.HEAD -> headLayer(registryUri, group, name, version, variantName, digest, size, response)
+                    else -> response.sendNotFound()
+                }
+            }
+
+            else -> response.sendNotFound()
         }
-        return response.sendNotFound()
     }
 
     private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(1, toIndex).joinToString(".")
@@ -235,7 +242,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         )
     }
 
-    private fun handleLayer(
+    private fun getLayer(
         registryUri: URI,
         group: String,
         name: String,
@@ -260,6 +267,24 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         ).flatMapMany { byteBufferListPublisher -> JdkFlowAdapter.flowPublisherToFlux(byteBufferListPublisher) }
             .flatMap { byteBufferList -> Flux.fromIterable(byteBufferList) }
             .map { byteBuffer -> Unpooled.wrappedBuffer(byteBuffer) })
+    }
+
+    private fun headLayer(
+        registryUri: URI,
+        group: String,
+        name: String,
+        version: String,
+        variantName: String,
+        digest: OciDigest,
+        size: Long,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
+        val mappedComponent = map(group, name, version)
+        val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
+        response.header("Content-Length", size.toString())
+        return Mono.fromFuture(
+            componentRegistry.registryApi.isBlobPresent(registryUri.toString(), variant.imageName, digest, null) // TODO credentials
+        ).flatMap { present -> if (present) response.send() else response.sendNotFound() }
     }
 
     private fun map(group: String, name: String, version: String): MappedComponent {
