@@ -223,7 +223,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         val componentJsonFuture = getOciComponent(registryUri, mappedComponent, variant, null).thenApply { ociComponent -> // TODO credentials
             encodeComponent(ociComponent).toByteArray()
         }
-        return response.header("Content-Type", "text/plain").sendByteArray(Mono.fromFuture(componentJsonFuture))
+        return response.header("Content-Type", "application/json").sendByteArray(Mono.fromFuture(componentJsonFuture))
     }
 
     private fun getOciComponent(
