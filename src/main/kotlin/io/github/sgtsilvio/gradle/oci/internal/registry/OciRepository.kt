@@ -56,72 +56,82 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
     private fun handle(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
         val segments = request.uri().substring(1).split('/')
         if ((segments[0] == "v1") && (segments[1] == "repository")) {
-            if (segments.size < 7) {
-                response.sendNotFound()
-            }
-            val registryUri = try {
-                URI(String(Base64.getUrlDecoder().decode(segments[2])))
-            } catch (e: IllegalArgumentException) {
-                return response.sendNotFound()
-            } catch (e: URISyntaxException) {
-                return response.sendNotFound()
-            }
-            if (request.method() == HttpMethod.GET) {
-                val last = segments[segments.lastIndex]
-                return when {
-                    last.endsWith(".module") -> handleModule(
-                        registryUri,
-                        decodeGroup(segments, segments.size - 3),
-                        segments[segments.lastIndex - 2],
-                        segments[segments.lastIndex - 1],
-                        response,
-                    )
+            return handleRepository(request, segments.drop(2), response)
+        }
+        return response.sendNotFound()
+    }
 
-                    segments.size < 8 -> response.sendNotFound()
-                    last.endsWith("oci-component.json") -> handleOciComponent(
+    private fun handleRepository(
+        request: HttpServerRequest,
+        segments: List<String>,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
+        if (segments.size < 5) {
+            response.sendNotFound()
+        }
+        val registryUri = try {
+            URI(String(Base64.getUrlDecoder().decode(segments[0])))
+        } catch (e: IllegalArgumentException) {
+            return response.sendNotFound()
+        } catch (e: URISyntaxException) {
+            return response.sendNotFound()
+        }
+        if (request.method() == HttpMethod.GET) {
+            val last = segments[segments.lastIndex]
+            return when {
+                last.endsWith(".module") -> handleModule(
+                    registryUri,
+                    decodeGroup(segments, segments.size - 3),
+                    segments[segments.lastIndex - 2],
+                    segments[segments.lastIndex - 1],
+                    response,
+                )
+
+                segments.size < 6 -> response.sendNotFound()
+                last.endsWith("oci-component.json") -> handleOciComponent(
+                    registryUri,
+                    decodeGroup(segments, segments.size - 4),
+                    segments[segments.lastIndex - 3],
+                    segments[segments.lastIndex - 2],
+                    segments[segments.lastIndex - 1],
+                    response,
+                )
+
+                last.startsWith("oci-layer-") -> {
+                    val digestStartIndex = "oci-layer-".length
+                    val digestEndIndex = last.lastIndexOf('-')
+                    if (digestEndIndex < digestStartIndex) {
+                        return response.sendNotFound()
+                    }
+                    val digest = try {
+                        last.substring(digestStartIndex, digestEndIndex).toOciDigest()
+                    } catch (e: IllegalArgumentException) {
+                        return response.sendNotFound()
+                    }
+                    val size = try {
+                        last.substring(digestEndIndex + 1).toLong()
+                    } catch (e: NumberFormatException) {
+                        return response.sendNotFound()
+                    }
+                    handleLayer(
                         registryUri,
                         decodeGroup(segments, segments.size - 4),
                         segments[segments.lastIndex - 3],
                         segments[segments.lastIndex - 2],
                         segments[segments.lastIndex - 1],
+                        digest,
+                        size,
                         response,
                     )
-
-                    last.startsWith("oci-layer-") -> {
-                        val digestStartIndex = "oci-layer-".length
-                        val digestEndIndex = last.lastIndexOf('-')
-                        if (digestEndIndex < digestStartIndex) {
-                            return response.sendNotFound()
-                        }
-                        handleLayer(
-                            registryUri,
-                            decodeGroup(segments, segments.size - 4),
-                            segments[segments.lastIndex - 3],
-                            segments[segments.lastIndex - 2],
-                            segments[segments.lastIndex - 1],
-                            try {
-                                last.substring(digestStartIndex, digestEndIndex).toOciDigest()
-                            } catch (e: IllegalArgumentException) {
-                                return response.sendNotFound()
-                            },
-                            try {
-                                last.substring(digestEndIndex + 1).toLong()
-                            } catch (e: NumberFormatException) {
-                                return response.sendNotFound()
-                            },
-                            response,
-                        )
-                    }
-
-                    else -> response.sendNotFound()
                 }
+
+                else -> response.sendNotFound()
             }
-            return response.sendNotFound()
         }
         return response.sendNotFound()
     }
 
-    private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(3, toIndex).joinToString(".")
+    private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(1, toIndex).joinToString(".")
 
     private fun handleModule(
         registryUri: URI,
