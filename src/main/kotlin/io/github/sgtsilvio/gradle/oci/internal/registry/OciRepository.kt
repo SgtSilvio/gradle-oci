@@ -83,50 +83,71 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         }
         val last = segments[segments.lastIndex]
         return when {
-            last.endsWith(".module") -> {
-                val group = decodeGroup(segments, segments.size - 3)
-                val name = segments[segments.lastIndex - 2]
-                val version = segments[segments.lastIndex - 1]
-                getOrHeadGradleModuleMetadata(registryUri, group, name, version, isGET, response)
-            }
-
+            last.endsWith(".module") -> handleRepositoryModule(segments, registryUri, isGET, response)
             segments.size < 6 -> response.sendNotFound()
-
-            last.endsWith("oci-component.json") -> {
-                val group = decodeGroup(segments, segments.size - 4)
-                val name = segments[segments.lastIndex - 3]
-                val version = segments[segments.lastIndex - 2]
-                val variantName = segments[segments.lastIndex - 1]
-                getOrHeadComponent(registryUri, group, name, version, variantName, isGET, response)
-            }
-
-            last.startsWith("oci-layer-") -> {
-                val group = decodeGroup(segments, segments.size - 4)
-                val name = segments[segments.lastIndex - 3]
-                val version = segments[segments.lastIndex - 2]
-                val variantName = segments[segments.lastIndex - 1]
-                val digestStartIndex = "oci-layer-".length
-                val digestEndIndex = last.lastIndexOf('-')
-                if (digestEndIndex < digestStartIndex) {
-                    return response.sendBadRequest()
-                }
-                val digest = try {
-                    last.substring(digestStartIndex, digestEndIndex).toOciDigest()
-                } catch (e: IllegalArgumentException) {
-                    return response.sendBadRequest()
-                }
-                val size = try {
-                    last.substring(digestEndIndex + 1).toLong()
-                } catch (e: NumberFormatException) {
-                    return response.sendBadRequest()
-                }
-                when {
-                    isGET -> getLayer(registryUri, group, name, version, variantName, digest, size, response)
-                    else -> headLayer(registryUri, group, name, version, variantName, digest, size, response)
-                }
-            }
-
+            last.endsWith("oci-component.json") -> handleRepositoryComponent(segments, registryUri, isGET, response)
+            last.startsWith("oci-layer-") -> handleRepositoryLayer(segments, registryUri, isGET, response)
             else -> response.sendNotFound()
+        }
+    }
+
+    private fun handleRepositoryModule(
+        segments: List<String>,
+        registryUri: URI,
+        isGET: Boolean,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
+        val lastIndex = segments.lastIndex
+        val group = decodeGroup(segments, lastIndex - 2)
+        val name = segments[lastIndex - 2]
+        val version = segments[lastIndex - 1]
+        return getOrHeadGradleModuleMetadata(registryUri, group, name, version, isGET, response)
+    }
+
+    private fun handleRepositoryComponent(
+        segments: List<String>,
+        registryUri: URI,
+        isGET: Boolean,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
+        val lastIndex = segments.lastIndex
+        val group = decodeGroup(segments, lastIndex - 3)
+        val name = segments[lastIndex - 3]
+        val version = segments[lastIndex - 2]
+        val variantName = segments[lastIndex - 1]
+        return getOrHeadComponent(registryUri, group, name, version, variantName, isGET, response)
+    }
+
+    private fun handleRepositoryLayer(
+        segments: List<String>,
+        registryUri: URI,
+        isGET: Boolean,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
+        val lastIndex = segments.lastIndex
+        val group = decodeGroup(segments, lastIndex - 3)
+        val name = segments[lastIndex - 3]
+        val version = segments[lastIndex - 2]
+        val variantName = segments[lastIndex - 1]
+        val last = segments[lastIndex]
+        val digestStartIndex = "oci-layer-".length
+        val digestEndIndex = last.lastIndexOf('-')
+        if (digestEndIndex < digestStartIndex) {
+            return response.sendBadRequest()
+        }
+        val digest = try {
+            last.substring(digestStartIndex, digestEndIndex).toOciDigest()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val size = try {
+            last.substring(digestEndIndex + 1).toLong()
+        } catch (e: NumberFormatException) {
+            return response.sendBadRequest()
+        }
+        return when {
+            isGET -> getLayer(registryUri, group, name, version, variantName, digest, size, response)
+            else -> headLayer(registryUri, group, name, version, variantName, digest, size, response)
         }
     }
 
