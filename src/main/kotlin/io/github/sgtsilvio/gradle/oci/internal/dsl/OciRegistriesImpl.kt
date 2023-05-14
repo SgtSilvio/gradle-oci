@@ -127,7 +127,10 @@ abstract class OciRegistryImpl @Inject constructor(
     }
 
     private val repositoryUrl: Provider<URI> = url.zip(registries.repositoryPort) { url, repositoryPort ->
-        URI("http://localhost:$repositoryPort/v1/repository/" + Base64.getUrlEncoder().encodeToString(url.toString().toByteArray()))
+        URI(
+            "http://localhost:$repositoryPort/v1/repository/" + Base64.getUrlEncoder()
+                .encodeToString(url.toString().toByteArray())
+        )
     }
 
     final override fun getName() = name
@@ -135,52 +138,4 @@ abstract class OciRegistryImpl @Inject constructor(
     fun afterEvaluate() {
         repository.url = repositoryUrl.get()
     }
-}
-
-
-fun main() {
-//    println(URI("http", null, "localhost", 5123, "/https://registry-1.docker.io", null, null))
-//    println(URLEncoder.encode("https://registry-1.docker.io", StandardCharsets.UTF_8.name()))
-//    val server = HttpServer.create(InetSocketAddress(5123), 0)
-//    server.executor = null
-//    server.createContext("/") {
-//        println(it.requestURI)
-//        it.sendResponseHeaders(200, 0)
-//    }
-//    server.start()
-//    val connection = URI("http", null, "localhost", 5123, "/https://registry-1.docker.io", null, null).toURL()
-//        .openConnection() as HttpURLConnection
-//    connection.requestMethod = "GET"
-//    connection.connect()
-//    println(connection.responseCode)
-//    Thread.sleep(1000)
-//    server.stop(0)
-    /*val uri = URI(
-        "http",
-        null,
-        "localhost",
-        5123,
-        "/" + URLEncoder.encode("https://registry-1.docker.io", StandardCharsets.UTF_8.name()),
-        null,
-        null
-    )
-    println(uri)
-    println(uri.path)
-    println(URLDecoder.decode(uri.path, StandardCharsets.UTF_8.name()))
-    println(uri.rawPath)
-    println(URLDecoder.decode(uri.rawPath, StandardCharsets.UTF_8.name()))
-    println(
-        URLDecoder.decode(
-            URLDecoder.decode(uri.rawPath, StandardCharsets.UTF_8.name()), StandardCharsets.UTF_8.name()
-        )
-    )*/
-//    HttpServer.create()
-//        .bindAddress { InetSocketAddress("localhost", 5123) }
-//        .handle { request, response ->
-//            println(request)
-//            println(Thread.currentThread())
-//            response.sendFile(Path.of("gradle.properties"))
-//        }
-//        .bindNow()
-//    Thread.sleep(100000)
 }
