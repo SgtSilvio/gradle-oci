@@ -277,6 +277,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         response.header("Content-Length", size.toString())
+        response.header("ETag", digest.encodedHash)
         return response.send(Mono.fromFuture(
             componentRegistry.registryApi.pullBlob(
                 registryUri.toString(),
@@ -304,6 +305,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         response.header("Content-Length", size.toString())
+        response.header("ETag", digest.encodedHash)
         return Mono.fromFuture(
             componentRegistry.registryApi.isBlobPresent(registryUri.toString(), variant.imageName, digest, null) // TODO credentials
         ).flatMap { present -> if (present) response.send() else response.sendNotFound() }
@@ -344,7 +346,12 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
     private fun HttpServerResponse.sendBadRequest() = status(400).send()
 
     private fun HttpServerResponse.sendByteArray(data: Mono<ByteArray>, isGETelseHEAD: Boolean): Publisher<Void> {
-        val dataAfterSetContentLength = data.doOnNext { bytes -> header("Content-Length", bytes.size.toString()) }
-        return sendByteArray(if (isGETelseHEAD) dataAfterSetContentLength else dataAfterSetContentLength.ignoreElement())
+        val dataAfterHeadersAreSet = data.doOnNext { bytes ->
+            header("Content-Length", bytes.size.toString())
+            val sha1 = Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(bytes))
+            header("ETag", sha1)
+            header("X-Checksum-Sha1", sha1)
+        }
+        return sendByteArray(if (isGETelseHEAD) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }
 }
