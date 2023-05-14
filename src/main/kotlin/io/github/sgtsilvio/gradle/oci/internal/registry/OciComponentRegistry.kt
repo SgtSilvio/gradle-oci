@@ -359,13 +359,13 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
 fun main() {
     val componentRegistry = OciComponentRegistry(OciRegistryApi())
     println(
-        encodeComponent(componentRegistry.pullComponent(
+        componentRegistry.pullComponent(
             "https://registry-1.docker.io",
             "library/registry",
             "2",
             ComponentId("library", "registry", "2"),
             sortedSetOf(VersionedCapability(Capability("library", "registry"), "2")),
             null,
-        ).get())
+        ).get().encodeToJsonString()
     )
 }

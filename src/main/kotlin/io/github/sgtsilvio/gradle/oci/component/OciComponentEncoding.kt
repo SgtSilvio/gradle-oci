@@ -4,9 +4,9 @@ import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
-fun encodeComponent(component: OciComponent) = jsonObject { encodeComponent(component) }
+fun OciComponent.encodeToJsonString() = jsonObject { encodeOciComponent(this@encodeToJsonString) }
 
-private fun JsonObjectStringBuilder.encodeComponent(component: OciComponent) {
+private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) {
     addObject("componentId") { encodeComponentId(component.componentId) }
     addArray("capabilities", component.capabilities) { addObject { encodeVersionedCapability(it) } }
     when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {

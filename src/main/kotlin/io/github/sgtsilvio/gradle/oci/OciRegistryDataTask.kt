@@ -88,7 +88,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
             val componentFile = iterator.next()
-            val component = decodeComponent(componentFile.readText())
+            val component = componentFile.readText().decodeAsJsonToOciComponent()
             val digestToLayer = hashMapOf<OciDigest, File>()
             for (layer in component.allLayers) {
                 layer.descriptor?.let {

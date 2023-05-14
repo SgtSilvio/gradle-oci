@@ -186,15 +186,15 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
                         }
                         addArray("files") {
                             addObject {
-                                val encodedComponent = encodeComponent(component).toByteArray()
+                                val componentJson = component.encodeToJsonString().toByteArray()
                                 val componentName = "$name${if (variantName == "main") "" else "-$variantName"}-$version-oci-component.json"
                                 addString("name", componentName)
                                 addString("url", "$variantName/$componentName")
-                                addNumber("size", encodedComponent.size.toLong())
-                                addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(encodedComponent)))
-                                addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(encodedComponent)))
-                                addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(encodedComponent)))
-                                addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(encodedComponent)))
+                                addNumber("size", componentJson.size.toLong())
+                                addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(componentJson)))
+                                addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(componentJson)))
+                                addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(componentJson)))
+                                addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(componentJson)))
                             }
                             for ((digest, size) in component.collectLayerDigestSizePairs()) {
                                 val layerVariantName = layerDigestToVariantName.putIfAbsent(digest, variantName) ?: variantName
@@ -236,7 +236,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         val componentJsonFuture = getComponent(registryUri, mappedComponent, variant, null).thenApply { component -> // TODO credentials
-            encodeComponent(component).toByteArray()
+            component.encodeToJsonString().toByteArray()
         }
         response.header("Content-Type", "application/json")
         return response.sendByteArray(Mono.fromFuture(componentJsonFuture), isGET)

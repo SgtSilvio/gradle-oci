@@ -6,9 +6,9 @@ import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import java.util.*
 
-fun decodeComponent(string: String) = jsonObject(string).decodeComponent()
+fun String.decodeAsJsonToOciComponent() = jsonObject(this).decodeOciComponent()
 
-private fun JsonObject.decodeComponent() = OciComponent(
+private fun JsonObject.decodeOciComponent() = OciComponent(
     get("componentId") { asObject().decodeComponentId() },
     get("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCapability() } },
     if (hasKey("bundle")) {
