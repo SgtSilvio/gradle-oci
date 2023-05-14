@@ -145,10 +145,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        return when {
-            isGET -> getLayer(registryUri, group, name, version, variantName, digest, size, response)
-            else -> headLayer(registryUri, group, name, version, variantName, digest, size, response)
-        }
+        return getOrHeadLayer(registryUri, group, name, version, variantName, digest, size, isGET, response)
     }
 
     private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(1, toIndex).joinToString(".")
@@ -264,7 +261,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         )
     }
 
-    private fun getLayer(
+    private fun getOrHeadLayer(
         registryUri: URI,
         group: String,
         name: String,
@@ -272,12 +269,27 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         variantName: String,
         digest: OciDigest,
         size: Long,
+        isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         response.header("Content-Length", size.toString())
         response.header("ETag", digest.encodedHash)
+        return if (isGET) {
+            getLayer(registryUri, variant, digest, size, response)
+        } else {
+            headLayer(registryUri, variant, digest, response)
+        }
+    }
+
+    private fun getLayer(
+        registryUri: URI,
+        variant: MappedComponent.Variant,
+        digest: OciDigest,
+        size: Long,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
         return response.send(Mono.fromFuture(
             componentRegistry.registryApi.pullBlob(
                 registryUri.toString(),
@@ -294,18 +306,10 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
 
     private fun headLayer(
         registryUri: URI,
-        group: String,
-        name: String,
-        version: String,
-        variantName: String,
+        variant: MappedComponent.Variant,
         digest: OciDigest,
-        size: Long,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val mappedComponent = map(group, name, version)
-        val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
-        response.header("Content-Length", size.toString())
-        response.header("ETag", digest.encodedHash)
         return Mono.fromFuture(
             componentRegistry.registryApi.isBlobPresent(registryUri.toString(), variant.imageName, digest, null) // TODO credentials
         ).flatMap { present -> if (present) response.send() else response.sendNotFound() }
