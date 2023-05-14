@@ -163,16 +163,28 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
+            .zip(createComponentId(providerFactory), OciComponentBuilder::componentId)
             .zip(createComponentCapabilities(providerFactory), OciComponentBuilder::capabilities)
             .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
             .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
             .map { it.build() }
 
+    private fun createComponentId(providerFactory: ProviderFactory): Provider<ComponentId> =
+        providerFactory.provider { ComponentId(project.group.toString(), project.name, project.version.toString()) }
+
     private fun createComponentCapabilities(providerFactory: ProviderFactory) = providerFactory.provider {
         capabilities.set.map { VersionedCapability(Capability(it.group, it.name), it.version!!) }.toSet().ifEmpty {
-            setOf(VersionedCapability(Capability(project.group.toString(), project.name), project.version.toString()))
+            setOf(
+                VersionedCapability(
+                    Capability(project.group.toString(), createDefaultCapabilityName(project.name, name)),
+                    project.version.toString(),
+                )
+            )
         }
     }
+
+    private fun createDefaultCapabilityName(projectName: String, imageName: String) =
+        if (name == "main") projectName else "$projectName-$imageName"
 
     private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory) =
         providerFactory.provider { getBundleOrPlatformBundles() }

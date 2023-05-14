@@ -7,12 +7,19 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 fun encodeComponent(component: OciComponent) = jsonObject { encodeComponent(component) }
 
 private fun JsonObjectStringBuilder.encodeComponent(component: OciComponent) {
+    addObject("componentId") { encodeComponentId(component.componentId) }
     addArray("capabilities", component.capabilities) { addObject { encodeVersionedCapability(it) } }
     when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> addObject("bundle") { encodeBundle(bundleOrPlatformBundles) }
         is OciComponent.PlatformBundles -> addArray("platformBundles") { encodePlatformBundles(bundleOrPlatformBundles) }
     }
     addObjectIfNotEmpty("indexAnnotations", component.indexAnnotations)
+}
+
+private fun JsonObjectStringBuilder.encodeComponentId(componentId: ComponentId) {
+    addString("group", componentId.group)
+    addString("name", componentId.name)
+    addString("version", componentId.version)
 }
 
 private fun JsonObjectStringBuilder.encodeCapability(capability: Capability) {

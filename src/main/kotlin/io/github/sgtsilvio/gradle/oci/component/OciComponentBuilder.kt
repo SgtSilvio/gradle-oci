@@ -9,15 +9,22 @@ import java.time.Instant
  * @author Silvio Giebl
  */
 class OciComponentBuilder : Serializable {
+    private var componentId: ComponentId? = null
     private var capabilities: Set<VersionedCapability>? = null
     private var bundleOrPlatformBundles: OciComponent.BundleOrPlatformBundles? = null
     private var indexAnnotations: Map<String, String> = mapOf()
 
+    fun componentId(v: ComponentId) = apply { componentId = v }
     fun capabilities(v: Set<VersionedCapability>) = apply { capabilities = v }
     fun bundleOrPlatformBundles(v: OciComponent.BundleOrPlatformBundles) = apply { bundleOrPlatformBundles = v }
     fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
 
-    fun build() = OciComponent(capabilities!!.toSortedSet(), bundleOrPlatformBundles!!, indexAnnotations.toSortedMap())
+    fun build() = OciComponent(
+        componentId!!,
+        capabilities!!.toSortedSet(),
+        bundleOrPlatformBundles!!,
+        indexAnnotations.toSortedMap(),
+    )
 }
 
 class OciComponentBundleBuilder : Serializable {

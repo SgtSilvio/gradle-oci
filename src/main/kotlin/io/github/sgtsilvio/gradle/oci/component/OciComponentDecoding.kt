@@ -9,6 +9,7 @@ import java.util.*
 fun decodeComponent(string: String) = jsonObject(string).decodeComponent()
 
 private fun JsonObject.decodeComponent() = OciComponent(
+    get("componentId") { asObject().decodeComponentId() },
     get("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCapability() } },
     if (hasKey("bundle")) {
         if (hasKey("platformBundles")) throw JsonException.create("bundle|platformBundles", "must not both be present")
@@ -18,6 +19,8 @@ private fun JsonObject.decodeComponent() = OciComponent(
     },
     getStringMapOrNull("indexAnnotations") ?: TreeMap(),
 )
+
+private fun JsonObject.decodeComponentId() = ComponentId(getString("group"), getString("name"), getString("version"))
 
 private fun JsonObject.decodeCapability() = Capability(getString("group"), getString("name"))
 

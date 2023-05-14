@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
-import io.github.sgtsilvio.gradle.oci.component.Capability
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.component.VersionedCapability
-import io.github.sgtsilvio.gradle.oci.component.encodeComponent
+import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -21,6 +18,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageName: String,
         reference: String,
+        componentId: ComponentId,
         capabilities: SortedSet<VersionedCapability>,
         credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> {
@@ -31,6 +29,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     imageName,
                     manifest.data,
                     credentials,
+                    componentId,
                     capabilities,
                     INDEX_MEDIA_TYPE,
                     MANIFEST_MEDIA_TYPE,
@@ -42,6 +41,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     imageName,
                     manifest.data,
                     credentials,
+                    componentId,
                     capabilities,
                     MANIFEST_MEDIA_TYPE,
                     CONFIG_MEDIA_TYPE,
@@ -52,6 +52,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     imageName,
                     manifest.data,
                     credentials,
+                    componentId,
                     capabilities,
                     DOCKER_MANIFEST_LIST_MEDIA_TYPE,
                     DOCKER_MANIFEST_MEDIA_TYPE,
@@ -63,6 +64,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     imageName,
                     manifest.data,
                     credentials,
+                    componentId,
                     capabilities,
                     DOCKER_MANIFEST_MEDIA_TYPE,
                     DOCKER_CONFIG_MEDIA_TYPE,
@@ -78,6 +80,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         imageName: String,
         index: String,
         credentials: OciRegistryApi.Credentials?,
+        componentId: ComponentId,
         capabilities: SortedSet<VersionedCapability>,
         indexMediaType: String,
         manifestMediaType: String,
@@ -110,6 +113,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 it.get()
             }
             OciComponent(
+                componentId,
                 capabilities,
                 OciComponent.PlatformBundles(platformBundles),
                 indexAnnotations,
@@ -122,6 +126,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         imageName: String,
         manifest: String,
         credentials: OciRegistryApi.Credentials?,
+        componentId: ComponentId,
         capabilities: SortedSet<VersionedCapability>,
         manifestMediaType: String,
         configMediaType: String,
@@ -137,7 +142,12 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             configMediaType,
             layerMediaType,
         ).thenApply { platformBundlePair ->
-            OciComponent(capabilities, OciComponent.PlatformBundles(sortedMapOf(platformBundlePair)), TreeMap())
+            OciComponent(
+                componentId,
+                capabilities,
+                OciComponent.PlatformBundles(sortedMapOf(platformBundlePair)),
+                TreeMap(),
+            )
         }
     }
 
@@ -353,6 +363,7 @@ fun main() {
             "https://registry-1.docker.io",
             "library/registry",
             "2",
+            ComponentId("library", "registry", "2"),
             sortedSetOf(VersionedCapability(Capability("library", "registry"), "2")),
             null,
         ).get())

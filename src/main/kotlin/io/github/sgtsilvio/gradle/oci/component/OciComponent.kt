@@ -11,6 +11,7 @@ import java.util.*
  * @author Silvio Giebl
  */
 data class OciComponent(
+    val componentId: ComponentId,
     val capabilities: SortedSet<VersionedCapability>,
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
     val indexAnnotations: SortedMap<String, String>,

@@ -3,10 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.Capability
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.component.VersionedCapability
-import io.github.sgtsilvio.gradle.oci.component.encodeComponent
+import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
@@ -256,7 +253,8 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
             registryUri.toString(),
             variant.imageName,
             variant.tagName,
-            variant.capabilities.ifEmpty { sortedSetOf(VersionedCapability(Capability(mappedComponent.group, mappedComponent.name), mappedComponent.version)) },
+            mappedComponent.componentId,
+            variant.capabilities,
             credentials,
         )
     }
@@ -318,12 +316,10 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
     private fun map(group: String, name: String, version: String): MappedComponent {
         // TODO
         return MappedComponent(
-            group,
-            name,
-            version,
+            ComponentId(group, name, version),
             mapOf(
                 "main" to MappedComponent.Variant(
-                    sortedSetOf(),
+                    sortedSetOf(VersionedCapability(Capability(group, name), version)),
                     group.replace('.', '/') + '/' + name,
                     version,
                 )
