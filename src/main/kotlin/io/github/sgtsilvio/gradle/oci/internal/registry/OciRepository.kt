@@ -266,16 +266,14 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         mappedComponent: MappedComponent,
         variant: MappedComponent.Variant,
         credentials: OciRegistryApi.Credentials?,
-    ): CompletableFuture<OciComponent> = componentCache.get(
-        OciComponentParameters(
-            registryUri.toString(),
-            variant.imageName,
-            variant.tagName,
-            mappedComponent.componentId,
-            variant.capabilities,
-            credentials,
-        )
-    )
+    ): CompletableFuture<OciComponent> = componentCache[OciComponentParameters(
+        registryUri.toString(),
+        variant.imageName,
+        variant.tagName,
+        mappedComponent.componentId,
+        variant.capabilities,
+        credentials,
+    )]
 
     private fun getOrHeadLayer(
         registryUri: URI,

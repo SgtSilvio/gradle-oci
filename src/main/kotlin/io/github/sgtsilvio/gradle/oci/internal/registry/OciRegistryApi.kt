@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
+import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
@@ -27,9 +29,10 @@ import java.util.concurrent.*
 class OciRegistryApi {
 
     private val httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
-    private val authorizationCache = ConcurrentHashMap<TokenCacheKey, String>()
+    private val tokenCache: Cache<TokenCacheKey, String> =
+        Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build()
 
-    private data class TokenCacheKey(val registry: String, val credentials: Credentials?)
+    private data class TokenCacheKey(val registry: String, val imageName: String, val credentials: Credentials?)
 
     data class Credentials(val username: String, val password: String)
 
@@ -249,7 +252,7 @@ class OciRegistryApi {
         requestBuilder: HttpRequest.Builder,
         responseBodyHandler: BodyHandler<T>,
     ): CompletableFuture<HttpResponse<T>> {
-        getAuthorization(registry, credentials)?.let { requestBuilder.setHeader("Authorization", it) }
+        getAuthorization(registry, imageName, credentials)?.let { requestBuilder.setHeader("Authorization", it) }
         return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
             if (error !is HttpResponseException) throw error
             if (error.statusCode != 401) throw error
@@ -287,13 +290,14 @@ class OciRegistryApi {
             val authorization = "Bearer " + jsonObject(response.body()).run {
                 if (hasKey("token")) getString("token") else getString("access_token")
             }
-            authorizationCache[TokenCacheKey(registry, credentials)] = authorization
+            tokenCache.put(TokenCacheKey(registry, imageName, credentials), authorization)
             authorization
         }
     }
 
-    private fun getAuthorization(registry: String, credentials: Credentials?) =
-        authorizationCache[TokenCacheKey(registry, credentials)] ?: credentials?.let(::encodeBasicAuthorization)
+    private fun getAuthorization(registry: String, imageName: String, credentials: Credentials?): String? =
+        tokenCache.getIfPresent(TokenCacheKey(registry, imageName, credentials))
+            ?: credentials?.let(::encodeBasicAuthorization)
 
     private fun encodeBasicAuthorization(credentials: Credentials) =
         "Basic " + Base64.getEncoder().encodeToString("${credentials.username}:${credentials.password}".toByteArray())
