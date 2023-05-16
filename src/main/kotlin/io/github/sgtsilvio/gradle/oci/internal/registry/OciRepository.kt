@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache
+import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
@@ -31,11 +33,28 @@ import java.net.http.HttpResponse
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * @author Silvio Giebl
  */
 class OciRepository(private val componentRegistry: OciComponentRegistry) {
+
+    private data class OciComponentParameters(
+        val registry: String,
+        val imageName: String,
+        val reference: String,
+        val componentId: ComponentId,
+        val capabilities: SortedSet<VersionedCapability>,
+        val credentials: OciRegistryApi.Credentials?,
+    )
+
+    private val componentCache: AsyncLoadingCache<OciComponentParameters, OciComponent> = Caffeine.newBuilder()
+        .maximumSize(100)
+        .expireAfterAccess(1, TimeUnit.MINUTES)
+        .buildAsync { (registry, imageName, reference, componentId, capabilities, credentials), _ ->
+            componentRegistry.pullComponent(registry, imageName, reference, componentId, capabilities, credentials)
+        }
 
     private var server: DisposableServer? = null
 
@@ -247,9 +266,8 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
         mappedComponent: MappedComponent,
         variant: MappedComponent.Variant,
         credentials: OciRegistryApi.Credentials?,
-    ): CompletableFuture<OciComponent> {
-        // TODO cache
-        return componentRegistry.pullComponent(
+    ): CompletableFuture<OciComponent> = componentCache.get(
+        OciComponentParameters(
             registryUri.toString(),
             variant.imageName,
             variant.tagName,
@@ -257,7 +275,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
             variant.capabilities,
             credentials,
         )
-    }
+    )
 
     private fun getOrHeadLayer(
         registryUri: URI,

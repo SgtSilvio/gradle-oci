@@ -1,4 +1,5 @@
 [versions]
+caffeine = "3.1.6"
 commons-codec = "1.15"
 commons-compress = "1.23.0"
 commons-io = "2.11.0"
@@ -7,6 +8,7 @@ junit-jupiter = "5.9.2"
 reactor-netty = "1.1.6"
 
 [libraries]
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
