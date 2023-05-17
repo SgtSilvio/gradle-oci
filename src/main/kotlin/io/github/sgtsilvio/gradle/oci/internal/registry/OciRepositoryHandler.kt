@@ -22,11 +22,8 @@ import org.reactivestreams.Publisher
 import reactor.adapter.JdkFlowAdapter
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.netty.DisposableServer
-import reactor.netty.http.server.HttpServer
 import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
-import java.net.InetSocketAddress
 import java.net.URI
 import java.net.URISyntaxException
 import java.net.http.HttpResponse
@@ -34,11 +31,13 @@ import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.util.function.BiFunction
 
 /**
  * @author Silvio Giebl
  */
-class OciRepository(private val componentRegistry: OciComponentRegistry) {
+class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) :
+    BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
     private data class OciComponentParameters(
         val registry: String,
@@ -56,20 +55,7 @@ class OciRepository(private val componentRegistry: OciComponentRegistry) {
             componentRegistry.pullComponent(registry, imageName, reference, componentId, capabilities, credentials)
         }
 
-    private var server: DisposableServer? = null
-
-    fun start(port: Int) {
-        server = HttpServer.create()
-            .bindAddress { InetSocketAddress("localhost", port) }
-            .handle(::handle)
-            .bindNow()
-    }
-
-    fun stop() {
-        server?.disposeNow()
-    }
-
-    private fun handle(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
+    override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
         val segments = request.uri().substring(1).split('/')
         if ((segments[0] == "v1") && (segments[1] == "repository")) {
             return handleRepository(request, segments.drop(2), response)
