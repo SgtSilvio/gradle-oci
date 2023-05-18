@@ -34,7 +34,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     INDEX_MEDIA_TYPE,
                     MANIFEST_MEDIA_TYPE,
                     CONFIG_MEDIA_TYPE,
-                    LAYER_MEDIA_TYPE,
                 )
                 MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
                     registry,
@@ -45,7 +44,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     capabilities,
                     MANIFEST_MEDIA_TYPE,
                     CONFIG_MEDIA_TYPE,
-                    LAYER_MEDIA_TYPE,
                 )
                 DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToComponent(
                     registry,
@@ -57,7 +55,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     DOCKER_MANIFEST_LIST_MEDIA_TYPE,
                     DOCKER_MANIFEST_MEDIA_TYPE,
                     DOCKER_CONFIG_MEDIA_TYPE,
-                    DOCKER_LAYER_MEDIA_TYPE,
                 )
                 DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
                     registry,
@@ -68,7 +65,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     capabilities,
                     DOCKER_MANIFEST_MEDIA_TYPE,
                     DOCKER_CONFIG_MEDIA_TYPE,
-                    DOCKER_LAYER_MEDIA_TYPE,
                 )
                 else -> throw IllegalStateException("unsupported manifest media type '${manifest.mediaType}'")
             }
@@ -85,7 +81,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         indexMediaType: String,
         manifestMediaType: String,
         configMediaType: String,
-        layerMediaType: String,
     ): CompletableFuture<OciComponent> {
         val indexJsonObject = jsonObject(index)
         val indexAnnotations = indexJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
@@ -96,7 +91,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     if (manifest.mediaType != manifestMediaType) { // TODO support nested index
                         throw IllegalArgumentException("expected \"$manifestMediaType\" as manifest media type, but is \"${manifest.mediaType}\"")
                     }
-                    transformManifestToPlatformBundle(registry, imageName, manifest.data, manifestDescriptor.annotations, credentials, manifestMediaType, configMediaType, layerMediaType)
+                    transformManifestToPlatformBundle(registry, imageName, manifest.data, manifestDescriptor.annotations, credentials, manifestMediaType, configMediaType)
                 }.thenApply { platformBundlePair ->
                     if (platformBundlePair.first != platform) {
                         throw IllegalArgumentException("platform in manifest descriptor ($platform) and config (${platformBundlePair.first}) do not match")
@@ -130,7 +125,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         capabilities: SortedSet<VersionedCapability>,
         manifestMediaType: String,
         configMediaType: String,
-        layerMediaType: String,
     ): CompletableFuture<OciComponent> {
         return transformManifestToPlatformBundle(
             registry,
@@ -140,7 +134,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             credentials,
             manifestMediaType,
             configMediaType,
-            layerMediaType,
         ).thenApply { platformBundlePair ->
             OciComponent(
                 componentId,
@@ -159,13 +152,12 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         credentials: OciRegistryApi.Credentials?,
         manifestMediaType: String,
         configMediaType: String,
-        layerMediaType: String,
     ): CompletableFuture<Pair<Platform, OciComponent.Bundle>> {
         val manifestJsonObject = jsonObject(manifest)
         val manifestAnnotations = manifestJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor(configMediaType) }
         val layerDescriptors =
-            manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor(layerMediaType) } } ?: listOf() // TODO support other layer mediatype, needs support in OciComponent as well
+            manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor() } } ?: listOf()
         manifestJsonObject.requireStringOrNull("mediaType", manifestMediaType)
         manifestJsonObject.requireLong("schemaVersion", 2)
         return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest, configDescriptor.size, credentials).thenApply { config ->
@@ -291,16 +283,17 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     }
 
     private fun JsonObject.decodeOciDescriptor(mediaType: String): OciDescriptor {
-        // TODO order?
-        // TODO support data
         requireString("mediaType", mediaType)
-        return OciDescriptorImpl(
-            mediaType,
-            getOciDigest("digest"),
-            getLong("size"),
-            getStringMapOrNull("annotations") ?: TreeMap()
-        )
+        return decodeOciDescriptor()
     }
+
+    private fun JsonObject.decodeOciDescriptor() = OciDescriptorImpl(
+        getString("mediaType"),
+        getOciDigest("digest"),
+        getLong("size"),
+        getStringMapOrNull("annotations") ?: TreeMap()
+    ) // TODO order?
+    // TODO support data
 
     private fun JsonObject.decodeOciManifestDescriptor(manifestMediaType: String): Pair<Platform, OciDescriptor> = Pair(
         get("platform") { asObject().decodePlatform() },
