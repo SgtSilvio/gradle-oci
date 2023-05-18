@@ -93,7 +93,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     }
                     transformManifestToPlatformBundle(registry, imageName, manifest.data, manifestDescriptor.annotations, credentials, manifestMediaType, configMediaType)
                 }.thenApply { platformBundlePair ->
-                    if (platformBundlePair.first != platform) {
+                    if ((platform != null) && (platformBundlePair.first != platform)) {
                         throw IllegalArgumentException("platform in manifest descriptor ($platform) and config (${platformBundlePair.first}) do not match")
                     }
                     platformBundlePair
@@ -295,8 +295,8 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     ) // TODO order?
     // TODO support data
 
-    private fun JsonObject.decodeOciManifestDescriptor(manifestMediaType: String): Pair<Platform, OciDescriptor> = Pair(
-        get("platform") { asObject().decodePlatform() },
+    private fun JsonObject.decodeOciManifestDescriptor(manifestMediaType: String) = Pair(
+        getOrNull("platform") { asObject().decodePlatform() },
         decodeOciDescriptor(manifestMediaType), // TODO support nested index
     ) // TODO order?
 
