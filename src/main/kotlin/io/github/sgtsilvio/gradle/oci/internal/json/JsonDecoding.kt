@@ -23,7 +23,6 @@ value class JsonValue @PublishedApi internal constructor(private val delegate: A
 
     fun asObject() = when (delegate) {
         is JSONObject -> JsonObject(delegate)
-        is Map<*, *> -> JsonObject(JSONObject(delegate))
         else -> throw JsonException.create("", "must be an object, but is '$delegate'")
     }
 
@@ -73,8 +72,12 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
         }
     }
 
-    inline fun <T, M : MutableMap<in String, in T>> toMap(destination: M, transformer: JsonValue.() -> T): M =
-        delegate.toMap().mapValuesTo(destination) { transformer.invoke(JsonValue(it.value)) }
+    inline fun <T, M : MutableMap<in String, in T>> toMap(destination: M, transformer: JsonValue.() -> T): M {
+        for (key in delegate.keys()) {
+            destination[key] = get(key, transformer)
+        }
+        return destination
+    }
 }
 
 fun JsonObject.getString(key: String) = get(key) { asString() }
