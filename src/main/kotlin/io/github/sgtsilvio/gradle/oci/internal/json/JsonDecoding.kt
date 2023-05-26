@@ -3,16 +3,25 @@ package io.github.sgtsilvio.gradle.oci.internal.json
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.time.Instant
 import java.util.*
 
-fun jsonObject(string: String): JsonObject = JsonObject(
-    try {
-        JSONObject(string)
+fun jsonValue(string: String) = JsonValue(run {
+    val jsonTokener = JSONTokener(string)
+    val value = try {
+        jsonTokener.nextValue()
     } catch (e: JSONException) {
         throw JsonException.create("<syntax>", e)
     }
-)
+    val nextChar = jsonTokener.nextClean()
+    if (nextChar.code != 0) {
+        throw JsonException.create("<syntax>", "unexpected character after value: '$nextChar'")
+    }
+    value
+})
+
+fun jsonObject(string: String): JsonObject = jsonValue(string).asObject()
 
 @DslMarker
 annotation class JsonDecodingDsl
@@ -21,26 +30,36 @@ annotation class JsonDecodingDsl
 @JvmInline
 value class JsonValue @PublishedApi internal constructor(private val delegate: Any) {
 
+    fun isObject() = delegate is JSONObject
+
     fun asObject() = when (delegate) {
         is JSONObject -> JsonObject(delegate)
         else -> throw JsonException.create("", "must be an object, but is '$delegate'")
     }
+
+    fun isArray() = delegate is JSONArray
 
     fun asArray() = when (delegate) {
         is JSONArray -> JsonArray(delegate)
         else -> throw JsonException.create("", "must be an array, but is '$delegate'")
     }
 
+    fun isString() = delegate is String
+
     fun asString() = when (delegate) {
         is String -> delegate
         else -> throw JsonException.create("", "must be a string, but is '$delegate'")
     }
+
+    fun isLong() = (delegate is Long) || (delegate is Int)
 
     fun asLong() = when (delegate) {
         is Long -> delegate
         is Int -> delegate.toLong()
         else -> throw JsonException.create("", "must be a long, but is '$delegate'")
     }
+
+    fun isBoolean() = delegate is Boolean
 
     fun asBoolean() = when (delegate) {
         is Boolean -> delegate
