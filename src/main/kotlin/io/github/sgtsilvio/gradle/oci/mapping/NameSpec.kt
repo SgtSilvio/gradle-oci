@@ -21,16 +21,16 @@ sealed interface NameSpec {
     fun generateName(parameters: Map<String, String>): String
 }
 
-class StringNameSpec(private val value: String) : NameSpec {
+class StringNameSpec(val value: String) : NameSpec {
     override fun generateName(parameters: Map<String, String>) = value
 }
 
-class ParameterNameSpec(private val key: String, private val defaultValue: String?) : NameSpec {
+class ParameterNameSpec(val key: String, val defaultValue: String?) : NameSpec {
     override fun generateName(parameters: Map<String, String>) =
         parameters[key] ?: defaultValue ?: throw IllegalStateException("required parameter '$key' is missing")
 }
 
-private class CompoundNameSpec(val parts: Array<NameSpec>) : NameSpec {
+internal class CompoundNameSpec(val parts: Array<NameSpec>) : NameSpec {
     override fun plus(nameSpec: NameSpec) = CompoundNameSpec(
         when (nameSpec) {
             is CompoundNameSpec -> arrayOf(*parts, *nameSpec.parts)
@@ -45,11 +45,7 @@ private class CompoundNameSpec(val parts: Array<NameSpec>) : NameSpec {
     }
 }
 
-private class PreOrPostfixNameSpec(
-    private val main: NameSpec,
-    private val preOrPostfix: NameSpec,
-    private val isPrefix: Boolean,
-) : NameSpec {
+internal class PreOrPostfixNameSpec(val main: NameSpec, val preOrPostfix: NameSpec, val isPrefix: Boolean) : NameSpec {
     override fun generateName(parameters: Map<String, String>): String {
         val name = main.generateName(parameters)
         return if (name.isEmpty()) "" else {
