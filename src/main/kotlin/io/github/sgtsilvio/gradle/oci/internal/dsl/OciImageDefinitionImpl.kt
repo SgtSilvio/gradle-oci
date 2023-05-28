@@ -164,7 +164,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
             .zip(createComponentId(providerFactory), OciComponentBuilder::componentId)
-            .zip(createComponentCapabilities(providerFactory), OciComponentBuilder::capabilities)
+            .zip(createComponentCapabilities(), OciComponentBuilder::capabilities)
             .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
             .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
             .map { it.build() }
@@ -172,8 +172,8 @@ abstract class OciImageDefinitionImpl @Inject constructor(
     private fun createComponentId(providerFactory: ProviderFactory): Provider<ComponentId> =
         providerFactory.provider { ComponentId(project.group.toString(), project.name, project.version.toString()) }
 
-    private fun createComponentCapabilities(providerFactory: ProviderFactory) = providerFactory.provider {
-        capabilities.set.map { VersionedCapability(Capability(it.group, it.name), it.version!!) }.toSet().ifEmpty {
+    private fun createComponentCapabilities() = capabilities.set.map { capabilities ->
+        capabilities.map { VersionedCapability(Capability(it.group, it.name), it.version!!) }.toSet().ifEmpty {
             setOf(
                 VersionedCapability(
                     Capability(project.group.toString(), createDefaultCapabilityName(project.name, name)),
@@ -203,11 +203,13 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
 
     abstract class Capabilities @Inject constructor(
+        providerFactory: ProviderFactory,
         private val imageConfiguration: Configuration,
     ) : OciImageDefinition.Capabilities {
 
-        final override val set: Set<org.gradle.api.capabilities.Capability>
-            get() = imageConfiguration.outgoing.capabilities.toSet()
+        final override val set: Provider<Set<org.gradle.api.capabilities.Capability>> = providerFactory.provider {
+            imageConfiguration.outgoing.capabilities.toSet()
+        }
 
         final override fun add(notation: String) = imageConfiguration.outgoing.capability(notation)
     }

@@ -29,7 +29,7 @@ interface OciImageDefinition : Named {
     fun specificPlatform(platform: Platform, configuration: Action<in Bundle>)
 
     interface Capabilities {
-        val set: Set<Capability>
+        val set: Provider<Set<Capability>>
 
         fun add(notation: String)
     }
