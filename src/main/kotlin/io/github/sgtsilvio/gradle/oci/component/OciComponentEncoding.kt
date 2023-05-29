@@ -33,10 +33,10 @@ private fun JsonObjectStringBuilder.encodeVersionedCapability(versionedCapabilit
 }
 
 private fun JsonArrayStringBuilder.encodePlatformBundles(platformBundles: OciComponent.PlatformBundles) {
-    for (platformBundle in platformBundles.map) {
+    for ((platform, bundle) in platformBundles.map) {
         addObject {
-            addObject("platform") { encodePlatform(platformBundle.key) }
-            addObject("bundle") { encodeBundle(platformBundle.value) }
+            addObject("platform") { encodePlatform(platform) }
+            addObject("bundle") { encodeBundle(bundle) }
         }
     }
 }
