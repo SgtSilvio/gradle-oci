@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputFile
@@ -19,7 +20,8 @@ abstract class OciComponentTask : DefaultTask() {
     val component = project.objects.property<OciComponent>()
 
     @get:Input
-    val encodedComponent = project.objects.property<String>().value(component.map { it.encodeToJsonString() })
+    val encodedComponent: Property<String> =
+        project.objects.property<String>().value(component.map { it.encodeToJsonString() })
 
     @get:OutputFile
     val componentFile: RegularFileProperty = project.objects.fileProperty()
