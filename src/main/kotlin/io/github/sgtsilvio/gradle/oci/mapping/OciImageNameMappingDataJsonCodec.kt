@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
+import java.util.*
 
 fun OciImageNameMappingData.encodeToJsonString() = jsonObject { encodeOciImageNameMappingData(this@encodeToJsonString) }
 
@@ -59,9 +60,9 @@ private fun JsonObjectStringBuilder.addNameSpecIfNotNull(key: String, nameSpec: 
 fun String.decodeAsJsonToOciImageNameMappingData() = jsonObject(this).decodeOciImageNameMappingData()
 
 private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData(
-    getOrNull("groupMappings") { asArray().toMap(HashMap()) { asObject().decodeGroupMapping() } } ?: mapOf(),
-    getOrNull("moduleMappings") { asArray().toMap(HashMap()) { asObject().decodeModuleMapping() } } ?: mapOf(),
-    getOrNull("componentMappings") { asArray().toMap(HashMap()) { asObject().decodeComponentMapping() } } ?: mapOf(),
+    getOrNull("groupMappings") { asArray().toMap(TreeMap()) { asObject().decodeGroupMapping() } } ?: TreeMap(),
+    getOrNull("moduleMappings") { asArray().toMap(TreeMap()) { asObject().decodeModuleMapping() } } ?: TreeMap(),
+    getOrNull("componentMappings") { asArray().toMap(TreeMap()) { asObject().decodeComponentMapping() } } ?: TreeMap(),
 )
 
 private fun JsonObject.decodeGroupMapping() = Pair(
@@ -82,10 +83,10 @@ private fun JsonObject.decodeComponentMapping() = Pair(
 private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
     decodeVariantSpec(),
     getOrNull("featureVariants") {
-        asArray().toMap(HashMap()) { // TODO sorted map?
+        asArray().toMap(TreeMap()) {
             asObject().run { Pair(getString("name"), decodeVariantSpec()) }
         }
-    } ?: mapOf(),
+    } ?: TreeMap(),
 )
 
 private fun JsonObject.decodeVariantSpec() = OciImageNameMappingData.VariantSpec(
