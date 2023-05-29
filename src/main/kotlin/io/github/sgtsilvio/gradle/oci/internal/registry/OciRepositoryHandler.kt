@@ -161,14 +161,12 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         response: HttpServerResponse,
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
-        val componentFutures = mappedComponent.variants.map { (_, variant) ->
-            getComponent(registryUri, mappedComponent, variant, null) // TODO credentials
+        val componentFutures = mappedComponent.variants.map { (variantName, variant) ->
+            getComponent(registryUri, mappedComponent, variant, null).thenApply { Pair(variantName, it) }
+            // TODO credentials
         }
         val moduleJsonFuture = CompletableFuture.allOf(*componentFutures.toTypedArray()).thenApply {
-            val variantNameComponentPairs: List<Pair<String, OciComponent>> =
-                mappedComponent.variants.keys.zip(componentFutures) { variantName, componentFuture ->
-                    Pair(variantName, componentFuture.get())
-                }
+            val variantNameComponentPairs = componentFutures.map { it.get() }
             jsonObject {
                 addString("formatVersion", "1.1")
                 addObject("component") {
