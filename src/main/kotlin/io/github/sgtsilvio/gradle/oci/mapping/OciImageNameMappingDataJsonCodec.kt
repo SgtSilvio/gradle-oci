@@ -29,11 +29,16 @@ private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImage
 }
 
 private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameMappingData.ComponentSpec) {
-    addArrayIfNotEmpty("variants", component.variants) { addObject { encodeVariantSpec(it) } }
+    encodeVariantSpec(component.mainVariant)
+    addArrayIfNotEmpty("featureVariants", component.featureVariants.entries) { (name, variant) ->
+        addObject {
+            addString("name", name)
+            encodeVariantSpec(variant)
+        }
+    }
 }
 
 private fun JsonObjectStringBuilder.encodeVariantSpec(variant: OciImageNameMappingData.VariantSpec) {
-    addString("name", variant.name)
     addArrayIfNotEmpty("capabilities", variant.capabilities) { addObject { encodeCapabilitySpec(it) } }
     addNameSpecIfNotNull("imageName", variant.imageName)
     addNameSpecIfNotNull("tagName", variant.tagName)
@@ -75,11 +80,15 @@ private fun JsonObject.decodeComponentMapping() = Pair(
 )
 
 private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
-    getOrNull("variants") { asArray().toList { asObject().decodeVariantSpec() } } ?: listOf(),
+    decodeVariantSpec(),
+    getOrNull("featureVariants") {
+        asArray().toMap(HashMap()) { // TODO sorted map?
+            asObject().run { Pair(getString("name"), decodeVariantSpec()) }
+        }
+    } ?: mapOf(),
 )
 
 private fun JsonObject.decodeVariantSpec() = OciImageNameMappingData.VariantSpec(
-    getString("name"),
     getOrNull("capabilities") { asArray().toList { asObject().decodeCapabilitySpec() } } ?: listOf(),
     getNameSpecOrNull("imageName"),
     getNameSpecOrNull("tagName"),

@@ -9,10 +9,9 @@ class OciImageNameMappingData(
     val componentMappings: Map<Triple<String, String, String>, ComponentSpec>,
 ) {
 
-    class ComponentSpec(val variants: List<VariantSpec>)
+    class ComponentSpec(val mainVariant: VariantSpec, val featureVariants: Map<String, VariantSpec>)
 
     class VariantSpec(
-        val name: String,
         val capabilities: List<Triple<NameSpec, NameSpec, NameSpec>>,
         val imageName: NameSpec?,
         val tagName: NameSpec?,
