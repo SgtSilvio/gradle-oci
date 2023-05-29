@@ -14,19 +14,27 @@ private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImage
     }
     addArrayIfNotEmpty("moduleMappings", data.moduleMappings.entries) { (module, componentSpec) ->
         addObject {
-            addString("group", module.first)
-            addString("name", module.second)
+            encodeModule(module)
             encodeComponentSpec(componentSpec)
         }
     }
     addArrayIfNotEmpty("componentMappings", data.componentMappings.entries) { (component, componentSpec) ->
         addObject {
-            addString("group", component.first)
-            addString("name", component.second)
-            addString("version", component.third)
+            encodeComponent(component)
             encodeComponentSpec(componentSpec)
         }
     }
+}
+
+private fun JsonObjectStringBuilder.encodeModule(module: Pair<String, String>) {
+    addString("group", module.first)
+    addString("name", module.second)
+}
+
+private fun JsonObjectStringBuilder.encodeComponent(component: Triple<String, String, String>) {
+    addString("group", component.first)
+    addString("name", component.second)
+    addString("version", component.third)
 }
 
 private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameMappingData.ComponentSpec) {
@@ -60,32 +68,25 @@ private fun JsonObjectStringBuilder.addNameSpecIfNotNull(key: String, nameSpec: 
 fun String.decodeAsJsonToOciImageNameMappingData() = jsonObject(this).decodeOciImageNameMappingData()
 
 private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData(
-    getOrNull("groupMappings") { asArray().toMap(TreeMap()) { asObject().decodeGroupMapping() } } ?: TreeMap(),
-    getOrNull("moduleMappings") { asArray().toMap(TreeMap()) { asObject().decodeModuleMapping() } } ?: TreeMap(),
-    getOrNull("componentMappings") { asArray().toMap(TreeMap()) { asObject().decodeComponentMapping() } } ?: TreeMap(),
+    getOrNull("groupMappings") {
+        asArray().toMap(TreeMap()) { asObject().run { Pair(getString("group"), decodeComponentSpec()) } }
+    } ?: TreeMap(),
+    getOrNull("moduleMappings") {
+        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeModule(), decodeComponentSpec()) } }
+    } ?: TreeMap(),
+    getOrNull("componentMappings") {
+        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeComponent(), decodeComponentSpec()) } }
+    } ?: TreeMap(),
 )
 
-private fun JsonObject.decodeGroupMapping() = Pair(
-    getString("group"),
-    decodeComponentSpec(),
-)
+private fun JsonObject.decodeModule() = Pair(getString("group"), getString("name"))
 
-private fun JsonObject.decodeModuleMapping() = Pair(
-    Pair(getString("group"), getString("name")),
-    decodeComponentSpec(),
-)
-
-private fun JsonObject.decodeComponentMapping() = Pair(
-    Triple(getString("group"), getString("name"), getString("version")),
-    decodeComponentSpec(),
-)
+private fun JsonObject.decodeComponent() = Triple(getString("group"), getString("name"), getString("version"))
 
 private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
     decodeVariantSpec(),
     getOrNull("featureVariants") {
-        asArray().toMap(TreeMap()) {
-            asObject().run { Pair(getString("name"), decodeVariantSpec()) }
-        }
+        asArray().toMap(TreeMap()) { asObject().run { Pair(getString("name"), decodeVariantSpec()) } }
     } ?: TreeMap(),
 )
 
