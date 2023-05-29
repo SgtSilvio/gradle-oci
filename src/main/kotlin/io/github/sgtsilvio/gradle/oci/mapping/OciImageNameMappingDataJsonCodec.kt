@@ -29,16 +29,11 @@ private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImage
 }
 
 private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameMappingData.ComponentSpec) {
-    encodeVariantSpec(component)
-    addArrayIfNotEmpty("featureVariants", component.featureVariants) { addObject { encodeFeatureVariantSpec(it) } }
-}
-
-private fun JsonObjectStringBuilder.encodeFeatureVariantSpec(featureVariant: OciImageNameMappingData.FeatureVariantSpec) {
-    addString("name", featureVariant.name)
-    encodeVariantSpec(featureVariant)
+    addArrayIfNotEmpty("variants", component.variants) { addObject { encodeVariantSpec(it) } }
 }
 
 private fun JsonObjectStringBuilder.encodeVariantSpec(variant: OciImageNameMappingData.VariantSpec) {
+    addString("name", variant.name)
     addArrayIfNotEmpty("capabilities", variant.capabilities) { addObject { encodeCapabilitySpec(it) } }
     addNameSpecIfNotNull("imageName", variant.imageName)
     addNameSpecIfNotNull("tagName", variant.tagName)
@@ -80,21 +75,15 @@ private fun JsonObject.decodeComponentMapping() = Pair(
 )
 
 private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
-    getCapabilitySpecs("capabilities"),
-    getNameSpecOrNull("imageName"),
-    getNameSpecOrNull("tagName"),
-    getOrNull("featureVariants") { asArray().toList { asObject().decodeFeatureVariantSpec() } } ?: listOf(),
+    getOrNull("variants") { asArray().toList { asObject().decodeVariantSpec() } } ?: listOf(),
 )
 
-private fun JsonObject.decodeFeatureVariantSpec() = OciImageNameMappingData.FeatureVariantSpec(
+private fun JsonObject.decodeVariantSpec() = OciImageNameMappingData.VariantSpec(
     getString("name"),
-    getCapabilitySpecs("capabilities"),
+    getOrNull("capabilities") { asArray().toList { asObject().decodeCapabilitySpec() } } ?: listOf(),
     getNameSpecOrNull("imageName"),
     getNameSpecOrNull("tagName"),
 )
-
-private fun JsonObject.getCapabilitySpecs(key: String) =
-    getOrNull(key) { asArray().toList { asObject().decodeCapabilitySpec() }} ?: listOf()
 
 private fun JsonObject.decodeCapabilitySpec() = Triple(
     getNameSpec("group"),
