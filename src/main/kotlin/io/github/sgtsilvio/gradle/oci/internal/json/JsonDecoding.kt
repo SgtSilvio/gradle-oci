@@ -73,27 +73,27 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
 
     fun hasKey(key: String) = delegate.has(key)
 
-    inline fun <T> get(key: String, transformer: JsonValue.() -> T): T {
+    inline fun <T> get(key: String, transform: JsonValue.() -> T): T {
         val value = delegate.getOrNull(key) ?: throw JsonException.create(key, "is required, but is missing")
         try {
-            return transformer.invoke(JsonValue(value))
+            return JsonValue(value).transform()
         } catch (e: Throwable) {
             throw JsonException.create(key, e)
         }
     }
 
-    inline fun <T> getOrNull(key: String, transformer: JsonValue.() -> T): T? {
+    inline fun <T> getOrNull(key: String, transform: JsonValue.() -> T): T? {
         val value = delegate.getOrNull(key) ?: return null
         try {
-            return transformer.invoke(JsonValue(value))
+            return JsonValue(value).transform()
         } catch (e: Throwable) {
             throw JsonException.create(key, e)
         }
     }
 
-    inline fun <T, M : MutableMap<in String, in T>> toMap(destination: M, transformer: JsonValue.() -> T): M {
+    inline fun <T, M : MutableMap<in String, in T>> toMap(destination: M, transform: JsonValue.() -> T): M {
         for (key in delegate.keys()) {
-            destination[key] = get(key, transformer)
+            destination[key] = get(key, transform)
         }
         return destination
     }
@@ -120,28 +120,28 @@ fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(as
 @JvmInline
 value class JsonArray internal constructor(@PublishedApi internal val delegate: JSONArray) {
 
-    inline fun <T> toList(transformer: JsonValue.() -> T): List<T> {
+    inline fun <T> toList(transform: JsonValue.() -> T): List<T> {
         var i = 0
         try {
-            return delegate.map { transformer.invoke(JsonValue(it)).also { i++ } }
+            return delegate.map { JsonValue(it).transform().also { i++ } }
         } catch (e: Throwable) {
             throw JsonException.create(i, e)
         }
     }
 
-    inline fun <T, S : MutableSet<in T>> toSet(destination: S, transformer: JsonValue.() -> T): S {
+    inline fun <T, S : MutableSet<in T>> toSet(destination: S, transform: JsonValue.() -> T): S {
         var i = 0
         try {
-            return delegate.mapTo(destination) { transformer.invoke(JsonValue(it)).also { i++ } }
+            return delegate.mapTo(destination) { JsonValue(it).transform().also { i++ } }
         } catch (e: Throwable) {
             throw JsonException.create(i, e)
         }
     }
 
-    inline fun <K, V, M : MutableMap<in K, in V>> toMap(destination: M, transformer: JsonValue.() -> Pair<K, V>): M {
+    inline fun <K, V, M : MutableMap<in K, in V>> toMap(destination: M, transform: JsonValue.() -> Pair<K, V>): M {
         var i = 0
         try {
-            return delegate.associateTo(destination) { transformer.invoke(JsonValue(it)).also { i++ } }
+            return delegate.associateTo(destination) { JsonValue(it).transform().also { i++ } }
         } catch (e: Throwable) {
             throw JsonException.create(i, e)
         }
