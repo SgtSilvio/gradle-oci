@@ -9,18 +9,18 @@ fun NameSpec.encodeToJsonString() = when (this) {
     is PreOrPostfixNameSpec -> jsonObject { encodePreOrPostfixNameSpec(this@encodeToJsonString) }
 }
 
+fun JsonObjectStringBuilder.addNameSpec(key: String, nameSpec: NameSpec) = when (nameSpec) {
+    is StringNameSpec -> addString(key, nameSpec.value)
+    is CompoundNameSpec -> addArray(key) { encodeCompoundNameSpec(nameSpec) }
+    is ParameterNameSpec -> addObject(key) { encodeParameterNameSpec(nameSpec) }
+    is PreOrPostfixNameSpec -> addObject(key) { encodePreOrPostfixNameSpec(nameSpec) }
+}
+
 private fun JsonArrayStringBuilder.addNameSpec(nameSpec: NameSpec) = when (nameSpec) {
     is StringNameSpec -> addString(nameSpec.value)
     is CompoundNameSpec -> addArray { encodeCompoundNameSpec(nameSpec) }
     is ParameterNameSpec -> addObject { encodeParameterNameSpec(nameSpec) }
     is PreOrPostfixNameSpec -> addObject { encodePreOrPostfixNameSpec(nameSpec) }
-}
-
-private fun JsonObjectStringBuilder.addNameSpec(key: String, nameSpec: NameSpec) = when (nameSpec) {
-    is StringNameSpec -> addString(key, nameSpec.value)
-    is CompoundNameSpec -> addArray(key) { encodeCompoundNameSpec(nameSpec) }
-    is ParameterNameSpec -> addObject(key) { encodeParameterNameSpec(nameSpec) }
-    is PreOrPostfixNameSpec -> addObject(key) { encodePreOrPostfixNameSpec(nameSpec) }
 }
 
 private fun JsonArrayStringBuilder.encodeCompoundNameSpec(compoundNameSpec: CompoundNameSpec) {
@@ -41,7 +41,7 @@ private fun JsonObjectStringBuilder.encodePreOrPostfixNameSpec(preOrPostfixNameS
 
 fun String.decodeAsJsonToNameSpec() = jsonValue(this).decodeNameSpec()
 
-private fun JsonValue.decodeNameSpec(): NameSpec = when {
+fun JsonValue.decodeNameSpec(): NameSpec = when {
     isString() -> StringNameSpec(asString())
     isArray() -> decodeCompoundNameSpec()
     isObject() -> asObject().run {
