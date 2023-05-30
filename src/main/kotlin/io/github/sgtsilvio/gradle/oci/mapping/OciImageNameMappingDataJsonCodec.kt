@@ -52,12 +52,6 @@ private fun JsonObjectStringBuilder.encodeCapabilitySpec(capability: Triple<Name
     addNameSpec("version", capability.third)
 }
 
-private fun JsonObjectStringBuilder.addNameSpecIfNotNull(key: String, nameSpec: NameSpec?) {
-    if (nameSpec != null) {
-        addNameSpec(key, nameSpec)
-    }
-}
-
 fun String.decodeAsJsonToOciImageNameMappingData() = jsonObject(this).decodeOciImageNameMappingData()
 
 private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData(
@@ -90,7 +84,3 @@ private fun JsonObject.decodeCapabilitySpec() = Triple(
     getNameSpec("name"),
     getNameSpec("version"),
 )
-
-private fun JsonObject.getNameSpec(key: String) = get(key) { decodeNameSpec() }
-
-private fun JsonObject.getNameSpecOrNull(key: String) = getOrNull(key) { decodeNameSpec() }

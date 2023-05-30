@@ -16,6 +16,12 @@ fun JsonObjectStringBuilder.addNameSpec(key: String, nameSpec: NameSpec) = when 
     is PreOrPostfixNameSpec -> addObject(key) { encodePreOrPostfixNameSpec(nameSpec) }
 }
 
+fun JsonObjectStringBuilder.addNameSpecIfNotNull(key: String, nameSpec: NameSpec?) {
+    if (nameSpec != null) {
+        addNameSpec(key, nameSpec)
+    }
+}
+
 private fun JsonArrayStringBuilder.addNameSpec(nameSpec: NameSpec) = when (nameSpec) {
     is StringNameSpec -> addString(nameSpec.value)
     is CompoundNameSpec -> addArray { encodeCompoundNameSpec(nameSpec) }
@@ -54,6 +60,10 @@ fun JsonValue.decodeNameSpec(): NameSpec = when {
     }
     else -> throw JsonException.create("", "must be a string, object, or array, but is '$this'")
 }
+
+fun JsonObject.getNameSpec(key: String) = get(key) { decodeNameSpec() }
+
+fun JsonObject.getNameSpecOrNull(key: String) = getOrNull(key) { decodeNameSpec() }
 
 private fun JsonValue.decodeCompoundNameSpec() = CompoundNameSpec(asArray().toList { decodeNameSpec() }.toTypedArray())
 
