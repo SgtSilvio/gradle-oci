@@ -20,10 +20,6 @@ private fun JsonObject.decodeOciComponent() = OciComponent(
     getStringMapOrNull("indexAnnotations") ?: TreeMap(),
 )
 
-private fun JsonObject.decodeCoordinates() = Coordinates(getString("group"), getString("name"))
-
-private fun JsonObject.decodeVersionedCoordinates() = VersionedCoordinates(decodeCoordinates(), getString("version"))
-
 private fun JsonArray.decodePlatformBundles() = OciComponent.PlatformBundles(toMap(TreeMap()) {
     asObject().run {
         Pair(

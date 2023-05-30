@@ -16,16 +16,6 @@ private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) 
     addObjectIfNotEmpty("indexAnnotations", component.indexAnnotations)
 }
 
-private fun JsonObjectStringBuilder.encodeCoordinates(coordinates: Coordinates) {
-    addString("group", coordinates.group)
-    addString("name", coordinates.name)
-}
-
-private fun JsonObjectStringBuilder.encodeVersionedCoordinates(versionedCoordinates: VersionedCoordinates) {
-    encodeCoordinates(versionedCoordinates.coordinates)
-    addString("version", versionedCoordinates.version)
-}
-
 private fun JsonArrayStringBuilder.encodePlatformBundles(platformBundles: OciComponent.PlatformBundles) {
     for ((platform, bundle) in platformBundles.map) {
         addObject {

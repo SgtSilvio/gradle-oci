@@ -1,7 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.component.decodeCoordinates
+import io.github.sgtsilvio.gradle.oci.component.decodeVersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.component.encodeCoordinates
+import io.github.sgtsilvio.gradle.oci.component.encodeVersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import java.util.*
 
@@ -26,16 +28,6 @@ private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImage
             encodeComponentSpec(componentSpec)
         }
     }
-}
-
-private fun JsonObjectStringBuilder.encodeCoordinates(moduleId: Coordinates) {
-    addString("group", moduleId.group)
-    addString("name", moduleId.name)
-}
-
-private fun JsonObjectStringBuilder.encodeVersionedCoordinates(componentId: VersionedCoordinates) {
-    encodeCoordinates(componentId.coordinates)
-    addString("version", componentId.version)
 }
 
 private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameMappingData.ComponentSpec) {
@@ -79,10 +71,6 @@ private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData
         asArray().toMap(TreeMap()) { asObject().run { Pair(decodeVersionedCoordinates(), decodeComponentSpec()) } }
     } ?: TreeMap(),
 )
-
-private fun JsonObject.decodeCoordinates() = Coordinates(getString("group"), getString("name"))
-
-private fun JsonObject.decodeVersionedCoordinates() = VersionedCoordinates(decodeCoordinates(), getString("version"))
 
 private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
     decodeVariantSpec(),
