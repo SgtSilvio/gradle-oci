@@ -9,8 +9,8 @@ import java.util.*
 fun String.decodeAsJsonToOciComponent() = jsonObject(this).decodeOciComponent()
 
 private fun JsonObject.decodeOciComponent() = OciComponent(
-    get("componentId") { asObject().decodeComponentId() },
-    get("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCapability() } },
+    get("componentId") { asObject().decodeVersionedCoordinates() },
+    get("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCoordinates() } },
     if (hasKey("bundle")) {
         if (hasKey("platformBundles")) throw JsonException.create("bundle|platformBundles", "must not both be present")
         get("bundle") { asObject().decodeBundle() }
@@ -20,13 +20,9 @@ private fun JsonObject.decodeOciComponent() = OciComponent(
     getStringMapOrNull("indexAnnotations") ?: TreeMap(),
 )
 
-private fun JsonObject.decodeComponentId() = ComponentId(decodeModuleId(), getString("version"))
+private fun JsonObject.decodeCoordinates() = Coordinates(getString("group"), getString("name"))
 
-private fun JsonObject.decodeModuleId() = ModuleId(getString("group"), getString("name"))
-
-private fun JsonObject.decodeCapability() = Capability(getString("group"), getString("name"))
-
-private fun JsonObject.decodeVersionedCapability() = VersionedCapability(decodeCapability(), getString("version"))
+private fun JsonObject.decodeVersionedCoordinates() = VersionedCoordinates(decodeCoordinates(), getString("version"))
 
 private fun JsonArray.decodePlatformBundles() = OciComponent.PlatformBundles(toMap(TreeMap()) {
     asObject().run {
@@ -59,7 +55,7 @@ private fun JsonObject.decodeBundle() = OciComponent.Bundle(
     getStringMapOrNull("configDescriptorAnnotations") ?: TreeMap(),
     getStringMapOrNull("manifestAnnotations") ?: TreeMap(),
     getStringMapOrNull("manifestDescriptorAnnotations") ?: TreeMap(),
-    getOrNull("parentCapabilities") { asArray().toList { asObject().decodeCapability() } } ?: listOf(),
+    getOrNull("parentCapabilities") { asArray().toList { asObject().decodeCoordinates() } } ?: listOf(),
     get("layers") { asArray().toList { asObject().decodeLayer() } },
 )
 

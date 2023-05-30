@@ -169,15 +169,16 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
             .map { it.build() }
 
-    private fun createComponentId(providerFactory: ProviderFactory): Provider<ComponentId> = providerFactory.provider {
-        ComponentId(ModuleId(project.group.toString(), project.name), project.version.toString())
-    }
+    private fun createComponentId(providerFactory: ProviderFactory): Provider<VersionedCoordinates> =
+        providerFactory.provider {
+            VersionedCoordinates(Coordinates(project.group.toString(), project.name), project.version.toString())
+        }
 
-    private fun createComponentCapabilities() = capabilities.set.map { capabilities ->
-        capabilities.map { VersionedCapability(Capability(it.group, it.name), it.version!!) }.toSet().ifEmpty {
+    private fun createComponentCapabilities() = capabilities.set.map { capabilities -> // TODO platform type
+        capabilities.map { VersionedCoordinates(Coordinates(it.group, it.name), it.version!!) }.toSet().ifEmpty {
             setOf(
-                VersionedCapability(
-                    Capability(project.group.toString(), createDefaultCapabilityName(project.name, name)),
+                VersionedCoordinates(
+                    Coordinates(project.group.toString(), createDefaultCapabilityName(project.name, name)),
                     project.version.toString(),
                 )
             )
@@ -284,9 +285,9 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 .zip(createComponentLayers(providerFactory), OciComponentBundleBuilder::layers)
                 .map { it.build() }
 
-        private fun createComponentParentCapabilities(providerFactory: ProviderFactory): Provider<List<Capability>> =
+        private fun createComponentParentCapabilities(providerFactory: ProviderFactory): Provider<List<Coordinates>> =
             providerFactory.provider {
-                val parentCapabilities = mutableListOf<Capability>()
+                val parentCapabilities = mutableListOf<Coordinates>()
                 for (dependency in parentImages.set) {
                     val capabilities = dependency.requestedCapabilities
                     if (capabilities.isEmpty()) { // add default capability
@@ -295,13 +296,13 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                                 ModuleVersionIdentifier::class.java,
                                 dependency,
                             )
-                            parentCapabilities.add(Capability(id.group, id.name))
+                            parentCapabilities.add(Coordinates(id.group, id.name))
                         } else {
-                            parentCapabilities.add(Capability(dependency.group ?: "", dependency.name))
+                            parentCapabilities.add(Coordinates(dependency.group ?: "", dependency.name))
                         }
                     } else {
                         for (capability in capabilities) {
-                            parentCapabilities.add(Capability(capability.group, capability.name))
+                            parentCapabilities.add(Coordinates(capability.group, capability.name))
                         }
                     }
                 }

@@ -5,7 +5,10 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.*
+import io.github.sgtsilvio.gradle.oci.component.Coordinates
+import io.github.sgtsilvio.gradle.oci.component.OciComponent
+import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
@@ -43,8 +46,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val registry: String,
         val imageName: String,
         val reference: String,
-        val componentId: ComponentId,
-        val capabilities: SortedSet<VersionedCapability>,
+        val componentId: VersionedCoordinates,
+        val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: OciRegistryApi.Credentials?,
     )
 
@@ -210,11 +213,11 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                                 }
                             }
                         }
-                        if (component.capabilities != setOf(VersionedCapability(Capability(group, name), version))) {
+                        if (component.capabilities != setOf(VersionedCoordinates(Coordinates(group, name), version))) {
                             addArrayIfNotEmpty("capabilities", component.capabilities) { versionedCapability ->
                                 addObject {
-                                    addString("group", versionedCapability.capability.group)
-                                    addString("name", versionedCapability.capability.name)
+                                    addString("group", versionedCapability.coordinates.group)
+                                    addString("name", versionedCapability.coordinates.name)
                                     addString("version", versionedCapability.version)
                                 }
                             }
@@ -316,10 +319,10 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private fun map(group: String, name: String, version: String): MappedComponent {
         // TODO
         return MappedComponent(
-            ComponentId(ModuleId(group, name), version),
+            VersionedCoordinates(Coordinates(group, name), version),
             mapOf(
                 "main" to MappedComponent.Variant(
-                    sortedSetOf(VersionedCapability(Capability(group, name), version)),
+                    sortedSetOf(VersionedCoordinates(Coordinates(group, name), version)),
                     group.replace('.', '/') + '/' + name,
                     version,
                 )

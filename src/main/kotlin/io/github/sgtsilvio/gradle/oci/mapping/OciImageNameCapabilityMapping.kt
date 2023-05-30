@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.VersionedCapability
+import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Nested
 
@@ -15,7 +15,7 @@ interface OciImageNameCapabilityMapping : OciImageNameMapping {
 
 fun interface CustomOciImageNameCapabilityMapper {
     fun map(
-        componentCapabilities: Set<VersionedCapability>,
-        allCapabilities: Set<VersionedCapability>,
+        componentCapabilities: Set<VersionedCoordinates>,
+        allCapabilities: Set<VersionedCoordinates>,
     ): List<OciImageName>?
 }

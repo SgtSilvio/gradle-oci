@@ -6,7 +6,7 @@ sealed interface OciComponentResolver {
 
     fun addComponent(component: OciComponent)
 
-    fun resolve(capability: Capability): ResolvedOciComponent
+    fun resolve(capability: Coordinates): ResolvedOciComponent
 
     fun resolve(component: OciComponent): ResolvedOciComponent
 }
@@ -19,27 +19,27 @@ sealed interface ResolvedOciComponent {
 
     fun collectBundlesForPlatform(platform: Platform): List<OciComponent.Bundle>
 
-    fun collectCapabilities(): Set<VersionedCapability>
+    fun collectCapabilities(): Set<VersionedCoordinates>
 }
 
 private class OciComponentResolverImpl : OciComponentResolver {
-    private val resolvableComponents = hashMapOf<Capability, ResolvableOciComponent>()
+    private val resolvableComponents = hashMapOf<Coordinates, ResolvableOciComponent>()
 
     override fun addComponent(component: OciComponent) {
         val resolvableComponent = ResolvableOciComponent(component)
         for (versionedCapability in component.capabilities) {
-            val prevComponent = resolvableComponents.put(versionedCapability.capability, resolvableComponent)
+            val prevComponent = resolvableComponents.put(versionedCapability.coordinates, resolvableComponent)
             if (prevComponent != null) {
                 throw IllegalStateException("$prevComponent and $component provide the same capability")
             }
         }
     }
 
-    override fun resolve(capability: Capability): ResolvedOciComponentImpl =
+    override fun resolve(capability: Coordinates): ResolvedOciComponentImpl =
         resolvableComponents[capability]?.resolve(this)
             ?: throw IllegalStateException("component with capability $capability missing")
 
-    override fun resolve(component: OciComponent) = resolve(component.capabilities.first().capability)
+    override fun resolve(component: OciComponent) = resolve(component.capabilities.first().coordinates)
 }
 
 private class ResolvableOciComponent(component: OciComponent) {
@@ -91,7 +91,7 @@ private class UniversalResolvedOciComponent(
     override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedOciBundle>) =
         bundle.collectBundlesForPlatform(platform, result)
 
-    override fun collectCapabilities(): Set<VersionedCapability> =
+    override fun collectCapabilities(): Set<VersionedCoordinates> =
         bundle.collectCapabilities(HashSet(component.capabilities))
 }
 
@@ -108,8 +108,8 @@ private class PlatformsResolvedOciComponent(
         platformBundles[platform]?.collectBundlesForPlatform(platform, result)
             ?: throw IllegalStateException("unresolved dependency for platform $platform")
 
-    override fun collectCapabilities(): Set<VersionedCapability> {
-        var capabilities: HashSet<VersionedCapability>? = null
+    override fun collectCapabilities(): Set<VersionedCoordinates> {
+        var capabilities: HashSet<VersionedCoordinates>? = null
         for (bundle in platformBundles.values) {
             val bundleCapabilities = bundle.collectCapabilities(HashSet())
             if (capabilities == null) {
@@ -147,7 +147,7 @@ private class ResolvedOciBundle(
         }
     }
 
-    fun collectCapabilities(capabilities: HashSet<VersionedCapability>): HashSet<VersionedCapability> {
+    fun collectCapabilities(capabilities: HashSet<VersionedCoordinates>): HashSet<VersionedCoordinates> {
         for (dependency in dependencies) {
             capabilities.addAll(dependency.collectCapabilities())
         }

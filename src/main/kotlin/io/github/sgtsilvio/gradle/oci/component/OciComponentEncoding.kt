@@ -7,8 +7,8 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 fun OciComponent.encodeToJsonString() = jsonObject { encodeOciComponent(this@encodeToJsonString) }
 
 private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) {
-    addObject("componentId") { encodeComponentId(component.componentId) }
-    addArray("capabilities", component.capabilities) { addObject { encodeVersionedCapability(it) } }
+    addObject("componentId") { encodeVersionedCoordinates(component.componentId) }
+    addArray("capabilities", component.capabilities) { addObject { encodeVersionedCoordinates(it) } }
     when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> addObject("bundle") { encodeBundle(bundleOrPlatformBundles) }
         is OciComponent.PlatformBundles -> addArray("platformBundles") { encodePlatformBundles(bundleOrPlatformBundles) }
@@ -16,24 +16,14 @@ private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) 
     addObjectIfNotEmpty("indexAnnotations", component.indexAnnotations)
 }
 
-private fun JsonObjectStringBuilder.encodeComponentId(componentId: ComponentId) {
-    encodeModuleId(componentId.moduleId)
-    addString("version", componentId.version)
+private fun JsonObjectStringBuilder.encodeCoordinates(coordinates: Coordinates) {
+    addString("group", coordinates.group)
+    addString("name", coordinates.name)
 }
 
-private fun JsonObjectStringBuilder.encodeModuleId(moduleId: ModuleId) {
-    addString("group", moduleId.group)
-    addString("name", moduleId.name)
-}
-
-private fun JsonObjectStringBuilder.encodeCapability(capability: Capability) {
-    addString("group", capability.group)
-    addString("name", capability.name)
-}
-
-private fun JsonObjectStringBuilder.encodeVersionedCapability(versionedCapability: VersionedCapability) {
-    encodeCapability(versionedCapability.capability)
-    addString("version", versionedCapability.version)
+private fun JsonObjectStringBuilder.encodeVersionedCoordinates(versionedCoordinates: VersionedCoordinates) {
+    encodeCoordinates(versionedCoordinates.coordinates)
+    addString("version", versionedCoordinates.version)
 }
 
 private fun JsonArrayStringBuilder.encodePlatformBundles(platformBundles: OciComponent.PlatformBundles) {
@@ -69,7 +59,7 @@ private fun JsonObjectStringBuilder.encodeBundle(bundle: OciComponent.Bundle) {
     addObjectIfNotEmpty("configDescriptorAnnotations", bundle.configDescriptorAnnotations)
     addObjectIfNotEmpty("manifestAnnotations", bundle.manifestAnnotations)
     addObjectIfNotEmpty("manifestDescriptorAnnotations", bundle.manifestDescriptorAnnotations)
-    addArrayIfNotEmpty("parentCapabilities", bundle.parentCapabilities) { addObject { encodeCapability(it) } }
+    addArrayIfNotEmpty("parentCapabilities", bundle.parentCapabilities) { addObject { encodeCoordinates(it) } }
     addArrayIfNotEmpty("layers", bundle.layers) { addObject { encodeLayer(it) } }
 }
 

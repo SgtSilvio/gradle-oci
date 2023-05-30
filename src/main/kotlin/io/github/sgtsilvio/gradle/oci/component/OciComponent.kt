@@ -11,8 +11,8 @@ import java.util.*
  * @author Silvio Giebl
  */
 data class OciComponent(
-    val componentId: ComponentId,
-    val capabilities: SortedSet<VersionedCapability>,
+    val componentId: VersionedCoordinates,
+    val capabilities: SortedSet<VersionedCoordinates>,
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
     val indexAnnotations: SortedMap<String, String>,
 ) : Serializable {
@@ -35,7 +35,7 @@ data class OciComponent(
         val configDescriptorAnnotations: SortedMap<String, String>,
         val manifestAnnotations: SortedMap<String, String>,
         val manifestDescriptorAnnotations: SortedMap<String, String>,
-        val parentCapabilities: List<Capability>,
+        val parentCapabilities: List<Coordinates>,
         val layers: List<Layer>,
     ) : BundleOrPlatformBundles, Serializable {
 

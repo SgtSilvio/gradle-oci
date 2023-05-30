@@ -39,7 +39,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         val files: ConfigurableFileCollection
 
         @get:Input
-        val rootCapabilities: SetProperty<Capability>
+        val rootCapabilities: SetProperty<Coordinates>
 
         fun from(configuration: Configuration) {
             files.from(configuration)
@@ -47,7 +47,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
                 root.dependencies.filter { !it.isConstraint }.mapTo(HashSet()) { dependencyResult ->
                     dependencyResult as ResolvedDependencyResult
                     val capability = dependencyResult.resolvedVariant.capabilities.first()
-                    Capability(capability.group, capability.name)
+                    Coordinates(capability.group, capability.name)
                 }
             })
         }
@@ -231,7 +231,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
     private data class ComponentLayers(val component: OciComponent, val digestToLayers: Map<OciDigest, File>)
     private data class ProcessedImages(
         val componentLayersList: List<ComponentLayers>,
-        val rootCapabilities: Set<Capability>,
+        val rootCapabilities: Set<Coordinates>,
     )
 }
 

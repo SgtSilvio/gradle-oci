@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.ComponentId
-import io.github.sgtsilvio.gradle.oci.component.ModuleId
+import io.github.sgtsilvio.gradle.oci.component.Coordinates
+import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import java.util.*
 
@@ -16,25 +16,25 @@ private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImage
     }
     addArrayIfNotEmpty("moduleMappings", data.moduleMappings.entries) { (moduleId, componentSpec) ->
         addObject {
-            encodeModuleId(moduleId)
+            encodeCoordinates(moduleId)
             encodeComponentSpec(componentSpec)
         }
     }
     addArrayIfNotEmpty("componentMappings", data.componentMappings.entries) { (componentId, componentSpec) ->
         addObject {
-            encodeComponentId(componentId)
+            encodeVersionedCoordinates(componentId)
             encodeComponentSpec(componentSpec)
         }
     }
 }
 
-private fun JsonObjectStringBuilder.encodeModuleId(moduleId: ModuleId) {
+private fun JsonObjectStringBuilder.encodeCoordinates(moduleId: Coordinates) {
     addString("group", moduleId.group)
     addString("name", moduleId.name)
 }
 
-private fun JsonObjectStringBuilder.encodeComponentId(componentId: ComponentId) {
-    encodeModuleId(componentId.moduleId)
+private fun JsonObjectStringBuilder.encodeVersionedCoordinates(componentId: VersionedCoordinates) {
+    encodeCoordinates(componentId.coordinates)
     addString("version", componentId.version)
 }
 
@@ -73,16 +73,16 @@ private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData
         asArray().toMap(TreeMap()) { asObject().run { Pair(getString("group"), decodeComponentSpec()) } }
     } ?: TreeMap(),
     getOrNull("moduleMappings") {
-        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeModuleId(), decodeComponentSpec()) } }
+        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeCoordinates(), decodeComponentSpec()) } }
     } ?: TreeMap(),
     getOrNull("componentMappings") {
-        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeComponentId(), decodeComponentSpec()) } }
+        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeVersionedCoordinates(), decodeComponentSpec()) } }
     } ?: TreeMap(),
 )
 
-private fun JsonObject.decodeModuleId() = ModuleId(getString("group"), getString("name"))
+private fun JsonObject.decodeCoordinates() = Coordinates(getString("group"), getString("name"))
 
-private fun JsonObject.decodeComponentId() = ComponentId(decodeModuleId(), getString("version"))
+private fun JsonObject.decodeVersionedCoordinates() = VersionedCoordinates(decodeCoordinates(), getString("version"))
 
 private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
     decodeVariantSpec(),

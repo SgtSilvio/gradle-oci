@@ -18,8 +18,8 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageName: String,
         reference: String,
-        componentId: ComponentId,
-        capabilities: SortedSet<VersionedCapability>,
+        componentId: VersionedCoordinates,
+        capabilities: SortedSet<VersionedCoordinates>,
         credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> {
         return registryApi.pullManifest(registry, imageName, reference, credentials).thenCompose { manifest ->
@@ -76,8 +76,8 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         imageName: String,
         index: String,
         credentials: OciRegistryApi.Credentials?,
-        componentId: ComponentId,
-        capabilities: SortedSet<VersionedCapability>,
+        componentId: VersionedCoordinates,
+        capabilities: SortedSet<VersionedCoordinates>,
         indexMediaType: String,
         manifestMediaType: String,
         configMediaType: String,
@@ -121,8 +121,8 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         imageName: String,
         manifest: String,
         credentials: OciRegistryApi.Credentials?,
-        componentId: ComponentId,
-        capabilities: SortedSet<VersionedCapability>,
+        componentId: VersionedCoordinates,
+        capabilities: SortedSet<VersionedCoordinates>,
         manifestMediaType: String,
         configMediaType: String,
     ): CompletableFuture<OciComponent> {

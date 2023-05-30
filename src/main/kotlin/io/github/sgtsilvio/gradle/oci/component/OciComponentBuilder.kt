@@ -9,13 +9,13 @@ import java.time.Instant
  * @author Silvio Giebl
  */
 class OciComponentBuilder : Serializable {
-    private var componentId: ComponentId? = null
-    private var capabilities: Set<VersionedCapability>? = null
+    private var componentId: VersionedCoordinates? = null
+    private var capabilities: Set<VersionedCoordinates>? = null
     private var bundleOrPlatformBundles: OciComponent.BundleOrPlatformBundles? = null
     private var indexAnnotations: Map<String, String> = mapOf()
 
-    fun componentId(v: ComponentId) = apply { componentId = v }
-    fun capabilities(v: Set<VersionedCapability>) = apply { capabilities = v }
+    fun componentId(v: VersionedCoordinates) = apply { componentId = v }
+    fun capabilities(v: Set<VersionedCoordinates>) = apply { capabilities = v }
     fun bundleOrPlatformBundles(v: OciComponent.BundleOrPlatformBundles) = apply { bundleOrPlatformBundles = v }
     fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
 
@@ -41,7 +41,7 @@ class OciComponentBundleBuilder : Serializable {
     private var configDescriptorAnnotations: Map<String, String> = mapOf()
     private var manifestAnnotations: Map<String, String> = mapOf()
     private var manifestDescriptorAnnotations: Map<String, String> = mapOf()
-    private var parentCapabilities: List<Capability> = listOf()
+    private var parentCapabilities: List<Coordinates> = listOf()
     private var layers: List<OciComponent.Bundle.Layer> = listOf()
 
     fun creationTime(v: Instant?) = apply { creationTime = v }
@@ -57,7 +57,7 @@ class OciComponentBundleBuilder : Serializable {
     fun configDescriptorAnnotations(v: Map<String, String>) = apply { configDescriptorAnnotations = v }
     fun manifestAnnotations(v: Map<String, String>) = apply { manifestAnnotations = v }
     fun manifestDescriptorAnnotations(v: Map<String, String>) = apply { manifestDescriptorAnnotations = v }
-    fun parentCapabilities(v: List<Capability>) = apply { parentCapabilities = v }
+    fun parentCapabilities(v: List<Coordinates>) = apply { parentCapabilities = v }
     fun layers(v: List<OciComponent.Bundle.Layer>) = apply { layers = v }
 
     fun build() = OciComponent.Bundle(

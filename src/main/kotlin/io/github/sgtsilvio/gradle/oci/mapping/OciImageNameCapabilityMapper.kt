@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.VersionedCapability
+import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 
 /**
  * @author Silvio Giebl
@@ -11,8 +11,8 @@ class OciImageNameCapabilityMapper(
 ) {
 
     fun map(
-        componentCapabilities: Set<VersionedCapability>,
-        allCapabilities: Set<VersionedCapability>,
+        componentCapabilities: Set<VersionedCoordinates>,
+        allCapabilities: Set<VersionedCoordinates>,
     ): List<OciImageName> {
         for (customMapping in customMappings) {
             customMapping.map(componentCapabilities, allCapabilities)?.let {
@@ -20,7 +20,7 @@ class OciImageNameCapabilityMapper(
             }
         }
         return componentCapabilities.map { versionedCapability ->
-            val capability = versionedCapability.capability
+            val capability = versionedCapability.coordinates
             mapper.map(capability.group, capability.name, versionedCapability.version)
         }
     }
