@@ -2,13 +2,6 @@ package io.github.sgtsilvio.gradle.oci.mapping
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 
-fun NameSpec.encodeToJsonString() = when (this) {
-    is StringNameSpec -> jsonString(value)
-    is CompoundNameSpec -> jsonArray { encodeCompoundNameSpec(this@encodeToJsonString) }
-    is ParameterNameSpec -> jsonObject { encodeParameterNameSpec(this@encodeToJsonString) }
-    is PreOrPostfixNameSpec -> jsonObject { encodePreOrPostfixNameSpec(this@encodeToJsonString) }
-}
-
 fun JsonObjectStringBuilder.addNameSpec(key: String, nameSpec: NameSpec) = when (nameSpec) {
     is StringNameSpec -> addString(key, nameSpec.value)
     is CompoundNameSpec -> addArray(key) { encodeCompoundNameSpec(nameSpec) }
@@ -44,8 +37,6 @@ private fun JsonObjectStringBuilder.encodePreOrPostfixNameSpec(preOrPostfixNameS
     addNameSpec("main", preOrPostfixNameSpec.main)
     addNameSpec(if (preOrPostfixNameSpec.isPrefix) "prefix" else "postfix", preOrPostfixNameSpec.preOrPostfix)
 }
-
-fun String.decodeAsJsonToNameSpec() = jsonValue(this).decodeNameSpec()
 
 fun JsonValue.decodeNameSpec(): NameSpec = when {
     isString() -> StringNameSpec(asString())
