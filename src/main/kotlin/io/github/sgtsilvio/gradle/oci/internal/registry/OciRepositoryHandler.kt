@@ -316,7 +316,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private fun map(group: String, name: String, version: String): MappedComponent {
         // TODO
         return MappedComponent(
-            ComponentId(group, name, version),
+            ComponentId(ModuleId(group, name), version),
             mapOf(
                 "main" to MappedComponent.Variant(
                     sortedSetOf(VersionedCapability(Capability(group, name), version)),

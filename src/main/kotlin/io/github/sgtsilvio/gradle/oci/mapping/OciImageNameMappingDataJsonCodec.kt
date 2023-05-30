@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
+import io.github.sgtsilvio.gradle.oci.component.ComponentId
+import io.github.sgtsilvio.gradle.oci.component.ModuleId
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import java.util.*
 
@@ -12,29 +14,28 @@ private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImage
             encodeComponentSpec(componentSpec)
         }
     }
-    addArrayIfNotEmpty("moduleMappings", data.moduleMappings.entries) { (module, componentSpec) ->
+    addArrayIfNotEmpty("moduleMappings", data.moduleMappings.entries) { (moduleId, componentSpec) ->
         addObject {
-            encodeModule(module)
+            encodeModuleId(moduleId)
             encodeComponentSpec(componentSpec)
         }
     }
-    addArrayIfNotEmpty("componentMappings", data.componentMappings.entries) { (component, componentSpec) ->
+    addArrayIfNotEmpty("componentMappings", data.componentMappings.entries) { (componentId, componentSpec) ->
         addObject {
-            encodeComponent(component)
+            encodeComponentId(componentId)
             encodeComponentSpec(componentSpec)
         }
     }
 }
 
-private fun JsonObjectStringBuilder.encodeModule(module: Pair<String, String>) {
-    addString("group", module.first)
-    addString("name", module.second)
+private fun JsonObjectStringBuilder.encodeModuleId(moduleId: ModuleId) {
+    addString("group", moduleId.group)
+    addString("name", moduleId.name)
 }
 
-private fun JsonObjectStringBuilder.encodeComponent(component: Triple<String, String, String>) {
-    addString("group", component.first)
-    addString("name", component.second)
-    addString("version", component.third)
+private fun JsonObjectStringBuilder.encodeComponentId(componentId: ComponentId) {
+    encodeModuleId(componentId.moduleId)
+    addString("version", componentId.version)
 }
 
 private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameMappingData.ComponentSpec) {
@@ -72,16 +73,16 @@ private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData
         asArray().toMap(TreeMap()) { asObject().run { Pair(getString("group"), decodeComponentSpec()) } }
     } ?: TreeMap(),
     getOrNull("moduleMappings") {
-        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeModule(), decodeComponentSpec()) } }
+        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeModuleId(), decodeComponentSpec()) } }
     } ?: TreeMap(),
     getOrNull("componentMappings") {
-        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeComponent(), decodeComponentSpec()) } }
+        asArray().toMap(TreeMap()) { asObject().run { Pair(decodeComponentId(), decodeComponentSpec()) } }
     } ?: TreeMap(),
 )
 
-private fun JsonObject.decodeModule() = Pair(getString("group"), getString("name"))
+private fun JsonObject.decodeModuleId() = ModuleId(getString("group"), getString("name"))
 
-private fun JsonObject.decodeComponent() = Triple(getString("group"), getString("name"), getString("version"))
+private fun JsonObject.decodeComponentId() = ComponentId(decodeModuleId(), getString("version"))
 
 private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
     decodeVariantSpec(),

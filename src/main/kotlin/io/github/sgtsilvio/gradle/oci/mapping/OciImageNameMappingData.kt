@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
+import io.github.sgtsilvio.gradle.oci.component.ComponentId
+import io.github.sgtsilvio.gradle.oci.component.ModuleId
 import java.util.*
 
 /**
@@ -7,8 +9,8 @@ import java.util.*
  */
 class OciImageNameMappingData(
     val groupMappings: SortedMap<String, ComponentSpec>,
-    val moduleMappings: SortedMap<Pair<String, String>, ComponentSpec>,
-    val componentMappings: SortedMap<Triple<String, String, String>, ComponentSpec>,
+    val moduleMappings: SortedMap<ModuleId, ComponentSpec>,
+    val componentMappings: SortedMap<ComponentId, ComponentSpec>,
 ) {
 
     class ComponentSpec(val mainVariant: VariantSpec, val featureVariants: SortedMap<String, VariantSpec>)

@@ -17,9 +17,13 @@ private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) 
 }
 
 private fun JsonObjectStringBuilder.encodeComponentId(componentId: ComponentId) {
-    addString("group", componentId.group)
-    addString("name", componentId.name)
+    encodeModuleId(componentId.moduleId)
     addString("version", componentId.version)
+}
+
+private fun JsonObjectStringBuilder.encodeModuleId(moduleId: ModuleId) {
+    addString("group", moduleId.group)
+    addString("name", moduleId.name)
 }
 
 private fun JsonObjectStringBuilder.encodeCapability(capability: Capability) {

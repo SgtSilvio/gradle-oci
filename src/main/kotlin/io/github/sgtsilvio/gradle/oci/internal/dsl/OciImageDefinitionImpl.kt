@@ -169,8 +169,9 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
             .map { it.build() }
 
-    private fun createComponentId(providerFactory: ProviderFactory): Provider<ComponentId> =
-        providerFactory.provider { ComponentId(project.group.toString(), project.name, project.version.toString()) }
+    private fun createComponentId(providerFactory: ProviderFactory): Provider<ComponentId> = providerFactory.provider {
+        ComponentId(ModuleId(project.group.toString(), project.name), project.version.toString())
+    }
 
     private fun createComponentCapabilities() = capabilities.set.map { capabilities ->
         capabilities.map { VersionedCapability(Capability(it.group, it.name), it.version!!) }.toSet().ifEmpty {

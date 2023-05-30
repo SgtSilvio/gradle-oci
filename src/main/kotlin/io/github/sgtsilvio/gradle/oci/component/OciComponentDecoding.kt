@@ -20,7 +20,9 @@ private fun JsonObject.decodeOciComponent() = OciComponent(
     getStringMapOrNull("indexAnnotations") ?: TreeMap(),
 )
 
-private fun JsonObject.decodeComponentId() = ComponentId(getString("group"), getString("name"), getString("version"))
+private fun JsonObject.decodeComponentId() = ComponentId(decodeModuleId(), getString("version"))
+
+private fun JsonObject.decodeModuleId() = ModuleId(getString("group"), getString("name"))
 
 private fun JsonObject.decodeCapability() = Capability(getString("group"), getString("name"))
 
