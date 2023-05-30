@@ -174,21 +174,22 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             VersionedCoordinates(Coordinates(project.group.toString(), project.name), project.version.toString())
         }
 
-    private fun createComponentCapabilities() = capabilities.set.map { capabilities -> // TODO platform type
-        capabilities.map { VersionedCoordinates(Coordinates(it.group, it.name), it.version!!) }.toSet().ifEmpty {
-            setOf(
-                VersionedCoordinates(
-                    Coordinates(project.group.toString(), createDefaultCapabilityName(project.name, name)),
-                    project.version.toString(),
+    private fun createComponentCapabilities(): Provider<Set<VersionedCoordinates>> =
+        capabilities.set.map { capabilities ->
+            capabilities.map { VersionedCoordinates(Coordinates(it.group, it.name), it.version!!) }.toSet().ifEmpty {
+                setOf(
+                    VersionedCoordinates(
+                        Coordinates(project.group.toString(), createDefaultCapabilityName(project.name, name)),
+                        project.version.toString(),
+                    )
                 )
-            )
+            }
         }
-    }
 
     private fun createDefaultCapabilityName(projectName: String, imageName: String) =
         if (name == "main") projectName else "$projectName-$imageName"
 
-    private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory) =
+    private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.BundleOrPlatformBundles> =
         providerFactory.provider { getBundleOrPlatformBundles() }
             .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
 
@@ -309,7 +310,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 parentCapabilities
             }
 
-        private fun createComponentCommand(providerFactory: ProviderFactory) =
+        private fun createComponentCommand(providerFactory: ProviderFactory): Provider<OciComponentBundleCommandBuilder> =
             providerFactory.provider { OciComponentBundleCommandBuilder() }
                 .zipAbsentAsNull(config.entryPoint, OciComponentBundleCommandBuilder::entryPoint)
                 .zipAbsentAsNull(config.arguments, OciComponentBundleCommandBuilder::arguments)
