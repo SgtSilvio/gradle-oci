@@ -1,9 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapper
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameCapabilityMapping
-import io.github.sgtsilvio.gradle.oci.mapping.createCapabilityMapper
+import io.github.sgtsilvio.gradle.oci.mapping.*
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
@@ -56,8 +54,10 @@ abstract class OciRegistryDataTask : DefaultTask() {
     @get:Nested
     val imagesList = project.objects.listProperty<Images>()
 
+    private val _imageNameMapping = project.objects.newInstance<OciImageNameCapabilityMappingImpl>()
+
     @get:Nested
-    val imageNameMapping = project.objects.newInstance<OciImageNameCapabilityMapping>()
+    val imageNameMapping: OciImageNameCapabilityMapping = _imageNameMapping
 
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
@@ -77,7 +77,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
             .map { images -> ProcessedImages(findComponents(images.files), images.rootCapabilities.get()) }
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
         writeLayers(registryDataDirectory, processedImagesList)
-        val imageNameMapper = imageNameMapping.createCapabilityMapper()
+        val imageNameMapper = _imageNameMapping.getData2()
         for (processedImages in processedImagesList) {
             processedImages.writeTo(registryDataDirectory, imageNameMapper)
         }
@@ -128,7 +128,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun ProcessedImages.writeTo(registryDataDirectory: Path, imageNameMapper: OciImageNameCapabilityMapper) {
+    private fun ProcessedImages.writeTo(registryDataDirectory: Path, imageNameMappingData: OciImageNameCapabilityMappingData) {
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
         val repositoriesDirectory: Path = registryDataDirectory.resolve("repositories")
         val componentResolver = OciComponentResolver()
@@ -159,29 +159,28 @@ abstract class OciRegistryDataTask : DefaultTask() {
             blobsDirectory.writeDigestData(index)
             val indexDigest = index.digest
 
-            val imageNames = imageNameMapper.map(
+            val imageName = imageNameMappingData.map(
+                resolvedComponent.component.componentId,
                 resolvedComponent.component.capabilities,
                 resolvedComponent.collectCapabilities(),
+            ) ?: throw IllegalStateException("could not map component ${resolvedComponent.component.componentId} to an image name")
+            val repositoryDirectory: Path = Files.createDirectories(
+                repositoriesDirectory.resolve(imageName.imageName)
             )
-            for (imageName in imageNames) {
-                val repositoryDirectory: Path = Files.createDirectories(
-                    repositoriesDirectory.resolve(imageName.namespace).resolve(imageName.name)
-                )
-                val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
-                for (blobDigest in blobDigests) {
-                    layersDirectory.writeDigestLink(blobDigest)
-                }
-                val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_manifests"))
-                val manifestRevisionsDirectory: Path = Files.createDirectories(manifestsDirectory.resolve("revisions"))
-                for ((_, manifestDescriptor) in manifests) {
-                    manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
-                }
-                manifestRevisionsDirectory.writeDigestLink(indexDigest)
-                val tagDirectory: Path =
-                    Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageName.tag))
-                tagDirectory.writeTagLink(indexDigest)
-                Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
+            val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
+            for (blobDigest in blobDigests) {
+                layersDirectory.writeDigestLink(blobDigest)
             }
+            val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_manifests"))
+            val manifestRevisionsDirectory: Path = Files.createDirectories(manifestsDirectory.resolve("revisions"))
+            for ((_, manifestDescriptor) in manifests) {
+                manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
+            }
+            manifestRevisionsDirectory.writeDigestLink(indexDigest)
+            val tagDirectory: Path =
+                Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageName.tagName))
+            tagDirectory.writeTagLink(indexDigest)
+            Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
         }
     }
 

@@ -7,6 +7,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesContainer
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameMapping
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameMappingImpl
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import org.gradle.api.Action
@@ -33,7 +34,7 @@ abstract class OciExtensionImpl @Inject constructor(
 
     final override val registries = objectFactory.newInstance<OciRegistriesImpl>()
 
-    final override val imageNameMapping = objectFactory.newInstance<OciImageNameMapping>()
+    final override val imageNameMapping = objectFactory.newInstance<OciImageNameMappingImpl>()
 
     final override val imageDefinitions = objectFactory.domainObjectContainer(OciImageDefinition::class) { name ->
         objectFactory.newInstance<OciImageDefinitionImpl>(name)
@@ -93,6 +94,7 @@ abstract class OciExtensionImpl @Inject constructor(
             val registryDataTask = taskContainer.register<OciRegistryDataTask>(registryDataTaskName) {
                 group = TASK_GROUP_NAME
                 description = "Creates a Docker registry data directory to be used by the $name task."
+                imageNameMapping.from(this@OciExtensionImpl.imageNameMapping)
             }
             testTask.configure {
                 jvmArgumentProviders += OciTestArgumentProvider(objectFactory, registryDataTask)

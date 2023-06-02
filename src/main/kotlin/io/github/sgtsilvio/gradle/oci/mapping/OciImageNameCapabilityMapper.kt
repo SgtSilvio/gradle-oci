@@ -1,30 +1,18 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import java.util.*
 
-/**
- * @author Silvio Giebl
- */
-class OciImageNameCapabilityMapper(
-    private val mapper: OciImageNameMapper,
-    private val customMappings: List<CustomOciImageNameCapabilityMapper>,
-) {
-
-    fun map(
-        componentCapabilities: Set<VersionedCoordinates>,
-        allCapabilities: Set<VersionedCoordinates>,
-    ): List<OciImageName> {
-        for (customMapping in customMappings) {
-            customMapping.map(componentCapabilities, allCapabilities)?.let {
-                return it
-            }
-        }
-        return componentCapabilities.map { versionedCapability ->
-            val capability = versionedCapability.coordinates
-            mapper.map(capability.group, capability.name, versionedCapability.version)
+fun OciImageNameCapabilityMappingData.map(
+    componentId: VersionedCoordinates,
+    componentCapabilities: SortedSet<VersionedCoordinates>,
+    allCapabilities: Set<VersionedCoordinates>,
+): OciImageName? {
+    for (customMapping in customMappings) {
+        customMapping.map(componentId, componentCapabilities, allCapabilities)?.let {
+            return it
         }
     }
+    val mappedVariant = delegate.map(componentId, componentCapabilities) ?: return null
+    return OciImageName(mappedVariant.imageName, mappedVariant.tagName)
 }
-
-fun OciImageNameCapabilityMapping.createCapabilityMapper() =
-    OciImageNameCapabilityMapper(createMapper(), customMappings.get())
