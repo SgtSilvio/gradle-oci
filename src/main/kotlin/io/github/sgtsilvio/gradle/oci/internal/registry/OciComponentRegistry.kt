@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.internal.json.*
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageName
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
@@ -18,7 +19,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageName: String,
         reference: String,
-        componentId: VersionedCoordinates,
         capabilities: SortedSet<VersionedCoordinates>,
         credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> {
@@ -27,9 +27,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 INDEX_MEDIA_TYPE -> transformIndexToComponent(
                     registry,
                     imageName,
+                    reference,
                     manifest.data,
                     credentials,
-                    componentId,
                     capabilities,
                     INDEX_MEDIA_TYPE,
                     MANIFEST_MEDIA_TYPE,
@@ -38,9 +38,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
                     registry,
                     imageName,
+                    reference,
                     manifest.data,
                     credentials,
-                    componentId,
                     capabilities,
                     MANIFEST_MEDIA_TYPE,
                     CONFIG_MEDIA_TYPE,
@@ -48,9 +48,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToComponent(
                     registry,
                     imageName,
+                    reference,
                     manifest.data,
                     credentials,
-                    componentId,
                     capabilities,
                     DOCKER_MANIFEST_LIST_MEDIA_TYPE,
                     DOCKER_MANIFEST_MEDIA_TYPE,
@@ -59,9 +59,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
                     registry,
                     imageName,
+                    reference,
                     manifest.data,
                     credentials,
-                    componentId,
                     capabilities,
                     DOCKER_MANIFEST_MEDIA_TYPE,
                     DOCKER_CONFIG_MEDIA_TYPE,
@@ -74,9 +74,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     private fun transformIndexToComponent(
         registry: String,
         imageName: String,
+        reference: String,
         index: String,
         credentials: OciRegistryApi.Credentials?,
-        componentId: VersionedCoordinates,
         capabilities: SortedSet<VersionedCoordinates>,
         indexMediaType: String,
         manifestMediaType: String,
@@ -108,7 +108,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 it.get()
             }
             OciComponent(
-                componentId,
+                OciImageName(imageName, reference),
                 capabilities,
                 OciComponent.PlatformBundles(platformBundles),
                 indexAnnotations,
@@ -119,9 +119,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     private fun transformManifestToComponent(
         registry: String,
         imageName: String,
+        reference: String,
         manifest: String,
         credentials: OciRegistryApi.Credentials?,
-        componentId: VersionedCoordinates,
         capabilities: SortedSet<VersionedCoordinates>,
         manifestMediaType: String,
         configMediaType: String,
@@ -136,7 +136,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             configMediaType,
         ).thenApply { platformBundlePair ->
             OciComponent(
-                componentId,
+                OciImageName(imageName, reference),
                 capabilities,
                 OciComponent.PlatformBundles(sortedMapOf(platformBundlePair)),
                 TreeMap(),

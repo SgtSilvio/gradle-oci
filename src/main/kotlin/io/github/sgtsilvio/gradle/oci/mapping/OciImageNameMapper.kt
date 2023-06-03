@@ -19,7 +19,7 @@ val DEFAULT_CAPABILITY = Triple(
     NAME_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-"),
     VERSION_PARAMETER_NAME_SPEC,
 )
-val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + "/" + NAME_PARAMETER_NAME_SPEC
+val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + NAME_PARAMETER_NAME_SPEC
 val DEFAULT_TAG_NAME = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-")
 
 fun OciImageNameMappingData.map(componentId: VersionedCoordinates): MappedComponent {
@@ -67,19 +67,15 @@ private fun defaultMappedComponent(componentId: VersionedCoordinates) = MappedCo
     mapOf(
         "main" to MappedComponent.Variant(
             sortedSetOf(componentId),
-            defaultMappedImageNamespace(componentId.coordinates.group) + '/' + componentId.coordinates.name,
+            defaultMappedImageNamespace(componentId.coordinates.group) + componentId.coordinates.name,
             componentId.version,
         )
     ),
 )
 
-private fun defaultMappedImageNamespace(group: String): String {
-    val tldEndIndex = group.indexOf('.')
-    return if (tldEndIndex == -1) {
-        group
-    } else {
-        group.substring(tldEndIndex + 1).replace('.', '/')
-    }
+fun defaultMappedImageNamespace(group: String) = when (val tldEndIndex = group.indexOf('.')) {
+    -1 -> if (group.isEmpty()) "" else "$group/"
+    else -> group.substring(tldEndIndex + 1).replace('.', '/') + '/'
 }
 
 fun OciImageNameMappingData.map(

@@ -5,7 +5,6 @@ import io.github.sgtsilvio.gradle.oci.mapping.*
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
-import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
 import org.gradle.api.artifacts.Configuration
@@ -54,10 +53,10 @@ abstract class OciRegistryDataTask : DefaultTask() {
     @get:Nested
     val imagesList = project.objects.listProperty<Images>()
 
-    private val _imageNameMapping = project.objects.newInstance<OciImageNameCapabilityMappingImpl>()
-
-    @get:Nested
-    val imageNameMapping: OciImageNameCapabilityMapping = _imageNameMapping
+//    private val _imageNameMapping = project.objects.newInstance<OciImageNameCapabilityMappingImpl>()
+//
+//    @get:Nested
+//    val imageNameMapping: OciImageNameCapabilityMapping = _imageNameMapping
 
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
@@ -69,7 +68,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
             configurations.map { configuration -> Images { from(configuration) } }
         })
 
-    fun imageNameMapping(action: Action<in OciImageNameCapabilityMapping>) = action.execute(imageNameMapping)
+//    fun imageNameMapping(action: Action<in OciImageNameCapabilityMapping>) = action.execute(imageNameMapping)
 
     @TaskAction
     protected fun run() {
@@ -77,9 +76,8 @@ abstract class OciRegistryDataTask : DefaultTask() {
             .map { images -> ProcessedImages(findComponents(images.files), images.rootCapabilities.get()) }
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
         writeLayers(registryDataDirectory, processedImagesList)
-        val imageNameMapper = _imageNameMapping.getData2()
         for (processedImages in processedImagesList) {
-            processedImages.writeTo(registryDataDirectory, imageNameMapper)
+            processedImages.writeTo(registryDataDirectory)
         }
     }
 
@@ -128,7 +126,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         }
     }
 
-    private fun ProcessedImages.writeTo(registryDataDirectory: Path, imageNameMappingData: OciImageNameCapabilityMappingData) {
+    private fun ProcessedImages.writeTo(registryDataDirectory: Path) {
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
         val repositoriesDirectory: Path = registryDataDirectory.resolve("repositories")
         val componentResolver = OciComponentResolver()
@@ -159,11 +157,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
             blobsDirectory.writeDigestData(index)
             val indexDigest = index.digest
 
-            val imageName = imageNameMappingData.map(
-                resolvedComponent.component.componentId,
-                resolvedComponent.component.capabilities,
-                resolvedComponent.collectCapabilities(),
-            ) ?: throw IllegalStateException("could not map component ${resolvedComponent.component.componentId} to an image name")
+            val imageName = resolvedComponent.component.imageName
             val repositoryDirectory: Path = Files.createDirectories(
                 repositoriesDirectory.resolve(imageName.imageName)
             )
@@ -213,7 +207,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
         val tagLinkFile = Files.createDirectories(resolve("current")).resolve("link")
         val digestBytes = digest.toString().toByteArray()
         try {
-            Files.write(tagLinkFile, digestBytes)
+            Files.write(tagLinkFile, digestBytes, StandardOpenOption.CREATE_NEW)
         } catch (e: FileAlreadyExistsException) {
             if (!digestBytes.contentEquals(Files.readAllBytes(tagLinkFile))) {
                 throw IllegalStateException("tried to link the same image name/tag to different images")

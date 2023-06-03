@@ -13,6 +13,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.mapping.defaultMappedImageNamespace
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -48,6 +49,18 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 ) : OciImageDefinition {
 
     private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
+    final override val imageName = objectFactory.property<String>().convention(providerFactory.provider {
+        buildString {
+            append(defaultMappedImageNamespace(project.group.toString()))
+            append(project.name)
+            append(':')
+            append(project.version)
+            if (name != "main") {
+                append('-')
+                append(name)
+            }
+        }
+    })
     final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
     private var allPlatformBundleScope: BundleScope? = null
@@ -163,16 +176,11 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
-            .zip(createComponentId(providerFactory), OciComponentBuilder::componentId)
+            .zip(imageName, OciComponentBuilder::imageName)
             .zip(createComponentCapabilities(), OciComponentBuilder::capabilities)
             .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
             .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
             .map { it.build() }
-
-    private fun createComponentId(providerFactory: ProviderFactory): Provider<VersionedCoordinates> =
-        providerFactory.provider {
-            VersionedCoordinates(Coordinates(project.group.toString(), project.name), project.version.toString())
-        }
 
     private fun createComponentCapabilities(): Provider<Set<VersionedCoordinates>> =
         capabilities.set.map { capabilities ->

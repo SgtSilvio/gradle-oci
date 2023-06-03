@@ -46,7 +46,6 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val registry: String,
         val imageName: String,
         val reference: String,
-        val componentId: VersionedCoordinates,
         val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: OciRegistryApi.Credentials?,
     )
@@ -54,8 +53,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private val componentCache: AsyncLoadingCache<OciComponentParameters, OciComponent> = Caffeine.newBuilder()
         .maximumSize(100)
         .expireAfterAccess(1, TimeUnit.MINUTES)
-        .buildAsync { (registry, imageName, reference, componentId, capabilities, credentials), _ ->
-            componentRegistry.pullComponent(registry, imageName, reference, componentId, capabilities, credentials)
+        .buildAsync { (registry, imageName, reference, capabilities, credentials), _ ->
+            componentRegistry.pullComponent(registry, imageName, reference, capabilities, credentials)
         }
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
@@ -165,7 +164,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
         val componentFutures = mappedComponent.variants.map { (variantName, variant) ->
-            getComponent(registryUri, mappedComponent, variant, null).thenApply { Pair(variantName, it) }
+            getComponent(registryUri, variant, null).thenApply { Pair(variantName, it) }
             // TODO credentials
         }
         val moduleJsonFuture = CompletableFuture.allOf(*componentFutures.toTypedArray()).thenApply {
@@ -241,7 +240,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     ): Publisher<Void> {
         val mappedComponent = map(group, name, version)
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
-        val componentJsonFuture = getComponent(registryUri, mappedComponent, variant, null).thenApply { component -> // TODO credentials
+        val componentJsonFuture = getComponent(registryUri, variant, null).thenApply { component -> // TODO credentials
             component.encodeToJsonString().toByteArray()
         }
         response.header("Content-Type", "application/json")
@@ -250,14 +249,12 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
 
     private fun getComponent(
         registryUri: URI,
-        mappedComponent: MappedComponent,
         variant: MappedComponent.Variant,
         credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> = componentCache[OciComponentParameters(
         registryUri.toString(),
         variant.imageName,
         variant.tagName,
-        mappedComponent.componentId,
         variant.capabilities,
         credentials,
     )]

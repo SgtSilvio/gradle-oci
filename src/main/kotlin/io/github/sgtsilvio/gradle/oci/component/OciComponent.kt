@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageName
 import io.github.sgtsilvio.gradle.oci.metadata.OciDescriptor
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -11,7 +12,7 @@ import java.util.*
  * @author Silvio Giebl
  */
 data class OciComponent(
-    val componentId: VersionedCoordinates,
+    val imageName: OciImageName,
     val capabilities: SortedSet<VersionedCoordinates>,
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
     val indexAnnotations: SortedMap<String, String>,

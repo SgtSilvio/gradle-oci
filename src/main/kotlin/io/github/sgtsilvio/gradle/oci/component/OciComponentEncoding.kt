@@ -7,7 +7,7 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 fun OciComponent.encodeToJsonString() = jsonObject { encodeOciComponent(this@encodeToJsonString) }
 
 private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) {
-    addObject("componentId") { encodeVersionedCoordinates(component.componentId) }
+    addString("imageName", component.imageName.toString())
     addArray("capabilities", component.capabilities) { addObject { encodeVersionedCoordinates(it) } }
     when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> addObject("bundle") { encodeBundle(bundleOrPlatformBundles) }
