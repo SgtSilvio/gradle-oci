@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.mapping.toOciImageId
+import io.github.sgtsilvio.gradle.oci.mapping.toOciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
@@ -10,7 +10,7 @@ import java.util.*
 fun String.decodeAsJsonToOciComponent() = jsonObject(this).decodeOciComponent()
 
 private fun JsonObject.decodeOciComponent() = OciComponent(
-    get("imageId") { asString().toOciImageId() },
+    get("imageReference") { asString().toOciImageReference() },
     get("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCoordinates() } },
     if (hasKey("bundle")) {
         if (hasKey("platformBundles")) throw JsonException.create("bundle|platformBundles", "must not both be present")

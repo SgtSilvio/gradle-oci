@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageId
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -18,7 +18,7 @@ internal class OciComponentResolverTest {
     fun singleComponentWithoutPlatforms_resolvesToInfinitePlatforms() {
         val bundle = createBundle("bundle")
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             bundle,
             sortedMapOf(),
@@ -38,7 +38,7 @@ internal class OciComponentResolverTest {
         val bundleAmd64 = createBundle("bundleAmd64")
         val bundleArm64v8 = createBundle("bundleArm64v8")
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
             sortedMapOf(),
@@ -59,7 +59,7 @@ internal class OciComponentResolverTest {
         val baseBundleAmd64 = createBundle("baseBundleAmd64")
         val baseBundleArm64v8 = createBundle("baseBundleArm64v8")
         val baseComponent = OciComponent(
-            OciImageId("example/base", "1.0.0"),
+            OciImageReference("example/base", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to baseBundleAmd64, arm64v8 to baseBundleArm64v8)),
             sortedMapOf(),
@@ -67,7 +67,7 @@ internal class OciComponentResolverTest {
 
         val bundle = createBundle("bundle", listOf(Coordinates("org.example", "base")))
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             bundle,
             sortedMapOf(),
@@ -88,7 +88,7 @@ internal class OciComponentResolverTest {
     fun baseComponentWithoutButComponentWithPlatforms_resolvesToPlatforms() {
         val baseBundle = createBundle("baseBundle")
         val baseComponent = OciComponent(
-            OciImageId("example/base", "1.0.0"),
+            OciImageReference("example/base", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base"), "1.0.0")),
             baseBundle,
             sortedMapOf(),
@@ -97,7 +97,7 @@ internal class OciComponentResolverTest {
         val bundleAmd64 = createBundle("bundleAmd64", listOf(Coordinates("org.example", "base")))
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(Coordinates("org.example", "base")))
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
             sortedMapOf(),
@@ -119,7 +119,7 @@ internal class OciComponentResolverTest {
         val baseBundleAmd64 = createBundle("baseBundleAmd64")
         val baseBundleArm64v8 = createBundle("baseBundleArm64v8")
         val baseComponent = OciComponent(
-            OciImageId("example/base", "1.0.0"),
+            OciImageReference("example/base", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to baseBundleAmd64, arm64v8 to baseBundleArm64v8)),
             sortedMapOf(),
@@ -128,7 +128,7 @@ internal class OciComponentResolverTest {
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(Coordinates("org.example", "base")))
         val bundleArm32v7 = createBundle("bundleArm32v7", listOf(Coordinates("org.example", "base")))
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(arm64v8 to bundleArm64v8, arm32v7 to bundleArm32v7)),
             sortedMapOf(),
@@ -148,7 +148,7 @@ internal class OciComponentResolverTest {
     fun componentsWithContradictingPlatforms_resolvesNoPlatforms() {
         val baseBundleAmd64 = createBundle("baseBundleAmd64")
         val baseComponent = OciComponent(
-            OciImageId("example/base", "1.0.0"),
+            OciImageReference("example/base", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to baseBundleAmd64)),
             sortedMapOf(),
@@ -156,7 +156,7 @@ internal class OciComponentResolverTest {
 
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(Coordinates("org.example", "base")))
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(arm64v8 to bundleArm64v8)),
             sortedMapOf(),
@@ -175,7 +175,7 @@ internal class OciComponentResolverTest {
     fun differentBaseComponentsWithDifferentPlatforms_resolvesUnionOfPlatforms() {
         val base1BundleAmd64 = createBundle("base1BundleAmd64")
         val base1Component = OciComponent(
-            OciImageId("example/base1", "1.0.0"),
+            OciImageReference("example/base1", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base1"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to base1BundleAmd64)),
             sortedMapOf(),
@@ -183,7 +183,7 @@ internal class OciComponentResolverTest {
 
         val base2BundleArm64v8 = createBundle("base2BundleArm64v8")
         val base2Component = OciComponent(
-            OciImageId("example/base2", "1.0.0"),
+            OciImageReference("example/base2", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base2"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(arm64v8 to base2BundleArm64v8)),
             sortedMapOf(),
@@ -192,7 +192,7 @@ internal class OciComponentResolverTest {
         val bundleAmd64 = createBundle("bundleAmd64", listOf(Coordinates("org.example", "base1")))
         val bundleArm64v8 = createBundle("bundleArm64v8", listOf(Coordinates("org.example", "base2")))
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to bundleAmd64, arm64v8 to bundleArm64v8)),
             sortedMapOf(),
@@ -220,7 +220,7 @@ internal class OciComponentResolverTest {
             ),
         )
         val component = OciComponent(
-            OciImageId("example/test", "1.0.0"),
+            OciImageReference("example/test", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "test"), "1.0.0")),
             bundle,
             sortedMapOf(),
@@ -228,7 +228,7 @@ internal class OciComponentResolverTest {
 
         val base1Bundle = createBundle("base1Bundle", listOf(Coordinates("org.example", "base2")))
         val base1Component = OciComponent(
-            OciImageId("example/base1", "1.0.0"),
+            OciImageReference("example/base1", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base1"), "1.0.0")),
             base1Bundle,
             sortedMapOf(),
@@ -237,7 +237,7 @@ internal class OciComponentResolverTest {
         val base2BundleAmd64 = createBundle("base2BundleAmd64", listOf(Coordinates("org.example", "base5")))
         val base2BundleArm64v8 = createBundle("base2BundleArm64v8", listOf(Coordinates("org.example", "base5")))
         val base2Component = OciComponent(
-            OciImageId("example/base2", "1.0.0"),
+            OciImageReference("example/base2", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base2"), "1.0.0")),
             OciComponent.PlatformBundles(sortedMapOf(amd64 to base2BundleAmd64, arm64v8 to base2BundleArm64v8)),
             sortedMapOf(),
@@ -245,7 +245,7 @@ internal class OciComponentResolverTest {
 
         val base3Bundle = createBundle("base3Bundle", listOf(Coordinates("org.example", "base4")))
         val base3Component = OciComponent(
-            OciImageId("example/base3", "1.0.0"),
+            OciImageReference("example/base3", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base3"), "1.0.0")),
             base3Bundle,
             sortedMapOf(),
@@ -253,7 +253,7 @@ internal class OciComponentResolverTest {
 
         val base4Bundle = createBundle("base4Bundle", listOf(Coordinates("org.example", "base5")))
         val base4Component = OciComponent(
-            OciImageId("example/base4", "1.0.0"),
+            OciImageReference("example/base4", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base4"), "1.0.0")),
             base4Bundle,
             sortedMapOf(),
@@ -261,7 +261,7 @@ internal class OciComponentResolverTest {
 
         val base5Bundle = createBundle("base5Bundle")
         val base5Component = OciComponent(
-            OciImageId("example/base5", "1.0.0"),
+            OciImageReference("example/base5", "1.0.0"),
             sortedSetOf(VersionedCoordinates(Coordinates("org.example", "base5"), "1.0.0")),
             base5Bundle,
             sortedMapOf(),

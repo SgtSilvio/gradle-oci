@@ -22,7 +22,7 @@ fun interface CustomOciImageNameCapabilityMapper {
         componentId: VersionedCoordinates,
         componentCapabilities: Set<VersionedCoordinates>,
         allCapabilities: Set<VersionedCoordinates>,
-    ): OciImageId?
+    ): OciImageReference?
 }
 
 abstract class OciImageNameCapabilityMappingImpl @Inject constructor(

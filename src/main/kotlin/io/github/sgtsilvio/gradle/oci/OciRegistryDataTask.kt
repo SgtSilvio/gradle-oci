@@ -157,8 +157,8 @@ abstract class OciRegistryDataTask : DefaultTask() {
             blobsDirectory.writeDigestData(index)
             val indexDigest = index.digest
 
-            val imageId = resolvedComponent.component.imageId
-            val repositoryDirectory: Path = Files.createDirectories(repositoriesDirectory.resolve(imageId.name))
+            val imageReference = resolvedComponent.component.imageReference
+            val repositoryDirectory: Path = Files.createDirectories(repositoriesDirectory.resolve(imageReference.name))
             val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
             for (blobDigest in blobDigests) {
                 layersDirectory.writeDigestLink(blobDigest)
@@ -169,7 +169,8 @@ abstract class OciRegistryDataTask : DefaultTask() {
                 manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
             }
             manifestRevisionsDirectory.writeDigestLink(indexDigest)
-            val tagDirectory: Path = Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageId.tag))
+            val tagDirectory: Path =
+                Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageReference.tag))
             tagDirectory.writeTagLink(indexDigest)
             Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
         }

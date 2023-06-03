@@ -7,12 +7,12 @@ fun OciImageNameCapabilityMappingData.map(
     componentId: VersionedCoordinates,
     componentCapabilities: SortedSet<VersionedCoordinates>,
     allCapabilities: Set<VersionedCoordinates>,
-): OciImageId? {
+): OciImageReference? {
     for (customMapping in customMappings) {
         customMapping.map(componentId, componentCapabilities, allCapabilities)?.let {
             return it
         }
     }
     val mappedVariant = delegate.map(componentId, componentCapabilities) ?: return null
-    return OciImageId(mappedVariant.imageName, mappedVariant.tagName)
+    return OciImageReference(mappedVariant.imageName, mappedVariant.tagName)
 }

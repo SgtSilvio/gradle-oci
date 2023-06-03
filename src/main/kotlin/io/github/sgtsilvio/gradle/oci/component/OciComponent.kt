@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageId
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.OciDescriptor
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -12,7 +12,7 @@ import java.util.*
  * @author Silvio Giebl
  */
 data class OciComponent(
-    val imageId: OciImageId,
+    val imageReference: OciImageReference,
     val capabilities: SortedSet<VersionedCoordinates>,
     val bundleOrPlatformBundles: BundleOrPlatformBundles,
     val indexAnnotations: SortedMap<String, String>,

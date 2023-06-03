@@ -2,7 +2,7 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageId
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
@@ -108,7 +108,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 it.get()
             }
             OciComponent(
-                OciImageId(imageName, tagName),
+                OciImageReference(imageName, tagName),
                 capabilities,
                 OciComponent.PlatformBundles(platformBundles),
                 indexAnnotations,
@@ -136,7 +136,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             configMediaType,
         ).thenApply { platformBundlePair ->
             OciComponent(
-                OciImageId(imageName, tagName),
+                OciImageReference(imageName, tagName),
                 capabilities,
                 OciComponent.PlatformBundles(sortedMapOf(platformBundlePair)),
                 TreeMap(),
