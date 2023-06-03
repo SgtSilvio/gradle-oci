@@ -49,7 +49,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 ) : OciImageDefinition {
 
     private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
-    final override val imageName = objectFactory.property<String>().convention(providerFactory.provider {
+    final override val imageId = objectFactory.property<String>().convention(providerFactory.provider {
         buildString {
             append(defaultMappedImageNamespace(project.group.toString()))
             append(project.name)
@@ -176,7 +176,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
-            .zip(imageName, OciComponentBuilder::imageName)
+            .zip(imageId, OciComponentBuilder::imageId)
             .zip(createComponentCapabilities(), OciComponentBuilder::capabilities)
             .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
             .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)

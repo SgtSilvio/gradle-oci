@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.mapping.toOciImageName
+import io.github.sgtsilvio.gradle.oci.mapping.toOciImageId
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import java.io.Serializable
@@ -10,18 +10,18 @@ import java.time.Instant
  * @author Silvio Giebl
  */
 class OciComponentBuilder : Serializable {
-    private var imageName: String? = null // TODO OciImageName type?
+    private var imageId: String? = null // TODO OciImageId type?
     private var capabilities: Set<VersionedCoordinates>? = null
     private var bundleOrPlatformBundles: OciComponent.BundleOrPlatformBundles? = null
     private var indexAnnotations: Map<String, String> = mapOf()
 
-    fun imageName(v: String) = apply { imageName = v }
+    fun imageId(v: String) = apply { imageId = v }
     fun capabilities(v: Set<VersionedCoordinates>) = apply { capabilities = v }
     fun bundleOrPlatformBundles(v: OciComponent.BundleOrPlatformBundles) = apply { bundleOrPlatformBundles = v }
     fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
 
     fun build() = OciComponent(
-        imageName!!.toOciImageName(),
+        imageId!!.toOciImageId(),
         capabilities!!.toSortedSet(),
         bundleOrPlatformBundles!!,
         indexAnnotations.toSortedMap(),
