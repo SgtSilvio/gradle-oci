@@ -45,7 +45,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private data class OciComponentParameters(
         val registry: String,
         val imageName: String,
-        val reference: String,
+        val tagName: String,
         val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: OciRegistryApi.Credentials?,
     )
@@ -53,8 +53,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private val componentCache: AsyncLoadingCache<OciComponentParameters, OciComponent> = Caffeine.newBuilder()
         .maximumSize(100)
         .expireAfterAccess(1, TimeUnit.MINUTES)
-        .buildAsync { (registry, imageName, reference, capabilities, credentials), _ ->
-            componentRegistry.pullComponent(registry, imageName, reference, capabilities, credentials)
+        .buildAsync { (registry, imageName, tagName, capabilities, credentials), _ ->
+            componentRegistry.pullComponent(registry, imageName, tagName, capabilities, credentials)
         }
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
