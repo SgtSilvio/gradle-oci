@@ -4,8 +4,6 @@ import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.Internal
 import org.gradle.kotlin.dsl.mapProperty
 import org.gradle.kotlin.dsl.newInstance
 import java.util.*
@@ -21,8 +19,6 @@ interface OciImageMapping {
     fun mapModule(group: String, name: String, action: Action<ComponentSpec>)
 
     fun mapComponent(group: String, name: String, version: String, action: Action<ComponentSpec>)
-
-    fun from(imageMapping: OciImageMapping)
 
     interface VariantSpec {
         val group: NameSpec
@@ -63,9 +59,6 @@ abstract class OciImageMappingImpl @Inject constructor(
     private val moduleMappings = objectFactory.mapProperty<Coordinates, ComponentSpec>()
     private val componentMappings = objectFactory.mapProperty<VersionedCoordinates, ComponentSpec>()
 
-    @get:Input
-    protected val json get() = getData().encodeToJsonString()
-
     final override fun mapGroup(group: String, action: Action<OciImageMapping.ComponentSpec>) {
         val componentSpec = objectFactory.newInstance<ComponentSpec>()
         action.execute(componentSpec)
@@ -89,14 +82,6 @@ abstract class OciImageMappingImpl @Inject constructor(
         componentMappings.put(VersionedCoordinates(Coordinates(group, name), version), componentSpec)
     }
 
-    final override fun from(imageMapping: OciImageMapping) {
-        require(imageMapping is OciImageMappingImpl)
-        groupMappings.putAll(imageMapping.groupMappings)
-        moduleMappings.putAll(imageMapping.moduleMappings)
-        componentMappings.putAll(imageMapping.componentMappings)
-    }
-
-    @Internal
     fun getData() = OciImageMappingData(
         groupMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
         moduleMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
