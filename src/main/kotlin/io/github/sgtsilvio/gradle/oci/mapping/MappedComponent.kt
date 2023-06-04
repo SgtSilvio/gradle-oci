@@ -12,7 +12,6 @@ class MappedComponent(
 ) {
     class Variant(
         val capabilities: SortedSet<VersionedCoordinates>,
-        val imageName: String,
-        val tagName: String,
+        val imageReference: OciImageReference,
     )
 }

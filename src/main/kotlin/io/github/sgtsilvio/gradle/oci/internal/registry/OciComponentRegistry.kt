@@ -17,17 +17,15 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
 
     fun pullComponent(
         registry: String,
-        imageName: String,
-        tagName: String,
+        imageReference: OciImageReference,
         capabilities: SortedSet<VersionedCoordinates>,
         credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> {
-        return registryApi.pullManifest(registry, imageName, tagName, credentials).thenCompose { manifest ->
+        return registryApi.pullManifest(registry, imageReference.name, imageReference.tag, credentials).thenCompose { manifest ->
             when (manifest.mediaType) {
                 INDEX_MEDIA_TYPE -> transformIndexToComponent(
                     registry,
-                    imageName,
-                    tagName,
+                    imageReference,
                     manifest.data,
                     credentials,
                     capabilities,
@@ -37,8 +35,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 )
                 MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
                     registry,
-                    imageName,
-                    tagName,
+                    imageReference,
                     manifest.data,
                     credentials,
                     capabilities,
@@ -47,8 +44,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 )
                 DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToComponent(
                     registry,
-                    imageName,
-                    tagName,
+                    imageReference,
                     manifest.data,
                     credentials,
                     capabilities,
@@ -58,8 +54,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 )
                 DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
                     registry,
-                    imageName,
-                    tagName,
+                    imageReference,
                     manifest.data,
                     credentials,
                     capabilities,
@@ -73,8 +68,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
 
     private fun transformIndexToComponent(
         registry: String,
-        imageName: String,
-        tagName: String,
+        imageReference: OciImageReference,
         index: String,
         credentials: OciRegistryApi.Credentials?,
         capabilities: SortedSet<VersionedCoordinates>,
@@ -87,11 +81,11 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         val manifestFutures = indexJsonObject.get("manifests") {
             asArray().toList {
                 val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType)
-                registryApi.pullManifest(registry, imageName, manifestDescriptor.digest, manifestDescriptor.size, credentials).thenCompose { manifest ->
+                registryApi.pullManifest(registry, imageReference.name, manifestDescriptor.digest, manifestDescriptor.size, credentials).thenCompose { manifest ->
                     if (manifest.mediaType != manifestMediaType) { // TODO support nested index
                         throw IllegalArgumentException("expected \"$manifestMediaType\" as manifest media type, but is \"${manifest.mediaType}\"")
                     }
-                    transformManifestToPlatformBundle(registry, imageName, manifest.data, manifestDescriptor.annotations, credentials, manifestMediaType, configMediaType)
+                    transformManifestToPlatformBundle(registry, imageReference.name, manifest.data, manifestDescriptor.annotations, credentials, manifestMediaType, configMediaType)
                 }.thenApply { platformBundlePair ->
                     if ((platform != null) && (platformBundlePair.first != platform)) {
                         throw IllegalArgumentException("platform in manifest descriptor ($platform) and config (${platformBundlePair.first}) do not match")
@@ -108,7 +102,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 it.get()
             }
             OciComponent(
-                OciImageReference(imageName, tagName),
+                imageReference,
                 capabilities,
                 OciComponent.PlatformBundles(platformBundles),
                 indexAnnotations,
@@ -118,8 +112,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
 
     private fun transformManifestToComponent(
         registry: String,
-        imageName: String,
-        tagName: String,
+        imageReference: OciImageReference,
         manifest: String,
         credentials: OciRegistryApi.Credentials?,
         capabilities: SortedSet<VersionedCoordinates>,
@@ -128,7 +121,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     ): CompletableFuture<OciComponent> {
         return transformManifestToPlatformBundle(
             registry,
-            imageName,
+            imageReference.name,
             manifest,
             TreeMap(),
             credentials,
@@ -136,7 +129,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             configMediaType,
         ).thenApply { platformBundlePair ->
             OciComponent(
-                OciImageReference(imageName, tagName),
+                imageReference,
                 capabilities,
                 OciComponent.PlatformBundles(sortedMapOf(platformBundlePair)),
                 TreeMap(),

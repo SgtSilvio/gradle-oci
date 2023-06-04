@@ -58,8 +58,10 @@ private fun OciImageNameMappingData.VariantSpec.map(
             version.generateName(parameters)
         )
     },
-    (imageName ?: defaultImageName).generateName(parameters),
-    (tagName ?: defaultTagName).generateName(parameters),
+    OciImageReference(
+        (imageName ?: defaultImageName).generateName(parameters),
+        (tagName ?: defaultTagName).generateName(parameters),
+    ),
 )
 
 private fun defaultMappedComponent(componentId: VersionedCoordinates) = MappedComponent(
@@ -67,8 +69,10 @@ private fun defaultMappedComponent(componentId: VersionedCoordinates) = MappedCo
     mapOf(
         "main" to MappedComponent.Variant(
             sortedSetOf(componentId),
-            defaultMappedImageNamespace(componentId.coordinates.group) + componentId.coordinates.name,
-            componentId.version,
+            OciImageReference(
+                defaultMappedImageNamespace(componentId.coordinates.group) + componentId.coordinates.name,
+                componentId.version,
+            ),
         )
     ),
 )

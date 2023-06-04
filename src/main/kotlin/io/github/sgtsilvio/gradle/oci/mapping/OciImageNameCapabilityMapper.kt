@@ -13,6 +13,5 @@ fun OciImageNameCapabilityMappingData.map(
             return it
         }
     }
-    val mappedVariant = delegate.map(componentId, componentCapabilities) ?: return null
-    return OciImageReference(mappedVariant.imageName, mappedVariant.tagName)
+    return delegate.map(componentId, componentCapabilities)?.imageReference
 }

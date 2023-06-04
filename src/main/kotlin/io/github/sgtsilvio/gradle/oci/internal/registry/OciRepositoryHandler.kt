@@ -14,6 +14,7 @@ import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.netty.buffer.Unpooled
@@ -44,8 +45,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
 
     private data class OciComponentParameters(
         val registry: String,
-        val imageName: String,
-        val tagName: String,
+        val imageReference: OciImageReference,
         val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: OciRegistryApi.Credentials?,
     )
@@ -53,8 +53,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private val componentCache: AsyncLoadingCache<OciComponentParameters, OciComponent> = Caffeine.newBuilder()
         .maximumSize(100)
         .expireAfterAccess(1, TimeUnit.MINUTES)
-        .buildAsync { (registry, imageName, tagName, capabilities, credentials), _ ->
-            componentRegistry.pullComponent(registry, imageName, tagName, capabilities, credentials)
+        .buildAsync { (registry, imageReference, capabilities, credentials), _ ->
+            componentRegistry.pullComponent(registry, imageReference, capabilities, credentials)
         }
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
@@ -253,8 +253,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         credentials: OciRegistryApi.Credentials?,
     ): CompletableFuture<OciComponent> = componentCache[OciComponentParameters(
         registryUri.toString(),
-        variant.imageName,
-        variant.tagName,
+        variant.imageReference,
         variant.capabilities,
         credentials,
     )]
@@ -291,7 +290,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         return response.send(Mono.fromFuture(
             componentRegistry.registryApi.pullBlob(
                 registryUri.toString(),
-                variant.imageName,
+                variant.imageReference.name,
                 digest,
                 size,
                 null, // TODO credentials
@@ -309,7 +308,12 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         response: HttpServerResponse,
     ): Publisher<Void> {
         return Mono.fromFuture(
-            componentRegistry.registryApi.isBlobPresent(registryUri.toString(), variant.imageName, digest, null) // TODO credentials
+            componentRegistry.registryApi.isBlobPresent(
+                registryUri.toString(),
+                variant.imageReference.name,
+                digest,
+                null, // TODO credentials
+            )
         ).flatMap { present -> if (present) response.send() else response.sendNotFound() }
     }
 
@@ -320,8 +324,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
             mapOf(
                 "main" to MappedComponent.Variant(
                     sortedSetOf(VersionedCoordinates(Coordinates(group, name), version)),
-                    group.replace('.', '/') + '/' + name,
-                    version,
+                    OciImageReference(group.replace('.', '/') + '/' + name, version),
                 )
             ),
         )
