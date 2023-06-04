@@ -81,8 +81,3 @@ fun defaultMappedImageNamespace(group: String) = when (val tldEndIndex = group.i
     -1 -> if (group.isEmpty()) "" else "$group/"
     else -> group.substring(tldEndIndex + 1).replace('.', '/') + '/'
 }
-
-fun OciImageNameMappingData.map(
-    componentId: VersionedCoordinates,
-    capabilities: SortedSet<VersionedCoordinates>,
-): MappedComponent.Variant? = map(componentId).variants.values.find { it.capabilities == capabilities }
