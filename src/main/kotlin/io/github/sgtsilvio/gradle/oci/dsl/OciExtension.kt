@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameMapping
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
@@ -14,13 +14,13 @@ import org.gradle.api.tasks.testing.Test
  */
 interface OciExtension {
     val registries: OciRegistries
-    val imageNameMapping: OciImageNameMapping
+    val imageMapping: OciImageMapping
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
     val imageDependencies: NamedDomainObjectContainer<OciImageDependenciesContainer>
 
     fun registries(configuration: Action<in OciRegistries>)
 
-    fun imageNameMapping(configuration: Action<in OciImageNameMapping>)
+    fun imageMapping(configuration: Action<in OciImageMapping>)
 
     fun platform(
         os: String,

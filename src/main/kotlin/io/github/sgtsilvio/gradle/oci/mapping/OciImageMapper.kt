@@ -22,7 +22,7 @@ val DEFAULT_CAPABILITY = Triple(
 val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + NAME_PARAMETER_NAME_SPEC
 val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-")
 
-fun OciImageNameMappingData.map(componentId: VersionedCoordinates): MappedComponent {
+fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedComponent {
     val componentSpec = componentMappings[componentId]
         ?: moduleMappings[componentId.coordinates]
         ?: groupMappings[componentId.coordinates.group]
@@ -47,7 +47,7 @@ fun OciImageNameMappingData.map(componentId: VersionedCoordinates): MappedCompon
     )
 }
 
-private fun OciImageNameMappingData.VariantSpec.map(
+private fun OciImageMappingData.VariantSpec.map(
     parameters: Map<String, String>,
     defaultImageName: NameSpec,
     defaultImageTag: NameSpec,

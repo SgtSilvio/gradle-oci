@@ -7,9 +7,9 @@ import io.github.sgtsilvio.gradle.oci.component.encodeVersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import java.util.*
 
-fun OciImageNameMappingData.encodeToJsonString() = jsonObject { encodeOciImageNameMappingData(this@encodeToJsonString) }
+fun OciImageMappingData.encodeToJsonString() = jsonObject { encodeOciImageNameMappingData(this@encodeToJsonString) }
 
-private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImageNameMappingData) {
+private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImageMappingData) {
     addArrayIfNotEmpty("groupMappings", data.groupMappings.entries) { (group, componentSpec) ->
         addObject {
             addString("group", group)
@@ -30,7 +30,7 @@ private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImage
     }
 }
 
-private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameMappingData.ComponentSpec) {
+private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageMappingData.ComponentSpec) {
     encodeVariantSpec(component.mainVariant)
     addArrayIfNotEmpty("featureVariants", component.featureVariants.entries) { (name, variant) ->
         addObject {
@@ -40,7 +40,7 @@ private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameM
     }
 }
 
-private fun JsonObjectStringBuilder.encodeVariantSpec(variant: OciImageNameMappingData.VariantSpec) {
+private fun JsonObjectStringBuilder.encodeVariantSpec(variant: OciImageMappingData.VariantSpec) {
     addArrayIfNotEmpty("capabilities", variant.capabilities) { addObject { encodeCapabilitySpec(it) } }
     addNameSpecIfNotNull("imageName", variant.imageName)
     addNameSpecIfNotNull("imageTag", variant.imageTag)
@@ -54,7 +54,7 @@ private fun JsonObjectStringBuilder.encodeCapabilitySpec(capability: Triple<Name
 
 fun String.decodeAsJsonToOciImageNameMappingData() = jsonObject(this).decodeOciImageNameMappingData()
 
-private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData(
+private fun JsonObject.decodeOciImageNameMappingData() = OciImageMappingData(
     getOrNull("groupMappings") {
         asArray().toMap(TreeMap()) { asObject().run { Pair(getString("group"), decodeComponentSpec()) } }
     } ?: TreeMap(),
@@ -66,14 +66,14 @@ private fun JsonObject.decodeOciImageNameMappingData() = OciImageNameMappingData
     } ?: TreeMap(),
 )
 
-private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.ComponentSpec(
+private fun JsonObject.decodeComponentSpec() = OciImageMappingData.ComponentSpec(
     decodeVariantSpec(),
     getOrNull("featureVariants") {
         asArray().toMap(TreeMap()) { asObject().run { Pair(getString("name"), decodeVariantSpec()) } }
     } ?: TreeMap(),
 )
 
-private fun JsonObject.decodeVariantSpec() = OciImageNameMappingData.VariantSpec(
+private fun JsonObject.decodeVariantSpec() = OciImageMappingData.VariantSpec(
     getOrNull("capabilities") { asArray().toList { asObject().decodeCapabilitySpec() } } ?: listOf(),
     getNameSpecOrNull("imageName"),
     getNameSpecOrNull("imageTag"),

@@ -6,8 +6,8 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesContainer
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameMapping
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageNameMappingImpl
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import org.gradle.api.Action
@@ -34,7 +34,7 @@ abstract class OciExtensionImpl @Inject constructor(
 
     final override val registries = objectFactory.newInstance<OciRegistriesImpl>()
 
-    final override val imageNameMapping = objectFactory.newInstance<OciImageNameMappingImpl>()
+    final override val imageMapping = objectFactory.newInstance<OciImageMappingImpl>()
 
     final override val imageDefinitions = objectFactory.domainObjectContainer(OciImageDefinition::class) { name ->
         objectFactory.newInstance<OciImageDefinitionImpl>(name)
@@ -52,8 +52,8 @@ abstract class OciExtensionImpl @Inject constructor(
 
     final override fun registries(configuration: Action<in OciRegistries>) = configuration.execute(registries)
 
-    final override fun imageNameMapping(configuration: Action<in OciImageNameMapping>) =
-        configuration.execute(imageNameMapping)
+    final override fun imageMapping(configuration: Action<in OciImageMapping>) =
+        configuration.execute(imageMapping)
 
     final override fun platform(
         os: String,

@@ -7,7 +7,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-class OciImageNameMappingData(
+class OciImageMappingData(
     val groupMappings: SortedMap<String, ComponentSpec>,
     val moduleMappings: SortedMap<Coordinates, ComponentSpec>,
     val componentMappings: SortedMap<VersionedCoordinates, ComponentSpec>,
