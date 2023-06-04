@@ -18,6 +18,6 @@ class OciImageNameMappingData(
     class VariantSpec(
         val capabilities: List<Triple<NameSpec, NameSpec, NameSpec>>,
         val imageName: NameSpec?,
-        val tagName: NameSpec?,
+        val imageTag: NameSpec?,
     )
 }

@@ -43,7 +43,7 @@ private fun JsonObjectStringBuilder.encodeComponentSpec(component: OciImageNameM
 private fun JsonObjectStringBuilder.encodeVariantSpec(variant: OciImageNameMappingData.VariantSpec) {
     addArrayIfNotEmpty("capabilities", variant.capabilities) { addObject { encodeCapabilitySpec(it) } }
     addNameSpecIfNotNull("imageName", variant.imageName)
-    addNameSpecIfNotNull("tagName", variant.tagName)
+    addNameSpecIfNotNull("imageTag", variant.imageTag)
 }
 
 private fun JsonObjectStringBuilder.encodeCapabilitySpec(capability: Triple<NameSpec, NameSpec, NameSpec>) {
@@ -76,7 +76,7 @@ private fun JsonObject.decodeComponentSpec() = OciImageNameMappingData.Component
 private fun JsonObject.decodeVariantSpec() = OciImageNameMappingData.VariantSpec(
     getOrNull("capabilities") { asArray().toList { asObject().decodeCapabilitySpec() } } ?: listOf(),
     getNameSpecOrNull("imageName"),
-    getNameSpecOrNull("tagName"),
+    getNameSpecOrNull("imageTag"),
 )
 
 private fun JsonObject.decodeCapabilitySpec() = Triple(

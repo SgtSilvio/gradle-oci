@@ -20,7 +20,7 @@ val DEFAULT_CAPABILITY = Triple(
     VERSION_PARAMETER_NAME_SPEC,
 )
 val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + NAME_PARAMETER_NAME_SPEC
-val DEFAULT_TAG_NAME = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-")
+val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-")
 
 fun OciImageNameMappingData.map(componentId: VersionedCoordinates): MappedComponent {
     val componentSpec = componentMappings[componentId]
@@ -34,14 +34,14 @@ fun OciImageNameMappingData.map(componentId: VersionedCoordinates): MappedCompon
         put(IMAGE_NAMESPACE_PARAMETER_KEY, defaultMappedImageNamespace(componentId.coordinates.group))
     }
     val defaultFeatureVariantImageName = componentSpec.mainVariant.imageName ?: DEFAULT_IMAGE_NAME
-    val defaultFeatureVariantTagName = componentSpec.mainVariant.tagName ?: DEFAULT_TAG_NAME
+    val defaultFeatureVariantImageTag = componentSpec.mainVariant.imageTag ?: DEFAULT_IMAGE_TAG
     return MappedComponent(
         componentId,
         LinkedHashMap<String, MappedComponent.Variant>().apply {
-            put("main", componentSpec.mainVariant.map(parameters, DEFAULT_IMAGE_NAME, DEFAULT_TAG_NAME))
+            put("main", componentSpec.mainVariant.map(parameters, DEFAULT_IMAGE_NAME, DEFAULT_IMAGE_TAG))
             putAll(componentSpec.featureVariants.mapValuesTo(TreeMap()) { (featureVariantName, variantSpec) ->
                 parameters[FEATURE_VARIANT_PARAMETER_KEY] = featureVariantName
-                variantSpec.map(parameters, defaultFeatureVariantImageName, defaultFeatureVariantTagName)
+                variantSpec.map(parameters, defaultFeatureVariantImageName, defaultFeatureVariantImageTag)
             })
         },
     )
@@ -50,7 +50,7 @@ fun OciImageNameMappingData.map(componentId: VersionedCoordinates): MappedCompon
 private fun OciImageNameMappingData.VariantSpec.map(
     parameters: Map<String, String>,
     defaultImageName: NameSpec,
-    defaultTagName: NameSpec,
+    defaultImageTag: NameSpec,
 ) = MappedComponent.Variant(
     capabilities.ifEmpty { listOf(DEFAULT_CAPABILITY) }.mapTo(TreeSet()) { (group, name, version) ->
         VersionedCoordinates(
@@ -60,7 +60,7 @@ private fun OciImageNameMappingData.VariantSpec.map(
     },
     OciImageReference(
         (imageName ?: defaultImageName).generateName(parameters),
-        (tagName ?: defaultTagName).generateName(parameters),
+        (imageTag ?: defaultImageTag).generateName(parameters),
     ),
 )
 

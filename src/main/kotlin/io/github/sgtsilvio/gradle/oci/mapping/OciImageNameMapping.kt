@@ -29,14 +29,12 @@ interface OciImageNameMapping {
         val name: NameSpec
         val version: NameSpec
         val featureVariant: NameSpec
-//        val defaultImageName: NameSpec // TODO remove?
-//        val defaultTagName: NameSpec // TODO remove?
 
         fun withCapabilities(action: Action<CapabilitySpecs>)
 
-        fun toImage(imageName: String): ImageNameSpec
+        fun toImage(name: String): ImageNameSpec
 
-        fun toImage(imageName: NameSpec): ImageNameSpec
+        fun toImage(name: NameSpec): ImageNameSpec
 
         fun nameSpec(string: String): NameSpec
 
@@ -45,9 +43,9 @@ interface OciImageNameMapping {
         }
 
         interface ImageNameSpec {
-            fun withTag(tagName: String)
+            fun withTag(tag: String)
 
-            fun withTag(tagName: NameSpec)
+            fun withTag(tag: NameSpec)
         }
     }
 
@@ -113,7 +111,7 @@ abstract class OciImageNameMappingImpl @Inject constructor(
         final override val featureVariant get() = FEATURE_VARIANT_PARAMETER_NAME_SPEC
         protected val capabilities = mutableListOf<Triple<NameSpec, NameSpec, NameSpec>>()
         protected var imageName: NameSpec? = null
-        protected var tagName: NameSpec? = null
+        protected var imageTag: NameSpec? = null
 
         final override fun withCapabilities(action: Action<OciImageNameMapping.VariantSpec.CapabilitySpecs>) =
             action.execute(this)
@@ -122,17 +120,17 @@ abstract class OciImageNameMappingImpl @Inject constructor(
             capabilities += Triple(group, name, version)
         }
 
-        final override fun toImage(imageName: String) = toImage(StringNameSpec(imageName))
+        final override fun toImage(name: String) = toImage(StringNameSpec(name))
 
-        final override fun toImage(imageName: NameSpec): VariantSpec {
-            this.imageName = imageName
+        final override fun toImage(name: NameSpec): VariantSpec {
+            imageName = name
             return this
         }
 
-        final override fun withTag(tagName: String) = withTag(StringNameSpec(tagName))
+        final override fun withTag(tag: String) = withTag(StringNameSpec(tag))
 
-        final override fun withTag(tagName: NameSpec) {
-            this.tagName = tagName
+        final override fun withTag(tag: NameSpec) {
+            imageTag = tag
         }
 
         final override fun nameSpec(string: String) = StringNameSpec(string)
@@ -151,13 +149,13 @@ abstract class OciImageNameMappingImpl @Inject constructor(
         }
 
         fun getData() = OciImageNameMappingData.ComponentSpec(
-            OciImageNameMappingData.VariantSpec(capabilities, imageName, tagName),
+            OciImageNameMappingData.VariantSpec(capabilities, imageName, imageTag),
             featureVariants.mapValuesTo(TreeMap()) { it.value.getData() },
         )
     }
 
     abstract class FeatureVariantSpec : VariantSpec(), OciImageNameMapping.FeatureVariantSpec {
 
-        fun getData() = OciImageNameMappingData.VariantSpec(capabilities, imageName, tagName)
+        fun getData() = OciImageNameMappingData.VariantSpec(capabilities, imageName, imageTag)
     }
 }
