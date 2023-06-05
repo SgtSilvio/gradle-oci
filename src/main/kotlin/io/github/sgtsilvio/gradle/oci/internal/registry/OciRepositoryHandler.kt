@@ -107,7 +107,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         response: HttpServerResponse,
     ): Publisher<Void> {
         val componentId = decodeComponentId(segments, segments.lastIndex - 1)
-        return getOrHeadGradleModuleMetadata(registryUri, componentId, imageMappingData, credentials, isGET, response)
+        val mappedComponent = imageMappingData.map(componentId)
+        return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGET, response)
     }
 
     private fun handleRepositoryComponent(
@@ -121,7 +122,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val lastIndex = segments.lastIndex
         val componentId = decodeComponentId(segments, lastIndex - 2)
         val variantName = segments[lastIndex - 1]
-        return getOrHeadComponent(registryUri, componentId, variantName, imageMappingData, credentials, isGET, response)
+        val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
+        return getOrHeadComponent(registryUri, variant, credentials, isGET, response)
     }
 
     private fun handleRepositoryLayer(
@@ -151,9 +153,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        return getOrHeadLayer(
-            registryUri, componentId, variantName, digest, size, imageMappingData, credentials, isGET, response
-        )
+        val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
+        return getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
     }
 
     private fun decodeComponentId(segments: List<String>, versionIndex: Int) = VersionedCoordinates(
@@ -166,13 +167,12 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
 
     private fun getOrHeadGradleModuleMetadata(
         registryUri: URI,
-        componentId: VersionedCoordinates,
-        imageMappingData: OciImageMappingData,
+        mappedComponent: MappedComponent,
         credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val mappedComponent = imageMappingData.map(componentId)
+        val componentId = mappedComponent.componentId
         val componentFutures = mappedComponent.variants.map { (variantName, variant) ->
             getComponent(registryUri, variant, credentials).thenApply { Pair(variantName, it) }
         }
@@ -240,15 +240,11 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
 
     private fun getOrHeadComponent(
         registryUri: URI,
-        componentId: VersionedCoordinates,
-        variantName: String,
-        imageMappingData: OciImageMappingData,
+        variant: MappedComponent.Variant,
         credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val mappedComponent = imageMappingData.map(componentId)
-        val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         val componentJsonFuture = getComponent(registryUri, variant, credentials).thenApply { component ->
             component.encodeToJsonString().toByteArray()
         }
@@ -269,23 +265,19 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
 
     private fun getOrHeadLayer(
         registryUri: URI,
-        componentId: VersionedCoordinates,
-        variantName: String,
+        imageName: String,
         digest: OciDigest,
         size: Long,
-        imageMappingData: OciImageMappingData,
         credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val mappedComponent = imageMappingData.map(componentId)
-        val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         response.header("Content-Length", size.toString())
         response.header("ETag", digest.encodedHash)
         return if (isGET) {
-            getLayer(registryUri, variant.imageReference.name, digest, size, credentials, response)
+            getLayer(registryUri, imageName, digest, size, credentials, response)
         } else {
-            headLayer(registryUri, variant.imageReference.name, digest, credentials, response)
+            headLayer(registryUri, imageName, digest, credentials, response)
         }
     }
 
