@@ -79,7 +79,7 @@ abstract class OciImageMappingImpl @Inject constructor(
     ) {
         val componentSpec = objectFactory.newInstance<ComponentSpec>()
         action.execute(componentSpec)
-        componentMappings.put(VersionedCoordinates(Coordinates(group, name), version), componentSpec)
+        componentMappings.put(VersionedCoordinates(group, name, version), componentSpec)
     }
 
     fun getData() = OciImageMappingData(

@@ -16,6 +16,11 @@ data class VersionedCoordinates(
     val coordinates: Coordinates,
     val version: String,
 ) : Comparable<VersionedCoordinates>, Serializable {
+    val group get() = coordinates.group
+    val name get() = coordinates.name
+
+    constructor(group: String, name: String, version: String) : this(Coordinates(group, name), version)
+
     override fun compareTo(other: VersionedCoordinates): Int {
         coordinates.compareTo(other.coordinates).also { if (it != 0) return it }
         return version.compareTo(other.version)

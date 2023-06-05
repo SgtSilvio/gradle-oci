@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import java.util.*
 
@@ -25,13 +24,13 @@ val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_
 fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedComponent {
     val componentSpec = componentMappings[componentId]
         ?: moduleMappings[componentId.coordinates]
-        ?: groupMappings[componentId.coordinates.group]
+        ?: groupMappings[componentId.group]
         ?: return defaultMappedComponent(componentId)
     val parameters = HashMap<String, String>().apply {
-        put(GROUP_PARAMETER_KEY, componentId.coordinates.group)
-        put(NAME_PARAMETER_KEY, componentId.coordinates.name)
+        put(GROUP_PARAMETER_KEY, componentId.group)
+        put(NAME_PARAMETER_KEY, componentId.name)
         put(VERSION_PARAMETER_KEY, componentId.version)
-        put(IMAGE_NAMESPACE_PARAMETER_KEY, defaultMappedImageNamespace(componentId.coordinates.group))
+        put(IMAGE_NAMESPACE_PARAMETER_KEY, defaultMappedImageNamespace(componentId.group))
     }
     val defaultFeatureVariantImageName = componentSpec.mainVariant.imageName ?: DEFAULT_IMAGE_NAME
     val defaultFeatureVariantImageTag = componentSpec.mainVariant.imageTag ?: DEFAULT_IMAGE_TAG
@@ -54,8 +53,9 @@ private fun OciImageMappingData.VariantSpec.map(
 ) = MappedComponent.Variant(
     capabilities.ifEmpty { listOf(DEFAULT_CAPABILITY) }.mapTo(TreeSet()) { (group, name, version) ->
         VersionedCoordinates(
-            Coordinates(group.generateName(parameters), name.generateName(parameters)),
-            version.generateName(parameters)
+            group.generateName(parameters),
+            name.generateName(parameters),
+            version.generateName(parameters),
         )
     },
     OciImageReference(
@@ -70,7 +70,7 @@ private fun defaultMappedComponent(componentId: VersionedCoordinates) = MappedCo
         "main" to MappedComponent.Variant(
             sortedSetOf(componentId),
             OciImageReference(
-                defaultMappedImageNamespace(componentId.coordinates.group) + componentId.coordinates.name,
+                defaultMappedImageNamespace(componentId.group) + componentId.name,
                 componentId.version,
             ),
         )

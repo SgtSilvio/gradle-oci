@@ -5,7 +5,6 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
@@ -158,10 +157,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     }
 
     private fun decodeComponentId(segments: List<String>, versionIndex: Int) = VersionedCoordinates(
-        Coordinates(
-            segments.subList(1, versionIndex - 1).joinToString("."),
-            segments[versionIndex - 1],
-        ),
+        segments.subList(1, versionIndex - 1).joinToString("."),
+        segments[versionIndex - 1],
         segments[versionIndex],
     )
 
@@ -181,8 +178,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
             jsonObject {
                 addString("formatVersion", "1.1")
                 addObject("component") {
-                    addString("group", componentId.coordinates.group)
-                    addString("module", componentId.coordinates.name)
+                    addString("group", componentId.group)
+                    addString("module", componentId.name)
                     addString("version", componentId.version)
                     addObject("attributes") {
                         addString("org.gradle.status", "release")
@@ -201,7 +198,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                         addArray("files") {
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
-                                val componentName = "${componentId.coordinates.name}${if (variantName == "main") "" else "-$variantName"}-${componentId.version}-oci-component.json"
+                                val componentName = "${componentId.name}${if (variantName == "main") "" else "-$variantName"}-${componentId.version}-oci-component.json"
                                 addString("name", componentName)
                                 addString("url", "$variantName/$componentName")
                                 addNumber("size", componentJson.size.toLong())
@@ -224,8 +221,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                         if (component.capabilities != setOf(componentId)) {
                             addArrayIfNotEmpty("capabilities", component.capabilities) { capability ->
                                 addObject {
-                                    addString("group", capability.coordinates.group)
-                                    addString("name", capability.coordinates.name)
+                                    addString("group", capability.group)
+                                    addString("name", capability.name)
                                     addString("version", capability.version)
                                 }
                             }

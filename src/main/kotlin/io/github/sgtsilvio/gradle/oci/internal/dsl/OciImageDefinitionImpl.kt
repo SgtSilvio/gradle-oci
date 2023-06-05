@@ -184,10 +184,11 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     private fun createComponentCapabilities(): Provider<Set<VersionedCoordinates>> =
         capabilities.set.map { capabilities ->
-            capabilities.map { VersionedCoordinates(Coordinates(it.group, it.name), it.version!!) }.toSet().ifEmpty {
+            capabilities.map { VersionedCoordinates(it.group, it.name, it.version!!) }.toSet().ifEmpty {
                 setOf(
                     VersionedCoordinates(
-                        Coordinates(project.group.toString(), createDefaultCapabilityName(project.name, name)),
+                        project.group.toString(),
+                        createDefaultCapabilityName(project.name, name),
                         project.version.toString(),
                     )
                 )
