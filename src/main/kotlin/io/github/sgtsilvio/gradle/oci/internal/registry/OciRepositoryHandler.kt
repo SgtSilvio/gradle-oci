@@ -9,12 +9,8 @@ import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
-import io.github.sgtsilvio.gradle.oci.internal.json.addArray
-import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
-import io.github.sgtsilvio.gradle.oci.internal.json.addObject
-import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
-import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
+import io.github.sgtsilvio.gradle.oci.internal.json.*
+import io.github.sgtsilvio.gradle.oci.mapping.*
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.netty.buffer.Unpooled
@@ -70,6 +66,13 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         segments: List<String>,
         response: HttpServerResponse,
     ): Publisher<Void> {
+        val context = jsonObject(request.requestHeaders()["Context"] ?: return response.sendBadRequest())
+        val credentials = context.getOrNull("credentials") {
+            asObject().run { OciRegistryApi.Credentials(getString("username"), getString("password")) }
+        }
+        val imageMappingData = context.getOrNull("imageMapping") { asObject().decodeOciImageNameMappingData() }
+            ?: OciImageMappingData(TreeMap(), TreeMap(), TreeMap())
+
         val isGET = when (request.method()) {
             HttpMethod.GET -> true
             HttpMethod.HEAD -> false
@@ -87,17 +90,19 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         }
         val last = segments[segments.lastIndex]
         return when {
-            last.endsWith(".module") -> handleRepositoryModule(segments, registryUri, isGET, response)
+            last.endsWith(".module") -> handleRepositoryModule(registryUri, segments, imageMappingData, credentials, isGET, response)
             segments.size < 6 -> response.sendNotFound()
-            last.endsWith("oci-component.json") -> handleRepositoryComponent(segments, registryUri, isGET, response)
-            last.startsWith("oci-layer-") -> handleRepositoryLayer(segments, registryUri, isGET, response)
+            last.endsWith("oci-component.json") -> handleRepositoryComponent(registryUri, segments, imageMappingData, credentials, isGET, response)
+            last.startsWith("oci-layer-") -> handleRepositoryLayer(registryUri, segments, imageMappingData, credentials, isGET, response)
             else -> response.sendNotFound()
         }
     }
 
     private fun handleRepositoryModule(
-        segments: List<String>,
         registryUri: URI,
+        segments: List<String>,
+        imageMappingData: OciImageMappingData,
+        credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -105,12 +110,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val group = decodeGroup(segments, lastIndex - 2)
         val name = segments[lastIndex - 2]
         val version = segments[lastIndex - 1]
-        return getOrHeadGradleModuleMetadata(registryUri, group, name, version, isGET, response)
+        return getOrHeadGradleModuleMetadata(registryUri, group, name, version, imageMappingData, credentials, isGET, response)
     }
 
     private fun handleRepositoryComponent(
-        segments: List<String>,
         registryUri: URI,
+        segments: List<String>,
+        imageMappingData: OciImageMappingData,
+        credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -119,12 +126,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val name = segments[lastIndex - 3]
         val version = segments[lastIndex - 2]
         val variantName = segments[lastIndex - 1]
-        return getOrHeadComponent(registryUri, group, name, version, variantName, isGET, response)
+        return getOrHeadComponent(registryUri, group, name, version, variantName, imageMappingData, credentials, isGET, response)
     }
 
     private fun handleRepositoryLayer(
-        segments: List<String>,
         registryUri: URI,
+        segments: List<String>,
+        imageMappingData: OciImageMappingData,
+        credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -149,7 +158,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        return getOrHeadLayer(registryUri, group, name, version, variantName, digest, size, isGET, response)
+        return getOrHeadLayer(registryUri, group, name, version, variantName, digest, size, imageMappingData, credentials, isGET, response)
     }
 
     private fun decodeGroup(segments: List<String>, toIndex: Int) = segments.subList(1, toIndex).joinToString(".")
@@ -159,13 +168,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         group: String,
         name: String,
         version: String,
+        imageMappingData: OciImageMappingData,
+        credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val mappedComponent = map(group, name, version)
+        val mappedComponent = imageMappingData.map(VersionedCoordinates(Coordinates(group, name), version))
         val componentFutures = mappedComponent.variants.map { (variantName, variant) ->
-            getComponent(registryUri, variant, null).thenApply { Pair(variantName, it) }
-            // TODO credentials
+            getComponent(registryUri, variant, credentials).thenApply { Pair(variantName, it) }
         }
         val moduleJsonFuture = CompletableFuture.allOf(*componentFutures.toTypedArray()).thenApply {
             val variantNameComponentPairs = componentFutures.map { it.get() }
@@ -235,12 +245,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         name: String,
         version: String,
         variantName: String,
+        imageMappingData: OciImageMappingData,
+        credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val mappedComponent = map(group, name, version)
+        val mappedComponent = imageMappingData.map(VersionedCoordinates(Coordinates(group, name), version))
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
-        val componentJsonFuture = getComponent(registryUri, variant, null).thenApply { component -> // TODO credentials
+        val componentJsonFuture = getComponent(registryUri, variant, credentials).thenApply { component ->
             component.encodeToJsonString().toByteArray()
         }
         response.header("Content-Type", "application/json")
@@ -266,34 +278,37 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         variantName: String,
         digest: OciDigest,
         size: Long,
+        imageMappingData: OciImageMappingData,
+        credentials: OciRegistryApi.Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val mappedComponent = map(group, name, version)
+        val mappedComponent = imageMappingData.map(VersionedCoordinates(Coordinates(group, name), version))
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
         response.header("Content-Length", size.toString())
         response.header("ETag", digest.encodedHash)
         return if (isGET) {
-            getLayer(registryUri, variant, digest, size, response)
+            getLayer(registryUri, variant.imageReference.name, digest, size, credentials, response)
         } else {
-            headLayer(registryUri, variant, digest, response)
+            headLayer(registryUri, variant.imageReference.name, digest, credentials, response)
         }
     }
 
     private fun getLayer(
         registryUri: URI,
-        variant: MappedComponent.Variant,
+        imageName: String,
         digest: OciDigest,
         size: Long,
+        credentials: OciRegistryApi.Credentials?,
         response: HttpServerResponse,
     ): Publisher<Void> {
         return response.send(Mono.fromFuture(
             componentRegistry.registryApi.pullBlob(
                 registryUri.toString(),
-                variant.imageReference.name,
+                imageName,
                 digest,
                 size,
-                null, // TODO credentials
+                credentials,
                 HttpResponse.BodySubscribers.ofPublisher(),
             )
         ).flatMapMany { byteBufferListPublisher -> JdkFlowAdapter.flowPublisherToFlux(byteBufferListPublisher) }
@@ -303,31 +318,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
 
     private fun headLayer(
         registryUri: URI,
-        variant: MappedComponent.Variant,
+        imageName: String,
         digest: OciDigest,
+        credentials: OciRegistryApi.Credentials?,
         response: HttpServerResponse,
     ): Publisher<Void> {
         return Mono.fromFuture(
-            componentRegistry.registryApi.isBlobPresent(
-                registryUri.toString(),
-                variant.imageReference.name,
-                digest,
-                null, // TODO credentials
-            )
+            componentRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
         ).flatMap { present -> if (present) response.send() else response.sendNotFound() }
-    }
-
-    private fun map(group: String, name: String, version: String): MappedComponent {
-        // TODO
-        return MappedComponent(
-            VersionedCoordinates(Coordinates(group, name), version),
-            mapOf(
-                "main" to MappedComponent.Variant(
-                    sortedSetOf(VersionedCoordinates(Coordinates(group, name), version)),
-                    OciImageReference(group.replace('.', '/') + '/' + name, version),
-                )
-            ),
-        )
     }
 
     private val OciComponent.allLayers // TODO deduplicate

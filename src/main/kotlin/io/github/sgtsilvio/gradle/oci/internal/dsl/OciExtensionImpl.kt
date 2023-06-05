@@ -32,9 +32,9 @@ abstract class OciExtensionImpl @Inject constructor(
     private val projectLayout: ProjectLayout,
 ) : OciExtension {
 
-    final override val registries = objectFactory.newInstance<OciRegistriesImpl>()
-
     final override val imageMapping = objectFactory.newInstance<OciImageMappingImpl>()
+
+    final override val registries = objectFactory.newInstance<OciRegistriesImpl>(imageMapping)
 
     final override val imageDefinitions = objectFactory.domainObjectContainer(OciImageDefinition::class) { name ->
         objectFactory.newInstance<OciImageDefinitionImpl>(name)

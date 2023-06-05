@@ -9,7 +9,7 @@ import java.util.*
 
 fun OciImageMappingData.encodeToJsonString() = jsonObject { encodeOciImageNameMappingData(this@encodeToJsonString) }
 
-private fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImageMappingData) {
+fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImageMappingData) {
     addArrayIfNotEmpty("groupMappings", data.groupMappings.entries) { (group, componentSpec) ->
         addObject {
             addString("group", group)
@@ -54,7 +54,7 @@ private fun JsonObjectStringBuilder.encodeCapabilitySpec(capability: Triple<Name
 
 fun String.decodeAsJsonToOciImageNameMappingData() = jsonObject(this).decodeOciImageNameMappingData()
 
-private fun JsonObject.decodeOciImageNameMappingData() = OciImageMappingData(
+fun JsonObject.decodeOciImageNameMappingData() = OciImageMappingData(
     getOrNull("groupMappings") {
         asArray().toMap(TreeMap()) { asObject().run { Pair(getString("group"), decodeComponentSpec()) } }
     } ?: TreeMap(),

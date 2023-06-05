@@ -4,22 +4,25 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
+import io.github.sgtsilvio.gradle.oci.internal.json.addObject
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciComponentRegistry
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRepositoryHandler
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
+import io.github.sgtsilvio.gradle.oci.mapping.encodeOciImageNameMappingData
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
+import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.named
-import org.gradle.kotlin.dsl.namedDomainObjectList
-import org.gradle.kotlin.dsl.newInstance
-import org.gradle.kotlin.dsl.property
-import reactor.netty.DisposableServer
+import org.gradle.authentication.http.HttpHeaderAuthentication
+import org.gradle.kotlin.dsl.*
+import reactor.netty.ChannelBindException
 import reactor.netty.http.server.HttpServer
 import java.net.InetSocketAddress
 import java.net.URI
@@ -33,9 +36,12 @@ abstract class OciRegistriesImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     project: Project,
     configurationContainer: ConfigurationContainer,
+    imageMapping: OciImageMappingImpl,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
     final override val repositoryPort = objectFactory.property<Int>().convention(5123)
+
+    private var beforeResolveInitialized = false
 
     init {
         project.afterEvaluate {
@@ -43,13 +49,9 @@ abstract class OciRegistriesImpl @Inject constructor(
         }
         configurationContainer.configureEach {
             incoming.beforeResolve {
-                if (resolvesOciImages()) {
-                    startRepository()
-                }
-            }
-            incoming.afterResolve {
-                if (resolvesOciImages()) {
-                    stopRepository()
+                if (!beforeResolveInitialized && resolvesOciImages()) {
+                    beforeResolveInitialized = true
+                    beforeResolve(imageMapping)
                 }
             }
         }
@@ -76,20 +78,22 @@ abstract class OciRegistriesImpl @Inject constructor(
         }
     }
 
-    private var server: DisposableServer? = null
-
-    private fun startRepository() {
-        // TODO start server on repositoryPort.get() if not yet started
-        server?.disposeNow()
-        server = HttpServer.create()
-            .bindAddress { InetSocketAddress("localhost", repositoryPort.get()) }
-            .handle(OciRepositoryHandler(OciComponentRegistry(OciRegistryApi())))
-            .bindNow()
+    private fun beforeResolve(imageMapping: OciImageMappingImpl) {
+        startRepository()
+        for (registry in list) {
+            (registry as OciRegistryImpl).beforeResolve(imageMapping)
+        }
     }
 
-    private fun stopRepository() {
-        // TODO stop server if started, count beforeResolve calls via atomic integer
-//        server?.disposeNow()
+    private fun startRepository() {
+        try {
+            HttpServer.create()
+                .bindAddress { InetSocketAddress("localhost", repositoryPort.get()) }
+                .httpRequestDecoder { it.maxHeaderSize(1_048_576) }
+                .handle(OciRepositoryHandler(OciComponentRegistry(OciRegistryApi())))
+                .bindNow()
+        } catch (_: ChannelBindException) {
+        }
     }
 }
 
@@ -103,7 +107,7 @@ abstract class OciRegistryImpl @Inject constructor(
     final override val url = objectFactory.property<URI>()
     final override val credentials = objectFactory.property<PasswordCredentials>()
     final override val repository = repositoryHandler.maven {
-        this.name = "${name}OciRegistry"
+        name = this@OciRegistryImpl.name + "OciRegistry"
         isAllowInsecureProtocol = true
         metadataSources {
             gradleMetadata()
@@ -125,5 +129,26 @@ abstract class OciRegistryImpl @Inject constructor(
 
     fun afterEvaluate() {
         repository.url = repositoryUrl.get()
+    }
+
+    fun beforeResolve(imageMapping: OciImageMappingImpl) {
+        repository.credentials(HttpHeaderCredentials::class) {
+            name = "Context"
+            val credentials = credentials.orNull
+            value = jsonObject {
+                if (credentials != null) {
+                    addObject("credentials") {
+                        addString("username", credentials.username!!)
+                        addString("password", credentials.password!!)
+                    }
+                }
+                addObject("imageMapping") {
+                    encodeOciImageNameMappingData(imageMapping.getData())
+                }
+            }
+        }
+        repository.authentication {
+            create<HttpHeaderAuthentication>("header")
+        }
     }
 }
