@@ -7,8 +7,6 @@ import io.github.sgtsilvio.gradle.oci.component.encodeVersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import java.util.*
 
-fun OciImageMappingData.encodeToJsonString() = jsonObject { encodeOciImageNameMappingData(this@encodeToJsonString) }
-
 fun JsonObjectStringBuilder.encodeOciImageNameMappingData(data: OciImageMappingData) {
     addArrayIfNotEmpty("groupMappings", data.groupMappings.entries) { (group, componentSpec) ->
         addObject {
@@ -51,8 +49,6 @@ private fun JsonObjectStringBuilder.encodeCapabilitySpec(capability: Triple<Name
     addNameSpec("name", capability.second)
     addNameSpec("version", capability.third)
 }
-
-fun String.decodeAsJsonToOciImageNameMappingData() = jsonObject(this).decodeOciImageNameMappingData()
 
 fun JsonObject.decodeOciImageNameMappingData() = OciImageMappingData(
     getOrNull("groupMappings") {
