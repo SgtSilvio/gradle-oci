@@ -49,7 +49,7 @@ abstract class OciImageDependenciesImpl @Inject constructor(
     final override fun module(dependencyNotation: CharSequence) =
         dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
 
-    final override fun module(dependencyProvider: Provider<out MinimalExternalModuleDependency>) =
+    final override fun module(dependencyProvider: Provider<out MinimalExternalModuleDependency>): Provider<ExternalModuleDependency> =
         dependencyProvider.map { dependencyHandler.create(it) as ExternalModuleDependency }
 
     private fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency

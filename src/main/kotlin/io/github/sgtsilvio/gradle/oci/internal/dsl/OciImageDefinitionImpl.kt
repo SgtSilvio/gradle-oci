@@ -30,6 +30,7 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.TaskContainer
@@ -49,18 +50,19 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 ) : OciImageDefinition {
 
     private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
-    final override val imageReference = objectFactory.property<String>().convention(providerFactory.provider {
-        buildString {
-            append(defaultMappedImageNamespace(project.group.toString()))
-            append(project.name)
-            append(':')
-            append(project.version)
-            if (name != "main") {
-                append('-')
-                append(name)
+    final override val imageReference: Property<String> =
+        objectFactory.property<String>().convention(providerFactory.provider {
+            buildString {
+                append(defaultMappedImageNamespace(project.group.toString()))
+                append(project.name)
+                append(':')
+                append(project.version)
+                if (name != "main") {
+                    append('-')
+                    append(name)
+                }
             }
-        }
-    })
+        })
     final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
     private var allPlatformBundleScope: BundleScope? = null
@@ -159,7 +161,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         configurationContainer: ConfigurationContainer,
         imageName: String,
         objectFactory: ObjectFactory,
-    ) = configurationContainer.create(createConfigurationName(imageName)) {
+    ): Configuration = configurationContainer.create(createConfigurationName(imageName)) {
         description = "OCI elements for $imageName"
         isCanBeConsumed = true
         isCanBeResolved = false

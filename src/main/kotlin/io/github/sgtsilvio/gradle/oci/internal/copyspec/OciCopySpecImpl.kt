@@ -2,7 +2,6 @@ package io.github.sgtsilvio.gradle.oci.internal.copyspec
 
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import org.gradle.api.Action
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -19,7 +18,7 @@ import javax.inject.Inject
  */
 abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: ObjectFactory) : OciCopySpec {
 
-    val sources: ConfigurableFileCollection = objectFactory.fileCollection()
+    val sources = objectFactory.fileCollection()
     val destinationPath: Property<String> = objectFactory.property<String>().convention("")
     final override val filter = objectFactory.newInstance<PatternSet>()
     val renamePatterns = mutableListOf<Triple<String, String, String>>()

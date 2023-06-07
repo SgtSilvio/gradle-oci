@@ -28,7 +28,7 @@ import java.util.concurrent.*
  */
 class OciRegistryApi {
 
-    private val httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
+    private val httpClient: HttpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
     private val tokenCache: Cache<TokenCacheKey, String> =
         Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build()
 

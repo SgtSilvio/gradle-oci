@@ -327,7 +327,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         return digests
     }
 
-    private fun HttpServerResponse.sendBadRequest() = status(400).send()
+    private fun HttpServerResponse.sendBadRequest(): Mono<Void> = status(400).send()
 
     private fun HttpServerResponse.sendByteArray(data: Mono<ByteArray>, isGETelseHEAD: Boolean): Publisher<Void> {
         val dataAfterHeadersAreSet = data.doOnNext { bytes ->

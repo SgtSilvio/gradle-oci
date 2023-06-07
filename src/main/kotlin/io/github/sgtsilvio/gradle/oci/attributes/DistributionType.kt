@@ -8,7 +8,7 @@ import org.gradle.api.attributes.Attribute
  */
 interface DistributionType : Named
 
-val DISTRIBUTION_TYPE_ATTRIBUTE =
+val DISTRIBUTION_TYPE_ATTRIBUTE: Attribute<DistributionType> =
     Attribute.of("io.github.sgtsilvio.gradle.distributiontype", DistributionType::class.java)
 
 const val DISTRIBUTION_CATEGORY = "distribution"

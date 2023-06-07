@@ -19,6 +19,7 @@ import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.authentication.http.HttpHeaderAuthentication
 import org.gradle.kotlin.dsl.*
@@ -39,7 +40,7 @@ abstract class OciRegistriesImpl @Inject constructor(
     imageMapping: OciImageMappingImpl,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
-    final override val repositoryPort = objectFactory.property<Int>().convention(5123)
+    final override val repositoryPort: Property<Int> = objectFactory.property<Int>().convention(5123)
 
     private var beforeResolveInitialized = false
 
@@ -66,7 +67,7 @@ abstract class OciRegistriesImpl @Inject constructor(
         configuration.execute(registry)
     }
 
-    private fun getOrCreateRegistry(name: String): OciRegistry =
+    private fun getOrCreateRegistry(name: String) =
         list.findByName(name) ?: objectFactory.newInstance<OciRegistryImpl>(name, this).also { list += it }
 
     private fun ResolvableDependencies.resolvesOciImages() =

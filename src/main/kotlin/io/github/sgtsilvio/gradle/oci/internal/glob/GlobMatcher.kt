@@ -7,7 +7,7 @@ import java.util.regex.Pattern
  */
 class GlobMatcher(regexString: String, private val startIndex: Int) {
 
-    private val pattern = Pattern.compile(regexString)
+    private val pattern: Pattern = Pattern.compile(regexString)
 
     fun matches(path: String) = pattern.matcher(path).region(startIndex, path.length).matches()
 
