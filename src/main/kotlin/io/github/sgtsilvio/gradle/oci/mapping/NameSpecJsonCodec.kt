@@ -40,7 +40,7 @@ private fun JsonObjectStringBuilder.encodePreOrPostfixNameSpec(preOrPostfixNameS
 
 fun JsonValue.decodeNameSpec(): NameSpec = when {
     isString() -> StringNameSpec(asString())
-    isArray() -> decodeCompoundNameSpec()
+    isArray() -> asArray().decodeCompoundNameSpec()
     isObject() -> asObject().run {
         when {
             hasKey("parameter") -> decodeParameterNameSpec()
@@ -56,7 +56,7 @@ fun JsonObject.getNameSpec(key: String) = get(key) { decodeNameSpec() }
 
 fun JsonObject.getNameSpecOrNull(key: String) = getOrNull(key) { decodeNameSpec() }
 
-private fun JsonValue.decodeCompoundNameSpec() = CompoundNameSpec(asArray().toList { decodeNameSpec() }.toTypedArray())
+private fun JsonArray.decodeCompoundNameSpec() = CompoundNameSpec(toList { decodeNameSpec() }.toTypedArray())
 
 private fun JsonObject.decodeParameterNameSpec() =
     ParameterNameSpec(getString("parameter"), getStringOrNull("defaultValue"))
