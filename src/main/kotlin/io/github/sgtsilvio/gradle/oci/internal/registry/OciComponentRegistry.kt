@@ -97,10 +97,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         indexJsonObject.requireStringOrNull("mediaType", indexMediaType)
         indexJsonObject.requireLong("schemaVersion", 2)
         return CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenApply {
-            val platformBundles = manifestFutures.associateTo(TreeMap()) {
-                @Suppress("BlockingMethodInNonBlockingContext")
-                it.get()
-            }
+            val platformBundles = manifestFutures.associateTo(TreeMap()) { it.get() }
             OciComponent(
                 imageReference,
                 capabilities,
