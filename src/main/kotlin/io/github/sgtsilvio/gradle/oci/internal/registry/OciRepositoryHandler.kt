@@ -69,8 +69,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val credentials = context.getOrNull("credentials") {
             asObject().run { OciRegistryApi.Credentials(getString("username"), getString("password")) }
         }
-        val imageMappingData = context.getOrNull("imageMapping") { asObject().decodeOciImageNameMappingData() }
-            ?: OciImageMappingData(TreeMap(), TreeMap(), TreeMap())
+        val imageMappingData = context.get("imageMapping") { asObject().decodeOciImageNameMappingData() }
 
         val isGET = when (request.method()) {
             HttpMethod.GET -> true
