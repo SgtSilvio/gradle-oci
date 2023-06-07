@@ -128,7 +128,7 @@ abstract class OciImageMappingImpl @Inject constructor(
 
         override fun featureVariant(name: String, action: Action<in OciImageMapping.FeatureVariantSpec>) {
             require(name != "main") { "featureVariant name must not be 'main'" }
-            val featureVariantSpec = objectFactory.newInstance<FeatureVariantSpec>() // TODO if already exists? => overwrite
+            val featureVariantSpec = objectFactory.newInstance<FeatureVariantSpec>()
             action.execute(featureVariantSpec)
             featureVariants[name] = featureVariantSpec
         }
