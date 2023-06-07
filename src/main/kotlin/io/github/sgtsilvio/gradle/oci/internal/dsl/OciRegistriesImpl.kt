@@ -10,7 +10,7 @@ import io.github.sgtsilvio.gradle.oci.internal.registry.OciComponentRegistry
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRepositoryHandler
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
-import io.github.sgtsilvio.gradle.oci.mapping.encodeOciImageNameMappingData
+import io.github.sgtsilvio.gradle.oci.mapping.encodeOciImageMappingData
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
@@ -143,7 +143,7 @@ abstract class OciRegistryImpl @Inject constructor(
                     }
                 }
                 addObject("imageMapping") {
-                    encodeOciImageNameMappingData(imageMapping.getData())
+                    encodeOciImageMappingData(imageMapping.getData())
                 }
             }
         }
