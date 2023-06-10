@@ -82,15 +82,6 @@ class OciRegistryApi {
             }
         }
 
-    fun pullBlobAsString(
-        registry: String,
-        imageName: String,
-        digest: OciDigest,
-        size: Long,
-        credentials: Credentials?,
-    ): CompletableFuture<String> =
-        pullBlob(registry, imageName, digest, size, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
-
     fun <T> pullBlob(
         registry: String,
         imageName: String,
@@ -114,6 +105,15 @@ class OciRegistryApi {
         }.thenApply { it.body() }
     }
 
+    fun pullBlobAsString(
+        registry: String,
+        imageName: String,
+        digest: OciDigest,
+        size: Long,
+        credentials: Credentials?,
+    ): CompletableFuture<String> =
+        pullBlob(registry, imageName, digest, size, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
+
     fun isBlobPresent(
         registry: String,
         imageName: String,
@@ -136,7 +136,7 @@ class OciRegistryApi {
         }.thenApply { it.body() }
     }
 
-    fun startBlobPush(
+    fun mountBlobOrStartPush(
         registry: String,
         imageName: String,
         digest: OciDigest?,
@@ -199,7 +199,13 @@ class OciRegistryApi {
         return isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
             when {
                 present -> CompletableFuture.completedFuture(null)
-                else -> startBlobPush(registry, imageName, digest, sourceImageName, credentials).thenCompose { uri ->
+                else -> mountBlobOrStartPush(
+                    registry,
+                    imageName,
+                    digest,
+                    sourceImageName,
+                    credentials,
+                ).thenCompose { uri ->
                     when (uri) {
                         null -> CompletableFuture.completedFuture(null)
                         else -> pushBlob(registry, imageName, digest, credentials, uri, blob)
