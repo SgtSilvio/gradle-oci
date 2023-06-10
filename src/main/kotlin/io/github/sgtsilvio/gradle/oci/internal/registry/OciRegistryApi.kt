@@ -168,7 +168,7 @@ class OciRegistryApi {
             imageName,
             credentials,
             PUSH_PERMISSION,
-            HttpRequest.newBuilder(URI("$uri?digest=$digest")).PUT(BodyPublishers.ofFile(blob))
+            HttpRequest.newBuilder(uri.addQueryParam("digest=$digest")).PUT(BodyPublishers.ofFile(blob))
                 .setHeader("Content-Type", "application/octet-stream")
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
@@ -431,6 +431,8 @@ class HttpResponseException(
         append(body)
     }
 }
+
+fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
 
 const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
 const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
