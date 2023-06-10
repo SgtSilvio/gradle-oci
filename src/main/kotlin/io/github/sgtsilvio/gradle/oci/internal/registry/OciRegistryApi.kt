@@ -147,7 +147,7 @@ class OciRegistryApi {
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
                 202 -> responseInfo.headers().firstValue("Location").orElse(null)?.let { location ->
-                    BodySubscribers.replacing(URI(location))
+                    BodySubscribers.replacing(URI(registry).resolve(location))
                 } ?: createErrorBodySubscriber(responseInfo)
 
                 else -> createErrorBodySubscriber(responseInfo)
