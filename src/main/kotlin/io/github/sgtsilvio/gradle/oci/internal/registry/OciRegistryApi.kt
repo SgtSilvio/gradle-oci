@@ -295,10 +295,9 @@ class OciRegistryApi {
             requestBuilder.setHeader("Authorization", encodeBasicAuthorization(credentials))
         }
         return httpClient.sendAsync(requestBuilder.build()) { responseInfo ->
-            if (responseInfo.statusCode() == 200) {
-                BodyHandlers.ofString().apply(responseInfo)
-            } else {
-                createErrorBodySubscriber(responseInfo)
+            when (responseInfo.statusCode()) {
+                200 -> BodyHandlers.ofString().apply(responseInfo)
+                else -> createErrorBodySubscriber(responseInfo)
             }
         }.thenApply { response ->
             val authorization = "Bearer " + jsonObject(response.body()).run {
