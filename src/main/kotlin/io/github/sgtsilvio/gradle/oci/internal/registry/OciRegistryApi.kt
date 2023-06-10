@@ -136,7 +136,7 @@ class OciRegistryApi {
         }.thenApply { it.body() }
     }
 
-    fun mountBlobOrStartPush(
+    fun mountBlobOrCreatePushUrl(
         registry: String,
         imageName: String,
         digest: OciDigest?,
@@ -188,6 +188,21 @@ class OciRegistryApi {
         }.thenApply { null }
     }
 
+    fun mountOrPushBlob(
+        registry: String,
+        imageName: String,
+        digest: OciDigest,
+        sourceImageName: String?,
+        credentials: Credentials?,
+        bodyPublisher: BodyPublisher,
+    ): CompletableFuture<Void> =
+        mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).thenCompose { uri ->
+            when (uri) {
+                null -> CompletableFuture.completedFuture(null)
+                else -> pushBlob(registry, imageName, digest, credentials, uri, bodyPublisher)
+            }
+        }
+
     fun pushBlobIfNotPresent(
         registry: String,
         imageName: String,
@@ -195,23 +210,10 @@ class OciRegistryApi {
         sourceImageName: String?,
         credentials: Credentials?,
         bodyPublisher: BodyPublisher,
-    ): CompletableFuture<Void> {
-        return isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
-            when {
-                present -> CompletableFuture.completedFuture(null)
-                else -> mountBlobOrStartPush(
-                    registry,
-                    imageName,
-                    digest,
-                    sourceImageName,
-                    credentials,
-                ).thenCompose { uri ->
-                    when (uri) {
-                        null -> CompletableFuture.completedFuture(null)
-                        else -> pushBlob(registry, imageName, digest, credentials, uri, bodyPublisher)
-                    }
-                }
-            }
+    ): CompletableFuture<Void> = isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
+        when {
+            present -> CompletableFuture.completedFuture(null)
+            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, bodyPublisher)
         }
     }
 
@@ -244,7 +246,7 @@ class OciRegistryApi {
         digest: OciDigest,
         credentials: Credentials?,
         manifest: Manifest,
-    ) = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
+    ): CompletableFuture<Void> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
 
     private fun <T> send(
         registry: String,
