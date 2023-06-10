@@ -65,7 +65,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         segments: List<String>,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val context = jsonObject(request.requestHeaders()["Context"] ?: return response.sendBadRequest())
+        val context = jsonObject(request.requestHeaders()["context"] ?: return response.sendBadRequest())
         val credentials = context.getOrNull("credentials") {
             asObject().run { OciRegistryApi.Credentials(getString("username"), getString("password")) }
         }
@@ -230,7 +230,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                 }
             }.toByteArray()
         }
-        response.header("Content-Type", "application/vnd.org.gradle.module+json") // TODO constants
+        response.header("content-type", "application/vnd.org.gradle.module+json") // TODO constants
         return response.sendByteArray(Mono.fromFuture(moduleJsonFuture), isGET)
     }
 
@@ -244,7 +244,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val componentJsonFuture = getComponent(registryUri, variant, credentials).thenApply { component ->
             component.encodeToJsonString().toByteArray()
         }
-        response.header("Content-Type", "application/json")
+        response.header("content-type", "application/json")
         return response.sendByteArray(Mono.fromFuture(componentJsonFuture), isGET)
     }
 
@@ -268,8 +268,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        response.header("Content-Length", size.toString())
-        response.header("ETag", digest.encodedHash)
+        response.header("content-length", size.toString())
+        response.header("etag", digest.encodedHash)
         return if (isGET) {
             getLayer(registryUri, imageName, digest, size, credentials, response)
         } else {
@@ -331,10 +331,10 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
 
     private fun HttpServerResponse.sendByteArray(data: Mono<ByteArray>, isGETelseHEAD: Boolean): Publisher<Void> {
         val dataAfterHeadersAreSet = data.doOnNext { bytes ->
-            header("Content-Length", bytes.size.toString())
+            header("content-length", bytes.size.toString())
             val sha1 = Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(bytes))
-            header("ETag", sha1)
-            header("X-Checksum-Sha1", sha1)
+            header("etag", sha1)
+            header("x-checksum-sha1", sha1)
         }
         return sendByteArray(if (isGETelseHEAD) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }

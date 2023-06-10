@@ -134,7 +134,7 @@ abstract class OciRegistryImpl @Inject constructor(
 
     fun beforeResolve(imageMapping: OciImageMappingImpl) {
         repository.credentials(HttpHeaderCredentials::class) {
-            name = "Context"
+            name = "context"
             val credentials = credentials.orNull
             value = jsonObject {
                 if (credentials != null) {

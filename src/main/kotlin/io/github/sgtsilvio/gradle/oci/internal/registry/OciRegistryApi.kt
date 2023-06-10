@@ -51,12 +51,12 @@ class OciRegistryApi {
             credentials,
             PULL_PERMISSION,
             HttpRequest.newBuilder().GET().setHeader(
-                "Accept",
+                "accept",
                 "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
             ),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
-                200 -> responseInfo.headers().firstValue("Content-Type").orElse(null)?.let { contentType ->
+                200 -> responseInfo.headers().firstValue("content-type").orElse(null)?.let { contentType ->
                     BodyHandlers.ofString().apply(responseInfo).map { Manifest(contentType, it) }
                 } ?: createErrorBodySubscriber(responseInfo)
 
@@ -156,7 +156,7 @@ class OciRegistryApi {
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
                 201 -> if (isMount) BodySubscribers.replacing(null) else createErrorBodySubscriber(responseInfo)
-                202 -> responseInfo.headers().firstValue("Location").orElse(null)?.let { location ->
+                202 -> responseInfo.headers().firstValue("location").orElse(null)?.let { location ->
                     BodySubscribers.replacing(URI(registry).resolve(location))
                 } ?: createErrorBodySubscriber(responseInfo)
 
@@ -179,7 +179,7 @@ class OciRegistryApi {
             credentials,
             PUSH_PERMISSION,
             HttpRequest.newBuilder(uri.addQueryParam("digest=$digest")).PUT(BodyPublishers.ofFile(blob))
-                .setHeader("Content-Type", "application/octet-stream")
+                .setHeader("content-type", "application/octet-stream")
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
                 201 -> BodySubscribers.discarding()
@@ -223,7 +223,7 @@ class OciRegistryApi {
             credentials,
             PUSH_PERMISSION,
             HttpRequest.newBuilder().PUT(BodyPublishers.ofString(manifest.data))
-                .setHeader("Content-Type", manifest.mediaType)
+                .setHeader("content-type", manifest.mediaType)
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
                 201 -> BodySubscribers.discarding()
@@ -265,13 +265,13 @@ class OciRegistryApi {
         requestBuilder: HttpRequest.Builder,
         responseBodyHandler: BodyHandler<T>,
     ): CompletableFuture<HttpResponse<T>> {
-        getAuthorization(registry, imageName, credentials)?.let { requestBuilder.setHeader("Authorization", it) }
+        getAuthorization(registry, imageName, credentials)?.let { requestBuilder.setHeader("authorization", it) }
         return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
             if (error !is HttpResponseException) throw error
             if (error.statusCode != 401) throw error
             tryAuthorize(error, registry, imageName, credentials, permission)?.thenCompose { authorization ->
                 httpClient.sendAsync(
-                    requestBuilder.setHeader("Authorization", authorization).build(),
+                    requestBuilder.setHeader("authorization", authorization).build(),
                     responseBodyHandler,
                 )
             } ?: throw error
@@ -292,7 +292,7 @@ class OciRegistryApi {
         val scopeParams = "scope=" + scope.replace(" ", "&scope=")
         val requestBuilder = HttpRequest.newBuilder(URI("$realm?service=$service&$scopeParams")).GET()
         if (credentials != null) {
-            requestBuilder.setHeader("Authorization", encodeBasicAuthorization(credentials))
+            requestBuilder.setHeader("authorization", encodeBasicAuthorization(credentials))
         }
         return httpClient.sendAsync(requestBuilder.build()) { responseInfo ->
             when (responseInfo.statusCode()) {
@@ -316,7 +316,7 @@ class OciRegistryApi {
         "Basic " + Base64.getEncoder().encodeToString("${credentials.username}:${credentials.password}".toByteArray())
 
     private fun decodeBearerParams(headers: Map<String, List<String>>): Map<String, String>? {
-        val authHeader = headers["WWW-Authenticate"]?.firstOrNull() ?: return null
+        val authHeader = headers["www-authenticate"]?.firstOrNull() ?: return null
         if (!authHeader.startsWith("Bearer ")) return null
         val authParamString = authHeader.substring("Bearer ".length)
         val map = HashMap<String, String>()
