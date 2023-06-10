@@ -12,12 +12,12 @@ import org.apache.commons.codec.binary.Hex
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
+import java.net.http.HttpRequest.BodyPublisher
 import java.net.http.HttpRequest.BodyPublishers
 import java.net.http.HttpResponse
 import java.net.http.HttpResponse.*
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import java.nio.file.Path
 import java.security.DigestException
 import java.security.MessageDigest
 import java.util.*
@@ -171,14 +171,14 @@ class OciRegistryApi {
         digest: OciDigest,
         credentials: Credentials?,
         uri: URI,
-        blob: Path,
+        bodyPublisher: BodyPublisher,
     ): CompletableFuture<Void> {
         return send(
             registry,
             imageName,
             credentials,
             PUSH_PERMISSION,
-            HttpRequest.newBuilder(uri.addQueryParam("digest=$digest")).PUT(BodyPublishers.ofFile(blob))
+            HttpRequest.newBuilder(uri.addQueryParam("digest=$digest")).PUT(bodyPublisher)
                 .setHeader("content-type", "application/octet-stream")
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
@@ -194,7 +194,7 @@ class OciRegistryApi {
         digest: OciDigest,
         sourceImageName: String?,
         credentials: Credentials?,
-        blob: Path,
+        bodyPublisher: BodyPublisher,
     ): CompletableFuture<Void> {
         return isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
             when {
@@ -208,7 +208,7 @@ class OciRegistryApi {
                 ).thenCompose { uri ->
                     when (uri) {
                         null -> CompletableFuture.completedFuture(null)
-                        else -> pushBlob(registry, imageName, digest, credentials, uri, blob)
+                        else -> pushBlob(registry, imageName, digest, credentials, uri, bodyPublisher)
                     }
                 }
             }
