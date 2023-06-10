@@ -276,7 +276,8 @@ class OciRegistryApi {
         val realm = bearerParams["realm"] ?: return null
         val service = bearerParams["service"] ?: registry
         val scope = bearerParams["scope"] ?: "repository:$imageName:$permission"
-        val requestBuilder = HttpRequest.newBuilder(URI("$realm?service=$service&scope=$scope")).GET()
+        val scopeParams = "scope=" + scope.replace(" ", "&scope=")
+        val requestBuilder = HttpRequest.newBuilder(URI("$realm?service=$service&$scopeParams")).GET()
         if (credentials != null) {
             requestBuilder.setHeader("Authorization", encodeBasicAuthorization(credentials))
         }
