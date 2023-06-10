@@ -136,16 +136,26 @@ class OciRegistryApi {
         }.thenApply { it.body() }
     }
 
-    fun startBlobPush(registry: String, imageName: String, credentials: Credentials?): CompletableFuture<URI> {
+    fun startBlobPush(
+        registry: String,
+        imageName: String,
+        digest: OciDigest?,
+        sourceImageName: String?,
+        credentials: Credentials?,
+    ): CompletableFuture<URI?> {
+        val isMount = digest != null
+        val query =
+            if (isMount) "?mount=$digest" + if (sourceImageName == null) "" else "&from=$sourceImageName" else ""
         return send(
             registry,
             imageName,
-            "blobs/uploads",
+            "blobs/uploads/$query",
             credentials,
             PUSH_PERMISSION,
             HttpRequest.newBuilder().POST(BodyPublishers.noBody()),
         ) { responseInfo ->
             when (responseInfo.statusCode()) {
+                201 -> if (isMount) BodySubscribers.replacing(null) else createErrorBodySubscriber(responseInfo)
                 202 -> responseInfo.headers().firstValue("Location").orElse(null)?.let { location ->
                     BodySubscribers.replacing(URI(registry).resolve(location))
                 } ?: createErrorBodySubscriber(responseInfo)
@@ -182,15 +192,18 @@ class OciRegistryApi {
         registry: String,
         imageName: String,
         digest: OciDigest,
+        sourceImageName: String?,
         credentials: Credentials?,
         blob: Path,
     ): CompletableFuture<Void> {
         return isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
-            if (present) {
-                CompletableFuture.completedFuture(null)
-            } else {
-                startBlobPush(registry, imageName, credentials).thenCompose { uri ->
-                    pushBlob(registry, imageName, digest, credentials, uri, blob)
+            when {
+                present -> CompletableFuture.completedFuture(null)
+                else -> startBlobPush(registry, imageName, digest, sourceImageName, credentials).thenCompose { uri ->
+                    when (uri) {
+                        null -> CompletableFuture.completedFuture(null)
+                        else -> pushBlob(registry, imageName, digest, credentials, uri, blob)
+                    }
                 }
             }
         }
