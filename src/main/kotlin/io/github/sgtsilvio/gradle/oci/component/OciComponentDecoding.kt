@@ -53,7 +53,7 @@ private fun JsonObject.decodeBundle() = OciComponent.Bundle(
     getStringMapOrNull("manifestAnnotations") ?: TreeMap(),
     getStringMapOrNull("manifestDescriptorAnnotations") ?: TreeMap(),
     getOrNull("parentCapabilities") { asArray().toList { asObject().decodeCoordinates() } } ?: listOf(),
-    get("layers") { asArray().toList { asObject().decodeLayer() } },
+    getOrNull("layers") { asArray().toList { asObject().decodeLayer() } } ?: listOf(),
 )
 
 private fun JsonObject.decodeCommand() = OciComponent.Bundle.Command(
