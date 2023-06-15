@@ -172,7 +172,7 @@ class OciRegistryApi {
         credentials: Credentials?,
         uri: URI,
         bodyPublisher: BodyPublisher,
-    ): CompletableFuture<Void> {
+    ): CompletableFuture<Unit> {
         return send(
             registry,
             imageName,
@@ -185,7 +185,7 @@ class OciRegistryApi {
                 201 -> BodySubscribers.discarding()
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply { null }
+        }.thenApply {}
     }
 
     fun mountOrPushBlob(
@@ -195,10 +195,10 @@ class OciRegistryApi {
         sourceImageName: String?,
         credentials: Credentials?,
         bodyPublisher: BodyPublisher,
-    ): CompletableFuture<Void> =
+    ): CompletableFuture<Unit> =
         mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).thenCompose { uri ->
             when (uri) {
-                null -> CompletableFuture.completedFuture(null)
+                null -> CompletableFuture.completedFuture(Unit)
                 else -> pushBlob(registry, imageName, digest, credentials, uri, bodyPublisher)
             }
         }
@@ -210,9 +210,9 @@ class OciRegistryApi {
         sourceImageName: String?,
         credentials: Credentials?,
         bodyPublisher: BodyPublisher,
-    ): CompletableFuture<Void> = isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
+    ): CompletableFuture<Unit> = isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
         when {
-            present -> CompletableFuture.completedFuture(null)
+            present -> CompletableFuture.completedFuture(Unit)
             else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, bodyPublisher)
         }
     }
@@ -223,7 +223,7 @@ class OciRegistryApi {
         reference: String,
         credentials: Credentials?,
         manifest: Manifest,
-    ): CompletableFuture<Void> {
+    ): CompletableFuture<Unit> {
         return send(
             registry,
             imageName,
@@ -237,7 +237,7 @@ class OciRegistryApi {
                 201 -> BodySubscribers.discarding()
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply { null }
+        }.thenApply {}
     }
 
     fun pushManifest(
@@ -246,7 +246,7 @@ class OciRegistryApi {
         digest: OciDigest,
         credentials: Credentials?,
         manifest: Manifest,
-    ): CompletableFuture<Void> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
+    ): CompletableFuture<Unit> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
 
     private fun <T> send(
         registry: String,
