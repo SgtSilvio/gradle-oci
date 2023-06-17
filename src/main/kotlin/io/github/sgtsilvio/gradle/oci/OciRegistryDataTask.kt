@@ -138,7 +138,7 @@ abstract class OciRegistryDataTask : DefaultTask() {
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
             val blobDigests = hashSetOf<OciDigest>()
             for (platform in resolvedComponent.platforms) {
-                val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
+                val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform).map { it.bundle }
                 for (bundle in bundlesForPlatform) {
                     for (layer in bundle.layers) {
                         layer.descriptor?.let {
