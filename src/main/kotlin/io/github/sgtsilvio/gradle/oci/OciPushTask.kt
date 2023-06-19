@@ -25,19 +25,11 @@ import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
-import org.reactivestreams.FlowAdapters
-import reactor.core.publisher.Flux
-import reactor.netty.http.server.HttpServer
 import java.io.File
-import java.net.InetSocketAddress
 import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
 import java.net.http.HttpRequest.BodyPublisher
 import java.net.http.HttpRequest.BodyPublishers
-import java.net.http.HttpResponse.BodyHandlers
 import java.nio.ByteBuffer
-import java.nio.file.Files
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -395,53 +387,4 @@ class ProgressBodyPublisher(
 
         override fun onComplete() = delegate.onComplete()
     }
-}
-
-
-
-fun main() {
-    HttpServer.create()
-        .bindAddress { InetSocketAddress("localhost", 12345) }
-        .handle { request, response -> request.receiveContent().doOnNext { Thread.sleep(1) }.then(response.send()) }
-        .bindNow()
-
-    val tempFile = Files.createTempFile("foo", "bar")
-    Files.write(tempFile, ByteArray(10_000_000))
-    val size = Files.size(tempFile)
-    var current = 0L
-
-//    Thread {
-//        for (i in 0..10) {
-//            Thread.sleep(1000)
-//            println("this is a test $i")
-//        }
-//    }.start()
-
-    val timeBefore = System.nanoTime()
-    HttpClient.newHttpClient().sendAsync(
-        HttpRequest.newBuilder()
-            .uri(URI("http://localhost:12345/test"))
-            .POST(
-                BodyPublishers.fromPublisher(
-                    FlowAdapters.toFlowPublisher(
-                        Flux.from(FlowAdapters.toPublisher(BodyPublishers.ofFile(tempFile))).doOnNext {
-                            val before = current * 100 / size
-                            current += it.remaining()
-                            val after = current * 100 / size
-                            if (after != before) {
-                                val progressBar = "|" + "=".repeat(after.toInt() - 1) + ">" + " ".repeat(100 - after.toInt()) + "|"
-                                print("\u001B[1A\r$progressBar $after%\n$progressBar $after%")
-                            }
-                        }
-                    ),
-                    size),
-            ).build(),
-        BodyHandlers.discarding(),
-    ).get()
-    val timeAfter = System.nanoTime()
-    println()
-    println((timeAfter - timeBefore) / 1_000_000_000)
-    println("\u001B[1A\rtest")
-    println("\u001B[1m\u001B[3m\u001B[4m\u001B[9mtest")
-    println("\u001B[1;37;42mtest")
 }
