@@ -40,12 +40,16 @@ abstract class OciRegistryDataTask : DefaultTask() {
 
         fun from(configuration: Configuration) {
             files.from(configuration)
-            rootCapabilities.set(configuration.incoming.resolutionResult.rootComponent.map { root ->
-                root.dependencies.filter { !it.isConstraint }.mapTo(HashSet()) { dependencyResult ->
-                    dependencyResult as ResolvedDependencyResult
-                    val capability = dependencyResult.resolvedVariant.capabilities.first()
-                    Coordinates(capability.group, capability.name)
-                }
+            val configurationName = configuration.name
+            rootCapabilities.set(configuration.incoming.resolutionResult.rootComponent.map { rootComponent ->
+                val rootVariant = rootComponent.variants.find { it.displayName == configurationName }!!
+                rootComponent.getDependenciesForVariant(rootVariant)
+                    .filter { !it.isConstraint }
+                    .filterIsInstance<ResolvedDependencyResult>() // ignore unresolved, rely on resolution of files
+                    .map { dependencyResult ->
+                        val capability = dependencyResult.resolvedVariant.capabilities.first()
+                        Coordinates(capability.group, capability.name)
+                    }
             })
         }
     }
