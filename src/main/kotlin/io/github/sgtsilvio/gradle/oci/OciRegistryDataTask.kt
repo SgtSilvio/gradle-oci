@@ -57,11 +57,6 @@ abstract class OciRegistryDataTask : DefaultTask() {
     @get:Nested
     val imagesList = project.objects.listProperty<Images>()
 
-//    private val _imageNameMapping = project.objects.newInstance<OciImageNameCapabilityMappingImpl>()
-//
-//    @get:Nested
-//    val imageNameMapping: OciImageNameCapabilityMapping = _imageNameMapping
-
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
 
@@ -71,8 +66,6 @@ abstract class OciRegistryDataTask : DefaultTask() {
         imagesList.addAll(configurationsProvider.map { configurations ->
             configurations.map { configuration -> Images { from(configuration) } }
         })
-
-//    fun imageNameMapping(action: Action<in OciImageNameCapabilityMapping>) = action.execute(imageNameMapping)
 
     @TaskAction
     protected fun run() {
