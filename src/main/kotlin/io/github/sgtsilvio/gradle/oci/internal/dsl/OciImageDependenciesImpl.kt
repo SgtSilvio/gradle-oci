@@ -6,6 +6,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderConvertible
 import org.gradle.kotlin.dsl.withType
 import javax.inject.Inject
 
@@ -59,4 +60,12 @@ abstract class OciImageDependenciesImpl @Inject constructor(
     final override fun add(project: Project) = add(project(project))
 
     final override fun add(project: Project, action: Action<in ProjectDependency>) = add(project(project), action)
+
+    override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
+        add(dependencyProvider.asProvider())
+
+    override fun add(
+        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
+        action: Action<in ExternalModuleDependency>
+    ) = add(dependencyProvider.asProvider(), action)
 }
