@@ -19,9 +19,6 @@ interface OciImageDependencies {
     fun add(dependencyProvider: Provider<out ModuleDependency>)
     fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>)
 
-    fun module(dependencyNotation: CharSequence): ExternalModuleDependency
-    fun module(dependencyProvider: Provider<out MinimalExternalModuleDependency>): Provider<ExternalModuleDependency>
-
     fun add(dependencyNotation: CharSequence)
     fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>)
     fun add(project: Project)
