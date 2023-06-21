@@ -10,6 +10,8 @@ data class Coordinates(val group: String, val name: String) : Comparable<Coordin
         group.compareTo(other.group).also { if (it != 0) return it }
         return name.compareTo(other.name)
     }
+
+    override fun toString() = "$group:$name"
 }
 
 data class VersionedCoordinates(
@@ -25,4 +27,6 @@ data class VersionedCoordinates(
         coordinates.compareTo(other.coordinates).also { if (it != 0) return it }
         return version.compareTo(other.version)
     }
+
+    override fun toString() = "$group:$name:$version"
 }
