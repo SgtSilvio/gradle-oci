@@ -27,13 +27,12 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
 
     private var counter = 0
 
-    private fun addTagged(imageReference: String, parentImageConfiguration: Action<in OciImageDependencies>) {
-        val configurationName = configuration.name.removeSuffix("OciImages")
+    private fun addTagged(parentImageConfiguration: Action<in OciImageDependencies>): OciImageDefinitionImpl {
+        val configurationName = configuration.name.removeSuffix("OciImages") // TODO constant
         val counter = counter++
-        val imageDefinitionName = configurationName + "Tag" + counter // TODO proper name, constants
+        val imageDefinitionName = "${configurationName}Tag$counter"
         val capability = "io.github.sgtsilvio.gradle.oci.tag:$configurationName-$counter:default"
-        objectFactory.newInstance<OciImageDefinitionImpl>(imageDefinitionName).apply {
-            this.imageReference.set(imageReference)
+        val imageDefinition = objectFactory.newInstance<OciImageDefinitionImpl>(imageDefinitionName).apply {
             capabilities.add(capability)
             allPlatforms {
                 parentImages(parentImageConfiguration)
@@ -44,29 +43,16 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
                 requireCapability(capability)
             }
         }
+        return imageDefinition
     }
+
+    private fun addTagged(imageReference: String, parentImageConfiguration: Action<in OciImageDependencies>) =
+        addTagged(parentImageConfiguration).imageReference.set(imageReference)
 
     private fun addTagged(
         imageReferenceProvider: Provider<String>,
         parentImageConfiguration: Action<in OciImageDependencies>,
-    ) {
-        val configurationName = configuration.name.removeSuffix("OciImages")
-        val counter = counter++
-        val imageDefinitionName = configurationName + "Tag" + counter // TODO proper name, constants
-        val capability = "io.github.sgtsilvio.gradle.oci.tag:$configurationName-$counter:default"
-        objectFactory.newInstance<OciImageDefinitionImpl>(imageDefinitionName).apply {
-            this.imageReference.set(imageReferenceProvider)
-            capabilities.add(capability)
-            allPlatforms {
-                parentImages(parentImageConfiguration)
-            }
-        }
-        add(project) {
-            capabilities {
-                requireCapability(capability)
-            }
-        }
-    }
+    ) = addTagged(parentImageConfiguration).imageReference.set(imageReferenceProvider)
 
     override fun add(dependency: ModuleDependency, imageReference: String) =
         addTagged(imageReference) { add(dependency) }
