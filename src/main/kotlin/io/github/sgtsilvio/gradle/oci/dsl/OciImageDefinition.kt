@@ -33,6 +33,8 @@ interface OciImageDefinition : Named {
         val set: Provider<Set<Capability>>
 
         fun add(notation: String)
+
+        operator fun plusAssign(notation: String) = add(notation)
     }
 
     interface Bundle {
