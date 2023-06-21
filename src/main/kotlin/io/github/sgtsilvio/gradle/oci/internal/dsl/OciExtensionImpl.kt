@@ -46,8 +46,10 @@ abstract class OciExtensionImpl @Inject constructor(
         }
 
     init {
-        // eagerly realize imageDefinitions because it registers configurations and tasks
+        // eagerly realize imageDefinitions because they register configurations and tasks
         imageDefinitions.all {}
+        // eagerly realize imageDependencies because they register configurations and tasks
+        imageDependencies.all {}
     }
 
     final override fun registries(configuration: Action<in OciRegistries>) = configuration.execute(registries)

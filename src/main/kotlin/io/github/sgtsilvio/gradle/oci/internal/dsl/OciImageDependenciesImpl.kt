@@ -47,10 +47,10 @@ abstract class OciImageDependenciesImpl @Inject constructor(
     @Suppress("UNCHECKED_CAST")
     private fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
 
-    private fun module(dependencyNotation: CharSequence) =
+    protected fun module(dependencyNotation: CharSequence) =
         dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
 
-    private fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency
+    protected fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency
 
     final override fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
 
@@ -61,10 +61,10 @@ abstract class OciImageDependenciesImpl @Inject constructor(
 
     final override fun add(project: Project, action: Action<in ProjectDependency>) = add(project(project), action)
 
-    override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
+    final override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
         add(dependencyProvider.asProvider())
 
-    override fun add(
+    final override fun add(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in ExternalModuleDependency>
     ) = add(dependencyProvider.asProvider(), action)

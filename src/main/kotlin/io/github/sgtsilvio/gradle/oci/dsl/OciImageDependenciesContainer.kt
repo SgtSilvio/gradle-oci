@@ -15,11 +15,11 @@ import org.gradle.api.provider.Provider
 interface OciImageDependenciesContainer : Named {
 
     val configurations: Provider<List<Configuration>>
-    val default: OciImageDependencies
+    val default: OciTaggableImageDependencies
 
-    fun scope(scope: String): OciImageDependencies
+    fun scope(scope: String): OciTaggableImageDependencies
 
-    operator fun OciImageDependencies.invoke(dependency: ModuleDependency) = add(dependency)
+    operator fun OciImageDependencies.invoke(dependency: ModuleDependency) = add(dependency) // TODO dsl methods
 
     operator fun <D : ModuleDependency> OciImageDependencies.invoke(dependency: D, configuration: Action<in D>) =
         add(dependency, configuration)

@@ -27,14 +27,14 @@ abstract class OciImageDependenciesContainerImpl @Inject constructor(
 
     final override fun getName() = name
 
-    private val scopeToDependencies = mutableMapOf<String, OciImageDependenciesImpl>()
+    private val scopeToDependencies = mutableMapOf<String, OciTaggableImageDependenciesImpl>()
     final override val configurations: Provider<List<Configuration>> =
         providerFactory.provider { scopeToDependencies.values.map { it.configuration } }
     final override val default = scope("")
 
-    final override fun scope(scope: String) =
-        scopeToDependencies[scope] ?: objectFactory.newInstance<OciImageDependenciesImpl>(createConfiguration(scope))
-            .also { scopeToDependencies[scope] = it }
+    final override fun scope(scope: String) = scopeToDependencies.getOrPut(scope) {
+        objectFactory.newInstance<OciTaggableImageDependenciesImpl>(createConfiguration(scope))
+    }
 
     private fun createConfiguration(scope: String): Configuration =
         configurationContainer.create(createConfigurationName(scope)) {
