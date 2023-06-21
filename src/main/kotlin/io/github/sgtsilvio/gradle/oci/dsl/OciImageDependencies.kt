@@ -16,19 +16,57 @@ interface OciImageDependencies {
     val set: DomainObjectSet<ModuleDependency>
 
     fun add(dependency: ModuleDependency)
+
     fun <D : ModuleDependency> add(dependency: D, action: Action<in D>)
+
     fun add(dependencyProvider: Provider<out ModuleDependency>)
+
     fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>)
 
+
     fun add(dependencyNotation: CharSequence)
+
     fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>)
+
     fun add(project: Project)
+
     fun add(project: Project, action: Action<in ProjectDependency>)
+
     fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>)
+
     fun add(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in ExternalModuleDependency>,
     )
 
     // TODO constraints
+
+
+    // from here: dsl syntactic sugar
+
+    operator fun invoke(dependency: ModuleDependency) = add(dependency)
+
+    operator fun <D : ModuleDependency> invoke(dependency: D, action: Action<in D>) = add(dependency, action)
+
+    operator fun invoke(dependencyProvider: Provider<out ModuleDependency>) = add(dependencyProvider)
+
+    operator fun <D : ModuleDependency> invoke(dependencyProvider: Provider<out D>, action: Action<in D>) =
+        add(dependencyProvider, action)
+
+    operator fun invoke(dependencyNotation: CharSequence) = add(dependencyNotation)
+
+    operator fun invoke(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
+        add(dependencyNotation, action)
+
+    operator fun invoke(project: Project) = add(project)
+
+    operator fun invoke(project: Project, action: Action<in ProjectDependency>) = add(project, action)
+
+    operator fun invoke(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
+        add(dependencyProvider)
+
+    operator fun invoke(
+        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
+        action: Action<in ExternalModuleDependency>,
+    ) = add(dependencyProvider, action)
 }
