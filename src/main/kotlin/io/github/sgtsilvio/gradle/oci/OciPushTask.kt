@@ -83,7 +83,7 @@ abstract class OciPushTask @Inject constructor(
         val blobs = hashMapOf<OciDigest, Blob>()
         for (rootCapability in rootCapabilities) {
             val resolvedComponent = componentResolver.resolve(rootCapability)
-            val imageReference = resolvedComponent.component.imageReference // TODO mapping
+            val imageReference = resolvedComponent.component.imageReference
             val imageName = imageReference.name
             val layerDigests = hashSetOf<OciDigest>()
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
@@ -98,15 +98,17 @@ abstract class OciPushTask @Inject constructor(
                             if (layerDigests.add(digest)) {
                                 val layerFile = allLayers[digest]!!
                                 val layerPublisher = BodyPublishers.ofFile(layerFile.toPath())
-                                val layerFuture = CompletableFuture<Unit>()
-                                blobFutures += layerFuture
                                 val sourceBlob = blobs[digest]
-                                if (sourceBlob == null) {
+                                blobFutures += if (sourceBlob == null) {
                                     val sourceImageName = resolvedBundle.component.imageReference.name
-                                    blobs[digest] = Blob(digest, layerPublisher, imageName, sourceImageName, layerFuture)
+                                    val future = CompletableFuture<Unit>()
+                                    blobs[digest] = Blob(digest, layerPublisher, imageName, sourceImageName, future)
+                                    future
+                                } else if (sourceBlob.imageName == imageName) {
+                                    sourceBlob.future
                                 } else {
-                                    // TODO if imageName == sourceBlob.imageName use blob.layerFuture instead of layerFuture and do not push again
                                     val sourceImageName = sourceBlob.imageName
+                                    val future = CompletableFuture<Unit>()
                                     sourceBlob.future.thenRun {
                                         context.pushService.get().pushBlob(
                                             context,
@@ -114,9 +116,10 @@ abstract class OciPushTask @Inject constructor(
                                             digest,
                                             sourceImageName,
                                             layerPublisher,
-                                            layerFuture,
+                                            future,
                                         )
                                     }
+                                    future
                                 }
                             }
                         }
@@ -126,13 +129,16 @@ abstract class OciPushTask @Inject constructor(
                 val config = createConfig(platform, bundlesForPlatform)
                 val configDigest = config.digest
                 val configPublisher = BodyPublishers.ofByteArray(config.data)
-                val configFuture = CompletableFuture<Unit>()
-                blobFutures += configFuture
                 val sourceBlob = blobs[configDigest]
-                if (sourceBlob == null) {
-                    blobs[configDigest] = Blob(configDigest, configPublisher, imageName, imageName, configFuture)
+                blobFutures += if (sourceBlob == null) {
+                    val future = CompletableFuture<Unit>()
+                    blobs[configDigest] = Blob(configDigest, configPublisher, imageName, imageName, future)
+                    future
+                } else if (sourceBlob.imageName == imageName) {
+                    sourceBlob.future
                 } else {
                     val sourceImageName = sourceBlob.imageName
+                    val future = CompletableFuture<Unit>()
                     sourceBlob.future.thenRun {
                         context.pushService.get().pushBlob(
                             context,
@@ -140,9 +146,10 @@ abstract class OciPushTask @Inject constructor(
                             configDigest,
                             sourceImageName,
                             configPublisher,
-                            configFuture,
+                            future,
                         )
                     }
+                    future
                 }
 
                 val manifest = createManifest(config, bundlesForPlatform)
@@ -279,13 +286,13 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
             },
         )
         try {
-            try {
-                pushFuture.get(10, TimeUnit.SECONDS)
-            } catch (e: TimeoutException) {
-                println("cancel")
-                pushFuture.cancel(true)
-                Thread.sleep(100000)
-            }
+//            try {
+//                pushFuture.get(10, TimeUnit.SECONDS)
+//            } catch (e: TimeoutException) {
+//                println("cancel")
+//                pushFuture.cancel(true)
+//                Thread.sleep(100000)
+//            }
             pushFuture.get()
             progressLogger.completed()
             future?.complete(Unit)
