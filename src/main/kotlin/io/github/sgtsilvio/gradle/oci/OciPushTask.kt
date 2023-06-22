@@ -18,6 +18,7 @@ import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.*
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
 import org.gradle.kotlin.dsl.property
+import org.gradle.kotlin.dsl.registerIfAbsent
 import org.gradle.kotlin.dsl.setProperty
 import org.gradle.kotlin.dsl.submit
 import org.gradle.work.DisableCachingByDefault
@@ -55,9 +56,12 @@ abstract class OciPushTask @Inject constructor(
     @get:Internal
     val credentials = project.objects.property<PasswordCredentials>()
 
-    @get:Internal
-//    @get:ServiceReference
-    val pushService = project.objects.property<OciPushService>()
+    private val pushService =
+        project.gradle.sharedServices.registerIfAbsent("ociPushService-${project.path}", OciPushService::class) {}
+
+    init {
+        this.usesService(pushService)
+    }
 
     @TaskAction
     protected fun run() {
