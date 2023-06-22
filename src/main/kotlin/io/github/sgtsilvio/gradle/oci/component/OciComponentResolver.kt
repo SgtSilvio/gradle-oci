@@ -19,8 +19,6 @@ sealed interface ResolvedOciComponent {
 
     fun collectBundlesForPlatform(platform: Platform): List<Bundle>
 
-    fun collectCapabilities(): Set<VersionedCoordinates>
-
     sealed interface Bundle {
         val bundle: OciComponent.Bundle
         val component: OciComponent
@@ -95,9 +93,6 @@ private class UniversalResolvedOciComponent(
 
     override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedOciBundle>) =
         bundle.collectBundlesForPlatform(platform, result)
-
-    override fun collectCapabilities(): Set<VersionedCoordinates> =
-        bundle.collectCapabilities(HashSet(component.capabilities))
 }
 
 private class PlatformsResolvedOciComponent(
@@ -112,23 +107,6 @@ private class PlatformsResolvedOciComponent(
     override fun collectBundlesForPlatform(platform: Platform, result: LinkedHashSet<ResolvedOciBundle>) =
         platformBundles[platform]?.collectBundlesForPlatform(platform, result)
             ?: throw IllegalStateException("unresolved dependency for platform $platform")
-
-    override fun collectCapabilities(): Set<VersionedCoordinates> {
-        var capabilities: HashSet<VersionedCoordinates>? = null
-        for (bundle in platformBundles.values) {
-            val bundleCapabilities = bundle.collectCapabilities(HashSet())
-            if (capabilities == null) {
-                capabilities = bundleCapabilities
-            } else {
-                capabilities.retainAll(bundleCapabilities)
-            }
-        }
-        if (capabilities == null) {
-            return HashSet(component.capabilities)
-        }
-        capabilities.addAll(component.capabilities)
-        return capabilities
-    }
 }
 
 private class ResolvedOciBundle(
@@ -151,12 +129,5 @@ private class ResolvedOciBundle(
             }
             result += this
         }
-    }
-
-    fun collectCapabilities(capabilities: HashSet<VersionedCoordinates>): HashSet<VersionedCoordinates> {
-        for (dependency in dependencies) {
-            capabilities.addAll(dependency.collectCapabilities())
-        }
-        return capabilities
     }
 }
