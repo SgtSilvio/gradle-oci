@@ -31,6 +31,7 @@ import java.net.URI
 import java.net.http.HttpRequest.BodyPublisher
 import java.net.http.HttpRequest.BodyPublishers
 import java.nio.ByteBuffer
+import java.time.Duration
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -275,29 +276,23 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
         val progressLogger = context.progressLoggerFactory.newOperation(OciPushService::class.java)
         val progressPrefix = "Pushing $imageName > blob $digest"
         progressLogger.start("pushing blob", progressPrefix)
-        val pushFuture = registryApi.pushBlobIfNotPresent(
+        try {
+        registryApi.pushBlobIfNotPresent(
             context.registryUrl.toString(),
             imageName,
             digest,
-            sourceImageName,
+//            sourceImageName,
+            null,
             context.credentials,
             ProgressBodyPublisher(bodyPublisher) { current, total ->
                 progressLogger.progress("$progressPrefix > " + formatBytesString(current) + "/" + formatBytesString(total))
             },
-        )
-        try {
-//            try {
-//                pushFuture.get(10, TimeUnit.SECONDS)
-//            } catch (e: TimeoutException) {
-//                println("cancel")
-//                pushFuture.cancel(true)
-//                Thread.sleep(100000)
-//            }
-            pushFuture.get()
-            progressLogger.completed()
-            future?.complete(Unit)
-        } catch (e: InterruptedException) {
-            pushFuture.cancel(true)
+        ).block(Duration.ofSeconds(4))
+        progressLogger.completed()
+        future?.complete(Unit)
+        } catch (e: Exception) {
+            println("interrupted")
+            Thread.sleep(10000)
         }
     }
 
@@ -311,20 +306,15 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
     ) = context.workQueue.submit(context.pushService) {
         val progressLogger = context.progressLoggerFactory.newOperation(OciPushService::class.java)
         progressLogger.start("pushing manifest", "Pushing $imageName > manifest $reference ($mediaType)")
-        val pushFuture = registryApi.pushManifest(
+        registryApi.pushManifest(
             context.registryUrl.toString(),
             imageName,
             reference,
             context.credentials,
             OciRegistryApi.Manifest(mediaType, data),
-        )
-        try {
-            pushFuture.get()
-            progressLogger.completed()
-            future?.complete(Unit)
-        } catch (e: InterruptedException) {
-            pushFuture.cancel(true)
-        }
+        ).block()
+        progressLogger.completed()
+        future?.complete(Unit)
     }
 
     private fun WorkQueue.submit(pushService: Provider<OciPushService>, action: () -> Unit) {

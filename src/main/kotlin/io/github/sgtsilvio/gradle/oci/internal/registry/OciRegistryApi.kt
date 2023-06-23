@@ -9,6 +9,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
 import org.apache.commons.codec.binary.Hex
+import reactor.core.publisher.Mono
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -43,7 +44,7 @@ class OciRegistryApi {
         imageName: String,
         reference: String,
         credentials: Credentials?,
-    ): CompletableFuture<Manifest> {
+    ): Mono<Manifest> {
         return send(
             registry,
             imageName,
@@ -62,7 +63,7 @@ class OciRegistryApi {
 
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply { it.body() }
+        }.map { it.body() }
     }
 
     fun pullManifest(
@@ -71,8 +72,8 @@ class OciRegistryApi {
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-    ): CompletableFuture<Manifest> =
-        pullManifest(registry, imageName, digest.toString(), credentials).thenApply { manifest ->
+    ): Mono<Manifest> =
+        pullManifest(registry, imageName, digest.toString(), credentials).map { manifest ->
             val manifestBytes = manifest.data.toByteArray()
             val actualDigest = manifestBytes.calculateOciDigest(digest.algorithm)
             when {
@@ -89,7 +90,7 @@ class OciRegistryApi {
         size: Long,
         credentials: Credentials?,
         bodySubscriber: BodySubscriber<T>,
-    ): CompletableFuture<T> {
+    ): Mono<T> {
         return send(
             registry,
             imageName,
@@ -102,7 +103,7 @@ class OciRegistryApi {
                 200 -> bodySubscriber.verify(digest, size)
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply { it.body() }
+        }.map { it.body() }
     }
 
     fun pullBlobAsString(
@@ -111,7 +112,7 @@ class OciRegistryApi {
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-    ): CompletableFuture<String> =
+    ): Mono<String> =
         pullBlob(registry, imageName, digest, size, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
 
     fun isBlobPresent(
@@ -119,7 +120,7 @@ class OciRegistryApi {
         imageName: String,
         digest: OciDigest,
         credentials: Credentials?,
-    ): CompletableFuture<Boolean> {
+    ): Mono<Boolean> {
         return send(
             registry,
             imageName,
@@ -133,7 +134,7 @@ class OciRegistryApi {
                 404 -> BodySubscribers.replacing(false)
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply { it.body() }
+        }.map { it.body() }
     }
 
     fun mountBlobOrCreatePushUrl(
@@ -142,7 +143,7 @@ class OciRegistryApi {
         digest: OciDigest?,
         sourceImageName: String?,
         credentials: Credentials?,
-    ): CompletableFuture<URI?> {
+    ): Mono<URI?> {
         val isMount = digest != null
         val query =
             if (isMount) "?mount=$digest" + if (sourceImageName == null) "" else "&from=$sourceImageName" else ""
@@ -162,8 +163,28 @@ class OciRegistryApi {
 
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply { it.body() }
+        }.map { it.body() }
     }
+
+//    fun cancelBlobPush(
+//        registry: String,
+//        imageName: String,
+//        credentials: Credentials?,
+//        uri: URI,
+//    ): CompletableFuture<Unit> {
+//        return send(
+//            registry,
+//            imageName,
+//            credentials,
+//            DELETE_PERMISSION,
+//            HttpRequest.newBuilder(uri).DELETE(),
+//        ) { responseInfo ->
+//            when (responseInfo.statusCode()) {
+//                204 -> BodySubscribers.discarding()
+//                else -> createErrorBodySubscriber(responseInfo)
+//            }
+//        }.thenApply {}
+//    }
 
     fun pushBlob(
         registry: String,
@@ -172,7 +193,7 @@ class OciRegistryApi {
         credentials: Credentials?,
         uri: URI,
         bodyPublisher: BodyPublisher,
-    ): CompletableFuture<Unit> {
+    ): Mono<Unit> {
         return send(
             registry,
             imageName,
@@ -185,7 +206,7 @@ class OciRegistryApi {
                 201 -> BodySubscribers.discarding()
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply {}
+        }.map {}
     }
 
     fun mountOrPushBlob(
@@ -195,13 +216,12 @@ class OciRegistryApi {
         sourceImageName: String?,
         credentials: Credentials?,
         bodyPublisher: BodyPublisher,
-    ): CompletableFuture<Unit> =
-        mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).thenCompose { uri ->
-            when (uri) {
-                null -> CompletableFuture.completedFuture(Unit)
-                else -> pushBlob(registry, imageName, digest, credentials, uri, bodyPublisher)
-            }
+    ): Mono<Unit> = mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
+        when (uri) {
+            null -> Mono.just(Unit)
+            else -> pushBlob(registry, imageName, digest, credentials, uri, bodyPublisher)
         }
+    }
 
     fun pushBlobIfNotPresent(
         registry: String,
@@ -210,9 +230,9 @@ class OciRegistryApi {
         sourceImageName: String?,
         credentials: Credentials?,
         bodyPublisher: BodyPublisher,
-    ): CompletableFuture<Unit> = isBlobPresent(registry, imageName, digest, credentials).thenCompose { present ->
+    ): Mono<Unit> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
         when {
-            present -> CompletableFuture.completedFuture(Unit)
+            present -> Mono.just(Unit)
             else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, bodyPublisher)
         }
     }
@@ -223,7 +243,7 @@ class OciRegistryApi {
         reference: String,
         credentials: Credentials?,
         manifest: Manifest,
-    ): CompletableFuture<Unit> {
+    ): Mono<Unit> {
         return send(
             registry,
             imageName,
@@ -237,7 +257,7 @@ class OciRegistryApi {
                 201 -> BodySubscribers.discarding()
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply {}
+        }.map {}
     }
 
     fun pushManifest(
@@ -246,7 +266,49 @@ class OciRegistryApi {
         digest: OciDigest,
         credentials: Credentials?,
         manifest: Manifest,
-    ): CompletableFuture<Unit> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
+    ): Mono<Unit> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
+
+//    fun deleteBlob(
+//        registry: String,
+//        imageName: String,
+//        digest: OciDigest,
+//        credentials: Credentials?,
+//    ): CompletableFuture<Unit> {
+//        return send(
+//            registry,
+//            imageName,
+//            "blobs/$digest",
+//            credentials,
+//            PUSH_PERMISSION,
+//            HttpRequest.newBuilder().DELETE(),
+//        ) { responseInfo ->
+//            when (responseInfo.statusCode()) {
+//                202 -> BodySubscribers.discarding()
+//                else -> createErrorBodySubscriber(responseInfo)
+//            }
+//        }.thenApply {}
+//    }
+//
+//    fun deleteManifest(
+//        registry: String,
+//        imageName: String,
+//        reference: String,
+//        credentials: Credentials?,
+//    ): CompletableFuture<Unit> {
+//        return send(
+//            registry,
+//            imageName,
+//            "manifests/$reference",
+//            credentials,
+//            PUSH_PERMISSION,
+//            HttpRequest.newBuilder().DELETE(),
+//        ) { responseInfo ->
+//            when (responseInfo.statusCode()) {
+//                202 -> BodySubscribers.discarding()
+//                else -> createErrorBodySubscriber(responseInfo)
+//            }
+//        }.thenApply {}
+//    }
 
     private fun <T> send(
         registry: String,
@@ -272,17 +334,42 @@ class OciRegistryApi {
         permission: String,
         requestBuilder: HttpRequest.Builder,
         responseBodyHandler: BodyHandler<T>,
-    ): CompletableFuture<HttpResponse<T>> {
+    ): Mono<HttpResponse<T>> {
+//        println("SEND: " + requestBuilder.build().method() + " " + requestBuilder.build().uri())
         getAuthorization(registry, imageName, credentials)?.let { requestBuilder.setHeader("authorization", it) }
-        return httpClient.sendAsync(requestBuilder.build(), responseBodyHandler).flatMapError { error ->
-            if (error !is HttpResponseException) throw error
-            if (error.statusCode != 401) throw error
-            tryAuthorize(error, registry, imageName, credentials, permission)?.thenCompose { authorization ->
-                httpClient.sendAsync(
-                    requestBuilder.setHeader("authorization", authorization).build(),
-                    responseBodyHandler,
-                )
-            } ?: throw error
+        val bodyHandler = BodyHandler { responseInfo -> CancellableBodySubscriber(responseBodyHandler.apply(responseInfo)) }
+        return httpClient.sendMono(requestBuilder.build(), bodyHandler).onErrorResume { error ->
+//            println(error)
+            when {
+                error !is HttpResponseException -> Mono.error(error)
+                error.statusCode != 401 -> Mono.error(error)
+                else -> tryAuthorize(error, registry, imageName, credentials, permission)?.flatMap { authorization ->
+                    httpClient.sendMono(requestBuilder.setHeader("authorization", authorization).build(), bodyHandler)
+                } ?: Mono.error(error)
+            }
+        }
+//        }.thenApply { response ->
+//            var r: HttpResponse<T>? = response
+//            while (r != null) {
+//                println("${r.uri()} ${r.statusCode()}\n > " + r.headers().map().entries.joinToString("\n > "))
+//                r = r.previousResponse().orElse(null)
+//            }
+//            response
+//        }
+    }
+
+    class CancellableBodySubscriber<T>(private val delegate: BodySubscriber<T>) : BodySubscriber<T> by delegate {
+        private var subscription: Flow.Subscription? = null
+
+        override fun onSubscribe(subscription: Flow.Subscription) {
+            this.subscription = subscription
+            delegate.onSubscribe(subscription)
+        }
+
+        override fun getBody(): CompletionStage<T> = delegate.body.toCancelable {
+            println("YEAH")
+            subscription?.cancel()
+            true
         }
     }
 
@@ -292,7 +379,7 @@ class OciRegistryApi {
         imageName: String,
         credentials: Credentials?,
         permission: String,
-    ): CompletableFuture<String>? {
+    ): Mono<String>? {
         val bearerParams = decodeBearerParams(responseException.headers) ?: return null
         val realm = bearerParams["realm"] ?: return null
         val service = bearerParams["service"] ?: registry
@@ -302,12 +389,13 @@ class OciRegistryApi {
         if (credentials != null) {
             requestBuilder.setHeader("authorization", encodeBasicAuthorization(credentials))
         }
-        return httpClient.sendAsync(requestBuilder.build()) { responseInfo ->
+//        println("AUTH: " + requestBuilder.build().method() + " " + requestBuilder.build().uri())
+        return httpClient.sendMono(requestBuilder.build()) { responseInfo ->
             when (responseInfo.statusCode()) {
                 200 -> BodyHandlers.ofString().apply(responseInfo)
                 else -> createErrorBodySubscriber(responseInfo)
             }
-        }.thenApply { response ->
+        }.map { response ->
             val authorization = "Bearer " + jsonObject(response.body()).run {
                 if (hasKey("token")) getString("token") else getString("access_token")
             }
@@ -353,16 +441,31 @@ class OciRegistryApi {
 
     private fun <T, R> BodySubscriber<T>.map(mapper: (T) -> R): BodySubscriber<R> =
         BodySubscribers.mapping(this, mapper)
+}
 
-    private fun <T> CompletableFuture<T>.flatMapError(mapper: (Throwable) -> CompletionStage<T>): CompletableFuture<T> =
-        handle { t, error ->
-            if (t != null) return@handle CompletableFuture.completedFuture(t)
+fun <T> HttpClient.sendMono(
+    request: HttpRequest,
+    responseBodyHandler: BodyHandler<T>,
+): Mono<HttpResponse<T>> = Mono.create { monoSink ->
+    sendAsync(request) { responseInfo ->
+        val bodySubscriber = responseBodyHandler.apply(responseInfo)
+        object : BodySubscriber<T> by bodySubscriber {
+            override fun onSubscribe(subscription: Flow.Subscription) {
+                monoSink.onCancel { subscription.cancel() }
+                bodySubscriber.onSubscribe(subscription)
+            }
+        }
+    }.whenComplete { response, error ->
+        if (error == null) {
+            monoSink.success(response)
+        } else {
             var unpackedError = error
             while (unpackedError is CompletionException) {
                 unpackedError = unpackedError.cause
             }
-            mapper.invoke(unpackedError)
-        }.thenCompose { it }
+            monoSink.error(unpackedError)
+        }
+    }
 }
 
 class DigestBodySubscriber<T>(

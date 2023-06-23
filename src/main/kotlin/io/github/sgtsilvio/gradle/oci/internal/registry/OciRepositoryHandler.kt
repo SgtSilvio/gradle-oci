@@ -49,10 +49,11 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         .maximumSize(100)
         .expireAfterAccess(1, TimeUnit.MINUTES)
         .buildAsync { (registry, imageReference, capabilities, credentials), _ ->
-            componentRegistry.pullComponent(registry, imageReference, capabilities, credentials)
+            componentRegistry.pullComponent(registry, imageReference, capabilities, credentials).toFuture()
         }
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
+//        println("REQUEST: " + request.method() + " " + request.uri() + " " + request.requestHeaders())
         val segments = request.uri().substring(1).split('/')
         if ((segments[0] == "v1") && (segments[1] == "repository")) {
             return handleRepository(request, segments.drop(2), response)
@@ -285,15 +286,13 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         credentials: OciRegistryApi.Credentials?,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        return response.send(Mono.fromFuture(
-            componentRegistry.registryApi.pullBlob(
-                registryUri.toString(),
-                imageName,
-                digest,
-                size,
-                credentials,
-                HttpResponse.BodySubscribers.ofPublisher(),
-            )
+        return response.send(componentRegistry.registryApi.pullBlob(
+            registryUri.toString(),
+            imageName,
+            digest,
+            size,
+            credentials,
+            HttpResponse.BodySubscribers.ofPublisher(),
         ).flatMapMany { byteBufferListPublisher -> JdkFlowAdapter.flowPublisherToFlux(byteBufferListPublisher) }
             .flatMap { byteBufferList -> Flux.fromIterable(byteBufferList) }
             .map { byteBuffer -> Unpooled.wrappedBuffer(byteBuffer) })
@@ -305,11 +304,9 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         digest: OciDigest,
         credentials: OciRegistryApi.Credentials?,
         response: HttpServerResponse,
-    ): Publisher<Void> {
-        return Mono.fromFuture(
-            componentRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
-        ).flatMap { present -> if (present) response.send() else response.sendNotFound() }
-    }
+    ): Publisher<Void> =
+        componentRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
+            .flatMap { present -> if (present) response.send() else response.sendNotFound() }
 
     private val OciComponent.allLayers // TODO deduplicate
         get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {

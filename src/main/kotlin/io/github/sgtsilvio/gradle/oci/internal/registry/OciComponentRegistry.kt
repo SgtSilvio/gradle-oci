@@ -6,9 +6,10 @@ import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import java.time.Instant
 import java.util.*
-import java.util.concurrent.CompletableFuture
 
 /**
  * @author Silvio Giebl
@@ -20,8 +21,8 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         imageReference: OciImageReference,
         capabilities: SortedSet<VersionedCoordinates>,
         credentials: OciRegistryApi.Credentials?,
-    ): CompletableFuture<OciComponent> {
-        return registryApi.pullManifest(registry, imageReference.name, imageReference.tag, credentials).thenCompose { manifest ->
+    ): Mono<OciComponent> =
+        registryApi.pullManifest(registry, imageReference.name, imageReference.tag, credentials).flatMap { manifest ->
             when (manifest.mediaType) {
                 INDEX_MEDIA_TYPE -> transformIndexToComponent(
                     registry,
@@ -61,10 +62,9 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     DOCKER_MANIFEST_MEDIA_TYPE,
                     DOCKER_CONFIG_MEDIA_TYPE,
                 )
-                else -> throw IllegalStateException("unsupported manifest media type '${manifest.mediaType}'")
+                else -> Mono.error(IllegalStateException("unsupported manifest media type '${manifest.mediaType}'"))
             }
         }
-    }
 
     private fun transformIndexToComponent(
         registry: String,
@@ -75,18 +75,18 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         indexMediaType: String,
         manifestMediaType: String,
         configMediaType: String,
-    ): CompletableFuture<OciComponent> {
+    ): Mono<OciComponent> {
         val indexJsonObject = jsonObject(index)
         val indexAnnotations = indexJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
         val manifestFutures = indexJsonObject.get("manifests") {
             asArray().toList {
                 val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType)
-                registryApi.pullManifest(registry, imageReference.name, manifestDescriptor.digest, manifestDescriptor.size, credentials).thenCompose { manifest ->
+                registryApi.pullManifest(registry, imageReference.name, manifestDescriptor.digest, manifestDescriptor.size, credentials).flatMap { manifest ->
                     if (manifest.mediaType != manifestMediaType) { // TODO support nested index
                         throw IllegalArgumentException("expected \"$manifestMediaType\" as manifest media type, but is \"${manifest.mediaType}\"")
                     }
                     transformManifestToPlatformBundle(registry, imageReference.name, manifest.data, manifestDescriptor.annotations, credentials, manifestMediaType, configMediaType)
-                }.thenApply { platformBundlePair ->
+                }.map { platformBundlePair ->
                     if ((platform != null) && (platformBundlePair.first != platform)) {
                         throw IllegalArgumentException("platform in manifest descriptor ($platform) and config (${platformBundlePair.first}) do not match")
                     }
@@ -96,15 +96,16 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         }
         indexJsonObject.requireStringOrNull("mediaType", indexMediaType)
         indexJsonObject.requireLong("schemaVersion", 2)
-        return CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenApply {
-            val platformBundles = manifestFutures.associateTo(TreeMap()) { it.get() }
-            OciComponent(
-                imageReference,
-                capabilities,
-                OciComponent.PlatformBundles(platformBundles),
-                indexAnnotations,
-            )
-        }
+        return Flux.merge(manifestFutures)
+            .collect({ TreeMap<Platform, OciComponent.Bundle>() }) { map, platformBundle -> map += platformBundle }
+            .map { platformBundles ->
+                OciComponent(
+                    imageReference,
+                    capabilities,
+                    OciComponent.PlatformBundles(platformBundles),
+                    indexAnnotations,
+                )
+            }
     }
 
     private fun transformManifestToComponent(
@@ -115,7 +116,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         capabilities: SortedSet<VersionedCoordinates>,
         manifestMediaType: String,
         configMediaType: String,
-    ): CompletableFuture<OciComponent> {
+    ): Mono<OciComponent> {
         return transformManifestToPlatformBundle(
             registry,
             imageReference.name,
@@ -124,7 +125,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             credentials,
             manifestMediaType,
             configMediaType,
-        ).thenApply { platformBundlePair ->
+        ).map { platformBundlePair ->
             OciComponent(
                 imageReference,
                 capabilities,
@@ -142,7 +143,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         credentials: OciRegistryApi.Credentials?,
         manifestMediaType: String,
         configMediaType: String,
-    ): CompletableFuture<Pair<Platform, OciComponent.Bundle>> {
+    ): Mono<Pair<Platform, OciComponent.Bundle>> {
         val manifestJsonObject = jsonObject(manifest)
         val manifestAnnotations = manifestJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor(configMediaType) }
@@ -150,7 +151,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor() } } ?: listOf()
         manifestJsonObject.requireStringOrNull("mediaType", manifestMediaType)
         manifestJsonObject.requireLong("schemaVersion", 2)
-        return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest, configDescriptor.size, credentials).thenApply { config ->
+        return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest, configDescriptor.size, credentials).map { config ->
             val configJsonObject = jsonObject(config)
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
             val architecture = configJsonObject.getString("architecture")
