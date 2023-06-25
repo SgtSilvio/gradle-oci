@@ -226,7 +226,7 @@ class OciRegistryApi {
         credentials: Credentials?,
         uri: URI,
         size: Long,
-        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
+        sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> {
         return send(
             registry,
@@ -237,7 +237,7 @@ class OciRegistryApi {
                 headers { headers ->
                     headers["content-length"] = size
                     headers["content-type"] = "application/octet-stream"
-                }.put().uri(uri.addQueryParam("digest=$digest")).send { _, outbound -> outbound.bodyPublisher() }
+                }.put().uri(uri.addQueryParam("digest=$digest")).send { _, outbound -> outbound.sender() }
             },
         ) { response, body ->
             when (response.status().code()) {
@@ -254,11 +254,11 @@ class OciRegistryApi {
         sourceImageName: String?,
         credentials: Credentials?,
         size: Long,
-        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
+        sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> = mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
         when (uri) {
             null -> Mono.just(Unit)
-            else -> pushBlob(registry, imageName, digest, credentials, uri, size, bodyPublisher)
+            else -> pushBlob(registry, imageName, digest, credentials, uri, size, sender)
         }
     }
 
@@ -269,11 +269,11 @@ class OciRegistryApi {
         sourceImageName: String?,
         credentials: Credentials?,
         size: Long,
-        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
+        sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
         when {
             present -> Mono.just(Unit)
-            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, size, bodyPublisher)
+            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, size, sender)
         }
     }
 

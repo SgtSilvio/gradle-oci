@@ -103,17 +103,17 @@ abstract class OciPushTask @Inject constructor(
                                 blobFutures += if (sourceBlob == null) {
                                     val layerFile = allLayers[digest]!!.toPath()
                                     val size = Files.size(layerFile)
-                                    val bodyPublisher: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(layerFile, 0, size) }
+                                    val sender: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(layerFile, 0, size) }
                                     val sourceImageName = resolvedBundle.component.imageReference.name
                                     val future = CompletableFuture<Unit>()
-                                    blobs[digest] = Blob(digest, size, bodyPublisher, imageName, sourceImageName, future)
+                                    blobs[digest] = Blob(digest, size, sender, imageName, sourceImageName, future)
                                     future
                                 } else if (sourceBlob.imageName == imageName) {
                                     sourceBlob.future
                                 } else {
                                     val sourceImageName = sourceBlob.imageName
                                     val size = sourceBlob.size
-                                    val bodyPublisher = sourceBlob.bodyPublisher
+                                    val sender = sourceBlob.sender
                                     val future = CompletableFuture<Unit>()
                                     sourceBlob.future.thenRun {
                                         context.pushService.get().pushBlob(
@@ -122,7 +122,7 @@ abstract class OciPushTask @Inject constructor(
                                             digest,
                                             sourceImageName,
                                             size,
-                                            bodyPublisher,
+                                            sender,
                                             future,
                                         )
                                     }
@@ -138,16 +138,16 @@ abstract class OciPushTask @Inject constructor(
                 val sourceBlob = blobs[configDigest]
                 blobFutures += if (sourceBlob == null) {
                     val size = config.data.size.toLong()
-                    val bodyPublisher: NettyOutbound.() -> Publisher<Void> = { sendByteArray(Mono.just(config.data)) }
+                    val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(Mono.just(config.data)) }
                     val future = CompletableFuture<Unit>()
-                    blobs[configDigest] = Blob(configDigest, size, bodyPublisher, imageName, imageName, future)
+                    blobs[configDigest] = Blob(configDigest, size, sender, imageName, imageName, future)
                     future
                 } else if (sourceBlob.imageName == imageName) {
                     sourceBlob.future
                 } else {
                     val sourceImageName = sourceBlob.imageName
                     val size = sourceBlob.size
-                    val bodyPublisher = sourceBlob.bodyPublisher
+                    val sender = sourceBlob.sender
                     val future = CompletableFuture<Unit>()
                     sourceBlob.future.thenRun {
                         context.pushService.get().pushBlob(
@@ -156,7 +156,7 @@ abstract class OciPushTask @Inject constructor(
                             configDigest,
                             sourceImageName,
                             size,
-                            bodyPublisher,
+                            sender,
                             future,
                         )
                     }
@@ -202,7 +202,7 @@ abstract class OciPushTask @Inject constructor(
                 blob.digest,
                 blob.sourceImageName,
                 blob.size,
-                blob.bodyPublisher,
+                blob.sender,
                 blob.future,
             )
         }
@@ -211,7 +211,7 @@ abstract class OciPushTask @Inject constructor(
     class Blob(
         val digest: OciDigest,
         val size: Long,
-        val bodyPublisher: NettyOutbound.() -> Publisher<Void>,
+        val sender: NettyOutbound.() -> Publisher<Void>,
         val imageName: String,
         val sourceImageName: String,
         val future: CompletableFuture<Unit>,
@@ -283,7 +283,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
         digest: OciDigest,
         sourceImageName: String,
         size: Long,
-        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
+        sender: NettyOutbound.() -> Publisher<Void>,
         future: CompletableFuture<Unit>?,
     ) = context.workQueue.submit(context.pushService) {
         val progressLogger = context.progressLoggerFactory.newOperation(OciPushService::class.java)
@@ -319,7 +319,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
                     }
                 })
             }
-            bodyPublisher()
+            sender()
         }.block()
         progressLogger.completed()
         future?.complete(Unit)
