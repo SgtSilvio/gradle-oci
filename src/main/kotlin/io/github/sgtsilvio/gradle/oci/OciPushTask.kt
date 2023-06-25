@@ -102,17 +102,17 @@ abstract class OciPushTask @Inject constructor(
                                 val sourceBlob = blobs[digest]
                                 blobFutures += if (sourceBlob == null) {
                                     val layerFile = allLayers[digest]!!.toPath()
-                                    val contentLength = Files.size(layerFile)
-                                    val bodyPublisher: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(layerFile, 0, contentLength) }
+                                    val size = Files.size(layerFile)
+                                    val bodyPublisher: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(layerFile, 0, size) }
                                     val sourceImageName = resolvedBundle.component.imageReference.name
                                     val future = CompletableFuture<Unit>()
-                                    blobs[digest] = Blob(digest, contentLength, bodyPublisher, imageName, sourceImageName, future)
+                                    blobs[digest] = Blob(digest, size, bodyPublisher, imageName, sourceImageName, future)
                                     future
                                 } else if (sourceBlob.imageName == imageName) {
                                     sourceBlob.future
                                 } else {
                                     val sourceImageName = sourceBlob.imageName
-                                    val contentLength = sourceBlob.contentLength
+                                    val size = sourceBlob.size
                                     val bodyPublisher = sourceBlob.bodyPublisher
                                     val future = CompletableFuture<Unit>()
                                     sourceBlob.future.thenRun {
@@ -121,7 +121,7 @@ abstract class OciPushTask @Inject constructor(
                                             imageName,
                                             digest,
                                             sourceImageName,
-                                            contentLength,
+                                            size,
                                             bodyPublisher,
                                             future,
                                         )
@@ -137,16 +137,16 @@ abstract class OciPushTask @Inject constructor(
                 val configDigest = config.digest
                 val sourceBlob = blobs[configDigest]
                 blobFutures += if (sourceBlob == null) {
-                    val contentLength = config.data.size.toLong()
+                    val size = config.data.size.toLong()
                     val bodyPublisher: NettyOutbound.() -> Publisher<Void> = { sendByteArray(Mono.just(config.data)) }
                     val future = CompletableFuture<Unit>()
-                    blobs[configDigest] = Blob(configDigest, contentLength, bodyPublisher, imageName, imageName, future)
+                    blobs[configDigest] = Blob(configDigest, size, bodyPublisher, imageName, imageName, future)
                     future
                 } else if (sourceBlob.imageName == imageName) {
                     sourceBlob.future
                 } else {
                     val sourceImageName = sourceBlob.imageName
-                    val contentLength = sourceBlob.contentLength
+                    val size = sourceBlob.size
                     val bodyPublisher = sourceBlob.bodyPublisher
                     val future = CompletableFuture<Unit>()
                     sourceBlob.future.thenRun {
@@ -155,7 +155,7 @@ abstract class OciPushTask @Inject constructor(
                             imageName,
                             configDigest,
                             sourceImageName,
-                            contentLength,
+                            size,
                             bodyPublisher,
                             future,
                         )
@@ -195,13 +195,13 @@ abstract class OciPushTask @Inject constructor(
                 )
             }
         }
-        for (blob in blobs.values.sortedByDescending { it.contentLength }) {
+        for (blob in blobs.values.sortedByDescending { it.size }) {
             context.pushService.get().pushBlob(
                 context,
                 blob.imageName,
                 blob.digest,
                 blob.sourceImageName,
-                blob.contentLength,
+                blob.size,
                 blob.bodyPublisher,
                 blob.future,
             )
@@ -210,7 +210,7 @@ abstract class OciPushTask @Inject constructor(
 
     class Blob(
         val digest: OciDigest,
-        val contentLength: Long, // TODO rename to size
+        val size: Long,
         val bodyPublisher: NettyOutbound.() -> Publisher<Void>,
         val imageName: String,
         val sourceImageName: String,
@@ -282,7 +282,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
         imageName: String,
         digest: OciDigest,
         sourceImageName: String,
-        contentLength: Long,
+        size: Long,
         bodyPublisher: NettyOutbound.() -> Publisher<Void>,
         future: CompletableFuture<Unit>?,
     ) = context.workQueue.submit(context.pushService) {
@@ -296,7 +296,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
             sourceImageName,
 //            null,
             context.credentials,
-            contentLength,
+            size,
         ) {
             withConnection { connection ->
                 connection.addHandlerFirst("progress", object : ChannelOutboundHandlerAdapter() {
@@ -311,7 +311,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
                                 val formatted = formatBytesString(current)
                                 if (formatted != lastFormatted) {
                                     lastFormatted = formatted
-                                    progressLogger.progress("$progressPrefix > " + formatted + "/" + formatBytesString(contentLength))
+                                    progressLogger.progress("$progressPrefix > " + formatted + "/" + formatBytesString(size))
                                 }
                             }
                         } else promise

@@ -225,7 +225,7 @@ class OciRegistryApi {
         digest: OciDigest,
         credentials: Credentials?,
         uri: URI,
-        contentLength: Long,
+        size: Long,
         bodyPublisher: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> {
         return send(
@@ -235,7 +235,7 @@ class OciRegistryApi {
             PUSH_PERMISSION,
             {
                 headers { headers ->
-                    headers["content-length"] = contentLength
+                    headers["content-length"] = size
                     headers["content-type"] = "application/octet-stream"
                 }.put().uri(uri.addQueryParam("digest=$digest")).send { _, outbound -> outbound.bodyPublisher() }
             },
@@ -253,12 +253,12 @@ class OciRegistryApi {
         digest: OciDigest,
         sourceImageName: String?,
         credentials: Credentials?,
-        contentLength: Long,
+        size: Long,
         bodyPublisher: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> = mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
         when (uri) {
             null -> Mono.just(Unit)
-            else -> pushBlob(registry, imageName, digest, credentials, uri, contentLength, bodyPublisher)
+            else -> pushBlob(registry, imageName, digest, credentials, uri, size, bodyPublisher)
         }
     }
 
@@ -268,12 +268,12 @@ class OciRegistryApi {
         digest: OciDigest,
         sourceImageName: String?,
         credentials: Credentials?,
-        contentLength: Long,
+        size: Long,
         bodyPublisher: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
         when {
             present -> Mono.just(Unit)
-            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, contentLength, bodyPublisher)
+            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, size, bodyPublisher)
         }
     }
 
