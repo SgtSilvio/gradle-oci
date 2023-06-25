@@ -69,14 +69,14 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     private fun transformIndexToComponent(
         registry: String,
         imageReference: OciImageReference,
-        index: String,
+        index: ByteArray,
         credentials: OciRegistryApi.Credentials?,
         capabilities: SortedSet<VersionedCoordinates>,
         indexMediaType: String,
         manifestMediaType: String,
         configMediaType: String,
     ): Mono<OciComponent> {
-        val indexJsonObject = jsonObject(index)
+        val indexJsonObject = jsonObject(String(index))
         val indexAnnotations = indexJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
         val manifestFutures = indexJsonObject.get("manifests") {
             asArray().toList {
@@ -111,7 +111,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     private fun transformManifestToComponent(
         registry: String,
         imageReference: OciImageReference,
-        manifest: String,
+        manifest: ByteArray,
         credentials: OciRegistryApi.Credentials?,
         capabilities: SortedSet<VersionedCoordinates>,
         manifestMediaType: String,
@@ -138,13 +138,13 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
     private fun transformManifestToPlatformBundle(
         registry: String,
         imageName: String,
-        manifest: String,
+        manifest: ByteArray,
         manifestDescriptorAnnotations: SortedMap<String, String>,
         credentials: OciRegistryApi.Credentials?,
         manifestMediaType: String,
         configMediaType: String,
     ): Mono<Pair<Platform, OciComponent.Bundle>> {
-        val manifestJsonObject = jsonObject(manifest)
+        val manifestJsonObject = jsonObject(String(manifest))
         val manifestAnnotations = manifestJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor(configMediaType) }
         val layerDescriptors =

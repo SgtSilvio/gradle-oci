@@ -166,8 +166,8 @@ abstract class OciPushTask @Inject constructor(
                 val manifest = createManifest(config, bundlesForPlatform)
                 manifests += Pair(platform, manifest)
                 val manifestDigest = manifest.digest
-                val manifestData = String(manifest.data)
                 val manifestMediaType = manifest.mediaType
+                val manifestData = manifest.data
                 val manifestFuture = CompletableFuture<Unit>()
                 manifestFutures += manifestFuture
                 CompletableFuture.allOf(*blobFutures.toTypedArray()).thenRun {
@@ -182,8 +182,8 @@ abstract class OciPushTask @Inject constructor(
                 }
             }
             val index = createIndex(manifests, resolvedComponent.component)
-            val indexData = String(index.data)
             val indexMediaType = index.mediaType
+            val indexData = index.data
             CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenRun {
                 context.pushService.get().pushManifest(
                     context,
@@ -330,7 +330,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
         imageName: String,
         reference: String,
         mediaType: String,
-        data: String,
+        data: ByteArray,
         future: CompletableFuture<Unit>?,
     ) = context.workQueue.submit(context.pushService) {
         val progressLogger = context.progressLoggerFactory.newOperation(OciPushService::class.java)

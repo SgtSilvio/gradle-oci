@@ -62,7 +62,7 @@ class OciRegistryApi {
 
     data class Credentials(val username: String, val password: String)
 
-    data class Manifest(val mediaType: String, val data: String) // TODO data as ByteArray
+    class Manifest(val mediaType: String, val data: ByteArray)
 
     fun pullManifest(
         registry: String,
@@ -85,7 +85,7 @@ class OciRegistryApi {
         ) { response, body ->
             when (response.status().code()) {
                 200 -> response.responseHeaders()["content-type"]?.let { contentType ->
-                    body.aggregate().asString(StandardCharsets.UTF_8).map { Manifest(contentType, it) }
+                    body.aggregate().asByteArray().map { Manifest(contentType, it) }
                 } ?: createError(response, body.aggregate())
 
                 else -> createError(response, body.aggregate())
@@ -100,7 +100,7 @@ class OciRegistryApi {
         size: Long,
         credentials: Credentials?,
     ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).handle { manifest, sink ->
-        val manifestBytes = manifest.data.toByteArray()
+        val manifestBytes = manifest.data
         val actualDigest = manifestBytes.calculateOciDigest(digest.algorithm)
         when {
             digest != actualDigest -> sink.error(digestMismatchException(digest.hash, actualDigest.hash))
@@ -284,8 +284,6 @@ class OciRegistryApi {
         credentials: Credentials?,
         manifest: Manifest,
     ): Mono<Unit> {
-        val mediaType = manifest.mediaType
-        val data = manifest.data.toByteArray()
         return send(
             registry,
             imageName,
@@ -294,9 +292,9 @@ class OciRegistryApi {
             PUSH_PERMISSION,
             {
                 headers { headers ->
-                    headers["content-length"] = data.size
-                    headers["content-type"] = mediaType
-                }.put().send { _, outbound -> outbound.sendByteArray(Mono.just(data)) }
+                    headers["content-length"] = manifest.data.size
+                    headers["content-type"] = manifest.mediaType
+                }.put().send { _, outbound -> outbound.sendByteArray(Mono.just(manifest.data)) }
             }
         ) { response, body ->
             when (response.status().code()) {
