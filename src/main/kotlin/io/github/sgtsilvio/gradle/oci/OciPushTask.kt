@@ -7,6 +7,8 @@ import io.github.sgtsilvio.gradle.oci.component.decodeAsJsonToOciComponent
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.netty.buffer.ByteBuf
+import io.netty.channel.*
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.credentials.PasswordCredentials
@@ -26,12 +28,12 @@ import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
+import org.reactivestreams.Publisher
+import reactor.core.publisher.Mono
+import reactor.netty.NettyOutbound
 import java.io.File
 import java.net.URI
-import java.net.http.HttpRequest.BodyPublisher
-import java.net.http.HttpRequest.BodyPublishers
-import java.nio.ByteBuffer
-import java.time.Duration
+import java.nio.file.Files
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -97,18 +99,21 @@ abstract class OciPushTask @Inject constructor(
                     for (layer in resolvedBundle.bundle.layers) {
                         layer.descriptor?.let { (_, digest) ->
                             if (layerDigests.add(digest)) {
-                                val layerFile = allLayers[digest]!!
-                                val layerPublisher = BodyPublishers.ofFile(layerFile.toPath())
                                 val sourceBlob = blobs[digest]
                                 blobFutures += if (sourceBlob == null) {
+                                    val layerFile = allLayers[digest]!!.toPath()
+                                    val contentLength = Files.size(layerFile)
+                                    val bodyPublisher: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(layerFile, 0, contentLength) }
                                     val sourceImageName = resolvedBundle.component.imageReference.name
                                     val future = CompletableFuture<Unit>()
-                                    blobs[digest] = Blob(digest, layerPublisher, imageName, sourceImageName, future)
+                                    blobs[digest] = Blob(digest, contentLength, bodyPublisher, imageName, sourceImageName, future)
                                     future
                                 } else if (sourceBlob.imageName == imageName) {
                                     sourceBlob.future
                                 } else {
                                     val sourceImageName = sourceBlob.imageName
+                                    val contentLength = sourceBlob.contentLength
+                                    val bodyPublisher = sourceBlob.bodyPublisher
                                     val future = CompletableFuture<Unit>()
                                     sourceBlob.future.thenRun {
                                         context.pushService.get().pushBlob(
@@ -116,7 +121,8 @@ abstract class OciPushTask @Inject constructor(
                                             imageName,
                                             digest,
                                             sourceImageName,
-                                            layerPublisher,
+                                            contentLength,
+                                            bodyPublisher,
                                             future,
                                         )
                                     }
@@ -129,16 +135,19 @@ abstract class OciPushTask @Inject constructor(
                 val bundlesForPlatform = resolvedBundlesForPlatform.map { it.bundle }
                 val config = createConfig(platform, bundlesForPlatform)
                 val configDigest = config.digest
-                val configPublisher = BodyPublishers.ofByteArray(config.data)
                 val sourceBlob = blobs[configDigest]
                 blobFutures += if (sourceBlob == null) {
+                    val contentLength = config.data.size.toLong()
+                    val bodyPublisher: NettyOutbound.() -> Publisher<Void> = { sendByteArray(Mono.just(config.data)) }
                     val future = CompletableFuture<Unit>()
-                    blobs[configDigest] = Blob(configDigest, configPublisher, imageName, imageName, future)
+                    blobs[configDigest] = Blob(configDigest, contentLength, bodyPublisher, imageName, imageName, future)
                     future
                 } else if (sourceBlob.imageName == imageName) {
                     sourceBlob.future
                 } else {
                     val sourceImageName = sourceBlob.imageName
+                    val contentLength = sourceBlob.contentLength
+                    val bodyPublisher = sourceBlob.bodyPublisher
                     val future = CompletableFuture<Unit>()
                     sourceBlob.future.thenRun {
                         context.pushService.get().pushBlob(
@@ -146,7 +155,8 @@ abstract class OciPushTask @Inject constructor(
                             imageName,
                             configDigest,
                             sourceImageName,
-                            configPublisher,
+                            contentLength,
+                            bodyPublisher,
                             future,
                         )
                     }
@@ -185,13 +195,14 @@ abstract class OciPushTask @Inject constructor(
                 )
             }
         }
-        for (blob in blobs.values.sortedByDescending { it.data.contentLength() }) {
+        for (blob in blobs.values.sortedByDescending { it.contentLength }) {
             context.pushService.get().pushBlob(
                 context,
                 blob.imageName,
                 blob.digest,
                 blob.sourceImageName,
-                blob.data,
+                blob.contentLength,
+                blob.bodyPublisher,
                 blob.future,
             )
         }
@@ -199,7 +210,8 @@ abstract class OciPushTask @Inject constructor(
 
     class Blob(
         val digest: OciDigest,
-        val data: BodyPublisher,
+        val contentLength: Long, // TODO rename to size
+        val bodyPublisher: NettyOutbound.() -> Publisher<Void>,
         val imageName: String,
         val sourceImageName: String,
         val future: CompletableFuture<Unit>,
@@ -270,30 +282,47 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
         imageName: String,
         digest: OciDigest,
         sourceImageName: String,
-        bodyPublisher: BodyPublisher,
+        contentLength: Long,
+        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
         future: CompletableFuture<Unit>?,
     ) = context.workQueue.submit(context.pushService) {
         val progressLogger = context.progressLoggerFactory.newOperation(OciPushService::class.java)
         val progressPrefix = "Pushing $imageName > blob $digest"
         progressLogger.start("pushing blob", progressPrefix)
-        try {
         registryApi.pushBlobIfNotPresent(
             context.registryUrl.toString(),
             imageName,
             digest,
-//            sourceImageName,
-            null,
+            sourceImageName,
+//            null,
             context.credentials,
-            ProgressBodyPublisher(bodyPublisher) { current, total ->
-                progressLogger.progress("$progressPrefix > " + formatBytesString(current) + "/" + formatBytesString(total))
-            },
-        ).block(Duration.ofSeconds(4))
+            contentLength,
+        ) {
+            withConnection { connection ->
+                connection.addHandlerFirst("progress", object : ChannelOutboundHandlerAdapter() {
+                    var current = 0L
+                    var lastFormatted: String? = null
+
+                    override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
+                        val newPromise = if (msg is ByteBuf) {
+                            val bytes = msg.readableBytes()
+                            promise.unvoid().addListener {
+                                current += bytes
+                                val formatted = formatBytesString(current)
+                                if (formatted != lastFormatted) {
+                                    lastFormatted = formatted
+                                    progressLogger.progress("$progressPrefix > " + formatted + "/" + formatBytesString(contentLength))
+                                }
+                            }
+                        } else promise
+                        ctx.write(msg, newPromise)
+                    }
+                })
+            }
+            bodyPublisher()
+        }.block()
         progressLogger.completed()
         future?.complete(Unit)
-        } catch (e: Exception) {
-            println("interrupted")
-            Thread.sleep(10000)
-        }
     }
 
     fun pushManifest(
@@ -350,42 +379,5 @@ fun formatBytesString(bytes: Long): String = when {
         val megaBytes = hundredKiloBytesBytes / 10
         val tenthMegaBytes = hundredKiloBytesBytes % 10
         if (tenthMegaBytes == 0L) "$megaBytes MB" else "$megaBytes.$tenthMegaBytes MB"
-    }
-}
-
-class ProgressBodyPublisher(
-    private val delegate: BodyPublisher,
-    private val progressCallback: (current: Long, total: Long) -> Unit,
-) : BodyPublisher {
-
-    override fun subscribe(subscriber: Flow.Subscriber<in ByteBuffer>) =
-        delegate.subscribe(Subscriber(subscriber, contentLength(), progressCallback))
-
-    override fun contentLength() = delegate.contentLength()
-
-    private class Subscriber(
-        private val delegate: Flow.Subscriber<in ByteBuffer>,
-        private val totalBytes: Long,
-        private val progressCallback: (current: Long, total: Long) -> Unit,
-    ) : Flow.Subscriber<ByteBuffer> {
-        private var currentBytes = 0L
-
-        override fun onSubscribe(subscription: Flow.Subscription) {
-            delegate.onSubscribe(subscription)
-            progressCallback.invoke(currentBytes, totalBytes)
-        }
-
-        override fun onNext(item: ByteBuffer) {
-            currentBytes += item.remaining()
-            delegate.onNext(item)
-            progressCallback.invoke(currentBytes, totalBytes)
-        }
-
-        override fun onError(throwable: Throwable) {
-            delegate.onError(throwable)
-            progressCallback.invoke(-1, totalBytes)
-        }
-
-        override fun onComplete() = delegate.onComplete()
     }
 }

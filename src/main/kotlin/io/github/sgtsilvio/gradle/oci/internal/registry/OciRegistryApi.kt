@@ -8,28 +8,53 @@ import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
+import io.netty.buffer.ByteBuf
+import io.netty.handler.codec.http.HttpHeaders
 import org.apache.commons.codec.binary.Hex
+import org.reactivestreams.Publisher
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
+import reactor.core.CoreSubscriber
+import reactor.core.publisher.Flux
+import reactor.core.publisher.FluxOperator
 import reactor.core.publisher.Mono
+import reactor.netty.ByteBufFlux
+import reactor.netty.ByteBufMono
+import reactor.netty.NettyOutbound
+import reactor.netty.http.client.HttpClient
+import reactor.netty.http.client.HttpClientResponse
+import reactor.netty.resources.ConnectionProvider
 import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpRequest.BodyPublisher
-import java.net.http.HttpRequest.BodyPublishers
-import java.net.http.HttpResponse
-import java.net.http.HttpResponse.*
-import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.DigestException
 import java.security.MessageDigest
+import java.time.Duration
 import java.util.*
-import java.util.concurrent.*
+import java.util.concurrent.TimeUnit
+
+val connectionProvider = ConnectionProvider.builder("custom").maxConnections(100).maxIdleTime(Duration.ofSeconds(2)).build()
 
 /**
  * @author Silvio Giebl
  */
 class OciRegistryApi {
 
-    private val httpClient: HttpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
+    private val httpClient: HttpClient =
+        HttpClient.create(
+//            ConnectionProvider.builder("custom").maxIdleTime(Duration.ofSeconds(5000)).build()
+            connectionProvider
+        )
+            .followRedirect(true)
+//            .observe { connection, newState ->
+//                if (newState == ConnectionObserver.State.ACQUIRED)
+//                    println("$connection -> REUSE")
+//                if (newState == ConnectionObserver.State.CONNECTED)
+//                    println("$connection -> NEW")
+//                if (newState == ConnectionObserver.State.RELEASED)
+//                    println("$connection -> SAFE")
+//                if (newState == ConnectionObserver.State.DISCONNECTING)
+//                    println("$connection -> FAIL")
+//            }
     private val tokenCache: Cache<TokenCacheKey, String> =
         Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build()
 
@@ -37,7 +62,7 @@ class OciRegistryApi {
 
     data class Credentials(val username: String, val password: String)
 
-    data class Manifest(val mediaType: String, val data: String)
+    data class Manifest(val mediaType: String, val data: String) // TODO data as ByteArray
 
     fun pullManifest(
         registry: String,
@@ -51,19 +76,21 @@ class OciRegistryApi {
             "manifests/$reference",
             credentials,
             PULL_PERMISSION,
-            HttpRequest.newBuilder().GET().setHeader(
-                "accept",
-                "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
-            ),
-        ) { responseInfo ->
-            when (responseInfo.statusCode()) {
-                200 -> responseInfo.headers().firstValue("content-type").orElse(null)?.let { contentType ->
-                    BodyHandlers.ofString().apply(responseInfo).map { Manifest(contentType, it) }
-                } ?: createErrorBodySubscriber(responseInfo)
+            {
+                headers { headers ->
+                    headers["accept"] =
+                        "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
+                }.get()
+            },
+        ) { response, body ->
+            when (response.status().code()) {
+                200 -> response.responseHeaders()["content-type"]?.let { contentType ->
+                    body.aggregate().asString(StandardCharsets.UTF_8).map { Manifest(contentType, it) }
+                } ?: createError(response, body.aggregate())
 
-                else -> createErrorBodySubscriber(responseInfo)
+                else -> createError(response, body.aggregate())
             }
-        }.map { it.body() }
+        }.single()
     }
 
     fun pullManifest(
@@ -72,16 +99,15 @@ class OciRegistryApi {
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-    ): Mono<Manifest> =
-        pullManifest(registry, imageName, digest.toString(), credentials).map { manifest ->
-            val manifestBytes = manifest.data.toByteArray()
-            val actualDigest = manifestBytes.calculateOciDigest(digest.algorithm)
-            when {
-                digest != actualDigest -> throw digestMismatchException(digest.hash, actualDigest.hash)
-                size != manifestBytes.size.toLong() -> throw sizeMismatchException(size, manifestBytes.size.toLong())
-                else -> manifest
-            }
+    ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).handle { manifest, sink ->
+        val manifestBytes = manifest.data.toByteArray()
+        val actualDigest = manifestBytes.calculateOciDigest(digest.algorithm)
+        when {
+            digest != actualDigest -> sink.error(digestMismatchException(digest.hash, actualDigest.hash))
+            size != manifestBytes.size.toLong() -> sink.error(sizeMismatchException(size, manifestBytes.size.toLong()))
+            else -> sink.next(manifest)
         }
+    }
 
     fun <T> pullBlob(
         registry: String,
@@ -89,21 +115,21 @@ class OciRegistryApi {
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-        bodySubscriber: BodySubscriber<T>,
-    ): Mono<T> {
+        bodyMapper: ByteBufFlux.() -> Publisher<T>,
+    ): Flux<T> {
         return send(
             registry,
             imageName,
             "blobs/$digest",
             credentials,
             PULL_PERMISSION,
-            HttpRequest.newBuilder().GET(),
-        ) { responseInfo ->
-            when (responseInfo.statusCode()) {
-                200 -> bodySubscriber.verify(digest, size)
-                else -> createErrorBodySubscriber(responseInfo)
+            { get() },
+        ) { response, body ->
+            when (response.status().code()) {
+                200 -> ByteBufFlux.fromInbound(body.verify(digest, size)).bodyMapper()
+                else -> createError(response, body.aggregate())
             }
-        }.map { it.body() }
+        }
     }
 
     fun pullBlobAsString(
@@ -112,8 +138,15 @@ class OciRegistryApi {
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-    ): Mono<String> =
-        pullBlob(registry, imageName, digest, size, credentials, BodySubscribers.ofString(StandardCharsets.UTF_8))
+    ): Mono<String> {
+        return pullBlob(
+            registry,
+            imageName,
+            digest,
+            size,
+            credentials,
+        ) { aggregate().asString(StandardCharsets.UTF_8) }.single()
+    }
 
     fun isBlobPresent(
         registry: String,
@@ -127,14 +160,14 @@ class OciRegistryApi {
             "blobs/$digest",
             credentials,
             PULL_PERMISSION,
-            HttpRequest.newBuilder().method("HEAD", BodyPublishers.noBody()),
-        ) { responseInfo ->
-            when (responseInfo.statusCode()) {
-                200 -> BodySubscribers.replacing(true)
-                404 -> BodySubscribers.replacing(false)
-                else -> createErrorBodySubscriber(responseInfo)
+            { head() },
+        ) { response, body ->
+            when (response.status().code()) {
+                200 -> body.then(Mono.just(true))
+                404 -> body.then(Mono.just(false))
+                else -> createError(response, body.aggregate())
             }
-        }.map { it.body() }
+        }.single()
     }
 
     fun mountBlobOrCreatePushUrl(
@@ -153,17 +186,17 @@ class OciRegistryApi {
             "blobs/uploads/$query",
             credentials,
             PUSH_PERMISSION,
-            HttpRequest.newBuilder().POST(BodyPublishers.noBody()),
-        ) { responseInfo ->
-            when (responseInfo.statusCode()) {
-                201 -> if (isMount) BodySubscribers.replacing(null) else createErrorBodySubscriber(responseInfo)
-                202 -> responseInfo.headers().firstValue("location").orElse(null)?.let { location ->
-                    BodySubscribers.replacing(URI(registry).resolve(location))
-                } ?: createErrorBodySubscriber(responseInfo)
+            { post() },
+        ) { response, body ->
+            when (response.status().code()) {
+                201 -> if (isMount) body.then(Mono.empty()) else createError(response, body.aggregate())
+                202 -> response.responseHeaders()["location"]?.let { location ->
+                    body.then(Mono.just(URI(registry).resolve(location)))
+                } ?: createError(response, body.aggregate())
 
-                else -> createErrorBodySubscriber(responseInfo)
+                else -> createError(response, body.aggregate())
             }
-        }.map { it.body() }
+        }.singleOrEmpty()
     }
 
 //    fun cancelBlobPush(
@@ -192,21 +225,26 @@ class OciRegistryApi {
         digest: OciDigest,
         credentials: Credentials?,
         uri: URI,
-        bodyPublisher: BodyPublisher,
+        contentLength: Long,
+        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> {
         return send(
             registry,
             imageName,
             credentials,
             PUSH_PERMISSION,
-            HttpRequest.newBuilder(uri.addQueryParam("digest=$digest")).PUT(bodyPublisher)
-                .setHeader("content-type", "application/octet-stream")
-        ) { responseInfo ->
-            when (responseInfo.statusCode()) {
-                201 -> BodySubscribers.discarding()
-                else -> createErrorBodySubscriber(responseInfo)
+            {
+                headers { headers ->
+                    headers["content-length"] = contentLength
+                    headers["content-type"] = "application/octet-stream"
+                }.put().uri(uri.addQueryParam("digest=$digest")).send { _, outbound -> outbound.bodyPublisher() }
+            },
+        ) { response, body ->
+            when (response.status().code()) {
+                201 -> body.then(Mono.just(Unit))
+                else -> createError(response, body.aggregate())
             }
-        }.map {}
+        }.single()
     }
 
     fun mountOrPushBlob(
@@ -215,11 +253,12 @@ class OciRegistryApi {
         digest: OciDigest,
         sourceImageName: String?,
         credentials: Credentials?,
-        bodyPublisher: BodyPublisher,
+        contentLength: Long,
+        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> = mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
         when (uri) {
             null -> Mono.just(Unit)
-            else -> pushBlob(registry, imageName, digest, credentials, uri, bodyPublisher)
+            else -> pushBlob(registry, imageName, digest, credentials, uri, contentLength, bodyPublisher)
         }
     }
 
@@ -229,11 +268,12 @@ class OciRegistryApi {
         digest: OciDigest,
         sourceImageName: String?,
         credentials: Credentials?,
-        bodyPublisher: BodyPublisher,
+        contentLength: Long,
+        bodyPublisher: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Unit> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
         when {
             present -> Mono.just(Unit)
-            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, bodyPublisher)
+            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, contentLength, bodyPublisher)
         }
     }
 
@@ -244,20 +284,26 @@ class OciRegistryApi {
         credentials: Credentials?,
         manifest: Manifest,
     ): Mono<Unit> {
+        val mediaType = manifest.mediaType
+        val data = manifest.data.toByteArray()
         return send(
             registry,
             imageName,
             "manifests/$reference",
             credentials,
             PUSH_PERMISSION,
-            HttpRequest.newBuilder().PUT(BodyPublishers.ofString(manifest.data))
-                .setHeader("content-type", manifest.mediaType)
-        ) { responseInfo ->
-            when (responseInfo.statusCode()) {
-                201 -> BodySubscribers.discarding()
-                else -> createErrorBodySubscriber(responseInfo)
+            {
+                headers { headers ->
+                    headers["content-length"] = data.size
+                    headers["content-type"] = mediaType
+                }.put().send { _, outbound -> outbound.sendByteArray(Mono.just(data)) }
             }
-        }.map {}
+        ) { response, body ->
+            when (response.status().code()) {
+                201 -> body.then(Mono.just(Unit))
+                else -> createError(response, body.aggregate())
+            }
+        }.single()
     }
 
     fun pushManifest(
@@ -316,15 +362,15 @@ class OciRegistryApi {
         path: String,
         credentials: Credentials?,
         permission: String,
-        requestBuilder: HttpRequest.Builder,
-        responseBodyHandler: BodyHandler<T>,
+        requestAction: HttpClient.() -> HttpClient.ResponseReceiver<*>,
+        responseAction: (HttpClientResponse, ByteBufFlux) -> Publisher<T>,
     ) = send(
         registry,
         imageName,
         credentials,
         permission,
-        requestBuilder.uri(URI("$registry/v2/$imageName/$path")),
-        responseBodyHandler
+        { requestAction().uri("$registry/v2/$imageName/$path") },
+        responseAction,
     )
 
     private fun <T> send(
@@ -332,71 +378,47 @@ class OciRegistryApi {
         imageName: String,
         credentials: Credentials?,
         permission: String,
-        requestBuilder: HttpRequest.Builder,
-        responseBodyHandler: BodyHandler<T>,
-    ): Mono<HttpResponse<T>> {
-//        println("SEND: " + requestBuilder.build().method() + " " + requestBuilder.build().uri())
-        getAuthorization(registry, imageName, credentials)?.let { requestBuilder.setHeader("authorization", it) }
-        val bodyHandler = BodyHandler { responseInfo -> CancellableBodySubscriber(responseBodyHandler.apply(responseInfo)) }
-        return httpClient.sendMono(requestBuilder.build(), bodyHandler).onErrorResume { error ->
-//            println(error)
+        requestAction: HttpClient.() -> HttpClient.ResponseReceiver<*>,
+        responseAction: (HttpClientResponse, ByteBufFlux) -> Publisher<T>,
+    ): Flux<T> {
+        return httpClient.headers { headers ->
+            getAuthorization(registry, imageName, credentials)?.let { headers["authorization"] = it }
+        }.requestAction().response(responseAction).onErrorResume { error ->
             when {
                 error !is HttpResponseException -> Mono.error(error)
                 error.statusCode != 401 -> Mono.error(error)
-                else -> tryAuthorize(error, registry, imageName, credentials, permission)?.flatMap { authorization ->
-                    httpClient.sendMono(requestBuilder.setHeader("authorization", authorization).build(), bodyHandler)
+                else -> tryAuthorize(error.headers, registry, imageName, credentials, permission)?.flatMapMany { authorization ->
+                    httpClient.headers { headers ->
+                        headers["authorization"] = authorization
+                    }.requestAction().response(responseAction)
                 } ?: Mono.error(error)
             }
-        }
-//        }.thenApply { response ->
-//            var r: HttpResponse<T>? = response
-//            while (r != null) {
-//                println("${r.uri()} ${r.statusCode()}\n > " + r.headers().map().entries.joinToString("\n > "))
-//                r = r.previousResponse().orElse(null)
-//            }
-//            response
-//        }
-    }
-
-    class CancellableBodySubscriber<T>(private val delegate: BodySubscriber<T>) : BodySubscriber<T> by delegate {
-        private var subscription: Flow.Subscription? = null
-
-        override fun onSubscribe(subscription: Flow.Subscription) {
-            this.subscription = subscription
-            delegate.onSubscribe(subscription)
-        }
-
-        override fun getBody(): CompletionStage<T> = delegate.body.toCancelable {
-            println("YEAH")
-            subscription?.cancel()
-            true
         }
     }
 
     private fun tryAuthorize(
-        responseException: HttpResponseException,
+        responseHeaders: HttpHeaders,
         registry: String,
         imageName: String,
         credentials: Credentials?,
         permission: String,
     ): Mono<String>? {
-        val bearerParams = decodeBearerParams(responseException.headers) ?: return null
+        val bearerParams = decodeBearerParams(responseHeaders) ?: return null
         val realm = bearerParams["realm"] ?: return null
         val service = bearerParams["service"] ?: registry
         val scope = bearerParams["scope"] ?: "repository:$imageName:$permission"
         val scopeParams = "scope=" + scope.replace(" ", "&scope=")
-        val requestBuilder = HttpRequest.newBuilder(URI("$realm?service=$service&$scopeParams")).GET()
-        if (credentials != null) {
-            requestBuilder.setHeader("authorization", encodeBasicAuthorization(credentials))
-        }
-//        println("AUTH: " + requestBuilder.build().method() + " " + requestBuilder.build().uri())
-        return httpClient.sendMono(requestBuilder.build()) { responseInfo ->
-            when (responseInfo.statusCode()) {
-                200 -> BodyHandlers.ofString().apply(responseInfo)
-                else -> createErrorBodySubscriber(responseInfo)
+        return httpClient.headers { headers ->
+            if (credentials != null) {
+                headers["authorization"] = encodeBasicAuthorization(credentials)
+            }
+        }.get().uri(URI("$realm?service=$service&$scopeParams")).responseSingle { response, body ->
+            when (response.status().code()) {
+                200 -> body.asString(StandardCharsets.UTF_8)
+                else -> createError(response, body)
             }
         }.map { response ->
-            val authorization = "Bearer " + jsonObject(response.body()).run {
+            val authorization = "Bearer " + jsonObject(response).run {
                 if (hasKey("token")) getString("token") else getString("access_token")
             }
             tokenCache.put(TokenCacheKey(registry, imageName, credentials), authorization)
@@ -411,8 +433,8 @@ class OciRegistryApi {
     private fun encodeBasicAuthorization(credentials: Credentials) =
         "Basic " + Base64.getEncoder().encodeToString("${credentials.username}:${credentials.password}".toByteArray())
 
-    private fun decodeBearerParams(headers: Map<String, List<String>>): Map<String, String>? {
-        val authHeader = headers["www-authenticate"]?.firstOrNull() ?: return null
+    private fun decodeBearerParams(headers: HttpHeaders): Map<String, String>? {
+        val authHeader = headers["www-authenticate"] ?: return null
         if (!authHeader.startsWith("Bearer ")) return null
         val authParamString = authHeader.substring("Bearer ".length)
         val map = HashMap<String, String>()
@@ -434,98 +456,77 @@ class OciRegistryApi {
         return map
     }
 
-    private fun <T> createErrorBodySubscriber(responseInfo: ResponseInfo) =
-        BodyHandlers.ofString().apply(responseInfo).map<String, T> { body ->
-            throw HttpResponseException(responseInfo.statusCode(), responseInfo.headers().map(), body)
+    private fun <T> createError(response: HttpClientResponse, body: ByteBufMono): Mono<T> =
+        body.asString(StandardCharsets.UTF_8).defaultIfEmpty("").flatMap { errorBody ->
+            Mono.error(HttpResponseException(response.status().code(), response.responseHeaders(), errorBody))
         }
-
-    private fun <T, R> BodySubscriber<T>.map(mapper: (T) -> R): BodySubscriber<R> =
-        BodySubscribers.mapping(this, mapper)
 }
 
-fun <T> HttpClient.sendMono(
-    request: HttpRequest,
-    responseBodyHandler: BodyHandler<T>,
-): Mono<HttpResponse<T>> = Mono.create { monoSink ->
-    sendAsync(request) { responseInfo ->
-        val bodySubscriber = responseBodyHandler.apply(responseInfo)
-        object : BodySubscriber<T> by bodySubscriber {
-            override fun onSubscribe(subscription: Flow.Subscription) {
-                monoSink.onCancel { subscription.cancel() }
-                bodySubscriber.onSubscribe(subscription)
-            }
-        }
-    }.whenComplete { response, error ->
-        if (error == null) {
-            monoSink.success(response)
-        } else {
-            var unpackedError = error
-            while (unpackedError is CompletionException) {
-                unpackedError = unpackedError.cause
-            }
-            monoSink.error(unpackedError)
-        }
-    }
-}
-
-class DigestBodySubscriber<T>(
-    private val bodySubscriber: BodySubscriber<T>,
+class DigestVerifyingFlux(
+    source: Flux<ByteBuf>,
     private val messageDigest: MessageDigest,
     private val expectedDigest: ByteArray,
     private val expectedSize: Long,
-) : BodySubscriber<T>, Flow.Subscription {
-    private lateinit var subscription: Flow.Subscription
+) : FluxOperator<ByteBuf, ByteBuf>(source) {
+    override fun subscribe(actual: CoreSubscriber<in ByteBuf>) {
+        source.subscribe(DigestVerifyingSubscriber(actual, messageDigest, expectedDigest, expectedSize))
+    }
+}
+
+class DigestVerifyingSubscriber( // TODO move to inner, rename to .Subscriber?
+    private val subscriber: CoreSubscriber<in ByteBuf>,
+    private val messageDigest: MessageDigest,
+    private val expectedDigest: ByteArray,
+    private val expectedSize: Long,
+) : Subscriber<ByteBuf>, Subscription { // TODO CoreSubscriber
+    private lateinit var subscription: Subscription
     private var actualSize = 0L
     private var done = false
 
-    override fun onSubscribe(subscription: Flow.Subscription) {
+    override fun onSubscribe(subscription: Subscription) {
         this.subscription = subscription
-        bodySubscriber.onSubscribe(this)
+        subscriber.onSubscribe(this)
     }
 
-    override fun onNext(item: MutableList<ByteBuffer>) {
+    override fun onNext(byteBuf: ByteBuf) {
         if (done) return
-        for (byteBuffer in item) {
-            messageDigest.update(byteBuffer.duplicate())
-            actualSize += byteBuffer.remaining()
-        }
+        messageDigest.update(byteBuf.nioBuffer())
+        actualSize += byteBuf.readableBytes()
         if (actualSize >= expectedSize) {
             if (actualSize > expectedSize) {
                 subscription.cancel()
                 done = true
-                bodySubscriber.onError(sizeMismatchException(expectedSize, actualSize))
+                subscriber.onError(sizeMismatchException(expectedSize, actualSize))
                 return
             }
             val actualDigest = messageDigest.digest()
             if (!expectedDigest.contentEquals(actualDigest)) {
                 subscription.cancel()
                 done = true
-                bodySubscriber.onError(digestMismatchException(expectedDigest, actualDigest))
+                subscriber.onError(digestMismatchException(expectedDigest, actualDigest))
                 return
             }
         }
-        bodySubscriber.onNext(item)
+        subscriber.onNext(byteBuf)
     }
 
-    override fun onError(throwable: Throwable?) {
+    override fun onError(error: Throwable?) {
         if (done) return else done = true
-        bodySubscriber.onError(throwable)
+        subscriber.onError(error)
     }
 
     override fun onComplete() {
         if (done) return else done = true
         if (actualSize < expectedSize) {
-            bodySubscriber.onError(sizeMismatchException(expectedSize, actualSize))
+            subscriber.onError(sizeMismatchException(expectedSize, actualSize))
         } else {
-            bodySubscriber.onComplete()
+            subscriber.onComplete()
         }
     }
 
     override fun request(n: Long) = subscription.request(n)
 
     override fun cancel() = subscription.cancel()
-
-    override fun getBody(): CompletionStage<T> = bodySubscriber.body
 }
 
 private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: ByteArray): DigestException {
@@ -537,19 +538,19 @@ private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: Byt
 private fun sizeMismatchException(expectedSize: Long, actualSize: Long) =
     DigestException("expected and actual size do not match (expected: $expectedSize, actual: $actualSize)")
 
-fun <T> BodySubscriber<T>.verify(digest: OciDigest, size: Long) =
-    DigestBodySubscriber(this, digest.algorithm.createMessageDigest(), digest.hash, size)
+fun Flux<ByteBuf>.verify(digest: OciDigest, size: Long) =
+    DigestVerifyingFlux(this, digest.algorithm.createMessageDigest(), digest.hash, size)
 
 class HttpResponseException(
     val statusCode: Int,
-    val headers: Map<String, List<String>>,
+    val headers: HttpHeaders,
     val body: String,
 ) : RuntimeException("unexpected http response", null, false, false) {
     override val message get() = super.message + ": " + responseToString()
 
     private fun responseToString() = buildString {
         append(statusCode).append('\n')
-        for ((key, value) in headers) {
+        for ((key, value) in headers.iteratorCharSequence()) {
             append(key).append(": ").append(value).append('\n')
         }
         append(body)

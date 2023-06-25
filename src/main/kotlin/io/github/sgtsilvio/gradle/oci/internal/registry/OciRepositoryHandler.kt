@@ -12,20 +12,17 @@ import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.mapping.*
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
-import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.HttpMethod
 import org.apache.commons.codec.binary.Hex
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.reactivestreams.Publisher
-import reactor.adapter.JdkFlowAdapter
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.netty.ByteBufFlux
 import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
 import java.net.URI
 import java.net.URISyntaxException
-import java.net.http.HttpResponse
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -285,18 +282,16 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         size: Long,
         credentials: OciRegistryApi.Credentials?,
         response: HttpServerResponse,
-    ): Publisher<Void> {
-        return response.send(componentRegistry.registryApi.pullBlob(
+    ): Publisher<Void> = response.send(
+        componentRegistry.registryApi.pullBlob(
             registryUri.toString(),
             imageName,
             digest,
             size,
             credentials,
-            HttpResponse.BodySubscribers.ofPublisher(),
-        ).flatMapMany { byteBufferListPublisher -> JdkFlowAdapter.flowPublisherToFlux(byteBufferListPublisher) }
-            .flatMap { byteBufferList -> Flux.fromIterable(byteBufferList) }
-            .map { byteBuffer -> Unpooled.wrappedBuffer(byteBuffer) })
-    }
+            ByteBufFlux::retain,
+        )
+    )
 
     private fun headLayer(
         registryUri: URI,

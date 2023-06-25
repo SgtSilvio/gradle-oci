@@ -41,6 +41,10 @@ dependencies {
     implementation(libs.commons.io)
     implementation(libs.json)
     implementation(libs.reactor.netty)
+    implementation(platform(libs.netty.bom))
+    runtimeOnly(variantOf(libs.netty.resovler.dns.native.macos) {
+        classifier("osx-aarch_64")
+    })
 }
 
 gradlePlugin {

@@ -5,7 +5,8 @@ commons-compress = "1.23.0"
 commons-io = "2.11.0"
 json = "20230227"
 junit-jupiter = "5.9.2"
-reactor-netty = "1.1.6"
+netty = "4.1.94.Final"
+reactor-netty = "1.1.8"
 
 [libraries]
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
@@ -13,6 +14,8 @@ commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 json = { module = "org.json:json", version.ref = "json" }
+netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
+netty-resovler-dns-native-macos = { module = "io.netty:netty-resolver-dns-native-macos", version.ref = "netty" }
 reactor-netty = { module = "io.projectreactor.netty:reactor-netty", version.ref = "reactor-netty" }
 
 [plugins]
