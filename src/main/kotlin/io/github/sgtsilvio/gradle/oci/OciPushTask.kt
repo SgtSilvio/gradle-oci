@@ -302,6 +302,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
                 connection.addHandlerFirst("progress", object : ChannelOutboundHandlerAdapter() {
                     private var progress = 0L
                     private var lastFormattedProgress: String? = null
+                    private val formattedTotal = formatBytesString(size)
 
                     override fun write(ctx: ChannelHandlerContext, msg: Any, promise: ChannelPromise) {
                         val newPromise = if (msg is ByteBuf) {
@@ -311,7 +312,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
                                 val formattedProgress = formatBytesString(progress)
                                 if (formattedProgress != lastFormattedProgress) {
                                     lastFormattedProgress = formattedProgress
-                                    progressLogger.progress("$progressPrefix > " + formattedProgress + "/" + formatBytesString(size))
+                                    progressLogger.progress("$progressPrefix > $formattedProgress/$formattedTotal")
                                 }
                             }
                         } else promise
