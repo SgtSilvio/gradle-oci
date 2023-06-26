@@ -12,7 +12,6 @@ import io.netty.buffer.ByteBuf
 import io.netty.handler.codec.http.HttpHeaders
 import org.apache.commons.codec.binary.Hex
 import org.reactivestreams.Publisher
-import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
 import reactor.core.publisher.Flux
@@ -467,64 +466,66 @@ class DigestVerifyingFlux(
     private val expectedSize: Long,
 ) : FluxOperator<ByteBuf, ByteBuf>(source) {
     override fun subscribe(actual: CoreSubscriber<in ByteBuf>) {
-        source.subscribe(DigestVerifyingSubscriber(actual, messageDigest, expectedDigest, expectedSize))
-    }
-}
-
-class DigestVerifyingSubscriber( // TODO move to inner, rename to .Subscriber?
-    private val subscriber: CoreSubscriber<in ByteBuf>,
-    private val messageDigest: MessageDigest,
-    private val expectedDigest: ByteArray,
-    private val expectedSize: Long,
-) : Subscriber<ByteBuf>, Subscription { // TODO CoreSubscriber
-    private lateinit var subscription: Subscription
-    private var actualSize = 0L
-    private var done = false
-
-    override fun onSubscribe(subscription: Subscription) {
-        this.subscription = subscription
-        subscriber.onSubscribe(this)
+        source.subscribe(Subscriber(actual, messageDigest, expectedDigest, expectedSize))
     }
 
-    override fun onNext(byteBuf: ByteBuf) {
-        if (done) return
-        messageDigest.update(byteBuf.nioBuffer())
-        actualSize += byteBuf.readableBytes()
-        if (actualSize >= expectedSize) {
-            if (actualSize > expectedSize) {
-                subscription.cancel()
-                done = true
+    private class Subscriber(
+        private val subscriber: CoreSubscriber<in ByteBuf>,
+        private val messageDigest: MessageDigest,
+        private val expectedDigest: ByteArray,
+        private val expectedSize: Long,
+    ) : CoreSubscriber<ByteBuf>, Subscription {
+        private lateinit var subscription: Subscription
+        private var actualSize = 0L
+        private var done = false
+
+        override fun onSubscribe(subscription: Subscription) {
+            this.subscription = subscription
+            subscriber.onSubscribe(this)
+        }
+
+        override fun onNext(byteBuf: ByteBuf) {
+            if (done) return
+            messageDigest.update(byteBuf.nioBuffer())
+            actualSize += byteBuf.readableBytes()
+            if (actualSize >= expectedSize) {
+                if (actualSize > expectedSize) {
+                    subscription.cancel()
+                    done = true
+                    subscriber.onError(sizeMismatchException(expectedSize, actualSize))
+                    return
+                }
+                val actualDigest = messageDigest.digest()
+                if (!expectedDigest.contentEquals(actualDigest)) {
+                    subscription.cancel()
+                    done = true
+                    subscriber.onError(digestMismatchException(expectedDigest, actualDigest))
+                    return
+                }
+            }
+            subscriber.onNext(byteBuf)
+        }
+
+        override fun onError(error: Throwable?) {
+            if (done) return else done = true
+            subscriber.onError(error)
+        }
+
+        override fun onComplete() {
+            if (done) return else done = true
+            if (actualSize < expectedSize) {
                 subscriber.onError(sizeMismatchException(expectedSize, actualSize))
-                return
-            }
-            val actualDigest = messageDigest.digest()
-            if (!expectedDigest.contentEquals(actualDigest)) {
-                subscription.cancel()
-                done = true
-                subscriber.onError(digestMismatchException(expectedDigest, actualDigest))
-                return
+            } else {
+                subscriber.onComplete()
             }
         }
-        subscriber.onNext(byteBuf)
+
+        override fun currentContext() = subscriber.currentContext()
+
+        override fun request(n: Long) = subscription.request(n)
+
+        override fun cancel() = subscription.cancel()
     }
-
-    override fun onError(error: Throwable?) {
-        if (done) return else done = true
-        subscriber.onError(error)
-    }
-
-    override fun onComplete() {
-        if (done) return else done = true
-        if (actualSize < expectedSize) {
-            subscriber.onError(sizeMismatchException(expectedSize, actualSize))
-        } else {
-            subscriber.onComplete()
-        }
-    }
-
-    override fun request(n: Long) = subscription.request(n)
-
-    override fun cancel() = subscription.cancel()
 }
 
 private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: ByteArray): DigestException {
