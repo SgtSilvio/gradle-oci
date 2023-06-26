@@ -102,8 +102,8 @@ class OciRegistryApi {
         val manifestBytes = manifest.data
         val actualDigest = manifestBytes.calculateOciDigest(digest.algorithm)
         when {
-            digest != actualDigest -> sink.error(digestMismatchException(digest.hash, actualDigest.hash))
             size != manifestBytes.size.toLong() -> sink.error(sizeMismatchException(size, manifestBytes.size.toLong()))
+            digest != actualDigest -> sink.error(digestMismatchException(digest.hash, actualDigest.hash))
             else -> sink.next(manifest)
         }
     }
@@ -459,6 +459,9 @@ class OciRegistryApi {
         }
 }
 
+fun Flux<ByteBuf>.verify(digest: OciDigest, size: Long) =
+    DigestVerifyingFlux(this, digest.algorithm.createMessageDigest(), digest.hash, size)
+
 class DigestVerifyingFlux(
     source: Flux<ByteBuf>,
     private val messageDigest: MessageDigest,
@@ -536,9 +539,6 @@ private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: Byt
 
 private fun sizeMismatchException(expectedSize: Long, actualSize: Long) =
     DigestException("expected and actual size do not match (expected: $expectedSize, actual: $actualSize)")
-
-fun Flux<ByteBuf>.verify(digest: OciDigest, size: Long) =
-    DigestVerifyingFlux(this, digest.algorithm.createMessageDigest(), digest.hash, size)
 
 class HttpResponseException(
     val statusCode: Int,
