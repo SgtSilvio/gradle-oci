@@ -1,5 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
+import io.github.sgtsilvio.gradle.oci.OciLayerTask
+import io.github.sgtsilvio.gradle.oci.OciPushTask
+import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
@@ -13,6 +16,10 @@ import org.gradle.api.tasks.testing.Test
  * @author Silvio Giebl
  */
 interface OciExtension {
+    val layerTaskClass get() = OciLayerTask::class
+    val pushTaskClass get() = OciPushTask::class
+    val registryDataTaskClass get() = OciRegistryDataTask::class
+
     val registries: OciRegistries
     val imageMapping: OciImageMapping
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
