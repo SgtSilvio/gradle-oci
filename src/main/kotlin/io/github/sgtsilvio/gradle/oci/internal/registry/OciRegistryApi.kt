@@ -22,16 +22,15 @@ import reactor.netty.ByteBufMono
 import reactor.netty.NettyOutbound
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.client.HttpClientResponse
-import reactor.netty.resources.ConnectionProvider
+import reactor.netty.http.client.PrematureCloseException
+import reactor.util.retry.Retry
+import reactor.util.retry.RetrySpec
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.security.DigestException
 import java.security.MessageDigest
-import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
-
-val connectionProvider = ConnectionProvider.builder("custom").maxConnections(100).maxIdleTime(Duration.ofSeconds(2)).build()
 
 /**
  * @author Silvio Giebl
@@ -39,21 +38,7 @@ val connectionProvider = ConnectionProvider.builder("custom").maxConnections(100
 class OciRegistryApi {
 
     private val httpClient: HttpClient =
-        HttpClient.create(
-//            ConnectionProvider.builder("custom").maxIdleTime(Duration.ofSeconds(5000)).build()
-            connectionProvider
-        )
-            .followRedirect(true)
-//            .observe { connection, newState ->
-//                if (newState == ConnectionObserver.State.ACQUIRED)
-//                    println("$connection -> REUSE")
-//                if (newState == ConnectionObserver.State.CONNECTED)
-//                    println("$connection -> NEW")
-//                if (newState == ConnectionObserver.State.RELEASED)
-//                    println("$connection -> SAFE")
-//                if (newState == ConnectionObserver.State.DISCONNECTING)
-//                    println("$connection -> FAIL")
-//            }
+        HttpClient.create().followRedirect(true)
     private val tokenCache: Cache<TokenCacheKey, String> =
         Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build()
 
@@ -380,14 +365,14 @@ class OciRegistryApi {
     ): Flux<T> {
         return httpClient.headers { headers ->
             getAuthorization(registry, imageName, credentials)?.let { headers["authorization"] = it }
-        }.requestAction().response(responseAction).onErrorResume { error ->
+        }.requestAction().response(responseAction).retryWhen(RETRY_SPEC).onErrorResume { error ->
             when {
                 error !is HttpResponseException -> Mono.error(error)
                 error.statusCode != 401 -> Mono.error(error)
                 else -> tryAuthorize(error.headers, registry, imageName, credentials, permission)?.flatMapMany { authorization ->
                     httpClient.headers { headers ->
                         headers["authorization"] = authorization
-                    }.requestAction().response(responseAction)
+                    }.requestAction().response(responseAction).retryWhen(RETRY_SPEC)
                 } ?: Mono.error(error)
             }
         }
@@ -414,7 +399,7 @@ class OciRegistryApi {
                 200 -> body.asString(StandardCharsets.UTF_8)
                 else -> createError(response, body)
             }
-        }.map { response ->
+        }.retryWhen(RETRY_SPEC).map { response ->
             val authorization = "Bearer " + jsonObject(response).run {
                 if (hasKey("token")) getString("token") else getString("access_token")
             }
@@ -458,6 +443,8 @@ class OciRegistryApi {
             Mono.error(HttpResponseException(response.status().code(), response.responseHeaders(), errorBody))
         }
 }
+
+private val RETRY_SPEC: RetrySpec = Retry.max(3).filter { error -> error is PrematureCloseException }
 
 fun Flux<ByteBuf>.verify(digest: OciDigest, size: Long) =
     DigestVerifyingFlux(this, digest.algorithm.createMessageDigest(), digest.hash, size)
