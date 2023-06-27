@@ -13,6 +13,7 @@ import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
@@ -77,7 +78,7 @@ abstract class OciPushTask @Inject constructor(
         )
 
         val componentWithLayersList = findComponents(imageFiles)
-        val allLayers = collectLayers(componentWithLayersList)
+        val allLayers = collectLayers(componentWithLayersList, logger)
         val rootCapabilities = rootCapabilities.get()
         val componentResolver = OciComponentResolver()
         for ((component, _) in componentWithLayersList) {
@@ -248,14 +249,17 @@ internal fun findComponents(ociFiles: Iterable<File>): List<OciComponentWithLaye
 
 internal data class OciComponentWithLayers(val component: OciComponent, val digestToLayer: Map<OciDigest, File>)
 
-internal fun collectLayers(componentWithLayersList: List<OciComponentWithLayers>): Map<OciDigest, File> {
+internal fun collectLayers(
+    componentWithLayersList: List<OciComponentWithLayers>,
+    logger: Logger,
+): Map<OciDigest, File> {
     val allDigestToLayer = hashMapOf<OciDigest, File>()
     for ((_, digestToLayer) in componentWithLayersList) {
         for ((digest, layer) in digestToLayer) {
             val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
             if ((prevLayer != null) && (layer != prevLayer)) {
                 if (FileUtils.contentEquals(prevLayer, layer)) {
-//                    logger.warn("the same layer ($digest) should not be provided by multiple components") // TODO logger
+                    logger.warn("the same layer ($digest) should not be provided by multiple components")
                 } else {
                     throw IllegalStateException("hash collision for digest $digest: expected file contents of $prevLayer and $layer to be the same")
                 }
@@ -294,7 +298,6 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
             imageName,
             digest,
             sourceImageName,
-//            null,
             context.credentials,
             size,
         ) {
