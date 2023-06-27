@@ -88,8 +88,9 @@ abstract class OciRegistriesImpl @Inject constructor(
 
     private fun startRepository() {
         try {
+            val port = repositoryPort.get()
             HttpServer.create()
-                .bindAddress { InetSocketAddress("localhost", repositoryPort.get()) }
+                .bindAddress { InetSocketAddress("localhost", port) }
                 .httpRequestDecoder { it.maxHeaderSize(1_048_576) }
                 .handle(OciRepositoryHandler(OciComponentRegistry(OciRegistryApi())))
                 .bindNow()
