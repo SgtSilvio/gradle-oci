@@ -1,0 +1,117 @@
+# Metadata for Gradle Projects
+
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/com.github.sgtsilvio.gradle.oci?color=brightgreen&style=for-the-badge)](https://plugins.gradle.org/plugin/com.github.sgtsilvio.gradle.oci)
+[![GitHub](https://img.shields.io/github/license/sgtsilvio/gradle-oci?color=brightgreen&style=for-the-badge)](LICENSE)
+[![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/sgtsilvio/gradle-oci/check.yml?branch=master&style=for-the-badge)](https://github.com/SgtSilvio/gradle-oci/actions/workflows/check.yml?query=branch%3Amaster)
+
+Gradle plugin to ease producing (multi-arch) OCI images without requiring external tools.
+
+## How to Use
+
+The following is an example of a basic hello world Java application that is bundled as an OCI image and then executed as a Testcontainer in a JUnit test.
+
+`settings.gradle.kts`
+
+```kotlin
+rootProject.name = "oci-demo"
+```
+
+`build.gradle.kts`
+
+```kotlin
+plugins {
+    java
+    id("io.github.sgtsilvio.gradle.oci") version "0.1.0"
+}
+
+group = "org.example"
+version = "1.0.0"
+
+tasks.jar {
+    manifest.attributes("Main-Class" to "org.example.oci.demo.Main")
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
+    testImplementation("org.testcontainers:testcontainers:1.18.3")
+    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+oci {
+    registries {
+        dockerHub {
+            credentials.set(providers.credentials(PasswordCredentials::class, "dockerHub"))
+        }
+    }
+    imageDefinitions.register("main") {
+        allPlatforms {
+            parentImages {
+                add("library:eclipse-temurin:17.0.7_7-jre-jammy")
+            }
+            config {
+                entryPoint.set(listOf("java", "-jar", "app.jar"))
+            }
+            layers {
+                layer("jar") {
+                    contents {
+                        from(tasks.jar)
+                        rename(".*", "app.jar")
+                    }
+                }
+            }
+        }
+    }
+    imageDependencies.forTest(tasks.test) {
+        default(project)
+    }
+}
+```
+
+`src/main/java/org/example/oci/demo/Main.java`
+
+```java
+package org.example.oci.demo;
+
+public class Main {
+    public static void main(final String[] args) {
+        System.out.println("Hello world!");
+        System.out.println(System.getProperty("java.version"));
+    }
+}
+```
+
+`src/test/java/org/example/oci/demo/ImageTest.java`
+
+```java
+package org.example.oci.demo;
+
+import io.github.sgtsilvio.gradle.oci.junit.jupiter.OciImages;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.hivemq.HiveMQContainer;
+
+public class ImageTest {
+
+    @Test
+    void test() throws InterruptedException {
+        final GenericContainer<?> container = new GenericContainer(OciImages.getImageName("example/oci-demo:1.0.0"));
+        container.withLogConsumer(outputFrame -> System.out.println(outputFrame.getUtf8StringWithoutLineEnding()));
+        container.start();
+        Thread.sleep(100);
+        container.stop();
+    }
+}
+```
+
+## Requirements
+
+[//]: # (TODO)
+- Gradle X.Y or higher
