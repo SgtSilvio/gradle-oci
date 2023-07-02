@@ -53,6 +53,7 @@ interface OciImageDependencies {
     operator fun <D : ModuleDependency> invoke(dependencyProvider: Provider<out D>, action: Action<in D>) =
         add(dependencyProvider, action)
 
+
     operator fun invoke(dependencyNotation: CharSequence) = add(dependencyNotation)
 
     operator fun invoke(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =

@@ -21,15 +21,16 @@ import javax.inject.Inject
 abstract class OciImageDependenciesContainerImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
-    providerFactory: ProviderFactory,
+    private val providerFactory: ProviderFactory,
     private val configurationContainer: ConfigurationContainer,
 ) : OciImageDependenciesContainer {
 
     final override fun getName() = name
 
     private val scopeToDependencies = mutableMapOf<String, OciTaggableImageDependenciesImpl>()
-    final override val configurations: Provider<List<Configuration>> =
-        providerFactory.provider { scopeToDependencies.values.map { it.configuration } }
+    final override val configurations: Provider<List<Configuration>> = providerFactory.provider {
+        scopeToDependencies.values.map { it.configuration }
+    }
     final override val default = scope("")
 
     final override fun scope(scope: String) = scopeToDependencies.getOrPut(scope) {
@@ -49,4 +50,9 @@ abstract class OciImageDependenciesContainerImpl @Inject constructor(
         }
 
     private fun createConfigurationName(scope: String) = "$name${scope.replaceFirstChar(Char::uppercaseChar)}OciImages"
+
+    final override fun tag(imageReference: String) =
+        OciTaggableImageDependenciesImpl.TagImpl(providerFactory.provider { imageReference })
+
+    final override fun tag(imageReference: Provider<String>) = OciTaggableImageDependenciesImpl.TagImpl(imageReference)
 }
