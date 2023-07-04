@@ -30,6 +30,8 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
 
     class TagImpl(override val imageReference: Provider<String>) : Tag
 
+    // add tagged dependency
+
     private fun addTagged(tag: Tag, parentImageConfiguration: Action<in OciImageDependencies>) {
         val configurationName = configuration.name.removeSuffix("OciImages") // TODO constant
         val counter = counter++
@@ -52,32 +54,33 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         // TODO resolve only parent, don't add tag component to resolver, use resolved parent for metadata generation, only use imageReference from tag component
     }
 
-    override fun add(dependency: ModuleDependency, tag: Tag) = addTagged(tag) { add(dependency) }
+    final override fun add(dependency: ModuleDependency, tag: Tag) = addTagged(tag) { add(dependency) }
 
-    override fun <D : ModuleDependency> add(dependency: D, tag: Tag, action: Action<in D>) =
+    final override fun <D : ModuleDependency> add(dependency: D, tag: Tag, action: Action<in D>) =
         addTagged(tag) { add(dependency, action) }
 
-    override fun add(dependencyProvider: Provider<out ModuleDependency>, tag: Tag) =
+    final override fun add(dependencyProvider: Provider<out ModuleDependency>, tag: Tag) =
         addTagged(tag) { add(dependencyProvider) }
 
-    override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, tag: Tag, action: Action<in D>) =
+    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, tag: Tag, action: Action<in D>) =
         addTagged(tag) { add(dependencyProvider, action) }
 
+    // add tagged dependency converted from a different notation
 
-    override fun add(dependencyNotation: CharSequence, tag: Tag) = add(createDependency(dependencyNotation), tag)
+    final override fun add(dependencyNotation: CharSequence, tag: Tag) = add(createDependency(dependencyNotation), tag)
 
-    override fun add(dependencyNotation: CharSequence, tag: Tag, action: Action<in ExternalModuleDependency>) =
+    final override fun add(dependencyNotation: CharSequence, tag: Tag, action: Action<in ExternalModuleDependency>) =
         add(createDependency(dependencyNotation), tag, action)
 
-    override fun add(project: Project, tag: Tag) = add(createDependency(project), tag)
+    final override fun add(project: Project, tag: Tag) = add(createDependency(project), tag)
 
-    override fun add(project: Project, tag: Tag, action: Action<in ProjectDependency>) =
+    final override fun add(project: Project, tag: Tag, action: Action<in ProjectDependency>) =
         add(createDependency(project), tag, action)
 
-    override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>, tag: Tag) =
+    final override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>, tag: Tag) =
         add(dependencyProvider.asProvider(), tag)
 
-    override fun add(
+    final override fun add(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         tag: Tag,
         action: Action<in ExternalModuleDependency>,

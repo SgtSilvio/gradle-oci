@@ -15,6 +15,8 @@ interface OciImageDependencies {
     val configuration: Configuration
     val set: DomainObjectSet<ModuleDependency>
 
+    // add dependency
+
     fun add(dependency: ModuleDependency)
 
     fun <D : ModuleDependency> add(dependency: D, action: Action<in D>)
@@ -23,6 +25,7 @@ interface OciImageDependencies {
 
     fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>)
 
+    // add dependency converted from a different notation
 
     fun add(dependencyNotation: CharSequence)
 
@@ -39,11 +42,13 @@ interface OciImageDependencies {
         action: Action<in ExternalModuleDependency>,
     )
 
+    // add constraint
 
     fun constraint(dependencyConstraint: DependencyConstraint)
 
     fun constraint(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>)
 
+    // add constraint converted from a different notation
 
     fun constraint(dependencyConstraintNotation: CharSequence)
 
@@ -67,8 +72,7 @@ interface OciImageDependencies {
         action: Action<in DependencyConstraint>,
     )
 
-
-    // from here: dsl syntactic sugar
+    // dsl syntactic sugar for adding dependency
 
     operator fun invoke(dependency: ModuleDependency) = add(dependency)
 
@@ -79,6 +83,7 @@ interface OciImageDependencies {
     operator fun <D : ModuleDependency> invoke(dependencyProvider: Provider<out D>, action: Action<in D>) =
         add(dependencyProvider, action)
 
+    // dsl syntactic sugar for adding dependency converted from a different notation
 
     operator fun invoke(dependencyNotation: CharSequence) = add(dependencyNotation)
 

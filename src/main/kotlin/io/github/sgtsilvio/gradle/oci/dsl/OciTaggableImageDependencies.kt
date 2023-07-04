@@ -18,6 +18,8 @@ interface OciTaggableImageDependencies : OciImageDependencies {
         val imageReference: Provider<String>
     }
 
+    // add tagged dependency
+
     fun add(dependency: ModuleDependency, tag: Tag)
 
     fun <D : ModuleDependency> add(dependency: D, tag: Tag, action: Action<in D>)
@@ -26,6 +28,7 @@ interface OciTaggableImageDependencies : OciImageDependencies {
 
     fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, tag: Tag, action: Action<in D>)
 
+    // add tagged dependency converted from a different notation
 
     fun add(dependencyNotation: CharSequence, tag: Tag)
 
@@ -43,8 +46,7 @@ interface OciTaggableImageDependencies : OciImageDependencies {
         action: Action<in ExternalModuleDependency>,
     )
 
-
-    // from here: dsl syntactic sugar
+    // dsl syntactic sugar for adding tagged dependency
 
     operator fun invoke(dependency: ModuleDependency, tag: Tag) = add(dependency, tag)
 
@@ -56,6 +58,7 @@ interface OciTaggableImageDependencies : OciImageDependencies {
     operator fun <D : ModuleDependency> invoke(dependencyProvider: Provider<out D>, tag: Tag, action: Action<in D>) =
         add(dependencyProvider, tag, action)
 
+    // dsl syntactic sugar for adding tagged dependency converted from a different notation
 
     operator fun invoke(dependencyNotation: CharSequence, tag: Tag) = add(dependencyNotation, tag)
 
