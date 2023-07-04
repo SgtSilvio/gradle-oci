@@ -23,22 +23,26 @@ import reactor.netty.NettyOutbound
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.client.HttpClientResponse
 import reactor.netty.http.client.PrematureCloseException
+import reactor.netty.resources.ConnectionProvider
 import reactor.util.retry.Retry
 import reactor.util.retry.RetrySpec
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.security.DigestException
 import java.security.MessageDigest
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
+
+val connectionProvider =
+    ConnectionProvider.builder("registry-api").maxConnections(100).maxIdleTime(Duration.ofSeconds(3)).lifo().build()
 
 /**
  * @author Silvio Giebl
  */
 class OciRegistryApi {
 
-    private val httpClient: HttpClient =
-        HttpClient.create().followRedirect(true)
+    private val httpClient = HttpClient.create(connectionProvider).followRedirect(true)
     private val tokenCache: Cache<TokenCacheKey, String> =
         Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build()
 
