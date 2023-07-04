@@ -64,15 +64,15 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         addTagged(tag) { add(dependencyProvider, action) }
 
 
-    override fun add(dependencyNotation: CharSequence, tag: Tag) = add(module(dependencyNotation), tag)
+    override fun add(dependencyNotation: CharSequence, tag: Tag) = add(createDependency(dependencyNotation), tag)
 
     override fun add(dependencyNotation: CharSequence, tag: Tag, action: Action<in ExternalModuleDependency>) =
-        add(module(dependencyNotation), tag, action)
+        add(createDependency(dependencyNotation), tag, action)
 
-    override fun add(project: Project, tag: Tag) = add(project(project), tag)
+    override fun add(project: Project, tag: Tag) = add(createDependency(project), tag)
 
     override fun add(project: Project, tag: Tag, action: Action<in ProjectDependency>) =
-        add(project(project), tag, action)
+        add(createDependency(project), tag, action)
 
     override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>, tag: Tag) =
         add(dependencyProvider.asProvider(), tag)

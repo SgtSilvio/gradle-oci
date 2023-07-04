@@ -47,19 +47,20 @@ abstract class OciImageDependenciesImpl @Inject constructor(
     @Suppress("UNCHECKED_CAST")
     private fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
 
-    protected fun module(dependencyNotation: CharSequence) =
+    protected fun createDependency(dependencyNotation: CharSequence) =
         dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
 
-    protected fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency
+    protected fun createDependency(project: Project) = dependencyHandler.create(project) as ProjectDependency
 
-    final override fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
+    final override fun add(dependencyNotation: CharSequence) = add(createDependency(dependencyNotation))
 
     final override fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
-        add(module(dependencyNotation), action)
+        add(createDependency(dependencyNotation), action)
 
-    final override fun add(project: Project) = add(project(project))
+    final override fun add(project: Project) = add(createDependency(project))
 
-    final override fun add(project: Project, action: Action<in ProjectDependency>) = add(project(project), action)
+    final override fun add(project: Project, action: Action<in ProjectDependency>) =
+        add(createDependency(project), action)
 
     final override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
         add(dependencyProvider.asProvider())
@@ -68,4 +69,54 @@ abstract class OciImageDependenciesImpl @Inject constructor(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in ExternalModuleDependency>
     ) = add(dependencyProvider.asProvider(), action)
+
+
+    override fun constraint(dependencyConstraint: DependencyConstraint) {
+        configuration.dependencyConstraints.add(dependencyConstraint)
+    }
+
+    override fun constraint(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>) {
+        action.execute(dependencyConstraint)
+        configuration.dependencyConstraints.add(dependencyConstraint)
+    }
+
+    private fun createDependencyConstraint(dependencyNotation: CharSequence): DependencyConstraint =
+        dependencyHandler.constraints.create(dependencyNotation)
+
+    private fun createDependencyConstraint(project: Project): DependencyConstraint =
+        dependencyHandler.constraints.create(project)
+
+    private fun createDependencyConstraint(dependency: MinimalExternalModuleDependency): DependencyConstraint =
+        dependencyHandler.constraints.create(dependency)
+
+    override fun constraint(dependencyConstraintNotation: CharSequence) =
+        constraint(createDependencyConstraint(dependencyConstraintNotation))
+
+    override fun constraint(dependencyConstraintNotation: CharSequence, action: Action<in DependencyConstraint>) =
+        constraint(createDependencyConstraint(dependencyConstraintNotation), action)
+
+    override fun constraint(project: Project) = constraint(createDependencyConstraint(project))
+
+    override fun constraint(project: Project, action: Action<in DependencyConstraint>) =
+        constraint(createDependencyConstraint(project), action)
+
+    override fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>) =
+        configuration.dependencyConstraints.addLater(dependencyProvider.map { createDependencyConstraint(it) })
+
+    override fun constraint(
+        dependencyProvider: Provider<out MinimalExternalModuleDependency>,
+        action: Action<in DependencyConstraint>,
+    ) = configuration.dependencyConstraints.addLater(dependencyProvider.map {
+        val dependencyConstraint = createDependencyConstraint(it)
+        action.execute(dependencyConstraint)
+        dependencyConstraint
+    })
+
+    override fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
+        constraint(dependencyProvider.asProvider())
+
+    override fun constraint(
+        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
+        action: Action<in DependencyConstraint>,
+    ) = constraint(dependencyProvider.asProvider(), action)
 }

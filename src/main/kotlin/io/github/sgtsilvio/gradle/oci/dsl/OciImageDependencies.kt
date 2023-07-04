@@ -39,7 +39,33 @@ interface OciImageDependencies {
         action: Action<in ExternalModuleDependency>,
     )
 
-    // TODO constraints
+
+    fun constraint(dependencyConstraint: DependencyConstraint)
+
+    fun constraint(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>)
+
+
+    fun constraint(dependencyConstraintNotation: CharSequence)
+
+    fun constraint(dependencyConstraintNotation: CharSequence, action: Action<in DependencyConstraint>)
+
+    fun constraint(project: Project)
+
+    fun constraint(project: Project, action: Action<in DependencyConstraint>)
+
+    fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>)
+
+    fun constraint(
+        dependencyProvider: Provider<out MinimalExternalModuleDependency>,
+        action: Action<in DependencyConstraint>,
+    )
+
+    fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>)
+
+    fun constraint(
+        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
+        action: Action<in DependencyConstraint>,
+    )
 
 
     // from here: dsl syntactic sugar
