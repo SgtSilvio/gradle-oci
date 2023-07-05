@@ -192,19 +192,19 @@ class OciRegistryApi {
 //        imageName: String,
 //        credentials: Credentials?,
 //        uri: URI,
-//    ): CompletableFuture<Unit> {
+//    ): Mono<Unit> {
 //        return send(
 //            registry,
 //            imageName,
 //            credentials,
 //            DELETE_PERMISSION,
-//            HttpRequest.newBuilder(uri).DELETE(),
-//        ) { responseInfo ->
-//            when (responseInfo.statusCode()) {
-//                204 -> BodySubscribers.discarding()
-//                else -> createErrorBodySubscriber(responseInfo)
+//            { delete().uri(uri) },
+//        ) { response, body ->
+//            when (response.status().code()) {
+//                204 -> body.then(Mono.just(Unit))
+//                else -> createError(response, body.aggregate())
 //            }
-//        }.thenApply {}
+//        }.single()
 //    }
 
     fun pushBlob(
@@ -305,20 +305,20 @@ class OciRegistryApi {
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
-//    ): CompletableFuture<Unit> {
+//    ): Mono<Unit> {
 //        return send(
 //            registry,
 //            imageName,
 //            "blobs/$digest",
 //            credentials,
-//            PUSH_PERMISSION,
-//            HttpRequest.newBuilder().DELETE(),
-//        ) { responseInfo ->
-//            when (responseInfo.statusCode()) {
-//                202 -> BodySubscribers.discarding()
-//                else -> createErrorBodySubscriber(responseInfo)
+//            DELETE_PERMISSION,
+//            { delete() }
+//        ) { response, body ->
+//            when (response.status().code()) {
+//                202 -> body.then(Mono.just(Unit))
+//                else -> createError(response, body.aggregate())
 //            }
-//        }.thenApply {}
+//        }.single()
 //    }
 //
 //    fun deleteManifest(
@@ -326,20 +326,20 @@ class OciRegistryApi {
 //        imageName: String,
 //        reference: String,
 //        credentials: Credentials?,
-//    ): CompletableFuture<Unit> {
+//    ): Mono<Unit> {
 //        return send(
 //            registry,
 //            imageName,
 //            "manifests/$reference",
 //            credentials,
-//            PUSH_PERMISSION,
-//            HttpRequest.newBuilder().DELETE(),
-//        ) { responseInfo ->
-//            when (responseInfo.statusCode()) {
-//                202 -> BodySubscribers.discarding()
-//                else -> createErrorBodySubscriber(responseInfo)
+//            DELETE_PERMISSION,
+//            { delete() },
+//        ) { response, body ->
+//            when (response.status().code()) {
+//                202 -> body.then(Mono.just(Unit))
+//                else -> createError(response, body.aggregate())
 //            }
-//        }.thenApply {}
+//        }.single()
 //    }
 
     private fun <T> send(
