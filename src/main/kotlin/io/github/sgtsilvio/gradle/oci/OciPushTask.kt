@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
 import io.github.sgtsilvio.gradle.oci.component.decodeAsJsonToOciComponent
@@ -8,21 +7,22 @@ import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.netty.buffer.ByteBuf
-import io.netty.channel.*
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelOutboundHandlerAdapter
+import io.netty.channel.ChannelPromise
 import org.apache.commons.io.FileUtils
-import org.gradle.api.DefaultTask
 import org.gradle.api.credentials.PasswordCredentials
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.TaskAction
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.registerIfAbsent
-import org.gradle.kotlin.dsl.setProperty
 import org.gradle.kotlin.dsl.submit
 import org.gradle.work.DisableCachingByDefault
 import org.gradle.workers.WorkAction
@@ -35,7 +35,8 @@ import reactor.netty.NettyOutbound
 import java.io.File
 import java.net.URI
 import java.nio.file.Files
-import java.util.concurrent.*
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
@@ -45,14 +46,7 @@ import javax.inject.Inject
 @DisableCachingByDefault(because = "Pushing to an external registry")
 abstract class OciPushTask @Inject constructor(
     private val workerExecutor: WorkerExecutor,
-) : DefaultTask() {
-
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.NONE)
-    val imageFiles: ConfigurableFileCollection = project.objects.fileCollection()
-
-    @get:Input
-    val rootCapabilities = project.objects.setProperty<Coordinates>()
+) : OciImagesInputTask() {
 
     @get:Input
     val registryUrl = project.objects.property<URI>()
@@ -77,123 +71,127 @@ abstract class OciPushTask @Inject constructor(
             credentials.orNull?.let { OciRegistryApi.Credentials(it.username!!, it.password!!) },
         )
 
-        val componentWithLayersList = findComponents(imageFiles)
-        val allLayers = collectLayers(componentWithLayersList, logger)
-        val rootCapabilities = rootCapabilities.get()
-        val componentResolver = OciComponentResolver()
-        for ((component, _) in componentWithLayersList) {
-            componentResolver.addComponent(component)
-        }
         val blobs = hashMapOf<OciDigest, Blob>()
-        for (rootCapability in rootCapabilities) {
-            val resolvedComponent = componentResolver.resolve(rootCapability)
-            val imageReference = resolvedComponent.component.imageReference
-            val imageName = imageReference.name
-            val layerDigests = hashSetOf<OciDigest>()
-            val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-            val manifestFutures = mutableListOf<CompletableFuture<Unit>>()
-            for (platform in resolvedComponent.platforms) {
-                val resolvedBundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
+        for (imagesInput in imagesList.get()) {
+            val imageFiles = imagesInput.files
+            val rootCapabilities = imagesInput.rootCapabilities.get()
+            val componentWithLayersList = findComponents(imageFiles)
+            val allLayers = collectLayers(componentWithLayersList, logger)
+            val componentResolver = OciComponentResolver()
+            for ((component, _) in componentWithLayersList) {
+                componentResolver.addComponent(component)
+            }
+            for (rootCapability in rootCapabilities) {
+                val resolvedComponent = componentResolver.resolve(rootCapability)
+                val imageReference = resolvedComponent.component.imageReference
+                val imageName = imageReference.name
+                val layerDigests = hashSetOf<OciDigest>()
+                val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
+                val manifestFutures = mutableListOf<CompletableFuture<Unit>>()
+                for (platform in resolvedComponent.platforms) {
+                    val resolvedBundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform)
 
-                val blobFutures = mutableListOf<CompletableFuture<Unit>>()
-                for (resolvedBundle in resolvedBundlesForPlatform) {
-                    for (layer in resolvedBundle.bundle.layers) {
-                        layer.descriptor?.let { (_, digest) ->
-                            if (layerDigests.add(digest)) {
-                                val sourceBlob = blobs[digest]
-                                blobFutures += if (sourceBlob == null) {
-                                    val layerFile = allLayers[digest]!!.toPath()
-                                    val size = Files.size(layerFile)
-                                    val sender: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(layerFile, 0, size) }
-                                    val sourceImageName = resolvedBundle.component.imageReference.name
-                                    val future = CompletableFuture<Unit>()
-                                    blobs[digest] = Blob(digest, size, sender, imageName, sourceImageName, future)
-                                    future
-                                } else if (sourceBlob.imageName == imageName) {
-                                    sourceBlob.future
-                                } else {
-                                    val sourceImageName = sourceBlob.imageName
-                                    val size = sourceBlob.size
-                                    val sender = sourceBlob.sender
-                                    val future = CompletableFuture<Unit>()
-                                    sourceBlob.future.thenRun {
-                                        context.pushService.get().pushBlob(
-                                            context,
-                                            imageName,
-                                            digest,
-                                            sourceImageName,
-                                            size,
-                                            sender,
-                                            future,
-                                        )
+                    val blobFutures = mutableListOf<CompletableFuture<Unit>>()
+                    for (resolvedBundle in resolvedBundlesForPlatform) {
+                        for (layer in resolvedBundle.bundle.layers) {
+                            layer.descriptor?.let { (_, digest) ->
+                                if (layerDigests.add(digest)) {
+                                    val sourceBlob = blobs[digest]
+                                    blobFutures += if (sourceBlob == null) {
+                                        val layerFile = allLayers[digest]!!.toPath()
+                                        val size = Files.size(layerFile)
+                                        val sender: NettyOutbound.() -> Publisher<Void> =
+                                            { sendFileChunked(layerFile, 0, size) }
+                                        val sourceImageName = resolvedBundle.component.imageReference.name
+                                        val future = CompletableFuture<Unit>()
+                                        blobs[digest] = Blob(digest, size, sender, imageName, sourceImageName, future)
+                                        future
+                                    } else if (sourceBlob.imageName == imageName) {
+                                        sourceBlob.future
+                                    } else {
+                                        val sourceImageName = sourceBlob.imageName
+                                        val size = sourceBlob.size
+                                        val sender = sourceBlob.sender
+                                        val future = CompletableFuture<Unit>()
+                                        sourceBlob.future.thenRun {
+                                            context.pushService.get().pushBlob(
+                                                context,
+                                                imageName,
+                                                digest,
+                                                sourceImageName,
+                                                size,
+                                                sender,
+                                                future,
+                                            )
+                                        }
+                                        future
                                     }
-                                    future
                                 }
                             }
                         }
                     }
-                }
-                val bundlesForPlatform = resolvedBundlesForPlatform.map { it.bundle }
-                val config = createConfig(platform, bundlesForPlatform)
-                val configDigest = config.digest
-                val sourceBlob = blobs[configDigest]
-                blobFutures += if (sourceBlob == null) {
-                    val size = config.data.size.toLong()
-                    val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(Mono.just(config.data)) }
-                    val future = CompletableFuture<Unit>()
-                    blobs[configDigest] = Blob(configDigest, size, sender, imageName, imageName, future)
-                    future
-                } else if (sourceBlob.imageName == imageName) {
-                    sourceBlob.future
-                } else {
-                    val sourceImageName = sourceBlob.imageName
-                    val size = sourceBlob.size
-                    val sender = sourceBlob.sender
-                    val future = CompletableFuture<Unit>()
-                    sourceBlob.future.thenRun {
-                        context.pushService.get().pushBlob(
+                    val bundlesForPlatform = resolvedBundlesForPlatform.map { it.bundle }
+                    val config = createConfig(platform, bundlesForPlatform)
+                    val configDigest = config.digest
+                    val sourceBlob = blobs[configDigest]
+                    blobFutures += if (sourceBlob == null) {
+                        val size = config.data.size.toLong()
+                        val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(Mono.just(config.data)) }
+                        val future = CompletableFuture<Unit>()
+                        blobs[configDigest] = Blob(configDigest, size, sender, imageName, imageName, future)
+                        future
+                    } else if (sourceBlob.imageName == imageName) {
+                        sourceBlob.future
+                    } else {
+                        val sourceImageName = sourceBlob.imageName
+                        val size = sourceBlob.size
+                        val sender = sourceBlob.sender
+                        val future = CompletableFuture<Unit>()
+                        sourceBlob.future.thenRun {
+                            context.pushService.get().pushBlob(
+                                context,
+                                imageName,
+                                configDigest,
+                                sourceImageName,
+                                size,
+                                sender,
+                                future,
+                            )
+                        }
+                        future
+                    }
+
+                    val manifest = createManifest(config, bundlesForPlatform)
+                    manifests += Pair(platform, manifest)
+                    val manifestDigest = manifest.digest
+                    val manifestMediaType = manifest.mediaType
+                    val manifestData = manifest.data
+                    val manifestFuture = CompletableFuture<Unit>()
+                    manifestFutures += manifestFuture
+                    CompletableFuture.allOf(*blobFutures.toTypedArray()).thenRun {
+                        context.pushService.get().pushManifest(
                             context,
                             imageName,
-                            configDigest,
-                            sourceImageName,
-                            size,
-                            sender,
-                            future,
+                            manifestDigest.toString(),
+                            manifestMediaType,
+                            manifestData,
+                            manifestFuture,
                         )
                     }
-                    future
                 }
-
-                val manifest = createManifest(config, bundlesForPlatform)
-                manifests += Pair(platform, manifest)
-                val manifestDigest = manifest.digest
-                val manifestMediaType = manifest.mediaType
-                val manifestData = manifest.data
-                val manifestFuture = CompletableFuture<Unit>()
-                manifestFutures += manifestFuture
-                CompletableFuture.allOf(*blobFutures.toTypedArray()).thenRun {
+                val index = createIndex(manifests, resolvedComponent.component)
+                val indexMediaType = index.mediaType
+                val indexData = index.data
+                CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenRun {
                     context.pushService.get().pushManifest(
                         context,
                         imageName,
-                        manifestDigest.toString(),
-                        manifestMediaType,
-                        manifestData,
-                        manifestFuture,
+                        imageReference.tag,
+                        indexMediaType,
+                        indexData,
+                        null,
                     )
                 }
-            }
-            val index = createIndex(manifests, resolvedComponent.component)
-            val indexMediaType = index.mediaType
-            val indexData = index.data
-            CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenRun {
-                context.pushService.get().pushManifest(
-                    context,
-                    imageName,
-                    imageReference.tag,
-                    indexMediaType,
-                    indexData,
-                    null,
-                )
             }
         }
         for (blob in blobs.values.sortedByDescending { it.size }) {

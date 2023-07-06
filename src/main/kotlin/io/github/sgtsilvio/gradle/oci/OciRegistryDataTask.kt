@@ -1,21 +1,15 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.*
-import io.github.sgtsilvio.gradle.oci.mapping.*
+import io.github.sgtsilvio.gradle.oci.component.Coordinates
+import io.github.sgtsilvio.gradle.oci.component.OciComponent
+import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
+import io.github.sgtsilvio.gradle.oci.component.decodeAsJsonToOciComponent
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
-import org.gradle.api.DefaultTask
-import org.gradle.api.NonExtensible
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.Provider
-import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.*
-import org.gradle.kotlin.dsl.listProperty
-import org.gradle.kotlin.dsl.newInstance
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.IOException
 import java.nio.file.FileAlreadyExistsException
@@ -26,46 +20,10 @@ import java.nio.file.StandardOpenOption
 /**
  * @author Silvio Giebl
  */
-abstract class OciRegistryDataTask : DefaultTask() {
-
-    @NonExtensible
-    interface Images {
-
-        @get:InputFiles
-        @get:PathSensitive(PathSensitivity.NONE)
-        val files: ConfigurableFileCollection
-
-        @get:Input
-        val rootCapabilities: SetProperty<Coordinates>
-
-        fun from(configuration: Configuration) {
-            files.from(configuration)
-            val configurationName = configuration.name
-            rootCapabilities.set(configuration.incoming.resolutionResult.rootComponent.map { rootComponent ->
-                val rootVariant = rootComponent.variants.find { it.displayName == configurationName }!!
-                rootComponent.getDependenciesForVariant(rootVariant)
-                    .filter { !it.isConstraint }
-                    .filterIsInstance<ResolvedDependencyResult>() // ignore unresolved, rely on resolution of files
-                    .map { dependencyResult ->
-                        val capability = dependencyResult.resolvedVariant.capabilities.first()
-                        Coordinates(capability.group, capability.name)
-                    }
-            })
-        }
-    }
-
-    @get:Nested
-    val imagesList = project.objects.listProperty<Images>()
+abstract class OciRegistryDataTask : OciImagesInputTask() {
 
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
-
-    inline fun Images(action: Images.() -> Unit) = project.objects.newInstance<Images>().apply(action)
-
-    fun from(configurationsProvider: Provider<List<Configuration>>) =
-        imagesList.addAll(configurationsProvider.map { configurations ->
-            configurations.map { configuration -> Images { from(configuration) } }
-        })
 
     @TaskAction
     protected fun run() {
