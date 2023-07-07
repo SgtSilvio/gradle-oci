@@ -5,7 +5,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
+import java.io.File
 import java.io.IOException
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
@@ -20,10 +20,7 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
 
-    @TaskAction
-    protected fun run() {
-        val (resolvedComponents, digestToLayer) = resolveComponentsAndLayers()
-
+    final override fun run(resolvedComponents: List<ResolvedOciComponent>, digestToLayer: Map<OciDigest, File>) {
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
         val repositoriesDirectory: Path = registryDataDirectory.resolve("repositories")

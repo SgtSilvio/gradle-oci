@@ -57,7 +57,8 @@ abstract class OciImagesInputTask : DefaultTask() {
             }
         })
 
-    protected fun resolveComponentsAndLayers(): Pair<List<ResolvedOciComponent>, Map<OciDigest, File>> {
+    @TaskAction
+    protected fun run() {
         val imagesInputs = imagesInputs.get()
         val resolvedComponents = mutableListOf<ResolvedOciComponent>()
         val allDigestToLayer = hashMapOf<OciDigest, File>()
@@ -82,8 +83,10 @@ abstract class OciImagesInputTask : DefaultTask() {
                 resolvedComponents += componentResolver.resolve(rootCapability)
             }
         }
-        return Pair(resolvedComponents, allDigestToLayer)
+        run(resolvedComponents, allDigestToLayer)
     }
+
+    protected abstract fun run(resolvedComponents: List<ResolvedOciComponent>, digestToLayer: Map<OciDigest, File>)
 
     private fun findComponents(ociFiles: Iterable<File>): List<OciComponentWithLayers> {
         val componentWithLayersList = mutableListOf<OciComponentWithLayers>()

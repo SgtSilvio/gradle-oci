@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
+import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -14,7 +15,6 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.TaskAction
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.registerIfAbsent
@@ -27,6 +27,7 @@ import org.gradle.workers.WorkerExecutor
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 import reactor.netty.NettyOutbound
+import java.io.File
 import java.net.URI
 import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
@@ -55,8 +56,7 @@ abstract class OciPushTask @Inject constructor(
         this.usesService(pushService)
     }
 
-    @TaskAction
-    protected fun run() {
+    final override fun run(resolvedComponents: List<ResolvedOciComponent>, digestToLayer: Map<OciDigest, File>) {
         val context = Context(
             pushService,
             workerExecutor.noIsolation(),
@@ -65,7 +65,6 @@ abstract class OciPushTask @Inject constructor(
             credentials.orNull?.let { OciRegistryApi.Credentials(it.username!!, it.password!!) },
         )
 
-        val (resolvedComponents, digestToLayer) = resolveComponentsAndLayers()
         val blobs = hashMapOf<OciDigest, Blob>()
         for (resolvedComponent in resolvedComponents) {
             val imageReference = resolvedComponent.component.imageReference
