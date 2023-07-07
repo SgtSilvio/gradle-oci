@@ -72,8 +72,7 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
             manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
         }
         manifestRevisionsDirectory.writeDigestLink(indexDigest)
-        val tagDirectory: Path =
-            Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageReference.tag))
+        val tagDirectory: Path = Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageReference.tag))
         tagDirectory.writeTagLink(indexDigest)
         Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
     }

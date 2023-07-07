@@ -48,17 +48,17 @@ interface OciImagesInput {
 abstract class OciImagesInputTask : DefaultTask() {
 
     @get:Nested
-    val imagesList = project.objects.listProperty<OciImagesInput>()
+    val imagesInputs = project.objects.listProperty<OciImagesInput>()
 
     fun from(configurationsProvider: Provider<List<Configuration>>) =
-        imagesList.addAll(configurationsProvider.map { configurations ->
+        imagesInputs.addAll(configurationsProvider.map { configurations ->
             configurations.map { configuration ->
                 project.objects.newInstance<OciImagesInput>().apply { from(configuration) }
             }
         })
 
     protected fun resolveComponentsAndLayers(): Pair<List<ResolvedOciComponent>, Map<OciDigest, File>> {
-        val imagesInputs = imagesList.get()
+        val imagesInputs = imagesInputs.get()
         val resolvedComponents = mutableListOf<ResolvedOciComponent>()
         val allDigestToLayer = hashMapOf<OciDigest, File>()
         for (imagesInput in imagesInputs) {
