@@ -57,7 +57,35 @@ abstract class OciImagesInputTask : DefaultTask() {
             }
         })
 
-    protected fun findComponents(ociFiles: Iterable<File>): List<OciComponentWithLayers> {
+    protected fun resolveComponentsAndLayers(): Pair<List<ResolvedOciComponent>, Map<OciDigest, File>> {
+        val imagesInputs = imagesList.get()
+        val resolvedComponents = mutableListOf<ResolvedOciComponent>()
+        val allDigestToLayer = hashMapOf<OciDigest, File>()
+        for (imagesInput in imagesInputs) {
+            val componentWithLayersList = findComponents(imagesInput.files)
+            val componentResolver = OciComponentResolver()
+            for ((component, digestToLayer) in componentWithLayersList) {
+                componentResolver.addComponent(component)
+
+                for ((digest, layer) in digestToLayer) {
+                    val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
+                    if ((prevLayer != null) && (layer != prevLayer)) {
+                        if (FileUtils.contentEquals(prevLayer, layer)) {
+                            logger.warn("the same layer ($digest) should not be provided by multiple components")
+                        } else {
+                            throw IllegalStateException("hash collision for digest $digest: expected file contents of $prevLayer and $layer to be the same")
+                        }
+                    }
+                }
+            }
+            for (rootCapability in imagesInput.rootCapabilities.get()) {
+                resolvedComponents += componentResolver.resolve(rootCapability)
+            }
+        }
+        return Pair(resolvedComponents, allDigestToLayer)
+    }
+
+    private fun findComponents(ociFiles: Iterable<File>): List<OciComponentWithLayers> {
         val componentWithLayersList = mutableListOf<OciComponentWithLayers>()
         val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
@@ -77,24 +105,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         return componentWithLayersList
     }
 
-    protected data class OciComponentWithLayers(val component: OciComponent, val digestToLayer: Map<OciDigest, File>)
-
-    protected fun collectLayers(componentWithLayersList: List<OciComponentWithLayers>): Map<OciDigest, File> {
-        val allDigestToLayer = hashMapOf<OciDigest, File>()
-        for ((_, digestToLayer) in componentWithLayersList) {
-            for ((digest, layer) in digestToLayer) {
-                val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
-                if ((prevLayer != null) && (layer != prevLayer)) {
-                    if (FileUtils.contentEquals(prevLayer, layer)) {
-                        logger.warn("the same layer ($digest) should not be provided by multiple components")
-                    } else {
-                        throw IllegalStateException("hash collision for digest $digest: expected file contents of $prevLayer and $layer to be the same")
-                    }
-                }
-            }
-        }
-        return allDigestToLayer
-    }
+    private data class OciComponentWithLayers(val component: OciComponent, val digestToLayer: Map<OciDigest, File>)
 }
 
 internal val OciComponent.allLayers // TODO deduplicate

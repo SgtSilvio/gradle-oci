@@ -1,14 +1,11 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
+import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
-import org.apache.commons.io.FileUtils
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
-import java.io.File
 import java.io.IOException
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
@@ -25,84 +22,60 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
 
     @TaskAction
     protected fun run() {
-        val processedImagesList = imagesList.get()
-            .map { images -> ProcessedImages(findComponents(images.files), images.rootCapabilities.get()) }
+        val (resolvedComponents, digestToLayer) = resolveComponentsAndLayers()
+
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
-        writeLayers(registryDataDirectory, processedImagesList)
-        for (processedImages in processedImagesList) {
-            processedImages.writeTo(registryDataDirectory)
-        }
-    }
-
-    private fun writeLayers(registryDataDirectory: Path, processedImagesList: List<ProcessedImages>) {
-        val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
-        val allDigestToLayer = hashMapOf<OciDigest, File>()
-        for ((componentWithLayersList, _) in processedImagesList) {
-            for ((_, digestToLayer) in componentWithLayersList) {
-                for ((digest, layer) in digestToLayer) {
-                    val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
-                    if (prevLayer == null) {
-                        Files.createLink(blobsDirectory.resolveDigestDataFile(digest), layer.toPath())
-                    } else if (layer != prevLayer) {
-                        if (FileUtils.contentEquals(prevLayer, layer)) {
-                            logger.warn("the same layer ($digest) should not be provided by multiple components")
-                        } else {
-                            throw IllegalStateException("hash collision for digest $digest: expected file contents of $prevLayer and $layer to be the same")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun ProcessedImages.writeTo(registryDataDirectory: Path) {
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
         val repositoriesDirectory: Path = registryDataDirectory.resolve("repositories")
-        val componentResolver = OciComponentResolver()
-        for ((component, _) in componentLayersList) {
-            componentResolver.addComponent(component)
+
+        for ((digest, layer) in digestToLayer) {
+            Files.createLink(blobsDirectory.resolveDigestDataFile(digest), layer.toPath())
         }
-        for (rootCapability in rootCapabilities) {
-            val resolvedComponent = componentResolver.resolve(rootCapability)
-            val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-            val blobDigests = hashSetOf<OciDigest>()
-            for (platform in resolvedComponent.platforms) {
-                val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform).map { it.bundle }
-                for (bundle in bundlesForPlatform) {
-                    for (layer in bundle.layers) {
-                        layer.descriptor?.let {
-                            blobDigests += it.digest
-                        }
+
+        for (resolvedComponent in resolvedComponents) {
+            writeImage(resolvedComponent, blobsDirectory, repositoriesDirectory)
+        }
+    }
+
+    private fun writeImage(resolvedComponent: ResolvedOciComponent, blobsDirectory: Path, repositoriesDirectory: Path) {
+        val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
+        val blobDigests = hashSetOf<OciDigest>()
+        for (platform in resolvedComponent.platforms) {
+            val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform).map { it.bundle }
+            for (bundle in bundlesForPlatform) {
+                for (layer in bundle.layers) {
+                    layer.descriptor?.let {
+                        blobDigests += it.digest
                     }
                 }
-                val config = createConfig(platform, bundlesForPlatform)
-                blobsDirectory.writeDigestData(config)
-                blobDigests += config.digest
-                val manifest = createManifest(config, bundlesForPlatform)
-                blobsDirectory.writeDigestData(manifest)
-                manifests += Pair(platform, manifest)
             }
-            val index = createIndex(manifests, resolvedComponent.component)
-            blobsDirectory.writeDigestData(index)
-            val indexDigest = index.digest
-
-            val imageReference = resolvedComponent.component.imageReference
-            val repositoryDirectory: Path = Files.createDirectories(repositoriesDirectory.resolve(imageReference.name))
-            val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
-            for (blobDigest in blobDigests) {
-                layersDirectory.writeDigestLink(blobDigest)
-            }
-            val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_manifests"))
-            val manifestRevisionsDirectory: Path = Files.createDirectories(manifestsDirectory.resolve("revisions"))
-            for ((_, manifestDescriptor) in manifests) {
-                manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
-            }
-            manifestRevisionsDirectory.writeDigestLink(indexDigest)
-            val tagDirectory: Path =
-                Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageReference.tag))
-            tagDirectory.writeTagLink(indexDigest)
-            Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
+            val config = createConfig(platform, bundlesForPlatform)
+            blobsDirectory.writeDigestData(config)
+            blobDigests += config.digest
+            val manifest = createManifest(config, bundlesForPlatform)
+            blobsDirectory.writeDigestData(manifest)
+            manifests += Pair(platform, manifest)
         }
+        val index = createIndex(manifests, resolvedComponent.component)
+        blobsDirectory.writeDigestData(index)
+        val indexDigest = index.digest
+
+        val imageReference = resolvedComponent.component.imageReference
+        val repositoryDirectory: Path = Files.createDirectories(repositoriesDirectory.resolve(imageReference.name))
+        val layersDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_layers"))
+        for (blobDigest in blobDigests) {
+            layersDirectory.writeDigestLink(blobDigest)
+        }
+        val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("_manifests"))
+        val manifestRevisionsDirectory: Path = Files.createDirectories(manifestsDirectory.resolve("revisions"))
+        for ((_, manifestDescriptor) in manifests) {
+            manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
+        }
+        manifestRevisionsDirectory.writeDigestLink(indexDigest)
+        val tagDirectory: Path =
+            Files.createDirectories(manifestsDirectory.resolve("tags").resolve(imageReference.tag))
+        tagDirectory.writeTagLink(indexDigest)
+        Files.createDirectories(tagDirectory.resolve("index")).writeDigestLink(indexDigest)
     }
 
     private fun Path.resolveDigestDataFile(digest: OciDigest): Path {
@@ -141,11 +114,6 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
             }
         }
     }
-
-    private data class ProcessedImages(
-        val componentLayersList: List<OciComponentWithLayers>,
-        val rootCapabilities: Set<Coordinates>,
-    )
 }
 
 private fun Path.ensureEmptyDirectory(): Path {
