@@ -1,9 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
-import io.github.sgtsilvio.gradle.oci.component.decodeAsJsonToOciComponent
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
@@ -36,40 +34,16 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
         }
     }
 
-    private fun findComponents(ociFiles: Iterable<File>): List<ComponentLayers> {
-        val componentAndDigestToLayerPairs = mutableListOf<ComponentLayers>()
-        val iterator = ociFiles.iterator()
-        while (iterator.hasNext()) {
-            val componentFile = iterator.next()
-            val component = componentFile.readText().decodeAsJsonToOciComponent()
-            val digestToLayer = hashMapOf<OciDigest, File>()
-            for (layer in component.allLayers) {
-                layer.descriptor?.let {
-                    val digest = it.digest
-                    if (digest !in digestToLayer) {
-                        if (!iterator.hasNext()) {
-                            throw IllegalStateException("ociFiles are missing layers referenced in components")
-                        }
-                        digestToLayer[digest] = iterator.next()
-                    }
-                }
-            }
-            componentAndDigestToLayerPairs += ComponentLayers(component, digestToLayer)
-        }
-        return componentAndDigestToLayerPairs
-    }
-
     private fun writeLayers(registryDataDirectory: Path, processedImagesList: List<ProcessedImages>) {
         val blobsDirectory: Path = registryDataDirectory.resolve("blobs")
-        val digestToComponentLayer = mutableMapOf<OciDigest, Pair<OciComponent, File>>()
-        for ((componentLayersList, _) in processedImagesList) {
-            for ((component, digestToLayers) in componentLayersList) {
-                for ((digest, layer) in digestToLayers) {
-                    val prevComponentLayer = digestToComponentLayer.putIfAbsent(digest, Pair(component, layer))
-                    if (prevComponentLayer == null) {
+        val allDigestToLayer = hashMapOf<OciDigest, File>()
+        for ((componentWithLayersList, _) in processedImagesList) {
+            for ((_, digestToLayer) in componentWithLayersList) {
+                for ((digest, layer) in digestToLayer) {
+                    val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
+                    if (prevLayer == null) {
                         Files.createLink(blobsDirectory.resolveDigestDataFile(digest), layer.toPath())
-                    } else if (prevComponentLayer.first != component) {
-                        val prevLayer = prevComponentLayer.second
+                    } else if (layer != prevLayer) {
                         if (FileUtils.contentEquals(prevLayer, layer)) {
                             logger.warn("the same layer ($digest) should not be provided by multiple components")
                         } else {
@@ -168,15 +142,8 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
         }
     }
 
-    private val OciComponent.allLayers
-        get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
-            is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
-            is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
-        }
-
-    private data class ComponentLayers(val component: OciComponent, val digestToLayers: Map<OciDigest, File>)
     private data class ProcessedImages(
-        val componentLayersList: List<ComponentLayers>,
+        val componentLayersList: List<OciComponentWithLayers>,
         val rootCapabilities: Set<Coordinates>,
     )
 }

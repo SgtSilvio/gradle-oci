@@ -1,8 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.OciComponentResolver
-import io.github.sgtsilvio.gradle.oci.component.decodeAsJsonToOciComponent
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -10,9 +8,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
-import org.apache.commons.io.FileUtils
 import org.gradle.api.credentials.PasswordCredentials
-import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
@@ -32,7 +28,6 @@ import org.gradle.workers.WorkerExecutor
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 import reactor.netty.NettyOutbound
-import java.io.File
 import java.net.URI
 import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
@@ -76,7 +71,7 @@ abstract class OciPushTask @Inject constructor(
             val imageFiles = imagesInput.files
             val rootCapabilities = imagesInput.rootCapabilities.get()
             val componentWithLayersList = findComponents(imageFiles)
-            val allLayers = collectLayers(componentWithLayersList, logger)
+            val allLayers = collectLayers(componentWithLayersList)
             val componentResolver = OciComponentResolver()
             for ((component, _) in componentWithLayersList) {
                 componentResolver.addComponent(component)
@@ -224,54 +219,6 @@ abstract class OciPushTask @Inject constructor(
         val credentials: OciRegistryApi.Credentials?,
     )
 }
-
-internal fun findComponents(ociFiles: Iterable<File>): List<OciComponentWithLayers> {
-    val componentWithLayersList = mutableListOf<OciComponentWithLayers>()
-    val iterator = ociFiles.iterator()
-    while (iterator.hasNext()) {
-        val component = iterator.next().readText().decodeAsJsonToOciComponent()
-        val digestToLayer = hashMapOf<OciDigest, File>()
-        for (layer in component.allLayers) {
-            layer.descriptor?.let {
-                val digest = it.digest
-                if (digest !in digestToLayer) {
-                    check(iterator.hasNext()) { "ociFiles are missing layers referenced in components" }
-                    digestToLayer[digest] = iterator.next()
-                }
-            }
-        }
-        componentWithLayersList += OciComponentWithLayers(component, digestToLayer)
-    }
-    return componentWithLayersList
-}
-
-internal data class OciComponentWithLayers(val component: OciComponent, val digestToLayer: Map<OciDigest, File>)
-
-internal fun collectLayers(
-    componentWithLayersList: List<OciComponentWithLayers>,
-    logger: Logger,
-): Map<OciDigest, File> {
-    val allDigestToLayer = hashMapOf<OciDigest, File>()
-    for ((_, digestToLayer) in componentWithLayersList) {
-        for ((digest, layer) in digestToLayer) {
-            val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
-            if ((prevLayer != null) && (layer != prevLayer)) {
-                if (FileUtils.contentEquals(prevLayer, layer)) {
-                    logger.warn("the same layer ($digest) should not be provided by multiple components")
-                } else {
-                    throw IllegalStateException("hash collision for digest $digest: expected file contents of $prevLayer and $layer to be the same")
-                }
-            }
-        }
-    }
-    return allDigestToLayer
-}
-
-internal val OciComponent.allLayers
-    get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
-        is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
-        is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
-    }
 
 abstract class OciPushService : BuildService<BuildServiceParameters.None> {
 
