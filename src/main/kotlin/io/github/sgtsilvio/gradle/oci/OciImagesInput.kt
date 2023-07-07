@@ -88,8 +88,8 @@ abstract class OciImagesInputTask : DefaultTask() {
 
     protected abstract fun run(resolvedComponents: List<ResolvedOciComponent>, digestToLayer: Map<OciDigest, File>)
 
-    private fun findComponents(ociFiles: Iterable<File>): List<OciComponentWithLayers> {
-        val componentWithLayersList = mutableListOf<OciComponentWithLayers>()
+    private fun findComponents(ociFiles: Iterable<File>): List<Pair<OciComponent, Map<OciDigest, File>>> {
+        val componentWithLayersList = mutableListOf<Pair<OciComponent, Map<OciDigest, File>>>()
         val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
             val component = iterator.next().readText().decodeAsJsonToOciComponent()
@@ -103,12 +103,10 @@ abstract class OciImagesInputTask : DefaultTask() {
                     }
                 }
             }
-            componentWithLayersList += OciComponentWithLayers(component, digestToLayer)
+            componentWithLayersList += Pair(component, digestToLayer)
         }
         return componentWithLayersList
     }
-
-    private data class OciComponentWithLayers(val component: OciComponent, val digestToLayer: Map<OciDigest, File>)
 }
 
 internal val OciComponent.allLayers // TODO deduplicate
