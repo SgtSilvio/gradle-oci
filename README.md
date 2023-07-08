@@ -96,7 +96,6 @@ package org.example.oci.demo;
 import io.github.sgtsilvio.gradle.oci.junit.jupiter.OciImages;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.hivemq.HiveMQContainer;
 
 public class ImageTest {
 
