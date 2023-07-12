@@ -6,11 +6,16 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
+import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciComponentRegistry
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRepositoryHandler
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.github.sgtsilvio.gradle.oci.mapping.encodeOciImageMappingData
+import io.netty.buffer.UnpooledByteBufAllocator
+import io.netty.channel.ChannelOption
+import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
@@ -92,10 +97,17 @@ abstract class OciRegistriesImpl @Inject constructor(
             HttpServer.create()
                 .bindAddress { InetSocketAddress("localhost", port) }
                 .httpRequestDecoder { it.maxHeaderSize(1_048_576) }
-                .handle(OciRepositoryHandler(OciComponentRegistry(OciRegistryApi())))
+                .runOn(OciLoopResources.acquire())
+                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
+                .handle(OciRepositoryHandler(OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))))
                 .bindNow()
         } catch (_: ChannelBindException) {
+            OciRegistryHttpClient.release() // TODO maybe do only acquire the http client if actually needed
+            OciLoopResources.release()
         }
+        // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
+        // The current classloader can then not be collected, although it has a narrower scope then the current thread.
+        FastThreadLocal.destroy()
     }
 }
 

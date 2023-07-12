@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
+import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -208,9 +209,9 @@ abstract class OciPushTask @Inject constructor(
     )
 }
 
-abstract class OciPushService : BuildService<BuildServiceParameters.None> {
+abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoCloseable {
 
-    private val registryApi = OciRegistryApi()
+    private val registryApi = OciRegistryApi(OciRegistryHttpClient.acquire())
     private val actionIdCounter = AtomicInteger()
     private val actions = ConcurrentHashMap<Int, () -> Unit>()
 
@@ -282,6 +283,8 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None> {
         progressLogger.completed()
         future?.complete(Unit)
     }
+
+    override fun close() = OciRegistryHttpClient.release()
 
     private fun WorkQueue.submit(pushService: Provider<OciPushService>, action: () -> Unit) {
         val actionId = actionIdCounter.getAndIncrement()
