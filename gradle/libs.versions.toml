@@ -1,12 +1,12 @@
 [versions]
 caffeine = "3.1.6"
-commons-codec = "1.15"
+commons-codec = "1.16.0"
 commons-compress = "1.23.0"
-commons-io = "2.11.0"
-json = "20230227"
-junit-jupiter = "5.9.2"
+commons-io = "2.13.0"
+json = "20230618"
+junit-jupiter = "5.9.3"
 netty = "4.1.94.Final"
-reactor-netty = "1.1.8"
+reactor-netty = "1.1.9"
 
 [libraries]
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
@@ -21,4 +21,4 @@ reactor-netty = { module = "io.projectreactor.netty:reactor-netty", version.ref 
 [plugins]
 plugin-publish = { id = "com.gradle.plugin-publish", version = "1.2.0" }
 defaults = { id = "io.github.sgtsilvio.gradle.defaults", version = "0.2.0" }
-metadata = { id = "com.github.sgtsilvio.gradle.metadata", version = "0.4.0" }
+metadata = { id = "io.github.sgtsilvio.gradle.metadata", version = "0.5.0" }
