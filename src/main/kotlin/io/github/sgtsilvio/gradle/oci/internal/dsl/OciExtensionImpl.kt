@@ -18,7 +18,6 @@ import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.domainObjectContainer
-import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.register
 import javax.inject.Inject
@@ -54,8 +53,7 @@ abstract class OciExtensionImpl @Inject constructor(
 
     final override fun registries(configuration: Action<in OciRegistries>) = configuration.execute(registries)
 
-    final override fun imageMapping(configuration: Action<in OciImageMapping>) =
-        configuration.execute(imageMapping)
+    final override fun imageMapping(configuration: Action<in OciImageMapping>) = configuration.execute(imageMapping)
 
     final override fun platform(
         os: String,
@@ -90,21 +88,16 @@ abstract class OciExtensionImpl @Inject constructor(
             imageDependencies.register(name, action)
         }
         val registryDataTaskName = "${name}OciRegistryData"
-        val registryDataTask = if (registryDataTaskName in taskContainer.names) {
-            taskContainer.named<OciRegistryDataTask>(registryDataTaskName)
-        } else {
+        if (registryDataTaskName !in taskContainer.names) {
             val registryDataTask = taskContainer.register<OciRegistryDataTask>(registryDataTaskName) {
                 group = TASK_GROUP_NAME
                 description = "Creates a Docker registry data directory to be used by the $name task."
+                from(dependenciesContainer.get().configurations)
+                registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registry/$name"))
             }
             testTask.configure {
                 jvmArgumentProviders += OciTestArgumentProvider(objectFactory, registryDataTask)
             }
-            registryDataTask
-        }
-        registryDataTask.configure {
-            from(dependenciesContainer.get().configurations)
-            registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registry/$name"))
         }
     }
 }
