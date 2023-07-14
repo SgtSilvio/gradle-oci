@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.reactor.netty
 
 import io.github.sgtsilvio.gradle.oci.internal.Resource
+import io.netty.resolver.DefaultAddressResolverGroup
 import reactor.core.scheduler.Schedulers
 import reactor.netty.http.client.HttpClient
 import reactor.netty.resources.ConnectionProvider
@@ -18,7 +19,7 @@ object OciRegistryHttpClient : Resource<HttpClient>() {
             .lifo()
             .build()
         val loopResources = OciLoopResources.acquire()
-        return HttpClient.create(connectionProvider).runOn(loopResources)
+        return HttpClient.create(connectionProvider).runOn(loopResources).resolver(DefaultAddressResolverGroup.INSTANCE)
     }
 
     override fun HttpClient.destroy() {
