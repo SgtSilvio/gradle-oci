@@ -248,6 +248,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             Pair(
                 PlatformImpl(os, architecture, variant, osVersion, osFeatures),
                 OciComponent.Bundle(
+                    listOf(),
                     creationTime,
                     author,
                     user,
@@ -261,7 +262,6 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     configDescriptor.annotations,
                     manifestAnnotations,
                     manifestDescriptorAnnotations,
-                    listOf(),
                     layers,
                 ),
             )

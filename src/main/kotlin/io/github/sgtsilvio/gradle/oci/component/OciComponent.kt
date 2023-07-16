@@ -23,6 +23,7 @@ data class OciComponent(
     data class PlatformBundles(val map: SortedMap<Platform, Bundle>) : BundleOrPlatformBundles, Serializable
 
     data class Bundle(
+        val parentCapabilities: List<Coordinates>,
         val creationTime: Instant?,
         val author: String?,
         val user: String?,
@@ -36,7 +37,6 @@ data class OciComponent(
         val configDescriptorAnnotations: SortedMap<String, String>,
         val manifestAnnotations: SortedMap<String, String>,
         val manifestDescriptorAnnotations: SortedMap<String, String>,
-        val parentCapabilities: List<Coordinates>,
         val layers: List<Layer>,
     ) : BundleOrPlatformBundles, Serializable {
 

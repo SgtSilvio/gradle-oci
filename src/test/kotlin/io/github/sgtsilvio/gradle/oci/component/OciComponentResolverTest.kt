@@ -289,6 +289,7 @@ internal class OciComponentResolverTest {
     }
 
     private fun createBundle(name: String, parentCapabilities: List<Coordinates> = listOf()) = OciComponent.Bundle(
+        parentCapabilities,
         null,
         name,
         null,
@@ -302,7 +303,6 @@ internal class OciComponentResolverTest {
         sortedMapOf(),
         sortedMapOf(),
         sortedMapOf(),
-        parentCapabilities,
         listOf()
     )
 }

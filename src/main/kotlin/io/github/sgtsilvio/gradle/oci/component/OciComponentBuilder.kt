@@ -45,6 +45,7 @@ class OciComponentBundleBuilder : Serializable {
     private var parentCapabilities: List<Coordinates> = listOf()
     private var layers: List<OciComponent.Bundle.Layer> = listOf()
 
+    fun parentCapabilities(v: List<Coordinates>) = apply { parentCapabilities = v }
     fun creationTime(v: Instant?) = apply { creationTime = v }
     fun author(v: String?) = apply { author = v }
     fun user(v: String?) = apply { user = v }
@@ -58,10 +59,10 @@ class OciComponentBundleBuilder : Serializable {
     fun configDescriptorAnnotations(v: Map<String, String>) = apply { configDescriptorAnnotations = v }
     fun manifestAnnotations(v: Map<String, String>) = apply { manifestAnnotations = v }
     fun manifestDescriptorAnnotations(v: Map<String, String>) = apply { manifestDescriptorAnnotations = v }
-    fun parentCapabilities(v: List<Coordinates>) = apply { parentCapabilities = v }
     fun layers(v: List<OciComponent.Bundle.Layer>) = apply { layers = v }
 
     fun build() = OciComponent.Bundle(
+        parentCapabilities,
         creationTime,
         author,
         user,
@@ -75,7 +76,6 @@ class OciComponentBundleBuilder : Serializable {
         configDescriptorAnnotations.toSortedMap(),
         manifestAnnotations.toSortedMap(),
         manifestDescriptorAnnotations.toSortedMap(),
-        parentCapabilities,
         layers,
     )
 }

@@ -39,6 +39,7 @@ private fun JsonObject.decodePlatform() = PlatformImpl(
 )
 
 private fun JsonObject.decodeBundle() = OciComponent.Bundle(
+    getOrNull("parentCapabilities") { asArray().toList { asObject().decodeCoordinates() } } ?: listOf(),
     getInstantOrNull("creationTime"),
     getStringOrNull("author"),
     getStringOrNull("user"),
@@ -52,7 +53,6 @@ private fun JsonObject.decodeBundle() = OciComponent.Bundle(
     getStringMapOrNull("configDescriptorAnnotations") ?: TreeMap(),
     getStringMapOrNull("manifestAnnotations") ?: TreeMap(),
     getStringMapOrNull("manifestDescriptorAnnotations") ?: TreeMap(),
-    getOrNull("parentCapabilities") { asArray().toList { asObject().decodeCoordinates() } } ?: listOf(),
     getOrNull("layers") { asArray().toList { asObject().decodeLayer() } } ?: listOf(),
 )
 

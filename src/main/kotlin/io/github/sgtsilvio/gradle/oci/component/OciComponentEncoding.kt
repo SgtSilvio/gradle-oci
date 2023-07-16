@@ -34,6 +34,7 @@ private fun JsonObjectStringBuilder.encodePlatform(platform: Platform) {
 }
 
 private fun JsonObjectStringBuilder.encodeBundle(bundle: OciComponent.Bundle) {
+    addArrayIfNotEmpty("parentCapabilities", bundle.parentCapabilities) { addObject { encodeCoordinates(it) } }
     addStringIfNotNull("creationTime", bundle.creationTime?.toString())
     addStringIfNotNull("author", bundle.author)
     addStringIfNotNull("user", bundle.user)
@@ -49,7 +50,6 @@ private fun JsonObjectStringBuilder.encodeBundle(bundle: OciComponent.Bundle) {
     addObjectIfNotEmpty("configDescriptorAnnotations", bundle.configDescriptorAnnotations)
     addObjectIfNotEmpty("manifestAnnotations", bundle.manifestAnnotations)
     addObjectIfNotEmpty("manifestDescriptorAnnotations", bundle.manifestDescriptorAnnotations)
-    addArrayIfNotEmpty("parentCapabilities", bundle.parentCapabilities) { addObject { encodeCoordinates(it) } }
     addArrayIfNotEmpty("layers", bundle.layers) { addObject { encodeLayer(it) } }
 }
 
