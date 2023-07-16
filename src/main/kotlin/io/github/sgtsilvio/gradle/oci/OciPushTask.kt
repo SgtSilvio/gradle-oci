@@ -301,7 +301,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
             val pushService: Property<OciPushService>
         }
 
-        override fun execute() = parameters.pushService.get().actions.remove(parameters.actionId.get())!!.invoke()
+        override fun execute() = parameters.pushService.get().actions.remove(parameters.actionId.get())!!()
     }
 }
 
