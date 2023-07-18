@@ -278,9 +278,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 .zipAbsentAsNull(config.user, OciComponentBundleBuilder::user)
                 .zipAbsentAsEmptySet(config.ports, OciComponentBundleBuilder::ports)
                 .zipAbsentAsEmptyMap(config.environment, OciComponentBundleBuilder::environment)
-                .zip(createComponentCommand(providerFactory)) { bundleBuilder, commandBuilder ->
-                    bundleBuilder.command(commandBuilder.build())
-                }
+                .zipAbsentAsNull(createComponentCommand(providerFactory), OciComponentBundleBuilder::command)
                 .zipAbsentAsEmptySet(config.volumes, OciComponentBundleBuilder::volumes)
                 .zipAbsentAsNull(config.workingDirectory, OciComponentBundleBuilder::workingDirectory)
                 .zipAbsentAsNull(config.stopSignal, OciComponentBundleBuilder::stopSignal)
@@ -321,10 +319,11 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 parentCapabilities
             }
 
-        private fun createComponentCommand(providerFactory: ProviderFactory): Provider<OciComponentBundleCommandBuilder> =
+        private fun createComponentCommand(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Command> =
             providerFactory.provider { OciComponentBundleCommandBuilder() }
                 .zipAbsentAsNull(config.entryPoint, OciComponentBundleCommandBuilder::entryPoint)
                 .zipAbsentAsNull(config.arguments, OciComponentBundleCommandBuilder::arguments)
+                .map { it.build() }
 
         private fun createComponentLayers(providerFactory: ProviderFactory): Provider<List<OciComponent.Bundle.Layer>> =
             providerFactory.provider {
