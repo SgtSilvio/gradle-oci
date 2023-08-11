@@ -18,6 +18,6 @@ netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 reactor-netty = { module = "io.projectreactor.netty:reactor-netty", version.ref = "reactor-netty" }
 
 [plugins]
-plugin-publish = { id = "com.gradle.plugin-publish", version = "1.2.0" }
+pluginPublish = { id = "com.gradle.plugin-publish", version = "1.2.0" }
 defaults = { id = "io.github.sgtsilvio.gradle.defaults", version = "0.2.0" }
 metadata = { id = "io.github.sgtsilvio.gradle.metadata", version = "0.5.0" }
