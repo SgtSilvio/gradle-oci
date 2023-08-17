@@ -1,7 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
-import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.Expiry
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
@@ -29,8 +30,11 @@ import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.security.DigestException
 import java.security.MessageDigest
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.*
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 
 /**
  * @author Silvio Giebl
@@ -38,10 +42,33 @@ import java.util.concurrent.TimeUnit
 class OciRegistryApi(httpClient: HttpClient) {
 
     private val httpClient = httpClient.followRedirect(true)
-    private val tokenCache: Cache<TokenCacheKey, String> =
-        Caffeine.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build()
+    private val tokenCache: AsyncCache<TokenCacheKey, OciRegistryToken> =
+        Caffeine.newBuilder().expireAfter(TokenCacheExpiry).buildAsync()
 
-    private data class TokenCacheKey(val registry: String, val imageName: String, val credentials: Credentials?)
+    private data class TokenCacheKey(
+        val registry: String,
+        val scopes: Set<OciRegistryResourceScope>,
+        val credentials: Credentials?,
+    )
+
+    private object TokenCacheExpiry : Expiry<TokenCacheKey, OciRegistryToken> {
+        override fun expireAfterCreate(key: TokenCacheKey, value: OciRegistryToken, currentTime: Long) =
+            Instant.now().until(value.payload.expirationTime!!.minusSeconds(30), ChronoUnit.NANOS).coerceAtLeast(0)
+
+        override fun expireAfterUpdate(
+            key: TokenCacheKey,
+            value: OciRegistryToken,
+            currentTime: Long,
+            currentDuration: Long,
+        ) = expireAfterCreate(key, value, currentTime)
+
+        override fun expireAfterRead(
+            key: TokenCacheKey,
+            value: OciRegistryToken,
+            currentTime: Long,
+            currentDuration: Long,
+        ) = currentDuration
+    }
 
     data class Credentials(val username: String, val password: String)
 
@@ -57,8 +84,8 @@ class OciRegistryApi(httpClient: HttpClient) {
             registry,
             imageName,
             "manifests/$reference",
+            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
             credentials,
-            PULL_PERMISSION,
             {
                 headers { headers ->
                     headers["accept"] =
@@ -104,8 +131,8 @@ class OciRegistryApi(httpClient: HttpClient) {
             registry,
             imageName,
             "blobs/$digest",
+            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
             credentials,
-            PULL_PERMISSION,
             { get() },
         ) { response, body ->
             when (response.status().code()) {
@@ -141,8 +168,8 @@ class OciRegistryApi(httpClient: HttpClient) {
             registry,
             imageName,
             "blobs/$digest",
+            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
             credentials,
-            PULL_PERMISSION,
             { head() },
         ) { response, body ->
             when (response.status().code()) {
@@ -159,16 +186,25 @@ class OciRegistryApi(httpClient: HttpClient) {
         digest: OciDigest?,
         sourceImageName: String?,
         credentials: Credentials?,
-    ): Mono<URI?> {
+    ): Mono<URI?> { // TODO do not retry mounting blob if not allowed (insufficient scopes)
+        var query = ""
+        val scopes = hashSetOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS))
         val isMount = digest != null
-        val query =
-            if (isMount) "?mount=$digest" + if (sourceImageName == null) "" else "&from=$sourceImageName" else ""
+        if (isMount) {
+            query += "?mount=$digest"
+            if (sourceImageName != null) {
+                query += "&from=$sourceImageName"
+                if (sourceImageName != imageName) {
+                    scopes += OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, sourceImageName, RESOURCE_SCOPE_PULL_ACTIONS)
+                }
+            }
+        }
         return send(
             registry,
             imageName,
             "blobs/uploads/$query",
+            scopes,
             credentials,
-            PUSH_PERMISSION,
             { post() },
         ) { response, body ->
             when (response.status().code()) {
@@ -213,9 +249,8 @@ class OciRegistryApi(httpClient: HttpClient) {
     ): Mono<Unit> {
         return send(
             registry,
-            imageName,
+            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS)),
             credentials,
-            PUSH_PERMISSION,
             {
                 headers { headers ->
                     headers["content-length"] = size
@@ -271,8 +306,8 @@ class OciRegistryApi(httpClient: HttpClient) {
             registry,
             imageName,
             "manifests/$reference",
+            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS)),
             credentials,
-            PUSH_PERMISSION,
             {
                 headers { headers ->
                     headers["content-length"] = manifest.data.size
@@ -341,34 +376,32 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         path: String,
+        scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
-        permission: String,
         requestAction: HttpClient.() -> HttpClient.ResponseReceiver<*>,
         responseAction: (HttpClientResponse, ByteBufFlux) -> Publisher<T>,
     ) = send(
         registry,
-        imageName,
+        scopes,
         credentials,
-        permission,
         { requestAction().uri("$registry/v2/$imageName/$path") },
         responseAction,
     )
 
     private fun <T> send(
         registry: String,
-        imageName: String,
+        scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
-        permission: String,
         requestAction: HttpClient.() -> HttpClient.ResponseReceiver<*>,
         responseAction: (HttpClientResponse, ByteBufFlux) -> Publisher<T>,
     ): Flux<T> {
-        return httpClient.headers { headers ->
-            getAuthorization(registry, imageName, credentials)?.let { headers["authorization"] = it }
+        return httpClient.headersWhen { headers ->
+            getAuthorization(registry, scopes, credentials).map { headers.set("authorization", it) }
         }.requestAction().response(responseAction).retryWhen(RETRY_SPEC).onErrorResume { error ->
             when {
                 error !is HttpResponseException -> Mono.error(error)
                 error.statusCode != 401 -> Mono.error(error)
-                else -> tryAuthorize(error.headers, registry, imageName, credentials, permission)?.flatMapMany { authorization ->
+                else -> tryAuthorize(error.headers, scopes, credentials)?.flatMapMany { authorization ->
                     httpClient.headers { headers ->
                         headers["authorization"] = authorization
                     }.requestAction().response(responseAction).retryWhen(RETRY_SPEC)
@@ -379,40 +412,64 @@ class OciRegistryApi(httpClient: HttpClient) {
 
     private fun tryAuthorize(
         responseHeaders: HttpHeaders,
-        registry: String,
-        imageName: String,
+        scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
-        permission: String,
     ): Mono<String>? {
-        val bearerParams = decodeBearerParams(responseHeaders) ?: return null
-        val realm = bearerParams["realm"] ?: return null
-        val service = bearerParams["service"] ?: registry
-        val scope = bearerParams["scope"] ?: "repository:$imageName:$permission"
-        val scopeParams = "scope=" + scope.replace(" ", "&scope=")
-        return httpClient.headers { headers ->
-            if (credentials != null) {
-                headers["authorization"] = encodeBasicAuthorization(credentials)
-            }
-        }.get().uri(URI("$realm?service=$service&$scopeParams")).responseSingle { response, body ->
-            when (response.status().code()) {
-                200 -> body.asString(StandardCharsets.UTF_8)
-                else -> createError(response, body)
-            }
-        }.retryWhen(RETRY_SPEC).map { response ->
-            val authorization = "Bearer " + jsonObject(response).run {
-                if (hasKey("token")) getString("token") else getString("access_token")
-            }
-            tokenCache.put(TokenCacheKey(registry, imageName, credentials), authorization)
-            authorization
+        val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
+        val realm = bearerParams["realm"] ?: return Mono.error(IllegalArgumentException("bearer authorization header is missing 'realm'"))
+        val service = bearerParams["service"] ?: return Mono.error(IllegalArgumentException("bearer authorization header is missing 'service'"))
+        val scope = bearerParams["scope"] ?: return Mono.error(IllegalArgumentException("bearer authorization header is missing 'scope'"))
+        val scopesFromResponse = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
+        if (scopesFromResponse != scopes) {
+            return Mono.error(IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse"))
+        }
+        return Mono.fromFuture(tokenCache.get(TokenCacheKey(service, scopes, credentials)) { key, _ ->
+            val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
+            httpClient.headers { headers ->
+                if (key.credentials != null) {
+                    headers["authorization"] = key.credentials.encodeBasicAuthorization()
+                }
+            }.get().uri(URI("$realm?service=${key.registry}&$scopeParams")).responseSingle { response, body ->
+                when (response.status().code()) {
+                    200 -> body.asString(StandardCharsets.UTF_8)
+                    else -> createError(response, body)
+                }
+            }.retryWhen(RETRY_SPEC).map { response ->
+                val jws = jsonObject(response).run {
+                    if (hasKey("token")) getString("token") else getString("access_token")
+                }
+                val registryToken = OciRegistryToken(jws)
+                if (registryToken.payload.scopes == key.scopes) {
+                    registryToken
+                } else {
+                    tokenCache.asMap().putIfAbsent(
+                        TokenCacheKey(key.registry, registryToken.payload.scopes, key.credentials),
+                        CompletableFuture.completedFuture(registryToken)
+                    )
+                    // caffeine cache logs errors except CancellationException and TimeoutException
+                    throw CancellationException("insufficient scopes, required: ${key.scopes}, granted: ${registryToken.payload.scopes}")
+                }
+            }.toFuture()
+        }).map { encodeBearerAuthorization(it.jws) }
+    }
+
+    private fun getAuthorization(
+        registry: String,
+        scopes: Set<OciRegistryResourceScope>,
+        credentials: Credentials?,
+    ): Mono<String> {
+        val tokenFuture = tokenCache.getIfPresent(TokenCacheKey(registry, scopes, credentials))
+        return when {
+            tokenFuture != null -> Mono.fromFuture(tokenFuture).map { encodeBearerAuthorization(it.jws) }
+            credentials != null -> Mono.just(credentials.encodeBasicAuthorization())
+            else -> Mono.empty()
         }
     }
 
-    private fun getAuthorization(registry: String, imageName: String, credentials: Credentials?): String? =
-        tokenCache.getIfPresent(TokenCacheKey(registry, imageName, credentials))
-            ?: credentials?.let(::encodeBasicAuthorization)
+    private fun Credentials.encodeBasicAuthorization() =
+        "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray())
 
-    private fun encodeBasicAuthorization(credentials: Credentials) =
-        "Basic " + Base64.getEncoder().encodeToString("${credentials.username}:${credentials.password}".toByteArray())
+    private fun encodeBearerAuthorization(token: String) = "Bearer $token"
 
     private fun decodeBearerParams(headers: HttpHeaders): Map<String, String>? {
         val authHeader = headers["www-authenticate"] ?: return null
@@ -548,5 +605,6 @@ const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution
 const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
 const val DOCKER_CONFIG_MEDIA_TYPE = "application/vnd.docker.container.image.v1+json"
 const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.tar.gzip"
-private const val PULL_PERMISSION = "pull"
-private const val PUSH_PERMISSION = "pull,push"
+private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
+private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
+private val RESOURCE_SCOPE_PUSH_ACTIONS = setOf("pull", "push")
