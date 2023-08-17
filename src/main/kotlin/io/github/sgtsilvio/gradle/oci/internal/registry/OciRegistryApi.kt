@@ -396,7 +396,9 @@ class OciRegistryApi(httpClient: HttpClient) {
         responseAction: (HttpClientResponse, ByteBufFlux) -> Publisher<T>,
     ): Flux<T> {
         return httpClient.headersWhen { headers ->
-            getAuthorization(registry, scopes, credentials).map { headers.set("authorization", it) }
+            getAuthorization(registry, scopes, credentials).map { authorization ->
+                headers.set("authorization", authorization)
+            }.defaultIfEmpty(headers)
         }.requestAction().response(responseAction).retryWhen(RETRY_SPEC).onErrorResume { error ->
             when {
                 error !is HttpResponseException -> Mono.error(error)
