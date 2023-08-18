@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
+import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -63,7 +64,7 @@ abstract class OciPushTask @Inject constructor(
             workerExecutor.noIsolation(),
             services.get(ProgressLoggerFactory::class.java),
             registryUrl.get(),
-            credentials.orNull?.let { OciRegistryApi.Credentials(it.username!!, it.password!!) },
+            credentials.orNull?.let { Credentials(it.username!!, it.password!!) },
         )
 
         val blobs = hashMapOf<OciDigest, Blob>()
@@ -205,7 +206,7 @@ abstract class OciPushTask @Inject constructor(
         val workQueue: WorkQueue,
         val progressLoggerFactory: ProgressLoggerFactory,
         val registryUrl: URI,
-        val credentials: OciRegistryApi.Credentials?,
+        val credentials: Credentials?,
     )
 }
 

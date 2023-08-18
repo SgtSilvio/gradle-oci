@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
-import io.github.sgtsilvio.gradle.oci.component.*
+import io.github.sgtsilvio.gradle.oci.component.OciComponent
+import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.*
@@ -20,7 +21,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageReference: OciImageReference,
         capabilities: SortedSet<VersionedCoordinates>,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
     ): Mono<OciComponent> =
         registryApi.pullManifest(registry, imageReference.name, imageReference.tag, credentials).flatMap { manifest ->
             when (manifest.mediaType) {
@@ -70,7 +71,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageReference: OciImageReference,
         index: ByteArray,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         capabilities: SortedSet<VersionedCoordinates>,
         indexMediaType: String,
         manifestMediaType: String,
@@ -112,7 +113,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageReference: OciImageReference,
         manifest: ByteArray,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         capabilities: SortedSet<VersionedCoordinates>,
         manifestMediaType: String,
         configMediaType: String,
@@ -140,7 +141,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         imageName: String,
         manifest: ByteArray,
         manifestDescriptorAnnotations: SortedMap<String, String>,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         manifestMediaType: String,
         configMediaType: String,
     ): Mono<Pair<Platform, OciComponent.Bundle>> {

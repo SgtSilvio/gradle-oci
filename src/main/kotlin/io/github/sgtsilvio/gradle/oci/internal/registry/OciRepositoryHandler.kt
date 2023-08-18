@@ -39,7 +39,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val registry: String,
         val imageReference: OciImageReference,
         val capabilities: SortedSet<VersionedCoordinates>,
-        val credentials: OciRegistryApi.Credentials?,
+        val credentials: Credentials?,
     )
 
     private val componentCache: AsyncLoadingCache<OciComponentParameters, OciComponent> = Caffeine.newBuilder()
@@ -65,7 +65,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     ): Publisher<Void> {
         val context = jsonObject(request.requestHeaders()["context"] ?: return response.sendBadRequest())
         val credentials = context.getOrNull("credentials") {
-            asObject().run { OciRegistryApi.Credentials(getString("username"), getString("password")) }
+            asObject().run { Credentials(getString("username"), getString("password")) }
         }
         val imageMappingData = context.get("imageMapping") { asObject().decodeOciImageMappingData() }
 
@@ -98,7 +98,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         segments: List<String>,
         imageMappingData: OciImageMappingData,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -111,7 +111,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         segments: List<String>,
         imageMappingData: OciImageMappingData,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -126,7 +126,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         segments: List<String>,
         imageMappingData: OciImageMappingData,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -162,7 +162,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private fun getOrHeadGradleModuleMetadata(
         registryUri: URI,
         mappedComponent: MappedComponent,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -235,7 +235,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private fun getOrHeadComponent(
         registryUri: URI,
         variant: MappedComponent.Variant,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -249,7 +249,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private fun getComponent(
         registryUri: URI,
         variant: MappedComponent.Variant,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
     ): CompletableFuture<OciComponent> = componentCache[OciComponentParameters(
         registryUri.toString(),
         variant.imageReference,
@@ -262,7 +262,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         imageName: String,
         digest: OciDigest,
         size: Long,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
@@ -280,7 +280,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         imageName: String,
         digest: OciDigest,
         size: Long,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         response: HttpServerResponse,
     ): Publisher<Void> = response.send(
         componentRegistry.registryApi.pullBlob(
@@ -297,7 +297,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         imageName: String,
         digest: OciDigest,
-        credentials: OciRegistryApi.Credentials?,
+        credentials: Credentials?,
         response: HttpServerResponse,
     ): Publisher<Void> =
         componentRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
