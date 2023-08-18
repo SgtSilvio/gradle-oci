@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache
+import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
@@ -39,15 +39,11 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val registry: String,
         val imageReference: OciImageReference,
         val capabilities: SortedSet<VersionedCoordinates>,
-        val credentials: Credentials?,
+        val credentials: HashedCredentials?,
     )
 
-    private val componentCache: AsyncLoadingCache<OciComponentParameters, OciComponent> = Caffeine.newBuilder()
-        .maximumSize(100)
-        .expireAfterAccess(1, TimeUnit.MINUTES)
-        .buildAsync { (registry, imageReference, capabilities, credentials), _ ->
-            componentRegistry.pullComponent(registry, imageReference, capabilities, credentials).toFuture()
-        }
+    private val componentCache: AsyncCache<OciComponentParameters, OciComponent> =
+        Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
 //        println("REQUEST: " + request.method() + " " + request.uri() + " " + request.requestHeaders())
@@ -250,12 +246,16 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         variant: MappedComponent.Variant,
         credentials: Credentials?,
-    ): CompletableFuture<OciComponent> = componentCache[OciComponentParameters(
-        registryUri.toString(),
-        variant.imageReference,
-        variant.capabilities,
-        credentials,
-    )]
+    ): CompletableFuture<OciComponent> {
+        return componentCache.get(OciComponentParameters(
+            registryUri.toString(),
+            variant.imageReference,
+            variant.capabilities,
+            credentials?.hashed(),
+        )) { key, _ ->
+            componentRegistry.pullComponent(key.registry, key.imageReference, key.capabilities, credentials).toFuture()
+        }
+    }
 
     private fun getOrHeadLayer(
         registryUri: URI,
