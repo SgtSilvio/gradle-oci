@@ -35,15 +35,15 @@ import java.util.function.BiFunction
 class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) :
     BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private data class OciComponentParameters(
+    private val componentCache: AsyncCache<ComponentCacheKey, OciComponent> =
+        Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
+
+    private data class ComponentCacheKey(
         val registry: String,
         val imageReference: OciImageReference,
         val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: HashedCredentials?,
     )
-
-    private val componentCache: AsyncCache<OciComponentParameters, OciComponent> =
-        Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
 //        println("REQUEST: " + request.method() + " " + request.uri() + " " + request.requestHeaders())
@@ -247,12 +247,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         variant: MappedComponent.Variant,
         credentials: Credentials?,
     ): CompletableFuture<OciComponent> {
-        return componentCache.get(OciComponentParameters(
-            registryUri.toString(),
-            variant.imageReference,
-            variant.capabilities,
-            credentials?.hashed(),
-        )) { key, _ ->
+        return componentCache.get(
+            ComponentCacheKey(
+                registryUri.toString(),
+                variant.imageReference,
+                variant.capabilities,
+                credentials?.hashed(),
+            )
+        ) { key, _ ->
             componentRegistry.pullComponent(key.registry, key.imageReference, key.capabilities, credentials).toFuture()
         }
     }
