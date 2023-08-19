@@ -242,9 +242,9 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         digest: OciDigest,
-        credentials: Credentials?,
-        uri: URI,
         size: Long,
+        uri: URI,
+        credentials: Credentials?,
         sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Nothing> {
         return send(
@@ -269,27 +269,27 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         digest: OciDigest,
+        size: Long,
         sourceImageName: String?,
         credentials: Credentials?,
-        size: Long,
         sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Nothing> =
         mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
-            pushBlob(registry, imageName, digest, credentials, uri, size, sender)
+            pushBlob(registry, imageName, digest, size, uri, credentials, sender)
         }
 
     fun pushBlobIfNotPresent(
         registry: String,
         imageName: String,
         digest: OciDigest,
+        size: Long,
         sourceImageName: String?,
         credentials: Credentials?,
-        size: Long,
         sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Nothing> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
         when {
             present -> Mono.empty()
-            else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, size, sender)
+            else -> mountOrPushBlob(registry, imageName, digest, size, sourceImageName, credentials, sender)
         }
     }
 
@@ -297,8 +297,8 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         reference: String,
-        credentials: Credentials?,
         manifest: Manifest,
+        credentials: Credentials?,
     ): Mono<Nothing> {
         return send(
             registry,
@@ -324,9 +324,9 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         digest: OciDigest,
-        credentials: Credentials?,
         manifest: Manifest,
-    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
+        credentials: Credentials?,
+    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), manifest, credentials)
 
 //    fun deleteBlob(
 //        registry: String,

@@ -232,9 +232,9 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
             context.registryUrl.toString(),
             imageName,
             digest,
+            size,
             sourceImageName,
             context.credentials,
-            size,
         ) {
             withConnection { connection ->
                 connection.addHandlerFirst("progress", object : ChannelOutboundHandlerAdapter() {
@@ -278,8 +278,8 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
             context.registryUrl.toString(),
             imageName,
             reference,
-            context.credentials,
             OciRegistryApi.Manifest(mediaType, data),
+            context.credentials,
         ).block()
         progressLogger.completed()
         future?.complete(Unit)
