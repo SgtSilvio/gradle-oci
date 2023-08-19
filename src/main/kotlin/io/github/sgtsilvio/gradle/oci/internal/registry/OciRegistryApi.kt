@@ -10,6 +10,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
 import io.netty.buffer.ByteBuf
+import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpHeaders
 import org.apache.commons.codec.binary.Hex
 import org.reactivestreams.Publisher
@@ -86,13 +87,13 @@ class OciRegistryApi(httpClient: HttpClient) {
             credentials,
             {
                 headers { headers ->
-                    headers["accept"] =
+                    headers[HttpHeaderNames.ACCEPT] =
                         "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
                 }.get()
             },
         ) { response, body ->
             when (response.status().code()) {
-                200 -> response.responseHeaders()["content-type"]?.let { contentType ->
+                200 -> response.responseHeaders()[HttpHeaderNames.CONTENT_TYPE]?.let { contentType ->
                     body.aggregate().asByteArray().map { Manifest(contentType, it) }
                 } ?: createError(response, body.aggregate())
 
@@ -207,7 +208,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         ) { response, body ->
             when (response.status().code()) {
                 201 -> if (isMount) body.then(Mono.empty()) else createError(response, body.aggregate())
-                202 -> response.responseHeaders()["location"]?.let { location ->
+                202 -> response.responseHeaders()[HttpHeaderNames.LOCATION]?.let { location ->
                     body.then(Mono.just(URI(registry).resolve(location)))
                 } ?: createError(response, body.aggregate())
 
@@ -251,8 +252,8 @@ class OciRegistryApi(httpClient: HttpClient) {
             credentials,
             {
                 headers { headers ->
-                    headers["content-length"] = size
-                    headers["content-type"] = "application/octet-stream"
+                    headers[HttpHeaderNames.CONTENT_LENGTH] = size
+                    headers[HttpHeaderNames.CONTENT_TYPE] = "application/octet-stream"
                 }.put().uri(uri.addQueryParam("digest=$digest")).send { _, outbound -> outbound.sender() }
             },
         ) { response, body ->
@@ -306,8 +307,8 @@ class OciRegistryApi(httpClient: HttpClient) {
             credentials,
             {
                 headers { headers ->
-                    headers["content-length"] = manifest.data.size
-                    headers["content-type"] = manifest.mediaType
+                    headers[HttpHeaderNames.CONTENT_LENGTH] = manifest.data.size
+                    headers[HttpHeaderNames.CONTENT_TYPE] = manifest.mediaType
                 }.put().send { _, outbound -> outbound.sendByteArray(Mono.just(manifest.data)) }
             }
         ) { response, body ->
@@ -393,7 +394,7 @@ class OciRegistryApi(httpClient: HttpClient) {
     ): Flux<T> {
         return httpClient.headersWhen { headers ->
             getAuthorization(registry, scopes, credentials).map { authorization ->
-                headers.set("authorization", authorization)
+                headers.set(HttpHeaderNames.AUTHORIZATION, authorization)
             }.defaultIfEmpty(headers)
         }.requestAction().response(responseAction).retryWhen(RETRY_SPEC).onErrorResume { error ->
             when {
@@ -401,7 +402,7 @@ class OciRegistryApi(httpClient: HttpClient) {
                 error.statusCode != 401 -> Mono.error(error)
                 else -> tryAuthorize(error.headers, scopes, credentials)?.flatMapMany { authorization ->
                     httpClient.headers { headers ->
-                        headers["authorization"] = authorization
+                        headers[HttpHeaderNames.AUTHORIZATION] = authorization
                     }.requestAction().response(responseAction).retryWhen(RETRY_SPEC)
                 } ?: Mono.error(error)
             }
@@ -425,7 +426,7 @@ class OciRegistryApi(httpClient: HttpClient) {
             val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
                 if (credentials != null) {
-                    headers["authorization"] = credentials.encodeBasicAuthorization()
+                    headers[HttpHeaderNames.AUTHORIZATION] = credentials.encodeBasicAuthorization()
                 }
             }.get().uri(URI("$realm?service=${key.registry}&$scopeParams")).responseSingle { response, body ->
                 when (response.status().code()) {
@@ -470,7 +471,7 @@ class OciRegistryApi(httpClient: HttpClient) {
     private fun encodeBearerAuthorization(token: String) = "Bearer $token"
 
     private fun decodeBearerParams(headers: HttpHeaders): Map<String, String>? {
-        val authHeader = headers["www-authenticate"] ?: return null
+        val authHeader = headers[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
         if (!authHeader.startsWith("Bearer ")) return null
         val authParamString = authHeader.substring("Bearer ".length)
         val map = HashMap<String, String>()
