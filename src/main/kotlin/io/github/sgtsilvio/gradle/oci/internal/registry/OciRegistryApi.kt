@@ -11,6 +11,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
 import io.netty.buffer.ByteBuf
 import io.netty.handler.codec.http.HttpHeaderNames
+import io.netty.handler.codec.http.HttpHeaderValues
 import io.netty.handler.codec.http.HttpHeaders
 import org.apache.commons.codec.binary.Hex
 import org.reactivestreams.Publisher
@@ -253,7 +254,7 @@ class OciRegistryApi(httpClient: HttpClient) {
             {
                 headers { headers ->
                     headers[HttpHeaderNames.CONTENT_LENGTH] = size
-                    headers[HttpHeaderNames.CONTENT_TYPE] = "application/octet-stream"
+                    headers[HttpHeaderNames.CONTENT_TYPE] = HttpHeaderValues.APPLICATION_OCTET_STREAM
                 }.put().uri(uri.addQueryParam("digest=$digest")).send { _, outbound -> outbound.sender() }
             },
         ) { response, body ->
