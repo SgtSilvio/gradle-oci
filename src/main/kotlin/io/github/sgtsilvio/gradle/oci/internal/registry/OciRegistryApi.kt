@@ -184,7 +184,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         digest: OciDigest?,
         sourceImageName: String?,
         credentials: Credentials?,
-    ): Mono<URI?> { // TODO do not retry mounting blob if not allowed (insufficient scopes)
+    ): Mono<URI> { // TODO do not retry mounting blob if not allowed (insufficient scopes)
         var query = ""
         val scopes = hashSetOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS))
         val isMount = digest != null
@@ -244,7 +244,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         uri: URI,
         size: Long,
         sender: NettyOutbound.() -> Publisher<Void>,
-    ): Mono<Unit> {
+    ): Mono<Nothing> {
         return send(
             registry,
             setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS)),
@@ -257,10 +257,10 @@ class OciRegistryApi(httpClient: HttpClient) {
             },
         ) { response, body ->
             when (response.status().code()) {
-                201 -> body.then(Mono.just(Unit))
+                201 -> body.then(Mono.empty<Nothing>())
                 else -> createError(response, body.aggregate())
             }
-        }.single()
+        }.singleOrEmpty()
     }
 
     fun mountOrPushBlob(
@@ -271,12 +271,10 @@ class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
         size: Long,
         sender: NettyOutbound.() -> Publisher<Void>,
-    ): Mono<Unit> = mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
-        when (uri) {
-            null -> Mono.just(Unit)
-            else -> pushBlob(registry, imageName, digest, credentials, uri, size, sender)
+    ): Mono<Nothing> =
+        mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
+            pushBlob(registry, imageName, digest, credentials, uri, size, sender)
         }
-    }
 
     fun pushBlobIfNotPresent(
         registry: String,
@@ -286,9 +284,9 @@ class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
         size: Long,
         sender: NettyOutbound.() -> Publisher<Void>,
-    ): Mono<Unit> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
+    ): Mono<Nothing> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
         when {
-            present -> Mono.just(Unit)
+            present -> Mono.empty()
             else -> mountOrPushBlob(registry, imageName, digest, sourceImageName, credentials, size, sender)
         }
     }
@@ -299,7 +297,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         reference: String,
         credentials: Credentials?,
         manifest: Manifest,
-    ): Mono<Unit> {
+    ): Mono<Nothing> {
         return send(
             registry,
             imageName,
@@ -314,10 +312,10 @@ class OciRegistryApi(httpClient: HttpClient) {
             }
         ) { response, body ->
             when (response.status().code()) {
-                201 -> body.then(Mono.just(Unit))
+                201 -> body.then(Mono.empty<Nothing>())
                 else -> createError(response, body.aggregate())
             }
-        }.single()
+        }.singleOrEmpty()
     }
 
     fun pushManifest(
@@ -326,7 +324,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         digest: OciDigest,
         credentials: Credentials?,
         manifest: Manifest,
-    ): Mono<Unit> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
+    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), credentials, manifest)
 
 //    fun deleteBlob(
 //        registry: String,
