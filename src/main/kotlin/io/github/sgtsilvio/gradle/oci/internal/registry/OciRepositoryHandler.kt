@@ -13,6 +13,7 @@ import io.github.sgtsilvio.gradle.oci.mapping.*
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.netty.handler.codec.http.HttpHeaderNames
+import io.netty.handler.codec.http.HttpHeaderValues
 import io.netty.handler.codec.http.HttpMethod
 import org.apache.commons.codec.binary.Hex
 import org.gradle.api.attributes.Bundling
@@ -239,7 +240,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val componentJsonFuture = getComponent(registryUri, variant, credentials).thenApply { component ->
             component.encodeToJsonString().toByteArray()
         }
-        response.header(HttpHeaderNames.CONTENT_TYPE, "application/json")
+        response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
         return response.sendByteArray(Mono.fromFuture(componentJsonFuture), isGET)
     }
 
