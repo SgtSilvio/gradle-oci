@@ -223,19 +223,18 @@ class OciRegistryApi(httpClient: HttpClient) {
 //        imageName: String,
 //        credentials: Credentials?,
 //        uri: URI,
-//    ): Mono<Unit> {
+//    ): Mono<Nothing> {
 //        return send(
 //            registry,
-//            imageName,
+//            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_DELETE_ACTIONS)),
 //            credentials,
-//            DELETE_PERMISSION,
 //            { delete().uri(uri) },
 //        ) { response, body ->
 //            when (response.status().code()) {
-//                204 -> body.then(Mono.just(Unit))
+//                204 -> body.then(Mono.empty<Nothing>())
 //                else -> createError(response, body.aggregate())
 //            }
-//        }.single()
+//        }.singleOrEmpty()
 //    }
 
     fun pushBlob(
@@ -333,20 +332,20 @@ class OciRegistryApi(httpClient: HttpClient) {
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
-//    ): Mono<Unit> {
+//    ): Mono<Nothing> {
 //        return send(
 //            registry,
 //            imageName,
 //            "blobs/$digest",
+//            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_DELETE_ACTIONS)),
 //            credentials,
-//            DELETE_PERMISSION,
 //            { delete() }
 //        ) { response, body ->
 //            when (response.status().code()) {
-//                202 -> body.then(Mono.just(Unit))
+//                202 -> body.then(Mono.empty<Nothing>())
 //                else -> createError(response, body.aggregate())
 //            }
-//        }.single()
+//        }.singleOrEmpty()
 //    }
 //
 //    fun deleteManifest(
@@ -354,20 +353,20 @@ class OciRegistryApi(httpClient: HttpClient) {
 //        imageName: String,
 //        reference: String,
 //        credentials: Credentials?,
-//    ): Mono<Unit> {
+//    ): Mono<Nothing> {
 //        return send(
 //            registry,
 //            imageName,
 //            "manifests/$reference",
+//            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_DELETE_ACTIONS)),
 //            credentials,
-//            DELETE_PERMISSION,
 //            { delete() },
 //        ) { response, body ->
 //            when (response.status().code()) {
-//                202 -> body.then(Mono.just(Unit))
+//                202 -> body.then(Mono.empty<Nothing>())
 //                else -> createError(response, body.aggregate())
 //            }
-//        }.single()
+//        }.singleOrEmpty()
 //    }
 
     private fun <T> send(
@@ -608,3 +607,4 @@ const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.ta
 private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
 private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
 private val RESOURCE_SCOPE_PUSH_ACTIONS = setOf("pull", "push")
+//private val RESOURCE_SCOPE_DELETE_ACTIONS = setOf("delete")
