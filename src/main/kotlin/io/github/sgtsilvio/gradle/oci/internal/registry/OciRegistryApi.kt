@@ -285,10 +285,14 @@ class OciRegistryApi(httpClient: HttpClient) {
         sourceImageName: String?,
         credentials: Credentials?,
         sender: NettyOutbound.() -> Publisher<Void>,
-    ): Mono<Nothing> = isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
-        when {
-            present -> Mono.empty()
-            else -> mountOrPushBlob(registry, imageName, digest, size, sourceImageName, credentials, sender)
+    ): Mono<Nothing> {
+        return if ((sourceImageName == null) || (sourceImageName == imageName)) {
+            mountOrPushBlob(registry, imageName, digest, size, imageName, credentials, sender)
+        } else isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
+            when {
+                present -> Mono.empty()
+                else -> mountOrPushBlob(registry, imageName, digest, size, sourceImageName, credentials, sender)
+            }
         }
     }
 
