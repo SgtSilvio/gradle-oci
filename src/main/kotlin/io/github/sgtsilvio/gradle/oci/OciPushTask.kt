@@ -71,7 +71,6 @@ abstract class OciPushTask @Inject constructor(
         for (resolvedComponent in resolvedComponents) {
             val imageReference = resolvedComponent.component.imageReference
             val imageName = imageReference.name
-            val layerDigests = hashSetOf<OciDigest>()
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
             val manifestFutures = mutableListOf<CompletableFuture<Unit>>()
             for (platform in resolvedComponent.platforms) {
@@ -81,37 +80,35 @@ abstract class OciPushTask @Inject constructor(
                 for (resolvedBundle in resolvedBundlesForPlatform) {
                     for (layer in resolvedBundle.bundle.layers) {
                         layer.descriptor?.let { (_, digest) ->
-                            if (layerDigests.add(digest)) {
-                                val sourceBlob = blobs[digest]
-                                blobFutures += if (sourceBlob == null) {
-                                    val layerFile = digestToLayer[digest]!!.toPath()
-                                    val size = Files.size(layerFile)
-                                    val sender: NettyOutbound.() -> Publisher<Void> =
-                                        { sendFileChunked(layerFile, 0, size) }
-                                    val sourceImageName = resolvedBundle.component.imageReference.name
-                                    val future = CompletableFuture<Unit>()
-                                    blobs[digest] = Blob(digest, size, sender, imageName, sourceImageName, future)
-                                    future
-                                } else if (sourceBlob.imageName == imageName) {
-                                    sourceBlob.future
-                                } else {
-                                    val sourceImageName = sourceBlob.imageName
-                                    val size = sourceBlob.size
-                                    val sender = sourceBlob.sender
-                                    val future = CompletableFuture<Unit>()
-                                    sourceBlob.future.thenRun {
-                                        context.pushService.get().pushBlob(
-                                            context,
-                                            imageName,
-                                            digest,
-                                            sourceImageName,
-                                            size,
-                                            sender,
-                                            future,
-                                        )
-                                    }
-                                    future
+                            val sourceBlob = blobs[digest]
+                            blobFutures += if (sourceBlob == null) {
+                                val layerFile = digestToLayer[digest]!!.toPath()
+                                val size = Files.size(layerFile)
+                                val sender: NettyOutbound.() -> Publisher<Void> =
+                                    { sendFileChunked(layerFile, 0, size) }
+                                val sourceImageName = resolvedBundle.component.imageReference.name
+                                val future = CompletableFuture<Unit>()
+                                blobs[digest] = Blob(digest, size, sender, imageName, sourceImageName, future)
+                                future
+                            } else if (sourceBlob.imageName == imageName) {
+                                sourceBlob.future
+                            } else {
+                                val sourceImageName = sourceBlob.imageName
+                                val size = sourceBlob.size
+                                val sender = sourceBlob.sender
+                                val future = CompletableFuture<Unit>()
+                                sourceBlob.future.thenRun {
+                                    context.pushService.get().pushBlob(
+                                        context,
+                                        imageName,
+                                        digest,
+                                        sourceImageName,
+                                        size,
+                                        sender,
+                                        future,
+                                    )
                                 }
+                                future
                             }
                         }
                     }
