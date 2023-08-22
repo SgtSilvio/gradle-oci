@@ -5,10 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Expiry
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
-import io.github.sgtsilvio.gradle.oci.metadata.INDEX_MEDIA_TYPE
-import io.github.sgtsilvio.gradle.oci.metadata.MANIFEST_MEDIA_TYPE
-import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
-import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.netty.buffer.ByteBuf
 import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpHeaderValues
@@ -72,7 +69,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         ) = currentDuration
     }
 
-    class Manifest(val mediaType: String, val data: ByteArray)
+    class Manifest(val mediaType: String, val data: ByteArray, val digest: OciDigest)
 
     fun pullManifest(
         registry: String,
@@ -95,7 +92,12 @@ class OciRegistryApi(httpClient: HttpClient) {
         ) { response, body ->
             when (response.status().code()) {
                 200 -> response.responseHeaders()[HttpHeaderNames.CONTENT_TYPE]?.let { contentType ->
-                    body.aggregate().asByteArray().map { Manifest(contentType, it) }
+                    body.aggregate().asByteArray().map { data ->
+                        val digestAlgorithm =
+                            response.responseHeaders()["docker-content-digest"]?.toOciDigest()?.algorithm
+                                ?: OciDigestAlgorithm.SHA_256
+                        Manifest(contentType, data, data.calculateOciDigest(digestAlgorithm))
+                    }
                 } ?: createError(response, body.aggregate())
 
                 else -> createError(response, body.aggregate())
@@ -111,7 +113,9 @@ class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).handle { manifest, sink ->
         val manifestBytes = manifest.data
-        val actualDigest = manifestBytes.calculateOciDigest(digest.algorithm)
+        val actualDigest =
+            if (manifest.digest.algorithm == digest.algorithm) manifest.digest
+            else manifestBytes.calculateOciDigest(digest.algorithm)
         when {
             size != manifestBytes.size.toLong() -> sink.error(sizeMismatchException(size, manifestBytes.size.toLong()))
             digest != actualDigest -> sink.error(digestMismatchException(digest.hash, actualDigest.hash))
@@ -300,7 +304,8 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         reference: String,
-        manifest: Manifest,
+        mediaType: String,
+        data: ByteArray,
         credentials: Credentials?,
     ): Mono<Nothing> {
         return send(
@@ -311,9 +316,9 @@ class OciRegistryApi(httpClient: HttpClient) {
             credentials,
             {
                 headers { headers ->
-                    headers[HttpHeaderNames.CONTENT_LENGTH] = manifest.data.size
-                    headers[HttpHeaderNames.CONTENT_TYPE] = manifest.mediaType
-                }.put().send { _, outbound -> outbound.sendByteArray(Mono.just(manifest.data)) }
+                    headers[HttpHeaderNames.CONTENT_LENGTH] = data.size
+                    headers[HttpHeaderNames.CONTENT_TYPE] = mediaType
+                }.put().send { _, outbound -> outbound.sendByteArray(Mono.just(data)) }
             }
         ) { response, body ->
             when (response.status().code()) {
@@ -327,9 +332,10 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         digest: OciDigest,
-        manifest: Manifest,
+        mediaType: String,
+        data: ByteArray,
         credentials: Credentials?,
-    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), manifest, credentials)
+    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), mediaType, data, credentials)
 
 //    fun deleteBlob(
 //        registry: String,

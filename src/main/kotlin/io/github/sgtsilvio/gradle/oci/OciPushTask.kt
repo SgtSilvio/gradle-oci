@@ -275,7 +275,8 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
             context.registryUrl.toString(),
             imageName,
             reference,
-            OciRegistryApi.Manifest(mediaType, data),
+            mediaType,
+            data,
             context.credentials,
         ).block()
         progressLogger.completed()
