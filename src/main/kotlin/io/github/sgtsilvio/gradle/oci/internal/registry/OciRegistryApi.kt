@@ -404,7 +404,7 @@ class OciRegistryApi(httpClient: HttpClient) {
             when {
                 error !is HttpResponseException -> Mono.error(error)
                 error.statusCode != 401 -> Mono.error(error)
-                else -> tryAuthorize(error.headers, scopes, credentials)?.flatMapMany { authorization ->
+                else -> tryAuthorize(error.headers, registry, scopes, credentials)?.flatMapMany { authorization ->
                     httpClient.headers { headers ->
                         headers[HttpHeaderNames.AUTHORIZATION] = authorization
                     }.requestAction().response(responseAction).retryWhen(RETRY_SPEC)
@@ -415,6 +415,7 @@ class OciRegistryApi(httpClient: HttpClient) {
 
     private fun tryAuthorize(
         responseHeaders: HttpHeaders,
+        registry: String,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String>? {
@@ -426,13 +427,13 @@ class OciRegistryApi(httpClient: HttpClient) {
         if (scopesFromResponse != scopes) {
             return Mono.error(IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse"))
         }
-        return Mono.fromFuture(tokenCache.get(TokenCacheKey(service, scopes, credentials?.hashed())) { key, _ ->
+        return Mono.fromFuture(tokenCache.get(TokenCacheKey(registry, scopes, credentials?.hashed())) { key, _ ->
             val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
                 if (credentials != null) {
                     headers[HttpHeaderNames.AUTHORIZATION] = credentials.encodeBasicAuthorization()
                 }
-            }.get().uri(URI("$realm?service=${key.registry}&$scopeParams")).responseSingle { response, body ->
+            }.get().uri(URI("$realm?service=$service&$scopeParams")).responseSingle { response, body ->
                 when (response.status().code()) {
                     200 -> body.asString(StandardCharsets.UTF_8)
                     else -> createError(response, body)
