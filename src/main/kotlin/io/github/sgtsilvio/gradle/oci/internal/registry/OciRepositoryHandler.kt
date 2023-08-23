@@ -8,6 +8,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
+import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.mapping.*
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
@@ -20,6 +21,7 @@ import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.zip
 import reactor.netty.ByteBufFlux
 import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
@@ -192,11 +194,10 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         response: HttpServerResponse,
     ): Publisher<Void> {
         val componentId = mappedComponent.componentId
-        val componentFutures = mappedComponent.variants.map { (variantName, variant) ->
-            getComponent(registryUri, variant, credentials).thenApply { Pair(variantName, it) }
+        val variantNameComponentPairMonoList = mappedComponent.variants.map { (variantName, variant) ->
+            getComponent(registryUri, variant, credentials).map { Pair(variantName, it) }
         }
-        val moduleJsonFuture = CompletableFuture.allOf(*componentFutures.toTypedArray()).thenApply {
-            val variantNameComponentPairs = componentFutures.map { it.get() }
+        val moduleJsonMono = variantNameComponentPairMonoList.zip { variantNameComponentPairs ->
             jsonObject {
                 addString("formatVersion", "1.1")
                 addObject("component") {
@@ -256,7 +257,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
             }.toByteArray()
         }
         response.header(HttpHeaderNames.CONTENT_TYPE, "application/vnd.org.gradle.module+json") // TODO constants
-        return response.sendByteArray(Mono.fromFuture(moduleJsonFuture), isGET)
+        return response.sendByteArray(moduleJsonMono, isGET)
     }
 
     private fun getOrHeadComponent(
@@ -268,26 +269,26 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val componentJsonFuture = getComponent(registryUri, variant, digest, size, credentials).thenApply { componentWithDigest ->
+        val componentJsonMono = getComponent(registryUri, variant, digest, size, credentials).map { componentWithDigest ->
             componentWithDigest.component.encodeToJsonString().toByteArray()
         }
         response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
-        return response.sendByteArray(Mono.fromFuture(componentJsonFuture), isGET)
+        return response.sendByteArray(componentJsonMono, isGET)
     }
 
     private fun getComponent(
         registryUri: URI,
         variant: MappedComponent.Variant,
         credentials: Credentials?,
-    ): CompletableFuture<OciComponentRegistry.ComponentWithDigest> {
-        return componentCache.get(
+    ): Mono<OciComponentRegistry.ComponentWithDigest> {
+        return componentCache.getMono(
             ComponentCacheTagKey(
                 registryUri.toString(),
                 variant.imageReference,
                 variant.capabilities,
                 credentials?.hashed(),
             )
-        ) { _, _ ->
+        ) { _ ->
             componentRegistry.pullComponent(
                 registryUri.toString(),
                 variant.imageReference,
@@ -305,7 +306,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                     ),
                     CompletableFuture.completedFuture(componentWithDigest),
                 )
-            }.toFuture() // TODO wrap exceptions into CancellationException to avoid logging by caffeine
+            }
         }
     }
 
@@ -315,8 +316,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-    ): CompletableFuture<OciComponentRegistry.ComponentWithDigest> {
-        return componentCache.get(
+    ): Mono<OciComponentRegistry.ComponentWithDigest> {
+        return componentCache.getMono(
             ComponentCacheDigestKey(
                 registryUri.toString(),
                 variant.imageReference,
@@ -325,7 +326,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                 variant.capabilities,
                 credentials?.hashed(),
             )
-        ) { _, _ ->
+        ) { _ ->
             componentRegistry.pullComponent(
                 registryUri.toString(),
                 variant.imageReference,
@@ -333,7 +334,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                 size,
                 variant.capabilities,
                 credentials,
-            ).toFuture() // TODO wrap exceptions into CancellationException to avoid logging by caffeine
+            )
         }
     }
 

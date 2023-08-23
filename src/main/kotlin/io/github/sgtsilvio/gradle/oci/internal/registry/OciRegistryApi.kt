@@ -3,6 +3,8 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Expiry
+import io.github.sgtsilvio.gradle.oci.internal.cache.getIfPresentMono
+import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.metadata.*
@@ -434,7 +436,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         if (scopesFromResponse != scopes) {
             return IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse").toMono()
         }
-        return Mono.fromFuture(tokenCache.get(TokenCacheKey(registry, scopes, credentials?.hashed())) { key, _ ->
+        return tokenCache.getMono(TokenCacheKey(registry, scopes, credentials?.hashed())) { key ->
             val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
                 if (credentials != null) {
@@ -460,8 +462,8 @@ class OciRegistryApi(httpClient: HttpClient) {
                     // caffeine cache logs errors except CancellationException and TimeoutException
                     throw CancellationException("insufficient scopes, required: ${key.scopes}, granted: ${registryToken.payload.scopes}")
                 }
-            }.toFuture()
-        }).map { encodeBearerAuthorization(it.jws) }
+            }
+        }.map { encodeBearerAuthorization(it.jws) }
     }
 
     private fun getAuthorization(
@@ -469,12 +471,9 @@ class OciRegistryApi(httpClient: HttpClient) {
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String> {
-        val tokenFuture = tokenCache.getIfPresent(TokenCacheKey(registry, scopes, credentials?.hashed()))
-        return when {
-            tokenFuture != null -> Mono.fromFuture(tokenFuture).map { encodeBearerAuthorization(it.jws) }
-            credentials != null -> Mono.just(credentials.encodeBasicAuthorization())
-            else -> Mono.empty()
-        }
+        return tokenCache.getIfPresentMono(TokenCacheKey(registry, scopes, credentials?.hashed()))
+            .map { encodeBearerAuthorization(it.jws) }
+            .run { if (credentials == null) this else switchIfEmpty(credentials.encodeBasicAuthorization().toMono()) }
     }
 
     private fun Credentials.encodeBasicAuthorization() =
