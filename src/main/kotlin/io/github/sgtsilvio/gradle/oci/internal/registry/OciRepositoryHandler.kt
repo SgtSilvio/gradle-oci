@@ -288,7 +288,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                 variant.capabilities,
                 credentials?.hashed(),
             )
-        ) { _ ->
+        ) {
             componentRegistry.pullComponent(
                 registryUri.toString(),
                 variant.imageReference,
@@ -326,7 +326,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                 variant.capabilities,
                 credentials?.hashed(),
             )
-        ) { _ ->
+        ) {
             componentRegistry.pullComponent(
                 registryUri.toString(),
                 variant.imageReference,
