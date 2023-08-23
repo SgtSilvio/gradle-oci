@@ -15,6 +15,7 @@ commons-compress = { module = "org.apache.commons:commons-compress", version.ref
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 json = { module = "org.json:json", version.ref = "json" }
 netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
+reactor-kotlin = { module = "io.projectreactor.kotlin:reactor-kotlin-extensions", version.ref = "reactor-netty" }
 reactor-netty = { module = "io.projectreactor.netty:reactor-netty", version.ref = "reactor-netty" }
 
 [plugins]

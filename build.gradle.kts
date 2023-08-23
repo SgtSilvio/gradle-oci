@@ -40,6 +40,7 @@ dependencies {
     implementation(libs.commons.compress)
     implementation(libs.commons.io)
     implementation(libs.json)
+    implementation(libs.reactor.kotlin)
     implementation(libs.reactor.netty) {
         exclude("io.netty", "netty-resolver-dns-native-macos")
         exclude("io.netty", "netty-transport-native-epoll")
