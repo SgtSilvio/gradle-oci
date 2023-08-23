@@ -456,8 +456,8 @@ class OciRegistryApi(httpClient: HttpClient) {
                     registryToken
                 } else {
                     tokenCache.asMap().putIfAbsent(
-                        TokenCacheKey(key.registry, registryToken.payload.scopes, key.credentials),
-                        CompletableFuture.completedFuture(registryToken)
+                        key.copy(scopes = registryToken.payload.scopes),
+                        CompletableFuture.completedFuture(registryToken),
                     )
                     // caffeine cache logs errors except CancellationException and TimeoutException
                     throw CancellationException("insufficient scopes, required: ${key.scopes}, granted: ${registryToken.payload.scopes}")

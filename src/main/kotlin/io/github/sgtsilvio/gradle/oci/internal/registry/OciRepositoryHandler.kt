@@ -42,23 +42,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private val componentCache: AsyncCache<ComponentCacheKey, OciComponentRegistry.ComponentWithDigest> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
-    private sealed interface ComponentCacheKey
-
-    private data class ComponentCacheTagKey(
+    private data class ComponentCacheKey(
         val registry: String,
         val imageReference: OciImageReference,
+        val digest: OciDigest?,
+        val size: Long?,
         val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: HashedCredentials?,
-    ) : ComponentCacheKey
-
-    private data class ComponentCacheDigestKey(
-        val registry: String,
-        val imageReference: OciImageReference,
-        val digest: OciDigest,
-        val size: Long,
-        val capabilities: SortedSet<VersionedCoordinates>,
-        val credentials: HashedCredentials?,
-    ) : ComponentCacheKey
+    )
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
 //        println("REQUEST: " + request.method() + " " + request.uri() + " " + request.requestHeaders())
@@ -282,31 +273,22 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         credentials: Credentials?,
     ): Mono<OciComponentRegistry.ComponentWithDigest> {
         return componentCache.getMono(
-            ComponentCacheTagKey(
+            ComponentCacheKey(
                 registryUri.toString(),
                 variant.imageReference,
+                null,
+                null,
                 variant.capabilities,
                 credentials?.hashed(),
             )
-        ) {
-            componentRegistry.pullComponent(
-                registryUri.toString(),
-                variant.imageReference,
-                variant.capabilities,
-                credentials,
-            ).doOnNext { componentWithDigest ->
-                componentCache.asMap().putIfAbsent(
-                    ComponentCacheDigestKey(
-                        registryUri.toString(),
-                        variant.imageReference,
-                        componentWithDigest.digest,
-                        componentWithDigest.size,
-                        variant.capabilities,
-                        credentials?.hashed(),
-                    ),
-                    CompletableFuture.completedFuture(componentWithDigest),
-                )
-            }
+        ) { key ->
+            componentRegistry.pullComponent(key.registry, key.imageReference, key.capabilities, credentials)
+                .doOnNext { componentWithDigest ->
+                    componentCache.asMap().putIfAbsent(
+                        key.copy(digest = componentWithDigest.digest, size = componentWithDigest.size),
+                        CompletableFuture.completedFuture(componentWithDigest),
+                    )
+                }
         }
     }
 
@@ -318,7 +300,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         credentials: Credentials?,
     ): Mono<OciComponentRegistry.ComponentWithDigest> {
         return componentCache.getMono(
-            ComponentCacheDigestKey(
+            ComponentCacheKey(
                 registryUri.toString(),
                 variant.imageReference,
                 digest,
@@ -326,15 +308,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                 variant.capabilities,
                 credentials?.hashed(),
             )
-        ) {
-            componentRegistry.pullComponent(
-                registryUri.toString(),
-                variant.imageReference,
-                digest,
-                size,
-                variant.capabilities,
-                credentials,
-            )
+        ) { (registry, imageReference, _, _, capabilities) ->
+            componentRegistry.pullComponent(registry, imageReference, digest, size, capabilities, credentials)
         }
     }
 
