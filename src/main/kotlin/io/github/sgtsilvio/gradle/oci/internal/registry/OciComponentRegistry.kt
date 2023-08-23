@@ -9,6 +9,7 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import java.time.Instant
 import java.util.*
 
@@ -94,7 +95,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
             DOCKER_MANIFEST_MEDIA_TYPE,
             DOCKER_CONFIG_MEDIA_TYPE,
         )
-        else -> Mono.error(IllegalStateException("unsupported manifest media type '${manifest.mediaType}'"))
+        else -> IllegalStateException("unsupported manifest media type '${manifest.mediaType}'").toMono()
     }
 
     private fun transformIndexToComponent(

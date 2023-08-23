@@ -17,6 +17,7 @@ import reactor.core.CoreSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxOperator
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import reactor.netty.ByteBufFlux
 import reactor.netty.ByteBufMono
 import reactor.netty.NettyOutbound
@@ -177,8 +178,8 @@ class OciRegistryApi(httpClient: HttpClient) {
             { head() },
         ) { response, body ->
             when (response.status().code()) {
-                200 -> body.then(Mono.just(true))
-                404 -> body.then(Mono.just(false))
+                200 -> body.then(true.toMono())
+                404 -> body.then(false.toMono())
                 else -> createError(response, body.aggregate())
             }
         }.single()
@@ -214,7 +215,7 @@ class OciRegistryApi(httpClient: HttpClient) {
             when (response.status().code()) {
                 201 -> if (isMount) body.then(Mono.empty()) else createError(response, body.aggregate())
                 202 -> response.responseHeaders()[HttpHeaderNames.LOCATION]?.let { location ->
-                    body.then(Mono.just(URI(registry).resolve(location)))
+                    body.then(URI(registry).resolve(location).toMono())
                 } ?: createError(response, body.aggregate())
 
                 else -> createError(response, body.aggregate())
@@ -318,7 +319,7 @@ class OciRegistryApi(httpClient: HttpClient) {
                 headers { headers ->
                     headers[HttpHeaderNames.CONTENT_LENGTH] = data.size
                     headers[HttpHeaderNames.CONTENT_TYPE] = mediaType
-                }.put().send { _, outbound -> outbound.sendByteArray(Mono.just(data)) }
+                }.put().send { _, outbound -> outbound.sendByteArray(data.toMono()) }
             }
         ) { response, body ->
             when (response.status().code()) {
@@ -408,13 +409,13 @@ class OciRegistryApi(httpClient: HttpClient) {
             }.defaultIfEmpty(headers)
         }.requestAction().response(responseAction).retryWhen(RETRY_SPEC).onErrorResume { error ->
             when {
-                error !is HttpResponseException -> Mono.error(error)
-                error.statusCode != 401 -> Mono.error(error)
+                error !is HttpResponseException -> error.toMono()
+                error.statusCode != 401 -> error.toMono()
                 else -> tryAuthorize(error.headers, registry, scopes, credentials)?.flatMapMany { authorization ->
                     httpClient.headers { headers ->
                         headers[HttpHeaderNames.AUTHORIZATION] = authorization
                     }.requestAction().response(responseAction).retryWhen(RETRY_SPEC)
-                } ?: Mono.error(error)
+                } ?: error.toMono()
             }
         }
     }
@@ -426,12 +427,12 @@ class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<String>? {
         val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
-        val realm = bearerParams["realm"] ?: return Mono.error(IllegalArgumentException("bearer authorization header is missing 'realm'"))
-        val service = bearerParams["service"] ?: return Mono.error(IllegalArgumentException("bearer authorization header is missing 'service'"))
-        val scope = bearerParams["scope"] ?: return Mono.error(IllegalArgumentException("bearer authorization header is missing 'scope'"))
+        val realm = bearerParams["realm"] ?: return IllegalArgumentException("bearer authorization header is missing 'realm'").toMono()
+        val service = bearerParams["service"] ?: return IllegalArgumentException("bearer authorization header is missing 'service'").toMono()
+        val scope = bearerParams["scope"] ?: return IllegalArgumentException("bearer authorization header is missing 'scope'").toMono()
         val scopesFromResponse = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
         if (scopesFromResponse != scopes) {
-            return Mono.error(IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse"))
+            return IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse").toMono()
         }
         return Mono.fromFuture(tokenCache.get(TokenCacheKey(registry, scopes, credentials?.hashed())) { key, _ ->
             val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
@@ -506,7 +507,7 @@ class OciRegistryApi(httpClient: HttpClient) {
 
     private fun <T> createError(response: HttpClientResponse, body: ByteBufMono): Mono<T> =
         body.asString(StandardCharsets.UTF_8).defaultIfEmpty("").flatMap { errorBody ->
-            Mono.error(HttpResponseException(response.status().code(), response.responseHeaders(), errorBody))
+            HttpResponseException(response.status().code(), response.responseHeaders(), errorBody).toMono()
         }
 }
 

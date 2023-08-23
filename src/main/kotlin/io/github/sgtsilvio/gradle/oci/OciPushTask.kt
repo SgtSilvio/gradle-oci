@@ -27,7 +27,7 @@ import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
 import org.reactivestreams.Publisher
-import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import reactor.netty.NettyOutbound
 import java.io.File
 import java.net.URI
@@ -119,7 +119,7 @@ abstract class OciPushTask @Inject constructor(
                 val sourceBlob = blobs[configDigest]
                 blobFutures += if (sourceBlob == null) {
                     val size = config.data.size.toLong()
-                    val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(Mono.just(config.data)) }
+                    val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(config.data.toMono()) }
                     val future = CompletableFuture<Unit>()
                     blobs[configDigest] = Blob(configDigest, size, sender, imageName, imageName, future)
                     future
