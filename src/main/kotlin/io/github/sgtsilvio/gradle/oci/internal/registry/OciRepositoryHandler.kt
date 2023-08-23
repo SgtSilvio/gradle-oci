@@ -37,15 +37,26 @@ import java.util.function.BiFunction
 class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) :
     BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private val componentCache: AsyncCache<ComponentCacheKey, OciComponent> =
+    private val componentCache: AsyncCache<ComponentCacheKey, OciComponentRegistry.ComponentWithDigest> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
-    private data class ComponentCacheKey(
+    private sealed interface ComponentCacheKey
+
+    private data class ComponentCacheTagKey(
         val registry: String,
         val imageReference: OciImageReference,
         val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: HashedCredentials?,
-    )
+    ) : ComponentCacheKey
+
+    private data class ComponentCacheDigestKey(
+        val registry: String,
+        val imageReference: OciImageReference,
+        val digest: OciDigest,
+        val size: Long,
+        val capabilities: SortedSet<VersionedCoordinates>,
+        val credentials: HashedCredentials?,
+    ) : ComponentCacheKey
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
 //        println("REQUEST: " + request.method() + " " + request.uri() + " " + request.requestHeaders())
@@ -86,7 +97,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         return when {
             last.endsWith(".module") -> handleRepositoryModule(registryUri, segments, imageMappingData, credentials, isGET, response)
             segments.size < 6 -> response.sendNotFound()
-            last.endsWith("oci-component.json") -> handleRepositoryComponent(registryUri, segments, imageMappingData, credentials, isGET, response)
+            last.startsWith("oci-component-") -> handleRepositoryComponent(registryUri, segments, imageMappingData, credentials, isGET, response)
             last.startsWith("oci-layer-") -> handleRepositoryLayer(registryUri, segments, imageMappingData, credentials, isGET, response)
             else -> response.sendNotFound()
         }
@@ -116,8 +127,24 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val lastIndex = segments.lastIndex
         val componentId = decodeComponentId(segments, lastIndex - 2)
         val variantName = segments[lastIndex - 1]
+        val last = segments[lastIndex]
+        val digestStartIndex = "oci-component-".length
+        val digestEndIndex = last.lastIndexOf('-')
+        if (digestEndIndex < digestStartIndex) {
+            return response.sendBadRequest()
+        }
+        val digest = try {
+            last.substring(digestStartIndex, digestEndIndex).toOciDigest()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val size = try {
+            last.substring(digestEndIndex + 1).toLong()
+        } catch (e: NumberFormatException) {
+            return response.sendBadRequest()
+        }
         val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
-        return getOrHeadComponent(registryUri, variant, credentials, isGET, response)
+        return getOrHeadComponent(registryUri, variant, digest, size, credentials, isGET, response)
     }
 
     private fun handleRepositoryLayer(
@@ -181,7 +208,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                     }
                 }
                 val layerDigestToVariantName = mutableMapOf<OciDigest, String>()
-                addArray("variants", variantNameComponentPairs) { (variantName, component) ->
+                addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
+                    val component = componentWithDigest.component
                     addObject {
                         addString("name", if (variantName == "main") "ociImage" else variantName + "OciImage")
                         addObject("attributes") {
@@ -193,8 +221,9 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                         addArray("files") {
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
-                                val componentName = "${componentId.name}${if (variantName == "main") "" else "-$variantName"}-${componentId.version}-oci-component.json"
-                                addString("name", componentName)
+                                val componentName =
+                                    "oci-component-${componentWithDigest.digest}-${componentWithDigest.size}"
+                                addString("name", componentName.replace(':', '-'))
                                 addString("url", "$variantName/$componentName")
                                 addNumber("size", componentJson.size.toLong())
                                 addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(componentJson)))
@@ -233,12 +262,14 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     private fun getOrHeadComponent(
         registryUri: URI,
         variant: MappedComponent.Variant,
+        digest: OciDigest,
+        size: Long,
         credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val componentJsonFuture = getComponent(registryUri, variant, credentials).thenApply { component ->
-            component.encodeToJsonString().toByteArray()
+        val componentJsonFuture = getComponent(registryUri, variant, digest, size, credentials).thenApply { componentWithDigest ->
+            componentWithDigest.component.encodeToJsonString().toByteArray()
         }
         response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
         return response.sendByteArray(Mono.fromFuture(componentJsonFuture), isGET)
@@ -248,16 +279,61 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         variant: MappedComponent.Variant,
         credentials: Credentials?,
-    ): CompletableFuture<OciComponent> {
+    ): CompletableFuture<OciComponentRegistry.ComponentWithDigest> {
         return componentCache.get(
-            ComponentCacheKey(
+            ComponentCacheTagKey(
                 registryUri.toString(),
                 variant.imageReference,
                 variant.capabilities,
                 credentials?.hashed(),
             )
-        ) { key, _ ->
-            componentRegistry.pullComponent(key.registry, key.imageReference, key.capabilities, credentials).toFuture()
+        ) { _, _ ->
+            componentRegistry.pullComponent(
+                registryUri.toString(),
+                variant.imageReference,
+                variant.capabilities,
+                credentials,
+            ).doOnNext { componentWithDigest ->
+                componentCache.asMap().putIfAbsent(
+                    ComponentCacheDigestKey(
+                        registryUri.toString(),
+                        variant.imageReference,
+                        componentWithDigest.digest,
+                        componentWithDigest.size,
+                        variant.capabilities,
+                        credentials?.hashed(),
+                    ),
+                    CompletableFuture.completedFuture(componentWithDigest),
+                )
+            }.toFuture() // TODO wrap exceptions into CancellationException to avoid logging by caffeine
+        }
+    }
+
+    private fun getComponent(
+        registryUri: URI,
+        variant: MappedComponent.Variant,
+        digest: OciDigest,
+        size: Long,
+        credentials: Credentials?,
+    ): CompletableFuture<OciComponentRegistry.ComponentWithDigest> {
+        return componentCache.get(
+            ComponentCacheDigestKey(
+                registryUri.toString(),
+                variant.imageReference,
+                digest,
+                size,
+                variant.capabilities,
+                credentials?.hashed(),
+            )
+        ) { _, _ ->
+            componentRegistry.pullComponent(
+                registryUri.toString(),
+                variant.imageReference,
+                digest,
+                size,
+                variant.capabilities,
+                credentials,
+            ).toFuture() // TODO wrap exceptions into CancellationException to avoid logging by caffeine
         }
     }
 

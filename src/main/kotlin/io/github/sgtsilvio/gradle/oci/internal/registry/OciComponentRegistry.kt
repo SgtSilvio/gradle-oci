@@ -17,55 +17,85 @@ import java.util.*
  */
 class OciComponentRegistry(val registryApi: OciRegistryApi) {
 
+    data class ComponentWithDigest(val component: OciComponent, val digest: OciDigest, val size: Long)
+
     fun pullComponent(
         registry: String,
         imageReference: OciImageReference,
         capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
-    ): Mono<OciComponent> =
-        registryApi.pullManifest(registry, imageReference.name, imageReference.tag, credentials).flatMap { manifest ->
-            when (manifest.mediaType) {
-                INDEX_MEDIA_TYPE -> transformIndexToComponent(
-                    registry,
-                    imageReference,
-                    manifest.data,
-                    credentials,
-                    capabilities,
-                    INDEX_MEDIA_TYPE,
-                    MANIFEST_MEDIA_TYPE,
-                    CONFIG_MEDIA_TYPE,
-                )
-                MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
-                    registry,
-                    imageReference,
-                    manifest.data,
-                    credentials,
-                    capabilities,
-                    MANIFEST_MEDIA_TYPE,
-                    CONFIG_MEDIA_TYPE,
-                )
-                DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToComponent(
-                    registry,
-                    imageReference,
-                    manifest.data,
-                    credentials,
-                    capabilities,
-                    DOCKER_MANIFEST_LIST_MEDIA_TYPE,
-                    DOCKER_MANIFEST_MEDIA_TYPE,
-                    DOCKER_CONFIG_MEDIA_TYPE,
-                )
-                DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
-                    registry,
-                    imageReference,
-                    manifest.data,
-                    credentials,
-                    capabilities,
-                    DOCKER_MANIFEST_MEDIA_TYPE,
-                    DOCKER_CONFIG_MEDIA_TYPE,
-                )
-                else -> Mono.error(IllegalStateException("unsupported manifest media type '${manifest.mediaType}'"))
-            }
+    ): Mono<ComponentWithDigest> =
+        registryApi.pullManifest(registry, imageReference.name, imageReference.tag, credentials)
+            .transformToComponent(registry, imageReference, credentials, capabilities)
+
+    fun pullComponent(
+        registry: String,
+        imageReference: OciImageReference,
+        digest: OciDigest,
+        size: Long,
+        capabilities: SortedSet<VersionedCoordinates>,
+        credentials: Credentials?,
+    ): Mono<ComponentWithDigest> = registryApi.pullManifest(registry, imageReference.name, digest, size, credentials)
+        .transformToComponent(registry, imageReference, credentials, capabilities)
+
+    private fun Mono<OciRegistryApi.Manifest>.transformToComponent(
+        registry: String,
+        imageReference: OciImageReference,
+        credentials: Credentials?,
+        capabilities: SortedSet<VersionedCoordinates>,
+    ): Mono<ComponentWithDigest> = flatMap { manifest ->
+        transformToComponent(registry, imageReference, manifest, credentials, capabilities).map { component ->
+            ComponentWithDigest(component, manifest.digest, manifest.data.size.toLong())
         }
+    }
+
+    private fun transformToComponent(
+        registry: String,
+        imageReference: OciImageReference,
+        manifest: OciRegistryApi.Manifest,
+        credentials: Credentials?,
+        capabilities: SortedSet<VersionedCoordinates>,
+    ): Mono<OciComponent> = when (manifest.mediaType) {
+        INDEX_MEDIA_TYPE -> transformIndexToComponent(
+            registry,
+            imageReference,
+            manifest.data,
+            credentials,
+            capabilities,
+            INDEX_MEDIA_TYPE,
+            MANIFEST_MEDIA_TYPE,
+            CONFIG_MEDIA_TYPE,
+        )
+        MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
+            registry,
+            imageReference,
+            manifest.data,
+            credentials,
+            capabilities,
+            MANIFEST_MEDIA_TYPE,
+            CONFIG_MEDIA_TYPE,
+        )
+        DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToComponent(
+            registry,
+            imageReference,
+            manifest.data,
+            credentials,
+            capabilities,
+            DOCKER_MANIFEST_LIST_MEDIA_TYPE,
+            DOCKER_MANIFEST_MEDIA_TYPE,
+            DOCKER_CONFIG_MEDIA_TYPE,
+        )
+        DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToComponent(
+            registry,
+            imageReference,
+            manifest.data,
+            credentials,
+            capabilities,
+            DOCKER_MANIFEST_MEDIA_TYPE,
+            DOCKER_CONFIG_MEDIA_TYPE,
+        )
+        else -> Mono.error(IllegalStateException("unsupported manifest media type '${manifest.mediaType}'"))
+    }
 
     private fun transformIndexToComponent(
         registry: String,
