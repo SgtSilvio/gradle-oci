@@ -34,7 +34,6 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.*
-import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -192,7 +191,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         digest: OciDigest?,
         sourceImageName: String?,
         credentials: Credentials?,
-    ): Mono<URI> { // TODO do not retry mounting blob if not allowed (insufficient scopes)
+    ): Mono<URI> {
         var query = ""
         val scopes = hashSetOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS))
         val isMount = digest != null
@@ -205,7 +204,7 @@ class OciRegistryApi(httpClient: HttpClient) {
                 }
             }
         }
-        return send(
+        val mono = send(
             registry,
             imageName,
             "blobs/uploads/$query",
@@ -222,6 +221,13 @@ class OciRegistryApi(httpClient: HttpClient) {
                 else -> createError(response, body.aggregate())
             }
         }.singleOrEmpty()
+        return if (isMount && (sourceImageName != null)) {
+            mono.onErrorResume { error ->
+                if (error is InsufficientScopesException) {
+                    mountBlobOrCreatePushUrl(registry, imageName, null, null, credentials)
+                } else throw error
+            }
+        } else mono
     }
 
 //    fun cancelBlobPush(
@@ -449,15 +455,15 @@ class OciRegistryApi(httpClient: HttpClient) {
                     if (hasKey("token")) getString("token") else getString("access_token")
                 }
                 val registryToken = OciRegistryToken(jws)
-                if (registryToken.payload.scopes == key.scopes) {
+                val grantedScopes = registryToken.payload.scopes
+                if (grantedScopes == key.scopes) {
                     registryToken
                 } else {
                     tokenCache.asMap().putIfAbsent(
-                        key.copy(scopes = registryToken.payload.scopes),
+                        key.copy(scopes = grantedScopes),
                         CompletableFuture.completedFuture(registryToken),
                     )
-                    // caffeine cache logs errors except CancellationException and TimeoutException
-                    throw CancellationException("insufficient scopes, required: ${key.scopes}, granted: ${registryToken.payload.scopes}")
+                    throw InsufficientScopesException(key.scopes, grantedScopes)
                 }
             }
         }.map { encodeBearerAuthorization(it.jws) }
@@ -604,6 +610,13 @@ class HttpResponseException(
         }
         append(body)
     }
+}
+
+class InsufficientScopesException(
+    val requiredScopes: Set<OciRegistryResourceScope>,
+    val grantedScopes: Set<OciRegistryResourceScope>,
+) : RuntimeException("insufficient scopes", null, false, false) {
+    override val message get() = super.message + ", required: $requiredScopes, granted: $grantedScopes"
 }
 
 fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
