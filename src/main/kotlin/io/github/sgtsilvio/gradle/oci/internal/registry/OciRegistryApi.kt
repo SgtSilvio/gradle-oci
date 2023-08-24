@@ -141,7 +141,9 @@ class OciRegistryApi(httpClient: HttpClient) {
             { get() },
         ) { response, body ->
             when (response.status().code()) {
-                200 -> ByteBufFlux.fromInbound(body.verify(digest, size)).bodyMapper()
+                200 -> ByteBufFlux.fromInbound(
+                    DigestVerifyingFlux(body, digest.algorithm.createMessageDigest(), digest.hash, size)
+                ).bodyMapper()
                 else -> createError(response, body.aggregate())
             }
         }
@@ -515,9 +517,6 @@ class OciRegistryApi(httpClient: HttpClient) {
 
 private val RETRY_SPEC: RetrySpec = Retry.max(3).filter { error -> error is PrematureCloseException }
 
-fun Flux<ByteBuf>.verify(digest: OciDigest, size: Long) =
-    DigestVerifyingFlux(this, digest.algorithm.createMessageDigest(), digest.hash, size)
-
 class DigestVerifyingFlux(
     source: Flux<ByteBuf>,
     private val messageDigest: MessageDigest,
@@ -565,11 +564,6 @@ class DigestVerifyingFlux(
             subscriber.onNext(byteBuf)
         }
 
-        override fun onError(error: Throwable?) {
-            if (done) return else done = true
-            subscriber.onError(error)
-        }
-
         override fun onComplete() {
             if (done) return else done = true
             if (actualSize < expectedSize) {
@@ -577,6 +571,11 @@ class DigestVerifyingFlux(
             } else {
                 subscriber.onComplete()
             }
+        }
+
+        override fun onError(error: Throwable?) {
+            if (done) return else done = true
+            subscriber.onError(error)
         }
 
         override fun currentContext() = subscriber.currentContext()
