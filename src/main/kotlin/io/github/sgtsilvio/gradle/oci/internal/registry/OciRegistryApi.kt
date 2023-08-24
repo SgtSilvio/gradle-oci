@@ -113,15 +113,15 @@ class OciRegistryApi(httpClient: HttpClient) {
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-    ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).handle { manifest, sink ->
+    ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).map { manifest ->
         val manifestBytes = manifest.data
         val actualDigest =
             if (manifest.digest.algorithm == digest.algorithm) manifest.digest
             else manifestBytes.calculateOciDigest(digest.algorithm)
         when {
-            size != manifestBytes.size.toLong() -> sink.error(sizeMismatchException(size, manifestBytes.size.toLong()))
-            digest != actualDigest -> sink.error(digestMismatchException(digest.hash, actualDigest.hash))
-            else -> sink.next(manifest)
+            size != manifestBytes.size.toLong() -> throw sizeMismatchException(size, manifestBytes.size.toLong())
+            digest != actualDigest -> throw digestMismatchException(digest.hash, actualDigest.hash)
+            else -> manifest
         }
     }
 
@@ -408,13 +408,13 @@ class OciRegistryApi(httpClient: HttpClient) {
             }.defaultIfEmpty(headers)
         }.requestAction().response(responseAction).retryWhen(RETRY_SPEC).onErrorResume { error ->
             when {
-                error !is HttpResponseException -> error.toMono()
-                error.statusCode != 401 -> error.toMono()
+                error !is HttpResponseException -> throw error
+                error.statusCode != 401 -> throw error
                 else -> tryAuthorize(error.headers, registry, scopes, credentials)?.flatMapMany { authorization ->
                     httpClient.headers { headers ->
                         headers[HttpHeaderNames.AUTHORIZATION] = authorization
                     }.requestAction().response(responseAction).retryWhen(RETRY_SPEC)
-                } ?: error.toMono()
+                } ?: throw error
             }
         }
     }
@@ -426,12 +426,12 @@ class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<String>? {
         val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
-        val realm = bearerParams["realm"] ?: return IllegalArgumentException("bearer authorization header is missing 'realm'").toMono()
-        val service = bearerParams["service"] ?: return IllegalArgumentException("bearer authorization header is missing 'service'").toMono()
-        val scope = bearerParams["scope"] ?: return IllegalArgumentException("bearer authorization header is missing 'scope'").toMono()
+        val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
+        val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
+        val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
         val scopesFromResponse = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
         if (scopesFromResponse != scopes) {
-            return IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse").toMono()
+            throw IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse")
         }
         return tokenCache.getMono(TokenCacheKey(registry, scopes, credentials?.hashed())) { key ->
             val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
@@ -502,8 +502,8 @@ class OciRegistryApi(httpClient: HttpClient) {
     }
 
     private fun <T> createError(response: HttpClientResponse, body: ByteBufMono): Mono<T> =
-        body.asString(Charsets.UTF_8).defaultIfEmpty("").flatMap { errorBody ->
-            HttpResponseException(response.status().code(), response.responseHeaders(), errorBody).toMono()
+        body.asString(Charsets.UTF_8).defaultIfEmpty("").map { errorBody ->
+            throw HttpResponseException(response.status().code(), response.responseHeaders(), errorBody)
         }
 }
 
