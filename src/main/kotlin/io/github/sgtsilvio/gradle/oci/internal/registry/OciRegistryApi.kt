@@ -29,7 +29,6 @@ import reactor.netty.http.client.PrematureCloseException
 import reactor.util.retry.Retry
 import reactor.util.retry.RetrySpec
 import java.net.URI
-import java.nio.charset.StandardCharsets
 import java.security.DigestException
 import java.security.MessageDigest
 import java.time.Instant
@@ -162,7 +161,7 @@ class OciRegistryApi(httpClient: HttpClient) {
             digest,
             size,
             credentials,
-        ) { aggregate().asString(StandardCharsets.UTF_8) }.single()
+        ) { aggregate().asString(Charsets.UTF_8) }.single()
     }
 
     fun isBlobPresent(
@@ -296,10 +295,8 @@ class OciRegistryApi(httpClient: HttpClient) {
         return if ((sourceImageName == null) || (sourceImageName == imageName)) {
             mountOrPushBlob(registry, imageName, digest, size, imageName, credentials, sender)
         } else isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
-            when {
-                present -> Mono.empty()
-                else -> mountOrPushBlob(registry, imageName, digest, size, sourceImageName, credentials, sender)
-            }
+            if (present) Mono.empty()
+            else mountOrPushBlob(registry, imageName, digest, size, sourceImageName, credentials, sender)
         }
     }
 
@@ -444,7 +441,7 @@ class OciRegistryApi(httpClient: HttpClient) {
                 }
             }.get().uri(URI("$realm?service=$service&$scopeParams")).responseSingle { response, body ->
                 when (response.status().code()) {
-                    200 -> body.asString(StandardCharsets.UTF_8)
+                    200 -> body.asString(Charsets.UTF_8)
                     else -> createError(response, body)
                 }
             }.retryWhen(RETRY_SPEC).map { response ->
@@ -473,7 +470,7 @@ class OciRegistryApi(httpClient: HttpClient) {
     ): Mono<String> {
         return tokenCache.getIfPresentMono(TokenCacheKey(registry, scopes, credentials?.hashed()))
             .map { encodeBearerAuthorization(it.jws) }
-            .run { if (credentials == null) this else switchIfEmpty(credentials.encodeBasicAuthorization().toMono()) }
+            .run { if (credentials == null) this else defaultIfEmpty(credentials.encodeBasicAuthorization()) }
     }
 
     private fun Credentials.encodeBasicAuthorization() =
@@ -505,7 +502,7 @@ class OciRegistryApi(httpClient: HttpClient) {
     }
 
     private fun <T> createError(response: HttpClientResponse, body: ByteBufMono): Mono<T> =
-        body.asString(StandardCharsets.UTF_8).defaultIfEmpty("").flatMap { errorBody ->
+        body.asString(Charsets.UTF_8).defaultIfEmpty("").flatMap { errorBody ->
             HttpResponseException(response.status().code(), response.responseHeaders(), errorBody).toMono()
         }
 }
