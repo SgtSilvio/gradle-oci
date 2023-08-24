@@ -86,17 +86,16 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         } catch (e: URISyntaxException) {
             return response.sendBadRequest()
         }
-        val last = segments[segments.lastIndex]
-        return when {
-            last.endsWith(".module") -> handleRepositoryModule(registryUri, segments, imageMappingData, credentials, isGET, response)
-            segments.size < 6 -> response.sendNotFound()
-            last.startsWith("oci-component-") -> handleRepositoryComponent(registryUri, segments, imageMappingData, credentials, isGET, response)
-            last.startsWith("oci-layer-") -> handleRepositoryLayer(registryUri, segments, imageMappingData, credentials, isGET, response)
-            else -> response.sendNotFound()
+        if (segments.last().endsWith(".module")) {
+            return handleModule(registryUri, segments, imageMappingData, credentials, isGET, response)
         }
+        if (segments.size < 6) {
+            return response.sendNotFound()
+        }
+        return handleComponentOrLayer(registryUri, segments, imageMappingData, credentials, isGET, response)
     }
 
-    private fun handleRepositoryModule(
+    private fun handleModule(
         registryUri: URI,
         segments: List<String>,
         imageMappingData: OciImageMappingData,
@@ -109,7 +108,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGET, response)
     }
 
-    private fun handleRepositoryComponent(
+    private fun handleComponentOrLayer(
         registryUri: URI,
         segments: List<String>,
         imageMappingData: OciImageMappingData,
@@ -121,8 +120,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val componentId = decodeComponentId(segments, lastIndex - 2)
         val variantName = segments[lastIndex - 1]
         val last = segments[lastIndex]
-        val digestStartIndex = "oci-component-".length
         val digestEndIndex = last.lastIndexOf('-')
+        val digestStartIndex = last.lastIndexOf('-', digestEndIndex - 1) + 1
         if (digestEndIndex < digestStartIndex) {
             return response.sendBadRequest()
         }
@@ -137,38 +136,12 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
             return response.sendBadRequest()
         }
         val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
-        return getOrHeadComponent(registryUri, variant, digest, size, credentials, isGET, response)
-    }
-
-    private fun handleRepositoryLayer(
-        registryUri: URI,
-        segments: List<String>,
-        imageMappingData: OciImageMappingData,
-        credentials: Credentials?,
-        isGET: Boolean,
-        response: HttpServerResponse,
-    ): Publisher<Void> {
-        val lastIndex = segments.lastIndex
-        val componentId = decodeComponentId(segments, lastIndex - 2)
-        val variantName = segments[lastIndex - 1]
-        val last = segments[lastIndex]
-        val digestStartIndex = "oci-layer-".length
-        val digestEndIndex = last.lastIndexOf('-')
-        if (digestEndIndex < digestStartIndex) {
-            return response.sendBadRequest()
+        val prefix = last.substring(0, digestStartIndex - 1)
+        return when {
+            prefix.endsWith("oci-component") -> getOrHeadComponent(registryUri, variant, digest, size, credentials, isGET, response)
+            prefix.endsWith("oci-layer") -> getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
+            else -> response.sendNotFound()
         }
-        val digest = try {
-            last.substring(digestStartIndex, digestEndIndex).toOciDigest()
-        } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
-        }
-        val size = try {
-            last.substring(digestEndIndex + 1).toLong()
-        } catch (e: NumberFormatException) {
-            return response.sendBadRequest()
-        }
-        val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
-        return getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
     }
 
     private fun decodeComponentId(segments: List<String>, versionIndex: Int) = VersionedCoordinates(
