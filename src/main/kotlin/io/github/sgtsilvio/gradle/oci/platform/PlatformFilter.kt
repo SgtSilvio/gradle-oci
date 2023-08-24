@@ -6,7 +6,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-interface PlatformFilter {
+sealed interface PlatformFilter {
     fun or(other: PlatformFilter): PlatformFilter
     fun matches(platform: Platform?): Boolean
 }
@@ -37,7 +37,6 @@ private class FieldPlatformFilter(
         is AllPlatformFilter -> AllPlatformFilter
         is FieldPlatformFilter -> OrPlatformFilter(arrayOf(this, other))
         is OrPlatformFilter -> OrPlatformFilter(arrayOf(this, *other.filters))
-        else -> throw IllegalStateException()
     }
 
     override fun matches(platform: Platform?) = (platform != null)
@@ -99,17 +98,14 @@ private class OrPlatformFilter(filters: Array<FieldPlatformFilter>) : PlatformFi
         is AllPlatformFilter -> AllPlatformFilter
         is FieldPlatformFilter -> OrPlatformFilter(arrayOf(*filters, other))
         is OrPlatformFilter -> OrPlatformFilter(arrayOf(*filters, *other.filters))
-        else -> throw IllegalStateException()
     }
 
     override fun matches(platform: Platform?) = filters.any { it.matches(platform) }
 
-    override fun toString(): String {
-        val s = StringBuilder()
+    override fun toString() = buildString {
         for (filter in filters) {
-            s.append(filter.toString())
+            append(filter.toString())
         }
-        return s.toString()
     }
 
     override fun equals(other: Any?) = when {
