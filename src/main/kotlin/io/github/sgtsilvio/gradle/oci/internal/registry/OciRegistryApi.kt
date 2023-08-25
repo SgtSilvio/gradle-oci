@@ -141,14 +141,16 @@ class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).map { manifest ->
         val manifestBytes = manifest.data
+        if ((size != -1L) && (size != manifestBytes.size.toLong())) {
+            throw sizeMismatchException(size, manifestBytes.size.toLong())
+        }
         val actualDigest =
             if (manifest.digest.algorithm == digest.algorithm) manifest.digest
             else manifestBytes.calculateOciDigest(digest.algorithm)
-        when {
-            size != manifestBytes.size.toLong() -> throw sizeMismatchException(size, manifestBytes.size.toLong())
-            digest != actualDigest -> throw digestMismatchException(digest.hash, actualDigest.hash)
-            else -> manifest
+        if (digest != actualDigest) {
+            throw digestMismatchException(digest.hash, actualDigest.hash)
         }
+        manifest
     }
 
     fun <T> pullBlob(
@@ -192,7 +194,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         ) { aggregate().asString(Charsets.UTF_8) }.single()
     }
 
-    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Long?)
+    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Long)
 
     fun isManifestPresent(
         registry: String,
@@ -221,12 +223,12 @@ class OciRegistryApi(httpClient: HttpClient) {
                             true,
                             responseHeaders[HttpHeaderNames.CONTENT_TYPE],
                             responseHeaders["docker-content-digest"]?.toOciDigest(),
-                            responseHeaders[HttpHeaderNames.CONTENT_LENGTH]?.toLong(),
+                            responseHeaders[HttpHeaderNames.CONTENT_LENGTH]?.toLong() ?: -1,
                         ).toMono()
                     )
                 }
 
-                404 -> body.then(ManifestMetadata(false, null, null, null).toMono())
+                404 -> body.then(ManifestMetadata(false, null, null, -1).toMono())
                 else -> createError(response, body.aggregate())
             }
         }.single()
