@@ -194,52 +194,52 @@ class OciRegistryApi(httpClient: HttpClient) {
         ) { aggregate().asString(Charsets.UTF_8) }.single()
     }
 
-    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Int)
-
-    fun isManifestPresent(
-        registry: String,
-        imageName: String,
-        reference: String,
-        credentials: Credentials?,
-    ): Mono<ManifestMetadata> {
-        return send(
-            registry,
-            imageName,
-            "manifests/$reference",
-            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
-            credentials,
-            {
-                headers { headers ->
-                    headers[HttpHeaderNames.ACCEPT] =
-                        "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
-                }.head()
-            },
-        ) { response, body ->
-            when (response.status().code()) {
-                200 -> {
-                    val responseHeaders = response.responseHeaders()
-                    body.then(
-                        ManifestMetadata(
-                            true,
-                            responseHeaders[HttpHeaderNames.CONTENT_TYPE],
-                            responseHeaders["docker-content-digest"]?.toOciDigest(),
-                            responseHeaders[HttpHeaderNames.CONTENT_LENGTH]?.toInt() ?: -1,
-                        ).toMono()
-                    )
-                }
-
-                404 -> body.then(ManifestMetadata(false, null, null, -1).toMono())
-                else -> createError(response, body.aggregate())
-            }
-        }.single()
-    }
-
-    fun isManifestPresent(
-        registry: String,
-        imageName: String,
-        digest: OciDigest,
-        credentials: Credentials?,
-    ): Mono<ManifestMetadata> = isManifestPresent(registry, imageName, digest.toString(), credentials)
+//    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Int)
+//
+//    fun isManifestPresent(
+//        registry: String,
+//        imageName: String,
+//        reference: String,
+//        credentials: Credentials?,
+//    ): Mono<ManifestMetadata> {
+//        return send(
+//            registry,
+//            imageName,
+//            "manifests/$reference",
+//            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
+//            credentials,
+//            {
+//                headers { headers ->
+//                    headers[HttpHeaderNames.ACCEPT] =
+//                        "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
+//                }.head()
+//            },
+//        ) { response, body ->
+//            when (response.status().code()) {
+//                200 -> {
+//                    val responseHeaders = response.responseHeaders()
+//                    body.then(
+//                        ManifestMetadata(
+//                            true,
+//                            responseHeaders[HttpHeaderNames.CONTENT_TYPE],
+//                            responseHeaders["docker-content-digest"]?.toOciDigest(),
+//                            responseHeaders[HttpHeaderNames.CONTENT_LENGTH]?.toInt() ?: -1,
+//                        ).toMono()
+//                    )
+//                }
+//
+//                404 -> body.then(ManifestMetadata(false, null, null, -1).toMono())
+//                else -> createError(response, body.aggregate())
+//            }
+//        }.single()
+//    }
+//
+//    fun isManifestPresent(
+//        registry: String,
+//        imageName: String,
+//        digest: OciDigest,
+//        credentials: Credentials?,
+//    ): Mono<ManifestMetadata> = isManifestPresent(registry, imageName, digest.toString(), credentials)
 
     fun isBlobPresent(
         registry: String,
@@ -412,39 +412,39 @@ class OciRegistryApi(httpClient: HttpClient) {
         }.singleOrEmpty()
     }
 
-    fun pushManifest(
-        registry: String,
-        imageName: String,
-        digest: OciDigest,
-        mediaType: String,
-        data: ByteArray,
-        credentials: Credentials?,
-    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), mediaType, data, credentials)
-
-    fun pushManifestIfNotPresent(
-        registry: String,
-        imageName: String,
-        reference: String,
-        mediaType: String,
-        data: ByteArray,
-        credentials: Credentials?,
-    ): Mono<Nothing> = isManifestPresent(registry, imageName, reference, credentials).flatMap { (present) ->
-        if (present) Mono.empty()
-        else pushManifest(registry, imageName, reference, mediaType, data, credentials)
-    }
-
-    fun pushManifestIfNotPresent(
-        registry: String,
-        imageName: String,
-        digest: OciDigest,
-        mediaType: String,
-        data: ByteArray,
-        credentials: Credentials?,
-    ): Mono<Nothing> = isManifestPresent(registry, imageName, digest, credentials).flatMap { (present) ->
-        if (present) Mono.empty()
-        else pushManifest(registry, imageName, digest, mediaType, data, credentials)
-    }
-
+//    fun pushManifest(
+//        registry: String,
+//        imageName: String,
+//        digest: OciDigest,
+//        mediaType: String,
+//        data: ByteArray,
+//        credentials: Credentials?,
+//    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), mediaType, data, credentials)
+//
+//    fun pushManifestIfNotPresent(
+//        registry: String,
+//        imageName: String,
+//        reference: String,
+//        mediaType: String,
+//        data: ByteArray,
+//        credentials: Credentials?,
+//    ): Mono<Nothing> = isManifestPresent(registry, imageName, reference, credentials).flatMap { (present) ->
+//        if (present) Mono.empty()
+//        else pushManifest(registry, imageName, reference, mediaType, data, credentials)
+//    }
+//
+//    fun pushManifestIfNotPresent(
+//        registry: String,
+//        imageName: String,
+//        digest: OciDigest,
+//        mediaType: String,
+//        data: ByteArray,
+//        credentials: Credentials?,
+//    ): Mono<Nothing> = isManifestPresent(registry, imageName, digest, credentials).flatMap { (present) ->
+//        if (present) Mono.empty()
+//        else pushManifest(registry, imageName, digest, mediaType, data, credentials)
+//    }
+//
 //    fun deleteBlob(
 //        registry: String,
 //        imageName: String,
