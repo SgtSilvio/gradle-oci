@@ -36,6 +36,33 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
+/*
+https://github.com/opencontainers/distribution-spec/blob/main/spec.md
+https://docs.docker.com/registry/spec/api/
+
+end-1   GET	    /v2/                                                        200     404/401
+end-3   GET	    /v2/<name>/manifests/<reference>                            200     404         ✔ pullManifest (2 methods reference&digest)
+end-3   HEAD    /v2/<name>/manifests/<reference>                            200     404         ✔ isManifestPresent (2 methods reference&digest)
+end-7   PUT     /v2/<name>/manifests/<reference>                            201     404         ✔ pushManifest (2 methods reference&digest)
+end-9   DELETE  /v2/<name>/manifests/<reference>                            202     404/400/405 ✔ deleteManifest (2 methods reference&digest)
+end-2   GET	    /v2/<name>/blobs/<digest>                                   200     404         ✔ pullBlob (AsString)
+end-2   HEAD    /v2/<name>/blobs/<digest>                                   200     404         ✔ isBlobPresent
+end-10  DELETE  /v2/<name>/blobs/<digest>                                   202     404/405     ✔ deleteBlob
+end-4a  POST    /v2/<name>/blobs/uploads/                                   202     404         ✔ mountBlobOrCreatePushUrl
+end-4b  POST    /v2/<name>/blobs/uploads/?digest=<digest>                   201/202 404/400
+end-11  POST    /v2/<name>/blobs/uploads/?mount=<digest>&from=<other_name>  201     404         ✔ mountBlobOrCreatePushUrl
+end-13  GET     /v2/<name>/blobs/uploads/<reference>                        204     404
+end-5   PATCH   /v2/<name>/blobs/uploads/<reference>                        202     404/416
+        DELETE  /v2/<name>/blobs/uploads/<reference>                        204     404         ✔ cancelBlobPush
+end-6   PUT     /v2/<name>/blobs/uploads/<reference>?digest=<digest>        201     404/400     ✔ pushBlob
+end-8a  GET     /v2/<name>/tags/list                                        200     404
+end-8b  GET     /v2/<name>/tags/list?n=<integer>&last=<tag name>            200     404
+end-12a GET     /v2/<name>/referrers/<digest>                               200     404/400
+end-12b GET     /v2/<name>/referrers/<digest>?artifactType=<artifactType>   200     404/400
+        GET     /v2/_catalog                                                200
+        GET     /v2/_catalog?n=<integer>&last=<repository name>             200
+ */
+
 /**
  * @author Silvio Giebl
  */
@@ -164,6 +191,53 @@ class OciRegistryApi(httpClient: HttpClient) {
             credentials,
         ) { aggregate().asString(Charsets.UTF_8) }.single()
     }
+
+    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Long?)
+
+    fun isManifestPresent(
+        registry: String,
+        imageName: String,
+        reference: String,
+        credentials: Credentials?,
+    ): Mono<ManifestMetadata> {
+        return send(
+            registry,
+            imageName,
+            "manifests/$reference",
+            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
+            credentials,
+            {
+                headers { headers ->
+                    headers[HttpHeaderNames.ACCEPT] =
+                        "$INDEX_MEDIA_TYPE,$MANIFEST_MEDIA_TYPE,$DOCKER_MANIFEST_LIST_MEDIA_TYPE,$DOCKER_MANIFEST_MEDIA_TYPE"
+                }.head()
+            },
+        ) { response, body ->
+            when (response.status().code()) {
+                200 -> {
+                    val responseHeaders = response.responseHeaders()
+                    body.then(
+                        ManifestMetadata(
+                            true,
+                            responseHeaders[HttpHeaderNames.CONTENT_TYPE],
+                            responseHeaders["docker-content-digest"]?.toOciDigest(),
+                            responseHeaders[HttpHeaderNames.CONTENT_LENGTH]?.toLong(),
+                        ).toMono()
+                    )
+                }
+
+                404 -> body.then(ManifestMetadata(false, null, null, null).toMono())
+                else -> createError(response, body.aggregate())
+            }
+        }.single()
+    }
+
+    fun isManifestPresent(
+        registry: String,
+        imageName: String,
+        digest: OciDigest,
+        credentials: Credentials?,
+    ): Mono<ManifestMetadata> = isManifestPresent(registry, imageName, digest.toString(), credentials)
 
     fun isBlobPresent(
         registry: String,
@@ -345,6 +419,30 @@ class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), mediaType, data, credentials)
 
+    fun pushManifestIfNotPresent(
+        registry: String,
+        imageName: String,
+        reference: String,
+        mediaType: String,
+        data: ByteArray,
+        credentials: Credentials?,
+    ): Mono<Nothing> = isManifestPresent(registry, imageName, reference, credentials).flatMap { (present) ->
+        if (present) Mono.empty()
+        else pushManifest(registry, imageName, reference, mediaType, data, credentials)
+    }
+
+    fun pushManifestIfNotPresent(
+        registry: String,
+        imageName: String,
+        digest: OciDigest,
+        mediaType: String,
+        data: ByteArray,
+        credentials: Credentials?,
+    ): Mono<Nothing> = isManifestPresent(registry, imageName, digest, credentials).flatMap { (present) ->
+        if (present) Mono.empty()
+        else pushManifest(registry, imageName, digest, mediaType, data, credentials)
+    }
+
 //    fun deleteBlob(
 //        registry: String,
 //        imageName: String,
@@ -386,6 +484,13 @@ class OciRegistryApi(httpClient: HttpClient) {
 //            }
 //        }.singleOrEmpty()
 //    }
+//
+//    fun deleteManifest(
+//        registry: String,
+//        imageName: String,
+//        digest: OciDigest,
+//        credentials: Credentials?,
+//    ): Mono<Nothing> = deleteManifest(registry, imageName, digest.toString(), credentials)
 
     private fun <T> send(
         registry: String,
