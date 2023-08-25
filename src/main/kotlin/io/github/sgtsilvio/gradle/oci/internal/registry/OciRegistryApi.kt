@@ -137,12 +137,12 @@ class OciRegistryApi(httpClient: HttpClient) {
         registry: String,
         imageName: String,
         digest: OciDigest,
-        size: Long,
+        size: Int,
         credentials: Credentials?,
     ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).map { manifest ->
         val manifestBytes = manifest.data
-        if ((size != -1L) && (size != manifestBytes.size.toLong())) {
-            throw sizeMismatchException(size, manifestBytes.size.toLong())
+        if ((size != -1) && (size != manifestBytes.size)) {
+            throw sizeMismatchException(size.toLong(), manifestBytes.size.toLong())
         }
         val actualDigest =
             if (manifest.digest.algorithm == digest.algorithm) manifest.digest
@@ -194,7 +194,7 @@ class OciRegistryApi(httpClient: HttpClient) {
         ) { aggregate().asString(Charsets.UTF_8) }.single()
     }
 
-    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Long)
+    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Int)
 
     fun isManifestPresent(
         registry: String,
@@ -223,7 +223,7 @@ class OciRegistryApi(httpClient: HttpClient) {
                             true,
                             responseHeaders[HttpHeaderNames.CONTENT_TYPE],
                             responseHeaders["docker-content-digest"]?.toOciDigest(),
-                            responseHeaders[HttpHeaderNames.CONTENT_LENGTH]?.toLong() ?: -1,
+                            responseHeaders[HttpHeaderNames.CONTENT_LENGTH]?.toInt() ?: -1,
                         ).toMono()
                     )
                 }

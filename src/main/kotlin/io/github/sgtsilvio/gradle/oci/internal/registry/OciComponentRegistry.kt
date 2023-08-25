@@ -17,7 +17,7 @@ import java.util.*
  */
 class OciComponentRegistry(val registryApi: OciRegistryApi) {
 
-    data class ComponentWithDigest(val component: OciComponent, val digest: OciDigest, val size: Long)
+    data class ComponentWithDigest(val component: OciComponent, val digest: OciDigest, val size: Int)
 
     fun pullComponent(
         registry: String,
@@ -32,7 +32,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         registry: String,
         imageReference: OciImageReference,
         digest: OciDigest,
-        size: Long,
+        size: Int,
         capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
     ): Mono<ComponentWithDigest> = registryApi.pullManifest(registry, imageReference.name, digest, size, credentials)
@@ -45,7 +45,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         capabilities: SortedSet<VersionedCoordinates>,
     ): Mono<ComponentWithDigest> = flatMap { manifest ->
         transformToComponent(registry, imageReference, manifest, credentials, capabilities).map { component ->
-            ComponentWithDigest(component, manifest.digest, manifest.data.size.toLong())
+            ComponentWithDigest(component, manifest.digest, manifest.data.size)
         }
     }
 
@@ -112,7 +112,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         val manifestFutures = indexJsonObject.get("manifests") {
             asArray().toList {
                 val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType)
-                registryApi.pullManifest(registry, imageReference.name, manifestDescriptor.digest, manifestDescriptor.size, credentials).flatMap { manifest ->
+                registryApi.pullManifest(registry, imageReference.name, manifestDescriptor.digest, manifestDescriptor.size.toInt(), credentials).flatMap { manifest ->
                     if (manifest.mediaType != manifestMediaType) { // TODO support nested index
                         throw IllegalArgumentException("expected \"$manifestMediaType\" as manifest media type, but is \"${manifest.mediaType}\"")
                     }

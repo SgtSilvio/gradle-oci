@@ -46,7 +46,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val registry: String,
         val imageReference: OciImageReference,
         val digest: OciDigest?,
-        val size: Long?,
+        val size: Int,
         val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: HashedCredentials?,
     )
@@ -138,7 +138,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
         val prefix = last.substring(0, digestStartIndex - 1)
         return when {
-            prefix.endsWith("oci-component") -> getOrHeadComponent(registryUri, variant, digest, size, credentials, isGET, response)
+            prefix.endsWith("oci-component") -> getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
             prefix.endsWith("oci-layer") -> getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
             else -> response.sendNotFound()
         }
@@ -228,7 +228,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         variant: MappedComponent.Variant,
         digest: OciDigest,
-        size: Long,
+        size: Int,
         credentials: Credentials?,
         isGET: Boolean,
         response: HttpServerResponse,
@@ -250,7 +250,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                 registryUri.toString(),
                 variant.imageReference,
                 null,
-                null,
+                -1,
                 variant.capabilities,
                 credentials?.hashed(),
             )
@@ -269,7 +269,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         registryUri: URI,
         variant: MappedComponent.Variant,
         digest: OciDigest,
-        size: Long,
+        size: Int,
         credentials: Credentials?,
     ): Mono<OciComponentRegistry.ComponentWithDigest> {
         return componentCache.getMono(
