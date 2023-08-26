@@ -95,10 +95,9 @@ abstract class OciPushTask @Inject constructor(
                             layer.descriptor?.let { (_, digest) ->
                                 val sourceBlob = blobs[digest]
                                 blobFutures += if (sourceBlob == null) {
-                                    val layerFile = digestToLayer[digest]!!.toPath()
-                                    val size = Files.size(layerFile)
-                                    val sender: NettyOutbound.() -> Publisher<Void> =
-                                        { sendFileChunked(layerFile, 0, size) }
+                                    val file = digestToLayer[digest]!!.toPath()
+                                    val size = Files.size(file)
+                                    val sender: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(file, 0, size) }
                                     val sourceImageName = resolvedBundle.component.imageReference.name
                                     val future = CompletableFuture<Unit>()
                                     blobs[digest] = Blob(digest, size, sender, imageName, sourceImageName, future)
@@ -111,15 +110,8 @@ abstract class OciPushTask @Inject constructor(
                                     val sender = sourceBlob.sender
                                     val future = CompletableFuture<Unit>()
                                     sourceBlob.future.thenRun {
-                                        context.pushService.get().pushBlob(
-                                            context,
-                                            imageName,
-                                            digest,
-                                            size,
-                                            sourceImageName,
-                                            sender,
-                                            future,
-                                        )
+                                        context.pushService.get()
+                                            .pushBlob(context, imageName, digest, size, sourceImageName, sender, future)
                                     }
                                     future
                                 }
@@ -142,15 +134,8 @@ abstract class OciPushTask @Inject constructor(
                         val sender = sourceBlob.sender
                         val future = CompletableFuture<Unit>()
                         sourceBlob.future.thenRun {
-                            context.pushService.get().pushBlob(
-                                context,
-                                imageName,
-                                configDigest,
-                                size,
-                                sourceImageName,
-                                sender,
-                                future,
-                            )
+                            context.pushService.get()
+                                .pushBlob(context, imageName, configDigest, size, sourceImageName, sender, future)
                         }
                         future
                     }
@@ -174,14 +159,7 @@ abstract class OciPushTask @Inject constructor(
                     val indexMediaType = index.mediaType
                     val indexData = index.data
                     CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenRun {
-                        context.pushService.get().pushManifest(
-                            context,
-                            imageName,
-                            tag,
-                            indexMediaType,
-                            indexData,
-                            null,
-                        )
+                        context.pushService.get().pushManifest(context, imageName, tag, indexMediaType, indexData, null)
                     }
                 }
             }
