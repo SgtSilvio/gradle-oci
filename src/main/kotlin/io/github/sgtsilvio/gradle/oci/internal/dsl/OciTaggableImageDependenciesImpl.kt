@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
+import io.github.sgtsilvio.gradle.oci.component.OCI_TAG_CAPABILITY_GROUP
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies.Tag
@@ -36,7 +37,7 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         val configurationName = configuration.name.removeSuffix("OciImages") // TODO constant
         val counter = counter++
         val imageDefinitionName = "${configurationName}Tag$counter"
-        val capability = "io.github.sgtsilvio.gradle.oci.tag:$configurationName-$counter:default" // TODO group constant
+        val capability = "$OCI_TAG_CAPABILITY_GROUP:$configurationName-$counter:default"
         objectFactory.newInstance<OciImageDefinitionImpl>(imageDefinitionName).apply {
             imageReference.set(tag.imageReference)
             capabilities.add(capability)

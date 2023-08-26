@@ -5,7 +5,7 @@ import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 internal data class OciTagComponent(val imageReference: OciImageReference, val parentCapability: Coordinates)
 
 internal fun OciComponent.asTagOrNull(): OciTagComponent? {
-    if ((capabilities.size != 1) || (capabilities.first().group != "io.github.sgtsilvio.gradle.oci.tag")) { // TODO constant
+    if ((capabilities.size != 1) || (capabilities.first().group != OCI_TAG_CAPABILITY_GROUP)) {
 //    if (!capabilities.isEmpty()) { // TODO change when implementing OciTagComponentTask
         return null
     }
@@ -30,3 +30,5 @@ internal fun OciComponent.asTagOrNull(): OciTagComponent? {
     check(indexAnnotations.isEmpty()) { "tag component must not set indexAnnotations" }
     return OciTagComponent(imageReference, parentCapabilities[0])
 }
+
+internal const val OCI_TAG_CAPABILITY_GROUP = "io.github.sgtsilvio.gradle.oci.tag"

@@ -37,7 +37,7 @@ interface OciImagesInput {
             rootComponent.getDependenciesForVariant(rootVariant)
                 .filter { !it.isConstraint }
                 .filterIsInstance<ResolvedDependencyResult>() // ignore unresolved, rely on resolution of files
-                .filter { it.resolvedVariant.capabilities.first().group != "io.github.sgtsilvio.gradle.oci.tag" } // TODO constant
+                .filter { it.resolvedVariant.capabilities.first().group != OCI_TAG_CAPABILITY_GROUP }
                 .map { dependencyResult ->
                     val capability = dependencyResult.resolvedVariant.capabilities.first()
                     Coordinates(capability.group, capability.name)
