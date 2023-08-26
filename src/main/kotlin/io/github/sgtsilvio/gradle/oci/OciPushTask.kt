@@ -106,8 +106,8 @@ abstract class OciPushTask @Inject constructor(
                                 } else if (sourceBlob.imageName == imageName) {
                                     sourceBlob.future
                                 } else {
-                                    val sourceImageName = sourceBlob.imageName
                                     val size = sourceBlob.size
+                                    val sourceImageName = sourceBlob.imageName
                                     val sender = sourceBlob.sender
                                     val future = CompletableFuture<Unit>()
                                     sourceBlob.future.thenRun {
@@ -115,8 +115,8 @@ abstract class OciPushTask @Inject constructor(
                                             context,
                                             imageName,
                                             digest,
-                                            sourceImageName,
                                             size,
+                                            sourceImageName,
                                             sender,
                                             future,
                                         )
@@ -137,8 +137,8 @@ abstract class OciPushTask @Inject constructor(
                     } else if (sourceBlob.imageName == imageName) {
                         sourceBlob.future
                     } else {
-                        val sourceImageName = sourceBlob.imageName
                         val size = sourceBlob.size
+                        val sourceImageName = sourceBlob.imageName
                         val sender = sourceBlob.sender
                         val future = CompletableFuture<Unit>()
                         sourceBlob.future.thenRun {
@@ -146,8 +146,8 @@ abstract class OciPushTask @Inject constructor(
                                 context,
                                 imageName,
                                 configDigest,
-                                sourceImageName,
                                 size,
+                                sourceImageName,
                                 sender,
                                 future,
                             )
@@ -191,8 +191,8 @@ abstract class OciPushTask @Inject constructor(
                 context,
                 blob.imageName,
                 blob.digest,
-                blob.sourceImageName,
                 blob.size,
+                blob.sourceImageName,
                 blob.sender,
                 blob.future,
             )
@@ -233,8 +233,8 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
         context: OciPushTask.Context,
         imageName: String,
         digest: OciDigest,
-        sourceImageName: String,
         size: Long,
+        sourceImageName: String,
         sender: NettyOutbound.() -> Publisher<Void>,
         future: CompletableFuture<Unit>?,
     ) = context.workQueue.submit(context.pushService) {
