@@ -5,8 +5,7 @@ import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 internal data class OciTagComponent(val imageReference: OciImageReference, val parentCapability: Coordinates)
 
 internal fun OciComponent.asTagOrNull(): OciTagComponent? {
-    if ((capabilities.size != 1) || (capabilities.first().group != OCI_TAG_CAPABILITY_GROUP)) {
-//    if (!capabilities.isEmpty()) { // TODO change when implementing OciTagComponentTask
+    if (!capabilities.isEmpty()) {
         return null
     }
     val bundle = bundleOrPlatformBundles as? OciComponent.Bundle

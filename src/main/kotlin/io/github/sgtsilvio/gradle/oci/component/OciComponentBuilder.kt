@@ -11,7 +11,7 @@ import java.time.Instant
  */
 class OciComponentBuilder : Serializable {
     private var imageReference: String? = null // TODO OciImageReference type?
-    private var capabilities: Set<VersionedCoordinates>? = null
+    private var capabilities: Set<VersionedCoordinates> = setOf()
     private var bundleOrPlatformBundles: OciComponent.BundleOrPlatformBundles? = null
     private var indexAnnotations: Map<String, String> = mapOf()
 
@@ -22,7 +22,7 @@ class OciComponentBuilder : Serializable {
 
     fun build() = OciComponent(
         imageReference!!.toOciImageReference(),
-        capabilities!!.toSortedSet(),
+        capabilities.toSortedSet(),
         bundleOrPlatformBundles!!,
         indexAnnotations.toSortedMap(),
     )

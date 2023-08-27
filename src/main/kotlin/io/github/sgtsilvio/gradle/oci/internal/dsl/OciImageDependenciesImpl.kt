@@ -47,7 +47,7 @@ abstract class OciImageDependenciesImpl @Inject constructor(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
+    protected fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
 
     // add dependency converted from a different notation
 
