@@ -5,7 +5,6 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.OCI_TAG_CAPABILITY_GROUP
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies.Tag
 import org.gradle.api.Action
@@ -29,150 +28,70 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 abstract class OciTaggableImageDependenciesImpl @Inject constructor(
-    configuration: Configuration,
-    dependencyHandler: DependencyHandler,
+    private val prefix: String,
+    description: String,
     private val objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
-    private val configurationContainer: ConfigurationContainer,
+    configurationContainer: ConfigurationContainer,
+    dependencyHandler: DependencyHandler,
     private val taskContainer: TaskContainer,
     private val projectLayout: ProjectLayout,
-    private val project: Project,
     private val projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
 ) : OciImageDependenciesImpl(
-    configuration,
+    configurationContainer.create(prefix + "OciImages") {
+        this.description = description
+        isCanBeConsumed = false
+        isCanBeResolved = false
+    },
     dependencyHandler,
 ), OciTaggableImageDependencies {
 
-    private var tagConfiguration: Configuration? = null
+    final override val configuration = configurationContainer.create(prefix + "OciTaggableImages") {
+        this.description = "$description (taggable)"
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        attributes {
+            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+        }
+        extendsFrom(super.configuration)
+    }
     private var counter = 0
 
     class TagImpl(override val imageReference: Provider<String>) : Tag
 
     // add tagged dependency
 
-//    private fun addTagged(tag: Tag, parentImageConfiguration: Action<in OciImageDependencies>) {
-//        val configurationName = configuration.name.removeSuffix("OciImages") // TODO constant
-//        val counter = counter++
-//        val imageDefinitionName = "${configurationName}Tag$counter"
-//        val capability = "$OCI_TAG_CAPABILITY_GROUP:$configurationName-$counter:default"
-//        objectFactory.newInstance<OciImageDefinitionImpl>(imageDefinitionName).apply {
-//            imageReference.set(tag.imageReference)
-//            capabilities.add(capability)
-//            allPlatforms {
-//                parentImages(parentImageConfiguration)
-//            }
-//        }
-//        add(project) {
-//            capabilities {
-//                requireCapability(capability)
-//            }
-//        }
-//    }
-
-    private fun getTagConfiguration() = tagConfiguration ?: run {
-        val configurationName = configuration.name.removeSuffix("OciImages") // TODO constant
-        val capability = "$OCI_TAG_CAPABILITY_GROUP:$configurationName:default"
-        val configuration = configurationContainer.create("${configurationName}OciTags") {
-            description = "OCI tags for $configurationName"
-            isCanBeConsumed = true
-            isCanBeResolved = false
-            attributes {
-                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
-                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-            }
-            outgoing.capability(capability)
-        }
-        add(project) {
-            capabilities {
-                requireCapability(capability) // direct dependency on configuration name is not possible because we can not filter out tags with the capability name
-            }
-        }
-        tagConfiguration = configuration
-        configuration
-    }
-
-    private fun ModuleDependency.getParentCapabilityForTag(
-        projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-    ): Coordinates {
-        val capabilities = requestedCapabilities
-        return if (capabilities.isEmpty()) {
-            getDefaultCapability(projectDependencyPublicationResolver)
-        } else {
-            val capability = capabilities.first()
-            Coordinates(capability.group, capability.name)
-        }
-    }
-
-    private fun ModuleDependency.getDefaultCapability(
-        projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-    ): Coordinates {
-        return if (this is ProjectDependency) {
-            val id = projectDependencyPublicationResolver.resolve(ModuleVersionIdentifier::class.java, this)
-            Coordinates(id.group, id.name)
-        } else {
-            Coordinates(group ?: "", name)
-        }
-    }
-
-    private fun addTagComponentTask(
-        tagConfiguration: Configuration,
-        tag: Tag,
-        dependency: Provider<out ModuleDependency>,
-    ) {
-        val configurationName = configuration.name.removeSuffix("OciImages") // TODO constant
+    private fun addTagComponentTask(tag: Tag, dependency: Provider<out ModuleDependency>) {
         val counter = counter++
-        val task = taskContainer.register<OciTagComponentTask>("$configurationName${counter}OciTagComponent") {
+        val task = taskContainer.register<OciTagComponentTask>("$prefix${counter}OciTagComponent") {
             imageReference.set(tag.imageReference)
-            parentCapability.set(dependency.map { it.getParentCapabilityForTag(projectDependencyPublicationResolver) })
-            componentFile.set(projectLayout.buildDirectory.file("oci/tags/$configurationName/component-$counter.json"))
+            parentCapability.set(dependency.map { it.getAnyDeclaredCapability(projectDependencyPublicationResolver) })
+            componentFile.set(projectLayout.buildDirectory.file("oci/tags/$prefix/component-$counter.json"))
         }
-        tagConfiguration.outgoing.artifact(task)
+        configuration.dependencies.add(dependencyHandler.create(objectFactory.fileCollection().from(task)))
     }
 
     final override fun add(dependency: ModuleDependency, tag: Tag) {
-        val tagConfiguration = getTagConfiguration()
-        val finalizedDependency = finalizeDependency(dependency)
-        tagConfiguration.dependencies.add(finalizedDependency)
-        addTagComponentTask(tagConfiguration, tag, providerFactory.provider { finalizedDependency })
+        val finalizedDependency = configuration.addDependency(dependency)
+        addTagComponentTask(tag, providerFactory.provider { finalizedDependency })
     }
-
-//    final override fun add(dependency: ModuleDependency, tag: Tag) = addTagged(tag) { add(dependency) }
 
     final override fun <D : ModuleDependency> add(dependency: D, tag: Tag, action: Action<in D>) {
-        val tagConfiguration = getTagConfiguration()
-        val finalizedDependency = finalizeDependency(dependency)
-        action.execute(finalizedDependency)
-        tagConfiguration.dependencies.add(finalizedDependency)
-        addTagComponentTask(tagConfiguration, tag, providerFactory.provider { finalizedDependency })
+        val finalizedDependency = configuration.addDependency(dependency, action)
+        addTagComponentTask(tag, providerFactory.provider { finalizedDependency })
     }
-
-//    final override fun <D : ModuleDependency> add(dependency: D, tag: Tag, action: Action<in D>) =
-//        addTagged(tag) { add(dependency, action) }
 
     final override fun add(dependencyProvider: Provider<out ModuleDependency>, tag: Tag) {
-        val tagConfiguration = getTagConfiguration()
-        val finalizedDependencyProvider = dependencyProvider.map { finalizeDependency(it) }
-        tagConfiguration.dependencies.addLater(finalizedDependencyProvider)
-        addTagComponentTask(tagConfiguration, tag, finalizedDependencyProvider)
+        val finalizedDependencyProvider = configuration.addDependency(dependencyProvider)
+        addTagComponentTask(tag, finalizedDependencyProvider)
     }
-
-//    final override fun add(dependencyProvider: Provider<out ModuleDependency>, tag: Tag) =
-//        addTagged(tag) { add(dependencyProvider) }
 
     final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, tag: Tag, action: Action<in D>) {
-        val tagConfiguration = getTagConfiguration()
-        val finalizedDependencyProvider = dependencyProvider.map {
-            val finalizeDependency = finalizeDependency(it)
-            action.execute(finalizeDependency)
-            finalizeDependency
-        }
-        tagConfiguration.dependencies.addLater(finalizedDependencyProvider)
-        addTagComponentTask(tagConfiguration, tag, finalizedDependencyProvider)
+        val finalizedDependencyProvider = configuration.addDependency(dependencyProvider, action)
+        addTagComponentTask(tag, finalizedDependencyProvider)
     }
-
-//    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, tag: Tag, action: Action<in D>) =
-//        addTagged(tag) { add(dependencyProvider, action) }
 
     // add tagged dependency converted from a different notation
 
@@ -194,4 +113,27 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         tag: Tag,
         action: Action<in ExternalModuleDependency>,
     ) = add(dependencyProvider.asProvider(), tag, action)
+}
+
+private fun ModuleDependency.getAnyDeclaredCapability( // TODO deduplicate
+    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
+): Coordinates {
+    val capabilities = requestedCapabilities
+    return if (capabilities.isEmpty()) {
+        getDefaultCapability(projectDependencyPublicationResolver)
+    } else {
+        val capability = capabilities.first()
+        Coordinates(capability.group, capability.name)
+    }
+}
+
+private fun ModuleDependency.getDefaultCapability( // TODO deduplicate
+    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
+): Coordinates {
+    return if (this is ProjectDependency) {
+        val id = projectDependencyPublicationResolver.resolve(ModuleVersionIdentifier::class.java, this)
+        Coordinates(id.group, id.name)
+    } else {
+        Coordinates(group ?: "", name)
+    }
 }

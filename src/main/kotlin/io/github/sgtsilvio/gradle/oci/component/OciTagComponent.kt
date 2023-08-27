@@ -29,5 +29,3 @@ internal fun OciComponent.asTagOrNull(): OciTagComponent? {
     check(indexAnnotations.isEmpty()) { "tag component must not set indexAnnotations" }
     return OciTagComponent(imageReference, parentCapabilities[0])
 }
-
-internal const val OCI_TAG_CAPABILITY_GROUP = "io.github.sgtsilvio.gradle.oci.tag"

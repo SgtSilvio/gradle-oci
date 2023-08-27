@@ -14,40 +14,67 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 abstract class OciImageDependenciesImpl @Inject constructor(
-    final override val configuration: Configuration,
-    private val dependencyHandler: DependencyHandler,
+    private val _configuration: Configuration,
+    protected val dependencyHandler: DependencyHandler,
 ) : OciImageDependencies {
-    final override val set = configuration.dependencies.withType(ModuleDependency::class)
+
+    override val configuration = _configuration
+    final override val set get() = configuration.dependencies.withType(ModuleDependency::class)
 
     // add dependency
 
     final override fun add(dependency: ModuleDependency) {
+        _configuration.addDependency(dependency)
+    }
+
+    protected fun Configuration.addDependency(dependency: ModuleDependency): ModuleDependency {
         val finalizedDependency = finalizeDependency(dependency)
-        configuration.dependencies.add(finalizedDependency)
+        dependencies.add(finalizedDependency)
+        return finalizedDependency
     }
 
     final override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>) {
+        _configuration.addDependency(dependency, action)
+    }
+
+    protected fun <D : ModuleDependency> Configuration.addDependency(dependency: D, action: Action<in D>): D {
         val finalizedDependency = finalizeDependency(dependency)
         action.execute(finalizedDependency)
-        configuration.dependencies.add(finalizedDependency)
+        dependencies.add(finalizedDependency)
+        return finalizedDependency
     }
 
     final override fun add(dependencyProvider: Provider<out ModuleDependency>) {
+        _configuration.addDependency(dependencyProvider)
+    }
+
+    protected fun Configuration.addDependency(
+        dependencyProvider: Provider<out ModuleDependency>,
+    ): Provider<ModuleDependency> {
         val finalizedDependencyProvider = dependencyProvider.map { finalizeDependency(it) }
-        configuration.dependencies.addLater(finalizedDependencyProvider)
+        dependencies.addLater(finalizedDependencyProvider)
+        return finalizedDependencyProvider
     }
 
     final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>) {
+        _configuration.addDependency(dependencyProvider, action)
+    }
+
+    protected fun <D : ModuleDependency> Configuration.addDependency(
+        dependencyProvider: Provider<out D>,
+        action: Action<in D>,
+    ): Provider<D> {
         val finalizedDependencyProvider = dependencyProvider.map {
             val finalizedDependency = finalizeDependency(it)
             action.execute(finalizedDependency)
             finalizedDependency
         }
-        configuration.dependencies.addLater(finalizedDependencyProvider)
+        dependencies.addLater(finalizedDependencyProvider)
+        return finalizedDependencyProvider
     }
 
     @Suppress("UNCHECKED_CAST")
-    protected fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
+    private fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
 
     // add dependency converted from a different notation
 
@@ -77,12 +104,12 @@ abstract class OciImageDependenciesImpl @Inject constructor(
     // add constraint
 
     final override fun constraint(dependencyConstraint: DependencyConstraint) {
-        configuration.dependencyConstraints.add(dependencyConstraint)
+        _configuration.dependencyConstraints.add(dependencyConstraint)
     }
 
     final override fun constraint(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>) {
         action.execute(dependencyConstraint)
-        configuration.dependencyConstraints.add(dependencyConstraint)
+        _configuration.dependencyConstraints.add(dependencyConstraint)
     }
 
     // add constraint converted from a different notation
@@ -108,12 +135,12 @@ abstract class OciImageDependenciesImpl @Inject constructor(
         constraint(createDependencyConstraint(project), action)
 
     final override fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>) =
-        configuration.dependencyConstraints.addLater(dependencyProvider.map { createDependencyConstraint(it) })
+        _configuration.dependencyConstraints.addLater(dependencyProvider.map { createDependencyConstraint(it) })
 
     final override fun constraint(
         dependencyProvider: Provider<out MinimalExternalModuleDependency>,
         action: Action<in DependencyConstraint>,
-    ) = configuration.dependencyConstraints.addLater(dependencyProvider.map {
+    ) = _configuration.dependencyConstraints.addLater(dependencyProvider.map {
         val dependencyConstraint = createDependencyConstraint(it)
         action.execute(dependencyConstraint)
         dependencyConstraint

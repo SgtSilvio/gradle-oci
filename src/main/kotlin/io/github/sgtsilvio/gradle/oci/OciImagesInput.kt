@@ -7,42 +7,69 @@ import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ModuleVersionIdentifier
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.withType
 import java.io.File
+import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
  */
 @NonExtensible
-interface OciImagesInput {
+abstract class OciImagesInput @Inject constructor(
+    private val providerFactory: ProviderFactory,
+    private val projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
+) {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
-    val files: ConfigurableFileCollection
+    abstract val files: ConfigurableFileCollection
 
     @get:Input
-    val rootCapabilities: SetProperty<Coordinates>
+    abstract val rootCapabilities: SetProperty<Coordinates>
 
     fun from(configuration: Configuration) {
         files.from(configuration)
-        val configurationName = configuration.name
-        rootCapabilities.set(configuration.incoming.resolutionResult.rootComponent.map { rootComponent ->
-            val rootVariant = rootComponent.variants.find { it.displayName == configurationName }!!
-            rootComponent.getDependenciesForVariant(rootVariant)
-                .filter { !it.isConstraint }
-                .filterIsInstance<ResolvedDependencyResult>() // ignore unresolved, rely on resolution of files
-                .filter { it.resolvedVariant.capabilities.first().group != OCI_TAG_CAPABILITY_GROUP }
-                .map { dependencyResult ->
-                    val capability = dependencyResult.resolvedVariant.capabilities.first()
-                    Coordinates(capability.group, capability.name)
-                }
+        rootCapabilities.set(providerFactory.provider {
+            val nonTaggableConfiguration =
+                if (configuration.name.endsWith("OciTaggableImages")) configuration.extendsFrom.first() else configuration
+            nonTaggableConfiguration.allDependencies.withType<ModuleDependency>().map {
+                it.getAnyDeclaredCapability(projectDependencyPublicationResolver)
+            }
         })
+    }
+}
+
+private fun ModuleDependency.getAnyDeclaredCapability( // TODO deduplicate
+    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
+): Coordinates {
+    val capabilities = requestedCapabilities
+    return if (capabilities.isEmpty()) {
+        getDefaultCapability(projectDependencyPublicationResolver)
+    } else {
+        val capability = capabilities.first()
+        Coordinates(capability.group, capability.name)
+    }
+}
+
+private fun ModuleDependency.getDefaultCapability( // TODO deduplicate
+    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
+): Coordinates {
+    return if (this is ProjectDependency) {
+        val id = projectDependencyPublicationResolver.resolve(ModuleVersionIdentifier::class.java, this)
+        Coordinates(id.group, id.name)
+    } else {
+        Coordinates(group ?: "", name)
     }
 }
 
