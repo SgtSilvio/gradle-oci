@@ -11,7 +11,7 @@ fun String.decodeAsJsonToOciComponent() = jsonObject(this).decodeOciComponent()
 
 private fun JsonObject.decodeOciComponent() = OciComponent(
     get("imageReference") { asString().toOciImageReference() },
-    get("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCoordinates() } },
+    getOrNull("capabilities") { asArray().toSet(TreeSet()) { asObject().decodeVersionedCoordinates() } } ?: TreeSet(),
     if (hasKey("bundle")) {
         if (hasKey("platformBundles")) throw JsonException.create("bundle|platformBundles", "must not both be present")
         get("bundle") { asObject().decodeBundle() }

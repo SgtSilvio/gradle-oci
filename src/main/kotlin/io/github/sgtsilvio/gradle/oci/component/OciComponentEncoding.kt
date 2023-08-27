@@ -8,7 +8,7 @@ fun OciComponent.encodeToJsonString() = jsonObject { encodeOciComponent(this@enc
 
 private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) {
     addString("imageReference", component.imageReference.toString())
-    addArray("capabilities", component.capabilities) { addObject { encodeVersionedCoordinates(it) } }
+    addArrayIfNotEmpty("capabilities", component.capabilities) { addObject { encodeVersionedCoordinates(it) } }
     when (val bundleOrPlatformBundles = component.bundleOrPlatformBundles) {
         is OciComponent.Bundle -> addObject("bundle") { encodeBundle(bundleOrPlatformBundles) }
         is OciComponent.PlatformBundles -> addArray("platformBundles") { encodePlatformBundles(bundleOrPlatformBundles) }
