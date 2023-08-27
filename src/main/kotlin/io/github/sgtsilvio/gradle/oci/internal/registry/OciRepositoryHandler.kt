@@ -197,7 +197,7 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                                 addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(componentJson)))
                                 addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(componentJson)))
                             }
-                            for ((digest, size) in component.collectLayerDigestSizePairs()) {
+                            for ((digest, size) in component.collectLayerDigestToSize()) {
                                 val layerVariantName = layerDigestToVariantName.putIfAbsent(digest, variantName) ?: variantName
                                 addObject {
                                     val layerName = "oci-layer-$digest-$size"
@@ -333,11 +333,11 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         componentRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
             .flatMap { present -> if (present) response.send() else response.sendNotFound() }
 
-    private fun OciComponent.collectLayerDigestSizePairs(): LinkedHashSet<Pair<OciDigest, Long>> {
-        val digests = LinkedHashSet<Pair<OciDigest, Long>>()
+    private fun OciComponent.collectLayerDigestToSize(): LinkedHashMap<OciDigest, Long> {
+        val digests = LinkedHashMap<OciDigest, Long>()
         for (layer in allLayers) {
             layer.descriptor?.let {
-                digests += Pair(it.digest, it.size)
+                digests[it.digest] = it.size
             }
         }
         return digests
