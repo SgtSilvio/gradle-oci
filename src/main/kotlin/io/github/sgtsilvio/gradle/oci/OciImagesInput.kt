@@ -130,9 +130,3 @@ abstract class OciImagesInputTask : DefaultTask() {
         val tagComponents: List<OciTagComponent>,
     )
 }
-
-internal val OciComponent.allLayers // TODO deduplicate
-    get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
-        is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
-        is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
-    }

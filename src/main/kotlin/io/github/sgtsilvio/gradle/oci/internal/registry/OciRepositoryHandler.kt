@@ -7,6 +7,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.component.allLayers
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.json.*
@@ -331,12 +332,6 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     ): Publisher<Void> =
         componentRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
             .flatMap { present -> if (present) response.send() else response.sendNotFound() }
-
-    private val OciComponent.allLayers // TODO deduplicate
-        get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
-            is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
-            is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
-        }
 
     private fun OciComponent.collectLayerDigestSizePairs(): LinkedHashSet<Pair<OciDigest, Long>> {
         val digests = LinkedHashSet<Pair<OciDigest, Long>>()

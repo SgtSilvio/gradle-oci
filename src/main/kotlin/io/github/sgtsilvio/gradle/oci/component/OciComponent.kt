@@ -63,3 +63,9 @@ data class OciComponent(
         }
     }
 }
+
+internal val OciComponent.allLayers: Sequence<OciComponent.Bundle.Layer>
+    get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
+        is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
+        is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
+    }
