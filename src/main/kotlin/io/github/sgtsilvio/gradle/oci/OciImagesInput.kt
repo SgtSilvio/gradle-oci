@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
+import io.github.sgtsilvio.gradle.oci.internal.gradle.getAnyDeclaredCapability
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import org.apache.commons.io.FileUtils
@@ -8,8 +9,6 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ModuleVersionIdentifier
-import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
 import org.gradle.api.provider.Provider
@@ -47,29 +46,6 @@ abstract class OciImagesInput @Inject constructor(
                 it.getAnyDeclaredCapability(projectDependencyPublicationResolver)
             }
         })
-    }
-}
-
-private fun ModuleDependency.getAnyDeclaredCapability( // TODO deduplicate
-    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-): Coordinates {
-    val capabilities = requestedCapabilities
-    return if (capabilities.isEmpty()) {
-        getDefaultCapability(projectDependencyPublicationResolver)
-    } else {
-        val capability = capabilities.first()
-        Coordinates(capability.group, capability.name)
-    }
-}
-
-private fun ModuleDependency.getDefaultCapability( // TODO deduplicate
-    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-): Coordinates {
-    return if (this is ProjectDependency) {
-        val id = projectDependencyPublicationResolver.resolve(ModuleVersionIdentifier::class.java, this)
-        Coordinates(id.group, id.name)
-    } else {
-        Coordinates(group ?: "", name)
     }
 }
 

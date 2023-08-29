@@ -4,9 +4,9 @@ import io.github.sgtsilvio.gradle.oci.OciTagComponentTask
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies.Tag
+import io.github.sgtsilvio.gradle.oci.internal.gradle.getAnyDeclaredCapability
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
@@ -113,27 +113,4 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         tag: Tag,
         action: Action<in ExternalModuleDependency>,
     ) = add(dependencyProvider.asProvider(), tag, action)
-}
-
-private fun ModuleDependency.getAnyDeclaredCapability( // TODO deduplicate
-    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-): Coordinates {
-    val capabilities = requestedCapabilities
-    return if (capabilities.isEmpty()) {
-        getDefaultCapability(projectDependencyPublicationResolver)
-    } else {
-        val capability = capabilities.first()
-        Coordinates(capability.group, capability.name)
-    }
-}
-
-private fun ModuleDependency.getDefaultCapability( // TODO deduplicate
-    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-): Coordinates {
-    return if (this is ProjectDependency) {
-        val id = projectDependencyPublicationResolver.resolve(ModuleVersionIdentifier::class.java, this)
-        Coordinates(id.group, id.name)
-    } else {
-        Coordinates(group ?: "", name)
-    }
 }

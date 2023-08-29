@@ -10,6 +10,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.internal.gradle.getDefaultCapability
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
@@ -23,8 +24,6 @@ import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.ModuleVersionIdentifier
-import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.file.ProjectLayout
@@ -300,16 +299,8 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 val parentCapabilities = mutableListOf<Coordinates>()
                 for (dependency in parentImages.set) {
                     val capabilities = dependency.requestedCapabilities
-                    if (capabilities.isEmpty()) { // add default capability
-                        if (dependency is ProjectDependency) {
-                            val id = projectDependencyPublicationResolver.resolve(
-                                ModuleVersionIdentifier::class.java,
-                                dependency,
-                            )
-                            parentCapabilities.add(Coordinates(id.group, id.name))
-                        } else {
-                            parentCapabilities.add(Coordinates(dependency.group ?: "", dependency.name))
-                        }
+                    if (capabilities.isEmpty()) {
+                        parentCapabilities.add(dependency.getDefaultCapability(projectDependencyPublicationResolver))
                     } else {
                         for (capability in capabilities) {
                             parentCapabilities.add(Coordinates(capability.group, capability.name))
