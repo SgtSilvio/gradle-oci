@@ -19,7 +19,7 @@ abstract class OciImageDependenciesImpl @Inject constructor(
 ) : OciImageDependencies {
 
     override val configuration = _configuration
-    final override val set get() = configuration.dependencies.withType(ModuleDependency::class)
+    final override val set get() = configuration.allDependencies.withType(ModuleDependency::class)
 
     // add dependency
 
