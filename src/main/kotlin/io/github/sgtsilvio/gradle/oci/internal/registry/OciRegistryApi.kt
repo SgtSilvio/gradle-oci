@@ -589,11 +589,11 @@ class OciRegistryApi(httpClient: HttpClient) {
     }
 
     private fun Credentials.encodeBasicAuthorization() =
-        "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray())
+        "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray()) // TODO move out
 
-    private fun encodeBearerAuthorization(token: String) = "Bearer $token"
+    private fun encodeBearerAuthorization(token: String) = "Bearer $token" // TODO move out
 
-    private fun decodeBearerParams(headers: HttpHeaders): Map<String, String>? {
+    private fun decodeBearerParams(headers: HttpHeaders): Map<String, String>? { // TODO move out
         val authHeader = headers[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
         if (!authHeader.startsWith("Bearer ")) return null
         val authParamString = authHeader.substring("Bearer ".length)
