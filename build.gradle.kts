@@ -1,5 +1,6 @@
 plugins {
     `kotlin-dsl`
+    signing
     alias(libs.plugins.pluginPublish)
     alias(libs.plugins.defaults)
     alias(libs.plugins.metadata)
@@ -61,6 +62,12 @@ gradlePlugin {
             tags.set(listOf("oci", "oci-image", "docker", "multi-arch"))
         }
     }
+}
+
+signing {
+    val signingKey: String? by project
+    val signingPassword: String? by project
+    useInMemoryPgpKeys(signingKey, signingPassword)
 }
 
 testing {
