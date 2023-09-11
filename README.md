@@ -1,8 +1,9 @@
 # Gradle OCI Plugin
 
-[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/com.github.sgtsilvio.gradle.oci?color=brightgreen&style=for-the-badge)](https://plugins.gradle.org/plugin/com.github.sgtsilvio.gradle.oci)
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.sgtsilvio.gradle.oci?color=brightgreen&style=for-the-badge)](https://plugins.gradle.org/plugin/io.github.sgtsilvio.gradle.oci)
 [![GitHub](https://img.shields.io/github/license/sgtsilvio/gradle-oci?color=brightgreen&style=for-the-badge)](LICENSE)
-[![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/sgtsilvio/gradle-oci/check.yml?branch=master&style=for-the-badge)](https://github.com/SgtSilvio/gradle-oci/actions/workflows/check.yml?query=branch%3Amaster)
+
+[//]: # ([![GitHub Workflow Status &#40;with branch&#41;]&#40;https://img.shields.io/github/actions/workflow/status/sgtsilvio/gradle-oci/check.yml?branch=master&style=for-the-badge&#41;]&#40;https://github.com/SgtSilvio/gradle-oci/actions/workflows/check.yml?query=branch%3Amaster&#41;)
 
 Gradle plugin to ease producing (multi-arch) OCI images without requiring external tools.
 
