@@ -71,7 +71,9 @@ signing {
 }
 
 testing {
-    suites.named<JvmTestSuite>("test") {
-        useJUnitJupiter(libs.versions.junit.jupiter)
+    suites{
+        "test"(JvmTestSuite::class) {
+            useJUnitJupiter(libs.versions.junit.jupiter)
+        }
     }
 }
