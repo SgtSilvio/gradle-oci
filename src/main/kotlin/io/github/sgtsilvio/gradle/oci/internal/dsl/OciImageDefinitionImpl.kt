@@ -154,10 +154,10 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     private fun createConfiguration(
         configurationContainer: ConfigurationContainer,
-        imageName: String,
+        imageDefName: String,
         objectFactory: ObjectFactory,
-    ): Configuration = configurationContainer.create(createConfigurationName(imageName)) {
-        description = "OCI elements for $imageName"
+    ): Configuration = configurationContainer.create(createConfigurationName(imageDefName)) {
+        description = "OCI elements for $imageDefName"
         isCanBeConsumed = true
         isCanBeResolved = false
         attributes {
@@ -168,8 +168,8 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         }
     }
 
-    private fun createConfigurationName(imageName: String) =
-        if (imageName == "main") "ociImage" else "${imageName}OciImage"
+    private fun createConfigurationName(imageDefName: String) =
+        if (imageDefName == "main") "ociImage" else "${imageDefName}OciImage"
 
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
@@ -195,23 +195,23 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             }
         }
 
-    private fun createDefaultCapabilityName(projectName: String, imageName: String) =
-        if (name == "main") projectName else "$projectName-$imageName"
+    private fun createDefaultCapabilityName(projectName: String, imageDefName: String) =
+        if (imageDefName == "main") projectName else "$projectName-$imageDefName"
 
     private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.BundleOrPlatformBundles> =
         providerFactory.provider { getBundleOrPlatformBundles() }
             .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
 
-    private fun createComponentTask(imageName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
-        taskContainer.register<OciComponentTask>(createComponentTaskName(imageName)) {
+    private fun createComponentTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
+        taskContainer.register<OciComponentTask>(createComponentTaskName(imageDefName)) {
             group = TASK_GROUP_NAME
-            description = "Assembles an OCI component json file for the $imageName image."
+            description = "Assembles an OCI component json file for the $imageDefName image."
             component.set(this@OciImageDefinitionImpl.component)
-            componentFile.set(projectLayout.buildDirectory.file("oci/images/$imageName/component.json"))
+            componentFile.set(projectLayout.buildDirectory.file("oci/images/$imageDefName/component.json"))
         }
 
-    private fun createComponentTaskName(imageName: String) =
-        if (imageName == "main") "ociComponent" else "${imageName}OciComponent"
+    private fun createComponentTaskName(imageDefName: String) =
+        if (imageDefName == "main") "ociComponent" else "${imageDefName}OciComponent"
 
 
     abstract class Capabilities @Inject constructor(
@@ -234,7 +234,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
 
     abstract class Bundle @Inject constructor(
-        imageName: String,
+        imageDefName: String,
         imageConfiguration: Configuration,
         platform: Optional<Platform>,
         objectFactory: ObjectFactory,
@@ -247,7 +247,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             entryPoint.convention(null)
             arguments.convention(null)
         }
-        final override val layers = objectFactory.newInstance<Layers>(imageName, platform)
+        final override val layers = objectFactory.newInstance<Layers>(imageDefName, platform)
 
         final override fun parentImages(configuration: Action<in OciImageDependencies>) =
             configuration.execute(parentImages)
@@ -329,7 +329,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
 
         abstract class Layers @Inject constructor(
-            private val imageName: String,
+            private val imageDefName: String,
             platform: Optional<Platform>,
             private val objectFactory: ObjectFactory,
         ) : OciImageDefinition.Bundle.Layers {
@@ -343,7 +343,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             fun layer(name: String): Layer {
                 var layer = list.findByName(name) as Layer?
                 if (layer == null) {
-                    layer = objectFactory.newInstance<Layer>(name, imageName, Optional.ofNullable(platform))
+                    layer = objectFactory.newInstance<Layer>(name, imageDefName, Optional.ofNullable(platform))
                     list.add(layer)
                 }
                 return layer
@@ -353,7 +353,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
         abstract class Layer @Inject constructor(
             private val name: String,
-            private val imageName: String,
+            private val imageDefName: String,
             platform: Optional<Platform>,
             objectFactory: ObjectFactory,
             private val taskContainer: TaskContainer,
@@ -380,7 +380,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 var task = task
                 if (task == null) {
                     task = taskContainer.createLayerTask(
-                        imageName, name, platform?.toString() ?: "", projectLayout, configuration
+                        imageDefName, name, platform?.toString() ?: "", projectLayout, configuration
                     )
                     this.task = task
                 } else {
@@ -453,7 +453,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     abstract class BundleScope @Inject constructor(
         private val platformFilter: PlatformFilter,
-        imageName: String,
+        imageDefName: String,
         bundles: DomainObjectSet<Bundle>,
         objectFactory: ObjectFactory,
     ) : OciImageDefinition.BundleScope {
@@ -462,7 +462,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             AllPlatformFilter -> bundles
             else -> bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
         }
-        final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageName, filteredBundles)
+        final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageDefName, filteredBundles)
 
         final override fun parentImages(configuration: Action<in OciImageDependencies>) =
             filteredBundles.configureEach { parentImages(configuration) }
@@ -475,7 +475,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
         abstract class Layers @Inject constructor(
             private val platformFilter: PlatformFilter,
-            private val imageName: String,
+            private val imageDefName: String,
             private val bundles: DomainObjectSet<Bundle>,
             private val objectFactory: ObjectFactory,
         ) : OciImageDefinition.BundleScope.Layers {
@@ -488,7 +488,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             fun layer(name: String): Layer {
                 var layer = list.findByName(name) as Layer?
                 if (layer == null) {
-                    layer = objectFactory.newInstance<Layer>(name, platformFilter, imageName, bundles)
+                    layer = objectFactory.newInstance<Layer>(name, platformFilter, imageDefName, bundles)
                     list.add(layer)
                 }
                 return layer
@@ -498,7 +498,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         abstract class Layer @Inject constructor(
             private val name: String,
             private val platformFilter: PlatformFilter,
-            private val imageName: String,
+            private val imageDefName: String,
             private val bundles: DomainObjectSet<Bundle>,
             private val projectLayout: ProjectLayout,
             private val taskContainer: TaskContainer,
@@ -519,7 +519,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 var task = task
                 if (task == null) {
                     task = taskContainer.createLayerTask(
-                        imageName, name, platformFilter.toString(), projectLayout, configuration
+                        imageDefName, name, platformFilter.toString(), projectLayout, configuration
                     )
                     this.task = task
                     bundles.configureEach {
@@ -543,18 +543,18 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 }
 
 private fun TaskContainer.createLayerTask(
-    imageName: String,
+    imageDefName: String,
     layerName: String,
     platformString: String,
     projectLayout: ProjectLayout,
     configuration: Action<in OciCopySpec>,
-) = register<OciLayerTask>(createLayerTaskName(imageName, layerName, platformString)) {
+) = register<OciLayerTask>(createLayerTaskName(imageDefName, layerName, platformString)) {
     group = TASK_GROUP_NAME
-    description = "Assembles the OCI layer '$layerName' for the $imageName image."
-    outputDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageName/$layerName$platformString"))
+    description = "Assembles the OCI layer '$layerName' for the $imageDefName image."
+    outputDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName/$layerName$platformString"))
     contents(configuration)
 }
 
-private fun createLayerTaskName(imageName: String, layerName: String, platformString: String) =
-    if (imageName == "main") "${layerName}OciLayer$platformString"
-    else "$imageName${layerName.replaceFirstChar(Char::uppercaseChar)}OciLayer$platformString"
+private fun createLayerTaskName(imageDefName: String, layerName: String, platformString: String) =
+    if (imageDefName == "main") "${layerName}OciLayer$platformString"
+    else "$imageDefName${layerName.replaceFirstChar(Char::uppercaseChar)}OciLayer$platformString"
