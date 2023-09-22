@@ -18,6 +18,7 @@ import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.domainObjectContainer
+import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.register
 import javax.inject.Inject
@@ -95,7 +96,7 @@ abstract class OciExtensionImpl @Inject constructor(
                 from(dependenciesContainer.get().configurations)
                 registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registry/$name"))
             }
-            testTask.configure {
+            testTask {
                 jvmArgumentProviders += OciTestArgumentProvider(objectFactory, registryDataTask)
             }
         }

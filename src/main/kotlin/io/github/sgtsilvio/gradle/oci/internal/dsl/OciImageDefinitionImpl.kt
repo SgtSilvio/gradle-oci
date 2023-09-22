@@ -385,7 +385,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                     )
                     this.task = task
                 } else {
-                    task.configure {
+                    task {
                         contents(configuration)
                     }
                 }
@@ -527,7 +527,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                         layers.layer(name).contents(task)
                     }
                 } else {
-                    task.configure {
+                    task {
                         contents(configuration)
                     }
                 }
