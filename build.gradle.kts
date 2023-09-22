@@ -43,11 +43,12 @@ dependencies {
     implementation(libs.json)
     implementation(libs.reactor.kotlin)
     implementation(libs.reactor.netty) {
-        exclude("io.netty", "netty-resolver-dns-native-macos")
         exclude("io.netty", "netty-transport-native-epoll")
         exclude("io.netty.incubator", "netty-incubator-codec-native-quic")
     }
     implementation(platform(libs.netty.bom))
+    runtimeOnly(variantOf(libs.netty.resolver.dns.native.macos) { classifier("osx-aarch_64") })
+    runtimeOnly(variantOf(libs.netty.resolver.dns.native.macos) { classifier("osx-x86_64") })
 }
 
 gradlePlugin {
