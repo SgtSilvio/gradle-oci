@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.OciComponentBuilder
 import io.github.sgtsilvio.gradle.oci.component.OciComponentBundleBuilder
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
+import io.github.sgtsilvio.gradle.oci.mapping.toOciImageReference
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.Input
@@ -27,9 +28,10 @@ abstract class OciTagComponentTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val component = OciComponentBuilder().imageReference(imageReference.get()).bundleOrPlatformBundles(
-            OciComponentBundleBuilder().parentCapabilities(listOf(parentCapability.get())).build()
-        ).build()
+        val component =
+            OciComponentBuilder().imageReference(imageReference.get().toOciImageReference()).bundleOrPlatformBundles(
+                OciComponentBundleBuilder().parentCapabilities(listOf(parentCapability.get())).build()
+            ).build()
         componentFile.get().asFile.writeText(component.encodeToJsonString())
     }
 }

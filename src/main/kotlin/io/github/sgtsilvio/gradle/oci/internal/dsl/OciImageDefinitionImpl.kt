@@ -14,6 +14,7 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.getDefaultCapability
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.mapping.defaultMappedImageNamespace
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
@@ -49,18 +50,13 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 ) : OciImageDefinition {
 
     private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
-    final override val imageReference: Property<String> =
+    final override val imageName: Property<String> =
         objectFactory.property<String>().convention(providerFactory.provider {
-            buildString {
-                append(defaultMappedImageNamespace(project.group.toString()))
-                append(project.name)
-                append(':')
-                append(project.version)
-                if (name != "main") {
-                    append('-')
-                    append(name)
-                }
-            }
+            defaultMappedImageNamespace(project.group.toString()) + project.name
+        })
+    final override val imageTag: Property<String> =
+        objectFactory.property<String>().convention(providerFactory.provider {
+            if (name == "main") project.version.toString() else "${project.version}-$name"
         })
     final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
@@ -177,11 +173,14 @@ abstract class OciImageDefinitionImpl @Inject constructor(
 
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
-            .zip(imageReference, OciComponentBuilder::imageReference)
+            .zip(createImageReference(), OciComponentBuilder::imageReference)
             .zip(createComponentCapabilities(), OciComponentBuilder::capabilities)
             .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
             .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
             .map { it.build() }
+
+    private fun createImageReference(): Provider<OciImageReference> =
+        imageName.zip(imageTag) { name, tag -> OciImageReference(name, tag) }
 
     private fun createComponentCapabilities(): Provider<Set<VersionedCoordinates>> =
         capabilities.set.map { capabilities ->
