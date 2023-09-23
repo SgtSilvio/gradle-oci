@@ -37,9 +37,9 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
-    testImplementation("org.testcontainers:testcontainers:1.18.3")
-    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+    testImplementation("org.testcontainers:testcontainers:1.19.0")
+    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.1.0")
 }
 
 tasks.test {
@@ -113,5 +113,4 @@ public class ImageTest {
 
 ## Requirements
 
-[//]: # (TODO)
-- Gradle X.Y or higher
+- Gradle 7.4 or higher
