@@ -73,8 +73,22 @@ signing {
 
 testing {
     suites {
-        "test"(JvmTestSuite::class) {
+        withType<JvmTestSuite> {
             useJUnitJupiter(libs.versions.junit.jupiter)
         }
+        register<JvmTestSuite>("functionalTest") {
+            targets.configureEach {
+                testTask {
+                    environment(
+                        "ORG_GRADLE_PROJECT_dockerHubUsername" to project.property("dockerHubUsername"),
+                        "ORG_GRADLE_PROJECT_dockerHubPassword" to project.property("dockerHubPassword"),
+                    )
+                }
+            }
+        }
     }
+}
+
+gradlePlugin {
+    testSourceSets(sourceSets["functionalTest"])
 }
