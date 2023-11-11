@@ -94,7 +94,7 @@ internal class TestProject(projectDir: File) {
                 @Test
                 void test() {
                     assertEquals(
-                        new File("build/oci/registry/test").getAbsolutePath(),
+                        new File("build/oci/registries/test").getAbsolutePath(),
                         System.getProperty("io.github.sgtsilvio.gradle.oci.registry.data.dir")
                     );
                 }
@@ -171,7 +171,7 @@ internal class TestProject(projectDir: File) {
             expectedConfig2Digest = "1013d54d227bc8e0ecdbc989217da3325065b8c0021123065b01bb15fd9eab04"
         }
 
-        val registryDir = buildDir.resolve("oci/registry/test")
+        val registryDir = buildDir.resolve("oci/registries/test")
         val blobsDir = registryDir.resolve("blobs")
         // @formatter:off
         assertTrue(blobsDir.resolve("sha256/1d/1d511796a8d527cf68165c8b95d6606d03c6a30a624d781f8f3682ae14797078/data").exists())

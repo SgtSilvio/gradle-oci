@@ -94,7 +94,7 @@ abstract class OciExtensionImpl @Inject constructor(
                 group = TASK_GROUP_NAME
                 description = "Creates a Docker registry data directory to be used by the $name task."
                 from(dependenciesContainer.get().configurations)
-                registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registry/$name"))
+                registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registries/$name"))
             }
             testTask {
                 jvmArgumentProviders += OciTestArgumentProvider(objectFactory, registryDataTask)
