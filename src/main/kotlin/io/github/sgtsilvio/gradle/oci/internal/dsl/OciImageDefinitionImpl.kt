@@ -71,6 +71,67 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         registerArtifacts(providerFactory)
     }
 
+    private fun createConfiguration(
+        configurationContainer: ConfigurationContainer,
+        imageDefName: String,
+        objectFactory: ObjectFactory,
+    ): Configuration = configurationContainer.create(createConfigurationName(imageDefName)) {
+        description = "OCI elements for $imageDefName"
+        isCanBeConsumed = true
+        isCanBeResolved = false
+        attributes {
+            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+//                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
+        }
+    }
+
+    private fun createConfigurationName(imageDefName: String) =
+        if (imageDefName == "main") "ociImage" else "${imageDefName}OciImage"
+
+    private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
+        providerFactory.provider { OciComponentBuilder() }
+            .zip(createImageReference(), OciComponentBuilder::imageReference)
+            .zip(createComponentCapabilities(), OciComponentBuilder::capabilities)
+            .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
+            .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
+            .map { it.build() }
+
+    private fun createImageReference(): Provider<OciImageReference> =
+        imageName.zip(imageTag) { name, tag -> OciImageReference(name, tag) }
+
+    private fun createComponentCapabilities(): Provider<Set<VersionedCoordinates>> =
+        capabilities.set.map { capabilities ->
+            capabilities.map { VersionedCoordinates(it.group, it.name, it.version!!) }.toSet().ifEmpty {
+                setOf(
+                    VersionedCoordinates(
+                        project.group.toString(),
+                        createDefaultCapabilityName(project.name, name),
+                        project.version.toString(),
+                    )
+                )
+            }
+        }
+
+    private fun createDefaultCapabilityName(projectName: String, imageDefName: String) =
+        if (imageDefName == "main") projectName else "$projectName-$imageDefName"
+
+    private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.BundleOrPlatformBundles> =
+        providerFactory.provider { getBundleOrPlatformBundles() }
+            .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
+
+    private fun createComponentTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
+        taskContainer.register<OciComponentTask>(createComponentTaskName(imageDefName)) {
+            group = TASK_GROUP_NAME
+            description = "Assembles an OCI component json file for the $imageDefName image."
+            component.set(this@OciImageDefinitionImpl.component)
+            componentFile.set(projectLayout.buildDirectory.file("oci/images/$imageDefName/component.json"))
+        }
+
+    private fun createComponentTaskName(imageDefName: String) =
+        if (imageDefName == "main") "ociComponent" else "${imageDefName}OciComponent"
+
     private fun registerArtifacts(providerFactory: ProviderFactory) {
         imageConfiguration.outgoing.artifact(componentTask)
         imageConfiguration.outgoing.artifacts(providerFactory.provider {
@@ -151,67 +212,6 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         }
         return universalBundle
     }
-
-    private fun createConfiguration(
-        configurationContainer: ConfigurationContainer,
-        imageDefName: String,
-        objectFactory: ObjectFactory,
-    ): Configuration = configurationContainer.create(createConfigurationName(imageDefName)) {
-        description = "OCI elements for $imageDefName"
-        isCanBeConsumed = true
-        isCanBeResolved = false
-        attributes {
-            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
-            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-//                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
-        }
-    }
-
-    private fun createConfigurationName(imageDefName: String) =
-        if (imageDefName == "main") "ociImage" else "${imageDefName}OciImage"
-
-    private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
-        providerFactory.provider { OciComponentBuilder() }
-            .zip(createImageReference(), OciComponentBuilder::imageReference)
-            .zip(createComponentCapabilities(), OciComponentBuilder::capabilities)
-            .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
-            .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
-            .map { it.build() }
-
-    private fun createImageReference(): Provider<OciImageReference> =
-        imageName.zip(imageTag) { name, tag -> OciImageReference(name, tag) }
-
-    private fun createComponentCapabilities(): Provider<Set<VersionedCoordinates>> =
-        capabilities.set.map { capabilities ->
-            capabilities.map { VersionedCoordinates(it.group, it.name, it.version!!) }.toSet().ifEmpty {
-                setOf(
-                    VersionedCoordinates(
-                        project.group.toString(),
-                        createDefaultCapabilityName(project.name, name),
-                        project.version.toString(),
-                    )
-                )
-            }
-        }
-
-    private fun createDefaultCapabilityName(projectName: String, imageDefName: String) =
-        if (imageDefName == "main") projectName else "$projectName-$imageDefName"
-
-    private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.BundleOrPlatformBundles> =
-        providerFactory.provider { getBundleOrPlatformBundles() }
-            .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
-
-    private fun createComponentTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
-        taskContainer.register<OciComponentTask>(createComponentTaskName(imageDefName)) {
-            group = TASK_GROUP_NAME
-            description = "Assembles an OCI component json file for the $imageDefName image."
-            component.set(this@OciImageDefinitionImpl.component)
-            componentFile.set(projectLayout.buildDirectory.file("oci/images/$imageDefName/component.json"))
-        }
-
-    private fun createComponentTaskName(imageDefName: String) =
-        if (imageDefName == "main") "ociComponent" else "${imageDefName}OciComponent"
 
 
     abstract class Capabilities @Inject constructor(
