@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
-import io.github.sgtsilvio.gradle.oci.internal.gradle.getAnyDeclaredCapability
+import io.github.sgtsilvio.gradle.oci.internal.gradle.getAnyCapability
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import org.apache.commons.io.FileUtils
@@ -43,7 +43,7 @@ abstract class OciImagesInput @Inject constructor(
             val nonTaggableConfiguration =
                 if (configuration.name.endsWith("OciTaggableImages")) configuration.extendsFrom.first() else configuration
             nonTaggableConfiguration.allDependencies.withType<ModuleDependency>().map {
-                it.getAnyDeclaredCapability(projectDependencyPublicationResolver)
+                it.getAnyCapability(projectDependencyPublicationResolver)
             }
         })
     }
