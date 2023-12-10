@@ -7,6 +7,7 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.internal.artifacts.dependencies.ProjectDependencyInternal
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
 import org.gradle.util.GradleVersion
+import org.gradle.util.Path
 
 internal fun ModuleDependency.getAnyDeclaredCapability(
     projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
@@ -30,7 +31,12 @@ internal fun ModuleDependency.getDefaultCapability(
 private fun ProjectDependency.getDefaultCapability(
     projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
 ): Coordinates {
-    val id = if (GradleVersion.current() >= GradleVersion.version("8.4")) {
+    val id = if (GradleVersion.current() >= GradleVersion.version("8.5")) {
+        projectDependencyPublicationResolver.resolveComponent(
+            ModuleVersionIdentifier::class.java,
+            (this as ProjectDependencyInternal).identityPath,
+        )
+    } else if (GradleVersion.current() >= GradleVersion.version("8.4")) {
         projectDependencyPublicationResolver.resolve(
             ModuleVersionIdentifier::class.java,
             (this as ProjectDependencyInternal).identityPath,
@@ -46,4 +52,10 @@ private fun <T> ProjectDependencyPublicationResolver.resolve(coordsType: Class<T
         "resolve", Class::class.java, ProjectDependency::class.java
     )
     return coordsType.cast(method.invoke(this, coordsType, dependency))
+}
+
+private fun <T> ProjectDependencyPublicationResolver.resolve(coordsType: Class<T>, identityPath: Path): T {
+    val method =
+        ProjectDependencyPublicationResolver::class.java.getMethod("resolve", Class::class.java, Path::class.java)
+    return coordsType.cast(method.invoke(this, coordsType, identityPath))
 }

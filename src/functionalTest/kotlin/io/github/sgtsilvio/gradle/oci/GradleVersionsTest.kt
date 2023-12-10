@@ -19,6 +19,7 @@ internal class GradleVersionsTest {
             "7.4", // minimum version
             "8.3", // highest version not fulfilling version check >= 8.4 in ModuleDependencyExtensions
             "8.4", // lowest version fulfilling version check >= 8.4 in ModuleDependencyExtensions
+            "8.5", // lowest version fulfilling version check >= 8.5 in ModuleDependencyExtensions
         ]
     )
     fun test(gradleVersion: String, @TempDir projectDir: File) {
