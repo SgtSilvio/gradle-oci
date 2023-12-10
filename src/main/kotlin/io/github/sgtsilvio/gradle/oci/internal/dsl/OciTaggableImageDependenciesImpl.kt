@@ -6,7 +6,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies.Tag
-import io.github.sgtsilvio.gradle.oci.internal.gradle.getAnyDeclaredCapability
+import io.github.sgtsilvio.gradle.oci.internal.gradle.getAnyCapability
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
@@ -67,7 +67,7 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         val counter = counter++
         val task = taskContainer.register<OciTagComponentTask>("$prefix${counter}OciTagComponent") {
             imageReference.set(tag.imageReference)
-            parentCapability.set(dependency.map { it.getAnyDeclaredCapability(projectDependencyPublicationResolver) })
+            parentCapability.set(dependency.map { it.getAnyCapability(projectDependencyPublicationResolver) })
             componentFile.set(projectLayout.buildDirectory.file("oci/tags/$prefix/component-$counter.json"))
         }
         configuration.dependencies.add(dependencyHandler.create(objectFactory.fileCollection().from(task)))

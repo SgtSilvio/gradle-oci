@@ -9,7 +9,7 @@ import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDepende
 import org.gradle.util.GradleVersion
 import org.gradle.util.Path
 
-internal fun ModuleDependency.getAnyDeclaredCapability(
+internal fun ModuleDependency.getAnyCapability(
     projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
 ): Coordinates {
     val capabilities = requestedCapabilities
@@ -31,20 +31,26 @@ internal fun ModuleDependency.getDefaultCapability(
 private fun ProjectDependency.getDefaultCapability(
     projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
 ): Coordinates {
-    val id = if (GradleVersion.current() >= GradleVersion.version("8.5")) {
-        projectDependencyPublicationResolver.resolveComponent(
+    val id = when {
+        GradleVersion.current() >= GradleVersion.version("8.5") -> projectDependencyPublicationResolver.resolveComponent(
             ModuleVersionIdentifier::class.java,
             (this as ProjectDependencyInternal).identityPath,
         )
-    } else if (GradleVersion.current() >= GradleVersion.version("8.4")) {
-        projectDependencyPublicationResolver.resolve(
+
+        GradleVersion.current() >= GradleVersion.version("8.4") -> projectDependencyPublicationResolver.resolve(
             ModuleVersionIdentifier::class.java,
             (this as ProjectDependencyInternal).identityPath,
         )
-    } else {
-        projectDependencyPublicationResolver.resolve(ModuleVersionIdentifier::class.java, this)
+
+        else -> projectDependencyPublicationResolver.resolve(ModuleVersionIdentifier::class.java, this)
     }
     return Coordinates(id.group, id.name)
+}
+
+private fun <T> ProjectDependencyPublicationResolver.resolve(coordsType: Class<T>, identityPath: Path): T {
+    val method =
+        ProjectDependencyPublicationResolver::class.java.getMethod("resolve", Class::class.java, Path::class.java)
+    return coordsType.cast(method.invoke(this, coordsType, identityPath))
 }
 
 private fun <T> ProjectDependencyPublicationResolver.resolve(coordsType: Class<T>, dependency: ProjectDependency): T {
@@ -52,10 +58,4 @@ private fun <T> ProjectDependencyPublicationResolver.resolve(coordsType: Class<T
         "resolve", Class::class.java, ProjectDependency::class.java
     )
     return coordsType.cast(method.invoke(this, coordsType, dependency))
-}
-
-private fun <T> ProjectDependencyPublicationResolver.resolve(coordsType: Class<T>, identityPath: Path): T {
-    val method =
-        ProjectDependencyPublicationResolver::class.java.getMethod("resolve", Class::class.java, Path::class.java)
-    return coordsType.cast(method.invoke(this, coordsType, identityPath))
 }
