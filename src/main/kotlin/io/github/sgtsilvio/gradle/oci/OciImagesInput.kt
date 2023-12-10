@@ -39,9 +39,9 @@ abstract class OciImagesInput @Inject constructor(
 
     fun from(configuration: Configuration) {
         files.from(configuration)
+        val nonTaggableConfiguration =
+            if (configuration.name.endsWith("OciTaggableImages")) configuration.extendsFrom.first() else configuration
         rootCapabilities.set(providerFactory.provider {
-            val nonTaggableConfiguration =
-                if (configuration.name.endsWith("OciTaggableImages")) configuration.extendsFrom.first() else configuration
             nonTaggableConfiguration.allDependencies.withType<ModuleDependency>().map {
                 it.getAnyCapability(projectDependencyPublicationResolver)
             }
