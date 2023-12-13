@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.mapping
+package io.github.sgtsilvio.gradle.oci.metadata
 
 /**
  * @author Silvio Giebl

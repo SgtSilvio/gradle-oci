@@ -11,8 +11,12 @@ import io.github.sgtsilvio.gradle.oci.component.allLayers
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.mapping.*
+import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
+import io.github.sgtsilvio.gradle.oci.mapping.decodeOciImageMappingData
+import io.github.sgtsilvio.gradle.oci.mapping.map
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpHeaderValues

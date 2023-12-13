@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import java.util.*
 
 /**

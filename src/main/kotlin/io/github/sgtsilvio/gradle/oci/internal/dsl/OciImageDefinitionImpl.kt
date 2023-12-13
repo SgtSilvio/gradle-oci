@@ -14,8 +14,8 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.getDefaultCapability
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.mapping.defaultMappedImageNamespace
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.Platform

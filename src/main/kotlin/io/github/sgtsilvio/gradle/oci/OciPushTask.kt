@@ -4,7 +4,6 @@ import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.netty.buffer.ByteBuf

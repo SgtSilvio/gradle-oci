@@ -2,8 +2,8 @@ package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible

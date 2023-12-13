@@ -1,8 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.OciDescriptor
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.io.Serializable
 import java.time.Instant
@@ -42,7 +42,7 @@ data class OciComponent(
 
         data class Command(
             val entryPoint: List<String>?, // empty (no args) is different from null (not set, inherit)
-            val arguments: List<String> // default empty
+            val arguments: List<String>, // default empty
         ) : Serializable
 
         data class Layer(

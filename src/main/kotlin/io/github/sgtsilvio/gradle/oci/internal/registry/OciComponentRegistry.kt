@@ -3,7 +3,6 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl

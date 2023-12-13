@@ -1,8 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import java.io.Serializable
 import java.time.Instant
 

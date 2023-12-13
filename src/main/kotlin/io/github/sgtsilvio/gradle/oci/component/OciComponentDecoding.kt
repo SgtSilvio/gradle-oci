@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.mapping.toOciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import java.util.*
 
