@@ -1,13 +1,14 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.component.Coordinates
+import org.gradle.api.Named
 import org.gradle.api.provider.Provider
 import java.io.Serializable
 
 /**
  * @author Silvio Giebl
  */
-interface OciTaggableImageDependencies : OciImageDependenciesBase<OciTaggableImageDependencies.Nameable> {
+interface OciTaggableImageDependencies : OciImageDependenciesBase<OciTaggableImageDependencies.Nameable>, Named {
 
     interface Reference : Serializable {
         val name: String?

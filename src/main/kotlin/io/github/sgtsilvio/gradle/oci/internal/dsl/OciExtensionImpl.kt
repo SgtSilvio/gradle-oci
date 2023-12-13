@@ -4,8 +4,8 @@ import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
 import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
-import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesContainer
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
+import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
@@ -17,10 +17,7 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
-import org.gradle.kotlin.dsl.domainObjectContainer
-import org.gradle.kotlin.dsl.invoke
-import org.gradle.kotlin.dsl.newInstance
-import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.*
 import javax.inject.Inject
 
 /**
@@ -41,14 +38,14 @@ abstract class OciExtensionImpl @Inject constructor(
     }
 
     final override val imageDependencies =
-        objectFactory.domainObjectContainer(OciImageDependenciesContainer::class) { name ->
-            objectFactory.newInstance<OciImageDependenciesContainerImpl>(name)
+        objectFactory.domainObjectContainer(OciTaggableImageDependencies::class) { name ->
+            objectFactory.newInstance<OciTaggableImageDependenciesImpl>(name)
         }
 
     init {
         // eagerly realize imageDefinitions because they register configurations and tasks
         imageDefinitions.all {}
-        // eagerly realize imageDependencies because they register configurations and tasks
+        // eagerly realize imageDependencies because they register configurations
         imageDependencies.all {}
     }
 
@@ -78,26 +75,38 @@ abstract class OciExtensionImpl @Inject constructor(
     final override fun PlatformFilter.or(configuration: Action<in OciExtension.PlatformFilterBuilder>) =
         or(platformFilter(configuration))
 
-    final override fun NamedDomainObjectContainer<OciImageDependenciesContainer>.forTest(
+    override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
         testTask: TaskProvider<Test>,
-        action: Action<in OciImageDependenciesContainer>,
+        action: Action<in OciTaggableImageDependencies>,
+    ) = forTest(testTask, "", action)
+
+    override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
+        testTask: TaskProvider<Test>,
+        scope: String,
+        action: Action<in OciTaggableImageDependencies>,
     ) {
-        val name = testTask.name
-        val dependenciesContainer = if (name in imageDependencies.names) {
-            imageDependencies.named(name, action)
+        val testTaskName = testTask.name
+        val registryDataTaskName = "${testTaskName}OciRegistryData"
+        val registryDataTask = if (registryDataTaskName in taskContainer.names) {
+            taskContainer.named<OciRegistryDataTask>(registryDataTaskName)
         } else {
-            imageDependencies.register(name, action)
-        }
-        val registryDataTaskName = "${name}OciRegistryData"
-        if (registryDataTaskName !in taskContainer.names) {
             val registryDataTask = taskContainer.register<OciRegistryDataTask>(registryDataTaskName) {
                 group = TASK_GROUP_NAME
-                description = "Creates a Docker registry data directory to be used by the $name task."
-                from(dependenciesContainer.get())
-                registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registries/$name"))
+                description = "Creates a Docker registry data directory to be used by the $testTaskName task."
+                registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registries/$testTaskName"))
             }
             testTask {
                 jvmArgumentProviders += OciTestArgumentProvider(objectFactory, registryDataTask)
+            }
+            registryDataTask
+        }
+        val imageDependenciesName = testTaskName + scope.replaceFirstChar(Char::uppercaseChar)
+        if (imageDependenciesName in imageDependencies.names) {
+            imageDependencies.named(imageDependenciesName, action)
+        } else {
+            val imageDependencies = imageDependencies.register(imageDependenciesName, action)
+            registryDataTask {
+                from(imageDependencies.get())
             }
         }
     }

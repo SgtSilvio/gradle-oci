@@ -23,7 +23,7 @@ interface OciExtension {
     val registries: OciRegistries
     val imageMapping: OciImageMapping
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
-    val imageDependencies: NamedDomainObjectContainer<OciImageDependenciesContainer>
+    val imageDependencies: NamedDomainObjectContainer<OciTaggableImageDependencies>
 
     fun registries(configuration: Action<in OciRegistries>)
 
@@ -48,8 +48,14 @@ interface OciExtension {
         val osVersions: SetProperty<String>
     }
 
-    fun NamedDomainObjectContainer<OciImageDependenciesContainer>.forTest(
+    fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
         testTask: TaskProvider<Test>,
-        action: Action<in OciImageDependenciesContainer>,
+        action: Action<in OciTaggableImageDependencies>,
+    )
+
+    fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
+        testTask: TaskProvider<Test>,
+        scope: String,
+        action: Action<in OciTaggableImageDependencies>,
     )
 }

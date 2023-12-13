@@ -30,14 +30,13 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 abstract class OciTaggableImageDependenciesImpl @Inject constructor(
-    prefix: String,
-    description: String,
+    private val name: String,
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,
     dependencyHandler: DependencyHandler,
 ) : OciImageDependenciesBaseImpl<Nameable>(
-    configurationContainer.create(prefix + "OciImages") {
-        this.description = description
+    configurationContainer.create(name + "OciImages") {
+        this.description = "OCI image dependencies '$name'"
         isCanBeConsumed = false
         isCanBeResolved = true
         attributes {
@@ -95,6 +94,8 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
 
         override fun tag(tagProvider: Provider<String>) = tagProperty.set(tagProvider)
     }
+
+    override fun getName() = name
 
     final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
         val referenceSpec = ReferenceSpec(objectFactory)
