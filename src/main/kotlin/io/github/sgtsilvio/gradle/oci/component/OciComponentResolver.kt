@@ -7,8 +7,6 @@ sealed interface OciComponentResolver {
     fun addComponent(component: OciComponent)
 
     fun resolve(capability: Coordinates): ResolvedOciComponent
-
-    fun resolve(component: OciComponent): ResolvedOciComponent
 }
 
 fun OciComponentResolver(): OciComponentResolver = OciComponentResolverImpl()
@@ -41,8 +39,6 @@ private class OciComponentResolverImpl : OciComponentResolver {
     override fun resolve(capability: Coordinates): ResolvedOciComponentImpl =
         resolvableComponents[capability]?.resolve(this)
             ?: throw IllegalStateException("component with capability $capability missing")
-
-    override fun resolve(component: OciComponent) = resolve(component.capabilities.first().coordinates)
 }
 
 private class ResolvableOciComponent(component: OciComponent) {

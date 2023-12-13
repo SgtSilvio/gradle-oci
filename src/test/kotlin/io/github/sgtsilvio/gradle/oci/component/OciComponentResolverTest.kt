@@ -327,3 +327,5 @@ internal class OciComponentResolverTest {
         listOf()
     )
 }
+
+fun OciComponentResolver.resolve(component: OciComponent) = resolve(component.capabilities.first().coordinates)
