@@ -48,12 +48,12 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
     dependencyHandler,
 ), OciTaggableImageDependencies {
 
-    private val dependencies = objectFactory.listProperty<Pair<ModuleDependency, Reference>>()
+    private val dependencyReferencePairs = objectFactory.listProperty<Pair<ModuleDependency, Reference>>()
 
     final override val rootCapabilities: Provider<Map<Coordinates, Set<Reference>>> =
-        configuration.incoming.resolutionResult.rootComponent.map { rootComponent ->
+        configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferencePairs) { rootComponent, dependencyReferencePairs ->
             val descriptorToReferences = HashMap<ModuleDependencyDescriptor, List<Reference>>()
-            for ((dependency, reference) in dependencies.get()) {
+            for ((dependency, reference) in dependencyReferencePairs) {
                 descriptorToReferences.merge(dependency.toDescriptor(), listOf(reference)) { a, b -> a + b }
             }
             val coordinatesToReferences = HashMap<Coordinates, HashSet<Reference>>()
@@ -75,13 +75,13 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
 
     final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
         val referenceSpec = ReferenceSpec(objectFactory)
-        dependencies.add(referenceSpec.reference.map { Pair(dependency, it) })
+        dependencyReferencePairs.add(referenceSpec.reference.map { Pair(dependency, it) })
         return referenceSpec
     }
 
     final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpec {
         val referenceSpec = ReferenceSpec(objectFactory)
-        dependencies.add(dependencyProvider.zip(referenceSpec.reference, ::Pair))
+        dependencyReferencePairs.add(dependencyProvider.zip(referenceSpec.reference, ::Pair))
         return referenceSpec
     }
 
