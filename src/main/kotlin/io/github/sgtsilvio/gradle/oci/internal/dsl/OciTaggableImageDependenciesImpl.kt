@@ -36,7 +36,7 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
     dependencyHandler: DependencyHandler,
 ) : OciImageDependenciesBaseImpl<Nameable>(
     configurationContainer.create(name + "OciImages") {
-        this.description = "OCI image dependencies '$name'"
+        description = "OCI image dependencies '$name'"
         isCanBeConsumed = false
         isCanBeResolved = true
         attributes {
@@ -95,7 +95,7 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         override fun tag(tagProvider: Provider<String>) = tagProperty.set(tagProvider)
     }
 
-    override fun getName() = name
+    final override fun getName() = name
 
     final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
         val referenceSpec = ReferenceSpec(objectFactory)
@@ -110,19 +110,19 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
     }
 }
 
-interface ModuleDependencyDescriptor
+private interface ModuleDependencyDescriptor
 
-data class ProjectDependencyDescriptor(
+private data class ProjectDependencyDescriptor(
     val projectPath: String,
     val requestedCapabilities: List<Coordinates>,
 ) : ModuleDependencyDescriptor
 
-data class ExternalDependencyDescriptor(
+private data class ExternalDependencyDescriptor(
     val coordinates: VersionedCoordinates,
     val requestedCapabilities: List<Coordinates>,
 ) : ModuleDependencyDescriptor
 
-fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
+private fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
     val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
     return when (this) {
         is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities)
@@ -131,11 +131,11 @@ fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
             requestedCapabilities,
         )
 
-        else -> throw IllegalStateException() // TODO message
+        else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
     }
 }
 
-fun ComponentSelector.toDescriptor(): ModuleDependencyDescriptor {
+private fun ComponentSelector.toDescriptor(): ModuleDependencyDescriptor {
     val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
     return when (this) {
         is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities)
@@ -144,6 +144,6 @@ fun ComponentSelector.toDescriptor(): ModuleDependencyDescriptor {
             requestedCapabilities,
         )
 
-        else -> throw IllegalStateException() // TODO message
+        else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
     }
 }
