@@ -14,7 +14,7 @@ import javax.inject.Inject
 abstract class OciImageDependenciesContainerImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
-    private val providerFactory: ProviderFactory,
+    providerFactory: ProviderFactory,
 ) : OciImageDependenciesContainer {
 
     final override fun getName() = name
@@ -31,24 +31,4 @@ abstract class OciImageDependenciesContainerImpl @Inject constructor(
             "OCI images container '$name', scope '$scope'",
         )
     }
-
-    final override fun named(name: String) =
-        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(providerFactory.provider {
-            OciTaggableImageDependenciesImpl.ReferenceImpl(name, null)
-        })
-
-    final override fun named(nameProvider: Provider<String>) =
-        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(nameProvider.map<OciTaggableImageDependencies.Reference> { name ->
-            OciTaggableImageDependenciesImpl.ReferenceImpl(name, null)
-        }.orElse(OciTaggableImageDependenciesImpl.ReferenceImpl.DEFAULT))
-
-    final override fun tagged(tag: String) =
-        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(providerFactory.provider {
-            OciTaggableImageDependenciesImpl.ReferenceImpl(null, tag)
-        })
-
-    final override fun tagged(tagProvider: Provider<String>) =
-        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(tagProvider.map<OciTaggableImageDependencies.Reference> { tag ->
-            OciTaggableImageDependenciesImpl.ReferenceImpl(null, tag)
-        }.orElse(OciTaggableImageDependenciesImpl.ReferenceImpl.DEFAULT))
 }

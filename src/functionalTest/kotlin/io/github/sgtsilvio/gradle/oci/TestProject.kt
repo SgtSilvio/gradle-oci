@@ -66,7 +66,7 @@ internal class TestProject(projectDir: File) {
                 }
                 imageDependencies.forTest(tasks.test) {
                     default(project)
-                    default(project, tagged("latest"))
+                    default(project).tag("latest")
                     default.constraint("library:eclipse-temurin:20.0.1_9-jre-jammy")
                     default("hivemq:hivemq4:4.16.0")
                 }

@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesBase
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
@@ -13,74 +14,57 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class OciImageDependenciesImpl @Inject constructor(
+abstract class OciImageDependenciesBaseImpl<T>(
     final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
-) : OciImageDependencies {
+) : OciImageDependenciesBase<T> {
 
     final override val set get() = configuration.allDependencies.withType(ModuleDependency::class)
 
     // add dependency
 
-    override fun add(dependency: ModuleDependency) {
-        configuration.addDependency(dependency)
-    }
-
-    protected fun Configuration.addDependency(dependency: ModuleDependency): ModuleDependency {
+    final override fun add(dependency: ModuleDependency): T {
         val finalizedDependency = finalizeDependency(dependency)
-        dependencies.add(finalizedDependency)
-        return finalizedDependency
+        configuration.dependencies.add(finalizedDependency)
+        return returnType(finalizedDependency)
     }
 
-    override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>) {
-        configuration.addDependency(dependency, action)
-    }
-
-    protected fun <D : ModuleDependency> Configuration.addDependency(dependency: D, action: Action<in D>): D {
+    final override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>): T {
         val finalizedDependency = finalizeDependency(dependency)
         action.execute(finalizedDependency)
-        dependencies.add(finalizedDependency)
-        return finalizedDependency
+        configuration.dependencies.add(finalizedDependency)
+        return returnType(finalizedDependency)
     }
 
-    override fun add(dependencyProvider: Provider<out ModuleDependency>) {
-        configuration.addDependency(dependencyProvider)
-    }
-
-    protected fun Configuration.addDependency(
-        dependencyProvider: Provider<out ModuleDependency>,
-    ): Provider<ModuleDependency> {
+    final override fun add(dependencyProvider: Provider<out ModuleDependency>): T {
         val finalizedDependencyProvider = dependencyProvider.map { finalizeDependency(it) }
-        dependencies.addLater(finalizedDependencyProvider)
-        return finalizedDependencyProvider
+        configuration.dependencies.addLater(finalizedDependencyProvider)
+        return returnType(finalizedDependencyProvider)
     }
 
-    override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>) {
-        configuration.addDependency(dependencyProvider, action)
-    }
-
-    protected fun <D : ModuleDependency> Configuration.addDependency(
-        dependencyProvider: Provider<out D>,
-        action: Action<in D>,
-    ): Provider<D> {
+    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>): T {
         val finalizedDependencyProvider = dependencyProvider.map {
             val finalizedDependency = finalizeDependency(it)
             action.execute(finalizedDependency)
             finalizedDependency
         }
-        dependencies.addLater(finalizedDependencyProvider)
-        return finalizedDependencyProvider
+        configuration.dependencies.addLater(finalizedDependencyProvider)
+        return returnType(finalizedDependencyProvider)
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
 
+    abstract fun returnType(dependency: ModuleDependency): T
+
+    abstract fun returnType(dependencyProvider: Provider<out ModuleDependency>): T
+
     // add dependency converted from a different notation
 
-    protected fun createDependency(dependencyNotation: CharSequence) =
+    private fun createDependency(dependencyNotation: CharSequence) =
         dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
 
-    protected fun createDependency(project: Project) = dependencyHandler.create(project) as ProjectDependency
+    private fun createDependency(project: Project) = dependencyHandler.create(project) as ProjectDependency
 
     final override fun add(dependencyNotation: CharSequence) = add(createDependency(dependencyNotation))
 
@@ -97,7 +81,7 @@ abstract class OciImageDependenciesImpl @Inject constructor(
 
     final override fun add(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
-        action: Action<in ExternalModuleDependency>
+        action: Action<in ExternalModuleDependency>,
     ) = add(dependencyProvider.asProvider(), action)
 
     // add constraint
@@ -152,4 +136,14 @@ abstract class OciImageDependenciesImpl @Inject constructor(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in DependencyConstraint>,
     ) = constraint(dependencyProvider.asProvider(), action)
+}
+
+abstract class OciImageDependenciesImpl @Inject constructor(
+    configuration: Configuration,
+    dependencyHandler: DependencyHandler,
+) : OciImageDependenciesBaseImpl<Unit>(configuration, dependencyHandler), OciImageDependencies {
+
+    final override fun returnType(dependency: ModuleDependency) = Unit
+
+    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>) = Unit
 }

@@ -10,37 +10,37 @@ import org.gradle.api.provider.ProviderConvertible
 /**
  * @author Silvio Giebl
  */
-interface OciImageDependencies {
+interface OciImageDependenciesBase<T> {
 
     val configuration: Configuration
     val set: DomainObjectSet<ModuleDependency>
 
     // add dependency
 
-    fun add(dependency: ModuleDependency)
+    fun add(dependency: ModuleDependency): T
 
-    fun <D : ModuleDependency> add(dependency: D, action: Action<in D>)
+    fun <D : ModuleDependency> add(dependency: D, action: Action<in D>): T
 
-    fun add(dependencyProvider: Provider<out ModuleDependency>)
+    fun add(dependencyProvider: Provider<out ModuleDependency>): T
 
-    fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>)
+    fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>): T
 
     // add dependency converted from a different notation
 
-    fun add(dependencyNotation: CharSequence)
+    fun add(dependencyNotation: CharSequence): T
 
-    fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>)
+    fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>): T
 
-    fun add(project: Project)
+    fun add(project: Project): T
 
-    fun add(project: Project, action: Action<in ProjectDependency>)
+    fun add(project: Project, action: Action<in ProjectDependency>): T
 
-    fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>)
+    fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>): T
 
     fun add(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in ExternalModuleDependency>,
-    )
+    ): T
 
     // add constraint
 
@@ -102,3 +102,5 @@ interface OciImageDependencies {
         action: Action<in ExternalModuleDependency>,
     ) = add(dependencyProvider, action)
 }
+
+interface OciImageDependencies : OciImageDependenciesBase<Unit>

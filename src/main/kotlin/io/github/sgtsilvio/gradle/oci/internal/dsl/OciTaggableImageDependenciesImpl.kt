@@ -7,10 +7,11 @@ import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies.*
-import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
-import org.gradle.api.Action
-import org.gradle.api.Project
-import org.gradle.api.artifacts.*
+import io.github.sgtsilvio.gradle.oci.internal.gradle.optional
+import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.ExternalDependency
+import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.component.ComponentSelector
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
@@ -20,9 +21,9 @@ import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
-import org.gradle.api.provider.ProviderConvertible
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.named
+import org.gradle.kotlin.dsl.property
 import javax.inject.Inject
 
 /**
@@ -34,7 +35,7 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,
     dependencyHandler: DependencyHandler,
-) : OciImageDependenciesImpl(
+) : OciImageDependenciesBaseImpl<Nameable>(
     configurationContainer.create(prefix + "OciImages") {
         this.description = description
         isCanBeConsumed = false
@@ -71,96 +72,41 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
             coordinatesToReferences
         }
 
-    data class ReferenceImpl(override val name: String?, override val tag: String?) : Reference {
-        companion object {
-            val DEFAULT = ReferenceImpl(null, null)
+    data class ReferenceImpl(override val name: String?, override val tag: String?) : Reference
+
+    class ReferenceSpec(objectFactory: ObjectFactory) : Nameable, Taggable {
+        private val nameProperty = objectFactory.property<String>()
+        private val tagProperty = objectFactory.property<String>()
+        val reference: Provider<ReferenceImpl> = nameProperty.optional().zip(tagProperty.optional()) { name, tag ->
+            ReferenceImpl(name.orElse(null), tag.orElse(null))
         }
+
+        override fun name(name: String): ReferenceSpec {
+            nameProperty.set(name)
+            return this
+        }
+
+        override fun name(nameProvider: Provider<String>): ReferenceSpec {
+            nameProperty.set(nameProvider)
+            return this
+        }
+
+        override fun tag(tag: String) = tagProperty.set(tag)
+
+        override fun tag(tagProvider: Provider<String>) = tagProperty.set(tagProvider)
     }
 
-    class ReferenceSpecImpl(override val reference: Provider<Reference>) : NamedReferenceSpec {
-        override fun tagged(tag: String) = ReferenceSpecImpl(reference.map { ReferenceImpl(it.name, tag) })
-
-        override fun tagged(tagProvider: Provider<String>) =
-            ReferenceSpecImpl(reference.zipAbsentAsNull(tagProvider) { reference, tag ->
-                ReferenceImpl(reference.name, tag)
-            })
+    final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
+        val referenceSpec = ReferenceSpec(objectFactory)
+        dependencies.add(referenceSpec.reference.map { Pair(dependency, it) })
+        return referenceSpec
     }
 
-    // add dependency
-
-    final override fun add(dependency: ModuleDependency) {
-        val finalizedDependency = configuration.addDependency(dependency)
-        dependencies.add(Pair(finalizedDependency, ReferenceImpl.DEFAULT))
+    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpec {
+        val referenceSpec = ReferenceSpec(objectFactory)
+        dependencies.add(dependencyProvider.zip(referenceSpec.reference, ::Pair))
+        return referenceSpec
     }
-
-    final override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>) {
-        val finalizedDependency = configuration.addDependency(dependency, action)
-        dependencies.add(Pair(finalizedDependency, ReferenceImpl.DEFAULT))
-    }
-
-    final override fun add(dependencyProvider: Provider<out ModuleDependency>) {
-        val finalizedDependencyProvider = configuration.addDependency(dependencyProvider)
-        dependencies.add(finalizedDependencyProvider.map { Pair(it, ReferenceImpl.DEFAULT) })
-    }
-
-    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>) {
-        val finalizedDependencyProvider = configuration.addDependency(dependencyProvider, action)
-        dependencies.add(finalizedDependencyProvider.map { Pair(it, ReferenceImpl.DEFAULT) })
-    }
-
-    // add tagged dependency
-
-    final override fun add(dependency: ModuleDependency, referenceSpec: ReferenceSpec) {
-        val finalizedDependency = configuration.addDependency(dependency)
-        dependencies.add(referenceSpec.reference.map { Pair(finalizedDependency, it) })
-    }
-
-    final override fun <D : ModuleDependency> add(dependency: D, referenceSpec: ReferenceSpec, action: Action<in D>) {
-        val finalizedDependency = configuration.addDependency(dependency, action)
-        dependencies.add(referenceSpec.reference.map { Pair(finalizedDependency, it) })
-    }
-
-    final override fun add(dependencyProvider: Provider<out ModuleDependency>, referenceSpec: ReferenceSpec) {
-        val finalizedDependencyProvider = configuration.addDependency(dependencyProvider)
-        dependencies.add(finalizedDependencyProvider.zip(referenceSpec.reference, ::Pair))
-    }
-
-    final override fun <D : ModuleDependency> add(
-        dependencyProvider: Provider<out D>,
-        referenceSpec: ReferenceSpec,
-        action: Action<in D>,
-    ) {
-        val finalizedDependencyProvider = configuration.addDependency(dependencyProvider, action)
-        dependencies.add(finalizedDependencyProvider.zip(referenceSpec.reference, ::Pair))
-    }
-
-    // add tagged dependency converted from a different notation
-
-    final override fun add(dependencyNotation: CharSequence, referenceSpec: ReferenceSpec) =
-        add(createDependency(dependencyNotation), referenceSpec)
-
-    final override fun add(
-        dependencyNotation: CharSequence,
-        referenceSpec: ReferenceSpec,
-        action: Action<in ExternalModuleDependency>,
-    ) = add(createDependency(dependencyNotation), referenceSpec, action)
-
-    final override fun add(project: Project, referenceSpec: ReferenceSpec) =
-        add(createDependency(project), referenceSpec)
-
-    final override fun add(project: Project, referenceSpec: ReferenceSpec, action: Action<in ProjectDependency>) =
-        add(createDependency(project), referenceSpec, action)
-
-    final override fun add(
-        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
-        referenceSpec: ReferenceSpec,
-    ) = add(dependencyProvider.asProvider(), referenceSpec)
-
-    final override fun add(
-        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
-        referenceSpec: ReferenceSpec,
-        action: Action<in ExternalModuleDependency>,
-    ) = add(dependencyProvider.asProvider(), referenceSpec, action)
 }
 
 interface ModuleDependencyDescriptor
@@ -180,7 +126,7 @@ fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
     return when (this) {
         is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities)
         is ExternalDependency -> ExternalDependencyDescriptor(
-            VersionedCoordinates(group ?: "", name, version ?: ""),
+            VersionedCoordinates(group, name, version ?: ""),
             requestedCapabilities,
         )
 

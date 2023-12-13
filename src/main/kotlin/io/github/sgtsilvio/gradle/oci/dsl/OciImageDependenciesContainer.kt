@@ -12,12 +12,4 @@ interface OciImageDependenciesContainer : Named {
     val default: OciTaggableImageDependencies
 
     fun scope(scope: String): OciTaggableImageDependencies
-
-    fun named(name: String): OciTaggableImageDependencies.NamedReferenceSpec
-
-    fun named(nameProvider: Provider<String>): OciTaggableImageDependencies.NamedReferenceSpec
-
-    fun tagged(tag: String): OciTaggableImageDependencies.ReferenceSpec
-
-    fun tagged(tagProvider: Provider<String>): OciTaggableImageDependencies.ReferenceSpec
 }
