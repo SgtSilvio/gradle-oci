@@ -206,7 +206,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         }
         var universalBundle = universalBundle
         if (universalBundle == null) {
-            universalBundle = objectFactory.newInstance<Bundle>(name, imageConfiguration, Optional.empty<Bundle>())
+            universalBundle = objectFactory.newInstance<Bundle>(name, imageConfiguration, Optional.empty<Platform>())
             bundles.add(universalBundle)
             this.universalBundle = universalBundle
         }
