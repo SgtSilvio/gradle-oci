@@ -29,8 +29,8 @@ internal class OciComponentResolverTest {
         val resolvedComponent = ociComponentResolver.resolve(component)
 
         assertTrue(resolvedComponent.platforms.isInfinite)
-        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(bundle))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(bundle))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64).map { it.bundle }, listOf(bundle))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8).map { it.bundle }, listOf(bundle))
     }
 
     @Test
@@ -50,8 +50,8 @@ internal class OciComponentResolverTest {
 
         assertFalse(resolvedComponent.platforms.isInfinite)
         assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(bundleAmd64))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(bundleArm64v8))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64).map { it.bundle }, listOf(bundleAmd64))
+        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8).map { it.bundle }, listOf(bundleArm64v8))
     }
 
     @Test
@@ -80,8 +80,14 @@ internal class OciComponentResolverTest {
 
         assertFalse(resolvedComponent.platforms.isInfinite)
         assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(baseBundleAmd64, bundle))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(baseBundleArm64v8, bundle))
+        assertEquals(
+            resolvedComponent.collectBundlesForPlatform(amd64).map { it.bundle },
+            listOf(baseBundleAmd64, bundle),
+        )
+        assertEquals(
+            resolvedComponent.collectBundlesForPlatform(arm64v8).map { it.bundle },
+            listOf(baseBundleArm64v8, bundle),
+        )
     }
 
     @Test
@@ -110,8 +116,14 @@ internal class OciComponentResolverTest {
 
         assertFalse(resolvedComponent.platforms.isInfinite)
         assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(baseBundle, bundleAmd64))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(baseBundle, bundleArm64v8))
+        assertEquals(
+            resolvedComponent.collectBundlesForPlatform(amd64).map { it.bundle },
+            listOf(baseBundle, bundleAmd64),
+        )
+        assertEquals(
+            resolvedComponent.collectBundlesForPlatform(arm64v8).map { it.bundle },
+            listOf(baseBundle, bundleArm64v8),
+        )
     }
 
     @Test
@@ -141,7 +153,10 @@ internal class OciComponentResolverTest {
 
         assertFalse(resolvedComponent.platforms.isInfinite)
         assertEquals(resolvedComponent.platforms.toSet(), setOf(arm64v8))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(baseBundleArm64v8, bundleArm64v8))
+        assertEquals(
+            resolvedComponent.collectBundlesForPlatform(arm64v8).map { it.bundle },
+            listOf(baseBundleArm64v8, bundleArm64v8),
+        )
     }
 
     @Test
@@ -206,8 +221,14 @@ internal class OciComponentResolverTest {
 
         assertFalse(resolvedComponent.platforms.isInfinite)
         assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(amd64), listOf(base1BundleAmd64, bundleAmd64))
-        assertEquals(resolvedComponent.collectBundlesForPlatform(arm64v8), listOf(base2BundleArm64v8, bundleArm64v8))
+        assertEquals(
+            resolvedComponent.collectBundlesForPlatform(amd64).map { it.bundle },
+            listOf(base1BundleAmd64, bundleAmd64),
+        )
+        assertEquals(
+            resolvedComponent.collectBundlesForPlatform(arm64v8).map { it.bundle },
+            listOf(base2BundleArm64v8, bundleArm64v8),
+        )
     }
 
     @Test
@@ -279,11 +300,11 @@ internal class OciComponentResolverTest {
         assertFalse(resolvedComponent.platforms.isInfinite)
         assertEquals(resolvedComponent.platforms.toSet(), setOf(amd64, arm64v8))
         assertEquals(
-            resolvedComponent.collectBundlesForPlatform(amd64),
+            resolvedComponent.collectBundlesForPlatform(amd64).map { it.bundle },
             listOf(base5Bundle, base4Bundle, base3Bundle, base2BundleAmd64, base1Bundle, bundle),
         )
         assertEquals(
-            resolvedComponent.collectBundlesForPlatform(arm64v8),
+            resolvedComponent.collectBundlesForPlatform(arm64v8).map { it.bundle },
             listOf(base5Bundle, base4Bundle, base3Bundle, base2BundleArm64v8, base1Bundle, bundle),
         )
     }
