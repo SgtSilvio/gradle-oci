@@ -75,12 +75,12 @@ abstract class OciExtensionImpl @Inject constructor(
     final override fun PlatformFilter.or(configuration: Action<in OciExtension.PlatformFilterBuilder>) =
         or(platformFilter(configuration))
 
-    override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
+    final override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
         testTask: TaskProvider<Test>,
         action: Action<in OciTaggableImageDependencies>,
     ) = forTest(testTask, "", action)
 
-    override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
+    final override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
         testTask: TaskProvider<Test>,
         scope: String,
         action: Action<in OciTaggableImageDependencies>,
