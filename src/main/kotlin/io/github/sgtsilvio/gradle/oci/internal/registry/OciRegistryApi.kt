@@ -26,6 +26,7 @@ import reactor.netty.NettyOutbound
 import reactor.netty.http.client.HttpClient
 import reactor.netty.http.client.HttpClientResponse
 import reactor.netty.http.client.PrematureCloseException
+import reactor.util.context.Context
 import reactor.util.retry.Retry
 import reactor.util.retry.RetrySpec
 import java.net.URI
@@ -685,7 +686,7 @@ class DigestVerifyingFlux(
             subscriber.onError(error)
         }
 
-        override fun currentContext() = subscriber.currentContext()
+        override fun currentContext(): Context = subscriber.currentContext()
 
         override fun request(n: Long) = subscription.request(n)
 
