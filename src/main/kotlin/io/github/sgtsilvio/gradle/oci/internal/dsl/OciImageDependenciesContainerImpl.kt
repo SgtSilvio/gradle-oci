@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesContainer
-import org.gradle.api.artifacts.Configuration
+import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
@@ -20,8 +20,8 @@ abstract class OciImageDependenciesContainerImpl @Inject constructor(
     final override fun getName() = name
 
     private val scopeToDependencies = mutableMapOf<String, OciTaggableImageDependenciesImpl>()
-    final override val configurations: Provider<List<Configuration>> = providerFactory.provider {
-        scopeToDependencies.values.map { it.configuration }
+    final override val scopes: Provider<List<OciTaggableImageDependencies>> = providerFactory.provider {
+        scopeToDependencies.values.toList()
     }
     final override val default = scope("")
 
@@ -32,8 +32,23 @@ abstract class OciImageDependenciesContainerImpl @Inject constructor(
         )
     }
 
-    final override fun tag(imageReference: String) =
-        OciTaggableImageDependenciesImpl.TagImpl(providerFactory.provider { imageReference })
+    final override fun named(name: String) =
+        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(providerFactory.provider {
+            OciTaggableImageDependenciesImpl.ReferenceImpl(name, null)
+        })
 
-    final override fun tag(imageReference: Provider<String>) = OciTaggableImageDependenciesImpl.TagImpl(imageReference)
+    final override fun named(nameProvider: Provider<String>) =
+        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(nameProvider.map<OciTaggableImageDependencies.Reference> { name ->
+            OciTaggableImageDependenciesImpl.ReferenceImpl(name, null)
+        }.orElse(OciTaggableImageDependenciesImpl.ReferenceImpl.DEFAULT))
+
+    final override fun tagged(tag: String) =
+        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(providerFactory.provider {
+            OciTaggableImageDependenciesImpl.ReferenceImpl(null, tag)
+        })
+
+    final override fun tagged(tagProvider: Provider<String>) =
+        OciTaggableImageDependenciesImpl.ReferenceSpecImpl(tagProvider.map<OciTaggableImageDependencies.Reference> { tag ->
+            OciTaggableImageDependenciesImpl.ReferenceImpl(null, tag)
+        }.orElse(OciTaggableImageDependenciesImpl.ReferenceImpl.DEFAULT))
 }

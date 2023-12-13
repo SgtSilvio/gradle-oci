@@ -1,7 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import org.gradle.api.Named
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.provider.Provider
 
 /**
@@ -9,12 +8,16 @@ import org.gradle.api.provider.Provider
  */
 interface OciImageDependenciesContainer : Named {
 
-    val configurations: Provider<List<Configuration>>
+    val scopes: Provider<List<OciTaggableImageDependencies>>
     val default: OciTaggableImageDependencies
 
     fun scope(scope: String): OciTaggableImageDependencies
 
-    fun tag(imageReference: String): OciTaggableImageDependencies.Tag
+    fun named(name: String): OciTaggableImageDependencies.NamedReferenceSpec
 
-    fun tag(imageReference: Provider<String>): OciTaggableImageDependencies.Tag
+    fun named(nameProvider: Provider<String>): OciTaggableImageDependencies.NamedReferenceSpec
+
+    fun tagged(tag: String): OciTaggableImageDependencies.ReferenceSpec
+
+    fun tagged(tagProvider: Provider<String>): OciTaggableImageDependencies.ReferenceSpec
 }

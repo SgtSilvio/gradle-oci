@@ -66,7 +66,7 @@ internal class TestProject(projectDir: File) {
                 }
                 imageDependencies.forTest(tasks.test) {
                     default(project)
-                    default(project, tag("example/test"))
+                    default(project, tagged("latest"))
                     default.constraint("library:eclipse-temurin:20.0.1_9-jre-jammy")
                     default("hivemq:hivemq4:4.16.0")
                 }
@@ -136,15 +136,6 @@ internal class TestProject(projectDir: File) {
             """{"imageReference":"example/test:1.0.0","capabilities":[{"group":"org.example","name":"test","version":"1.0.0"}],"bundle":{"parentCapabilities":[{"group":"library","name":"eclipse-temurin"}],"command":{"entryPoint":["java","-jar","app.jar"],"arguments":[]},"layers":[{"descriptor":{"digest":"sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0","size":704,"diffId":"sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"},"createdBy":"gradle-oci: jar"}]}}"""
         }
         assertEquals(expectedComponentJson, componentJsonFile.readText())
-    }
-
-    fun assertTagComponents() {
-        val tagFile = buildDir.resolve("oci/tags/test/component-0.json")
-        assertTrue(tagFile.exists())
-        assertEquals(
-            """{"imageReference":"example/test:latest","bundle":{"parentCapabilities":[{"group":"org.example","name":"test"}]}}""",
-            tagFile.readText(),
-        )
     }
 
     fun assertTestOciRegistryData(isBeforeGradle8: Boolean = false) {

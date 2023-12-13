@@ -9,18 +9,6 @@ import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDepende
 import org.gradle.util.GradleVersion
 import org.gradle.util.Path
 
-internal fun ModuleDependency.getAnyCapability(
-    projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-): Coordinates {
-    val capabilities = requestedCapabilities
-    return if (capabilities.isEmpty()) {
-        getDefaultCapability(projectDependencyPublicationResolver)
-    } else {
-        val capability = capabilities.first()
-        Coordinates(capability.group, capability.name)
-    }
-}
-
 internal fun ModuleDependency.getDefaultCapability(
     projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
 ): Coordinates = when (this) {

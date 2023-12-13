@@ -93,7 +93,7 @@ abstract class OciExtensionImpl @Inject constructor(
             val registryDataTask = taskContainer.register<OciRegistryDataTask>(registryDataTaskName) {
                 group = TASK_GROUP_NAME
                 description = "Creates a Docker registry data directory to be used by the $name task."
-                from(dependenciesContainer.get().configurations)
+                from(dependenciesContainer.get())
                 registryDataDirectory.set(projectLayout.buildDirectory.dir("oci/registries/$name"))
             }
             testTask {

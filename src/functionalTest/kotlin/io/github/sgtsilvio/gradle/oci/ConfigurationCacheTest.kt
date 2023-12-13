@@ -31,7 +31,6 @@ internal class ConfigurationCacheTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         testProject.assertJarOciLayer()
         testProject.assertOciComponent()
-        testProject.assertTagComponents()
         testProject.assertTestOciRegistryData()
 
         testProject.buildDir.deleteRecursively()
@@ -50,7 +49,6 @@ internal class ConfigurationCacheTest {
         assertEquals(TaskOutcome.SUCCESS, result2.task(":test")?.outcome)
         testProject.assertJarOciLayer()
         testProject.assertOciComponent()
-        testProject.assertTagComponents()
         testProject.assertTestOciRegistryData()
     }
 }

@@ -1,51 +1,36 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
-import io.github.sgtsilvio.gradle.oci.internal.gradle.getAnyCapability
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesContainer
+import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
-import org.gradle.api.provider.Provider
-import org.gradle.api.provider.ProviderFactory
-import org.gradle.api.provider.SetProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
-import org.gradle.kotlin.dsl.withType
 import java.io.File
-import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
  */
 @NonExtensible
-abstract class OciImagesInput @Inject constructor(
-    private val providerFactory: ProviderFactory,
-    private val projectDependencyPublicationResolver: ProjectDependencyPublicationResolver,
-) {
+interface OciImagesInput {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
-    abstract val files: ConfigurableFileCollection
+    val files: ConfigurableFileCollection
 
     @get:Input
-    abstract val rootCapabilities: SetProperty<Coordinates>
+    val rootCapabilities: MapProperty<Coordinates, Set<OciTaggableImageDependencies.Reference>>
 
-    fun from(configuration: Configuration) {
-        files.from(configuration)
-        val nonTaggableConfiguration =
-            if (configuration.name.endsWith("OciTaggableImages")) configuration.extendsFrom.first() else configuration
-        rootCapabilities.set(providerFactory.provider {
-            nonTaggableConfiguration.allDependencies.withType<ModuleDependency>().map {
-                it.getAnyCapability(projectDependencyPublicationResolver)
-            }
-        })
+    fun from(dependencies: OciTaggableImageDependencies) {
+        files.setFrom(dependencies.configuration)
+        rootCapabilities.set(dependencies.rootCapabilities)
     }
 }
 
@@ -54,20 +39,24 @@ abstract class OciImagesInputTask : DefaultTask() {
     @get:Nested
     val imagesInputs = project.objects.listProperty<OciImagesInput>()
 
-    fun from(configurationsProvider: Provider<List<Configuration>>) =
-        imagesInputs.addAll(configurationsProvider.map { configurations ->
-            configurations.map { configuration ->
-                project.objects.newInstance<OciImagesInput>().apply { from(configuration) }
+    fun from(dependenciesContainer: OciImageDependenciesContainer) {
+        imagesInputs.addAll(dependenciesContainer.scopes.map { scopes ->
+            scopes.map { dependencies ->
+                project.objects.newInstance<OciImagesInput>().apply { from(dependencies) }
             }
         })
+    }
+
+    fun from(dependencies: OciTaggableImageDependencies) =
+        imagesInputs.add(project.objects.newInstance<OciImagesInput>().apply { from(dependencies) })
 
     @TaskAction
     protected fun run() {
         val imagesInputs: List<OciImagesInput> = imagesInputs.get()
-        val resolvedComponentToImageReferences = hashMapOf<ResolvedOciComponent, Set<OciImageReference>>()
+        val resolvedComponentToImageReferences = hashMapOf<ResolvedOciComponent, HashSet<OciImageReference>>()
         val allDigestToLayer = hashMapOf<OciDigest, File>()
         for (imagesInput in imagesInputs) {
-            val (componentWithLayersList, tagComponents) = findComponents(imagesInput.files)
+            val componentWithLayersList = findComponents(imagesInput.files)
             val componentResolver = OciComponentResolver()
             for ((component, digestToLayer) in componentWithLayersList) {
                 componentResolver.addComponent(component)
@@ -83,16 +72,12 @@ abstract class OciImagesInputTask : DefaultTask() {
                     }
                 }
             }
-            for (rootCapability in imagesInput.rootCapabilities.get()) {
+            for ((rootCapability, references) in imagesInput.rootCapabilities.get()) {
                 val resolvedComponent = componentResolver.resolve(rootCapability)
-                resolvedComponentToImageReferences[resolvedComponent] =
-                    setOf(resolvedComponent.component.imageReference)
-            }
-            for ((imageReference, parentCapability) in tagComponents) {
-                resolvedComponentToImageReferences.merge(
-                    componentResolver.resolve(parentCapability),
-                    setOf(imageReference),
-                ) { a, b -> a + b }
+                val imageReference = resolvedComponent.component.imageReference
+                val imageReferences =
+                    references.map { OciImageReference(it.name ?: imageReference.name, it.tag ?: imageReference.tag) }
+                resolvedComponentToImageReferences.getOrPut(resolvedComponent) { HashSet() }.addAll(imageReferences)
             }
         }
         run(resolvedComponentToImageReferences, allDigestToLayer)
@@ -103,33 +88,22 @@ abstract class OciImagesInputTask : DefaultTask() {
         digestToLayer: Map<OciDigest, File>,
     )
 
-    private fun findComponents(ociFiles: Iterable<File>): FindComponentsResult {
+    private fun findComponents(ociFiles: Iterable<File>): List<Pair<OciComponent, Map<OciDigest, File>>> {
         val componentWithLayersList = mutableListOf<Pair<OciComponent, Map<OciDigest, File>>>()
-        val tagComponents = mutableListOf<OciTagComponent>()
         val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
             val component = iterator.next().readText().decodeAsJsonToOciComponent()
-            val tagComponent = component.asTagOrNull()
-            if (tagComponent == null) {
-                val digestToLayer = hashMapOf<OciDigest, File>()
-                for (layer in component.allLayers) {
-                    layer.descriptor?.let { (_, digest) ->
-                        if (digest !in digestToLayer) {
-                            check(iterator.hasNext()) { "ociFiles are missing layers referenced in components" }
-                            digestToLayer[digest] = iterator.next()
-                        }
+            val digestToLayer = hashMapOf<OciDigest, File>()
+            for (layer in component.allLayers) {
+                layer.descriptor?.let { (_, digest) ->
+                    if (digest !in digestToLayer) {
+                        check(iterator.hasNext()) { "ociFiles are missing layers referenced in components" }
+                        digestToLayer[digest] = iterator.next()
                     }
                 }
-                componentWithLayersList += Pair(component, digestToLayer)
-            } else {
-                tagComponents += tagComponent
             }
+            componentWithLayersList += Pair(component, digestToLayer)
         }
-        return FindComponentsResult(componentWithLayersList, tagComponents)
+        return componentWithLayersList
     }
-
-    private data class FindComponentsResult(
-        val componentWithLayersList: List<Pair<OciComponent, Map<OciDigest, File>>>,
-        val tagComponents: List<OciTagComponent>,
-    )
 }

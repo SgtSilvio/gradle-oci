@@ -40,7 +40,6 @@ internal class GradleVersionsTest {
         val isBeforeGradle8 = gradleVersion.startsWith('7')
         testProject.assertJarOciLayer(isBeforeGradle8)
         testProject.assertOciComponent(isBeforeGradle8)
-        testProject.assertTagComponents()
         testProject.assertTestOciRegistryData(isBeforeGradle8)
     }
 }
