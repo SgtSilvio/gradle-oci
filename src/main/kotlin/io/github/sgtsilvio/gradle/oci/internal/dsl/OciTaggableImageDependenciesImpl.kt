@@ -71,13 +71,25 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
             coordinatesToReferences
         }
 
-    data class ReferenceImpl(override val name: String?, override val tag: String?) : Reference
+    final override fun getName() = name
+
+    final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
+        val referenceSpec = ReferenceSpec(objectFactory)
+        dependencies.add(referenceSpec.reference.map { Pair(dependency, it) })
+        return referenceSpec
+    }
+
+    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpec {
+        val referenceSpec = ReferenceSpec(objectFactory)
+        dependencies.add(dependencyProvider.zip(referenceSpec.reference, ::Pair))
+        return referenceSpec
+    }
 
     class ReferenceSpec(objectFactory: ObjectFactory) : Nameable, Taggable {
         private val nameProperty = objectFactory.property<String>()
         private val tagProperty = objectFactory.property<String>()
-        val reference: Provider<ReferenceImpl> = nameProperty.optional().zip(tagProperty.optional()) { name, tag ->
-            ReferenceImpl(name.orElse(null), tag.orElse(null))
+        val reference: Provider<Reference> = nameProperty.optional().zip(tagProperty.optional()) { name, tag ->
+            Reference(name.orElse(null), tag.orElse(null))
         }
 
         override fun name(name: String): ReferenceSpec {
@@ -93,20 +105,6 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         override fun tag(tag: String) = tagProperty.set(tag)
 
         override fun tag(tagProvider: Provider<String>) = tagProperty.set(tagProvider)
-    }
-
-    final override fun getName() = name
-
-    final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
-        val referenceSpec = ReferenceSpec(objectFactory)
-        dependencies.add(referenceSpec.reference.map { Pair(dependency, it) })
-        return referenceSpec
-    }
-
-    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpec {
-        val referenceSpec = ReferenceSpec(objectFactory)
-        dependencies.add(dependencyProvider.zip(referenceSpec.reference, ::Pair))
-        return referenceSpec
     }
 }
 
