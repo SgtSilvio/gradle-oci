@@ -1,13 +1,13 @@
 [versions]
 caffeine = "3.1.8"
 commons-codec = "1.16.0"
-commons-compress = "1.24.0"
-commons-io = "2.15.0"
+commons-compress = "1.25.0"
+commons-io = "2.15.1"
 json = "20231013"
 junit-jupiter = "5.10.1"
-netty = "4.1.101.Final"
+netty = "4.1.102.Final"
 reactor-kotlin = "1.2.2"
-reactor-netty = "1.1.12"
+reactor-netty = "1.1.14"
 
 [libraries]
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
