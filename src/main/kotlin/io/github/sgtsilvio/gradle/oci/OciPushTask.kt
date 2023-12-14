@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
+import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
@@ -10,6 +11,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
+import org.gradle.api.Action
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -17,8 +19,9 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Nested
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
-import org.gradle.kotlin.dsl.property
+import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.registerIfAbsent
 import org.gradle.kotlin.dsl.submit
 import org.gradle.work.DisableCachingByDefault
@@ -45,11 +48,21 @@ abstract class OciPushTask @Inject constructor(
     private val workerExecutor: WorkerExecutor,
 ) : OciImagesInputTask() {
 
-    @get:Input
-    val registryUrl = project.objects.property<URI>()
+    @get:Nested
+    val registry = project.objects.newInstance<Registry>()
 
-    @get:Internal
-    val credentials = project.objects.property<PasswordCredentials>()
+    interface Registry {
+        @get:Input
+        val url: Property<URI>
+
+        @get:Internal
+        val credentials: Property<PasswordCredentials>
+
+        fun from(registry: OciRegistry) {
+            url.set(registry.url)
+            credentials.set(registry.credentials)
+        }
+    }
 
     private val pushService =
         project.gradle.sharedServices.registerIfAbsent("ociPushService-${project.path}", OciPushService::class) {}
@@ -57,6 +70,8 @@ abstract class OciPushTask @Inject constructor(
     init {
         this.usesService(pushService)
     }
+
+    fun registry(action: Action<in Registry>) = action.execute(registry)
 
     override fun run(
         resolvedComponentToImageReferences: Map<ResolvedOciComponent, Set<OciImageReference>>,
@@ -66,8 +81,8 @@ abstract class OciPushTask @Inject constructor(
             pushService,
             workerExecutor.noIsolation(),
             services.get(ProgressLoggerFactory::class.java),
-            registryUrl.get(),
-            credentials.orNull?.let { Credentials(it.username!!, it.password!!) },
+            registry.url.get(),
+            registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) },
         )
 
         val blobs = hashMapOf<OciDigest, Blob>()
