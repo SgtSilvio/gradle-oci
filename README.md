@@ -22,7 +22,7 @@ rootProject.name = "oci-demo"
 ```kotlin
 plugins {
     java
-    id("io.github.sgtsilvio.gradle.oci") version "0.2.0"
+    id("io.github.sgtsilvio.gradle.oci") version "0.3.0"
 }
 
 group = "org.example"
@@ -71,7 +71,7 @@ oci {
         }
     }
     imageDependencies.forTest(tasks.test) {
-        default(project)
+        add(project)
     }
 }
 ```
