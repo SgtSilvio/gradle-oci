@@ -39,13 +39,15 @@ interface OciImageDefinition : Named {
     }
 
     interface Bundle {
-        val parentImages: OciImageDependencies
+        val parentImages: ParentImages
         val config: Config
         val layers: Layers
 
-        fun parentImages(configuration: Action<in OciImageDependencies>)
+        fun parentImages(configuration: Action<in ParentImages>)
         fun config(configuration: Action<in Config>)
         fun layers(configuration: Action<in Layers>)
+
+        interface ParentImages : OciImageDependencies<Unit>
 
         interface Config {
             val creationTime: Property<Instant>
@@ -92,7 +94,7 @@ interface OciImageDefinition : Named {
     interface BundleScope {
         val layers: Layers
 
-        fun parentImages(configuration: Action<in OciImageDependencies>)
+        fun parentImages(configuration: Action<in Bundle.ParentImages>)
         fun config(configuration: Action<in Bundle.Config>)
         fun layers(configuration: Action<in Layers>)
 

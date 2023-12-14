@@ -10,7 +10,7 @@ import org.gradle.api.provider.ProviderConvertible
 /**
  * @author Silvio Giebl
  */
-interface OciImageDependenciesBase<T> {
+interface OciImageDependencies<T> {
 
     val configuration: Configuration
     val set: DomainObjectSet<ModuleDependency>
@@ -102,5 +102,3 @@ interface OciImageDependenciesBase<T> {
         action: Action<in ExternalModuleDependency>,
     ) = add(dependencyProvider, action)
 }
-
-interface OciImageDependencies : OciImageDependenciesBase<Unit>

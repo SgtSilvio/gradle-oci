@@ -1,7 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
-import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesBase
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
@@ -9,15 +8,14 @@ import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderConvertible
 import org.gradle.kotlin.dsl.withType
-import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
  */
-abstract class OciImageDependenciesBaseImpl<T>(
+abstract class OciImageDependenciesImpl<T>(
     final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
-) : OciImageDependenciesBase<T> {
+) : OciImageDependencies<T> {
 
     final override val set get() = configuration.allDependencies.withType(ModuleDependency::class)
 
@@ -136,14 +134,4 @@ abstract class OciImageDependenciesBaseImpl<T>(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in DependencyConstraint>,
     ) = constraint(dependencyProvider.asProvider(), action)
-}
-
-abstract class OciImageDependenciesImpl @Inject constructor(
-    configuration: Configuration,
-    dependencyHandler: DependencyHandler,
-) : OciImageDependenciesBaseImpl<Unit>(configuration, dependencyHandler), OciImageDependencies {
-
-    final override fun returnType(dependency: ModuleDependency) = Unit
-
-    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>) = Unit
 }

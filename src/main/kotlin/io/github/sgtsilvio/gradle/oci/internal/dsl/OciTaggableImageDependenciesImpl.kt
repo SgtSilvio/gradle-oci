@@ -34,7 +34,7 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,
     dependencyHandler: DependencyHandler,
-) : OciImageDependenciesBaseImpl<Nameable>(
+) : OciImageDependenciesImpl<Nameable>(
     configurationContainer.create(name + "OciImages") {
         description = "OCI image dependencies '$name'"
         isCanBeConsumed = false

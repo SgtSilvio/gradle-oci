@@ -9,7 +9,6 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
-import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.getDefaultCapability
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
@@ -25,6 +24,8 @@ import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.file.ProjectLayout
@@ -242,14 +243,14 @@ abstract class OciImageDefinitionImpl @Inject constructor(
     ) : OciImageDefinition.Bundle, BundleOrPlatformBundles {
 
         val platform: Platform? = platform.orElse(null)
-        final override val parentImages = objectFactory.newInstance<OciImageDependenciesImpl>(imageConfiguration)
+        final override val parentImages = objectFactory.newInstance<ParentImages>(imageConfiguration)
         final override val config = objectFactory.newInstance<OciImageDefinition.Bundle.Config>().apply {
             entryPoint.convention(null)
             arguments.convention(null)
         }
         final override val layers = objectFactory.newInstance<Layers>(imageDefName, platform)
 
-        final override fun parentImages(configuration: Action<in OciImageDependencies>) =
+        final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
             configuration.execute(parentImages)
 
         final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
@@ -327,6 +328,15 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 listProvider
             }.flatMap { it }
 
+        abstract class ParentImages @Inject constructor(
+            configuration: Configuration,
+            dependencyHandler: DependencyHandler,
+        ) : OciImageDependenciesImpl<Unit>(configuration, dependencyHandler), OciImageDefinition.Bundle.ParentImages {
+
+            final override fun returnType(dependency: ModuleDependency) = Unit
+
+            final override fun returnType(dependencyProvider: Provider<out ModuleDependency>) = Unit
+        }
 
         abstract class Layers @Inject constructor(
             private val imageDefName: String,
@@ -464,7 +474,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         }
         final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageDefName, filteredBundles)
 
-        final override fun parentImages(configuration: Action<in OciImageDependencies>) =
+        final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
             filteredBundles.configureEach { parentImages(configuration) }
 
         final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
