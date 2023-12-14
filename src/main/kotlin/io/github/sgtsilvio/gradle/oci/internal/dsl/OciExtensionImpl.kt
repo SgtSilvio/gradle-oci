@@ -5,7 +5,7 @@ import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
-import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
@@ -38,8 +38,8 @@ abstract class OciExtensionImpl @Inject constructor(
     }
 
     final override val imageDependencies =
-        objectFactory.domainObjectContainer(OciTaggableImageDependencies::class) { name ->
-            objectFactory.newInstance<OciTaggableImageDependenciesImpl>(name)
+        objectFactory.domainObjectContainer(ResolvableOciImageDependencies::class) { name ->
+            objectFactory.newInstance<ResolvableOciImageDependenciesImpl>(name)
         }
 
     init {
@@ -75,15 +75,15 @@ abstract class OciExtensionImpl @Inject constructor(
     final override fun PlatformFilter.or(configuration: Action<in OciExtension.PlatformFilterBuilder>) =
         or(platformFilter(configuration))
 
-    final override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
+    final override fun NamedDomainObjectContainer<ResolvableOciImageDependencies>.forTest(
         testTask: TaskProvider<Test>,
-        action: Action<in OciTaggableImageDependencies>,
+        action: Action<in ResolvableOciImageDependencies>,
     ) = forTest(testTask, "", action)
 
-    final override fun NamedDomainObjectContainer<OciTaggableImageDependencies>.forTest(
+    final override fun NamedDomainObjectContainer<ResolvableOciImageDependencies>.forTest(
         testTask: TaskProvider<Test>,
         scope: String,
-        action: Action<in OciTaggableImageDependencies>,
+        action: Action<in ResolvableOciImageDependencies>,
     ) {
         val testTaskName = testTask.name
         val registryDataTaskName = "${testTaskName}OciRegistryData"

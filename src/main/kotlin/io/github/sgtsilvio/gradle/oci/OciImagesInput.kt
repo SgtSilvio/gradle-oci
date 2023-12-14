@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.*
-import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import org.apache.commons.io.FileUtils
@@ -25,9 +25,9 @@ interface OciImagesInput {
     val files: ConfigurableFileCollection
 
     @get:Input
-    val rootCapabilities: MapProperty<Coordinates, Set<OciTaggableImageDependencies.Reference>>
+    val rootCapabilities: MapProperty<Coordinates, Set<ResolvableOciImageDependencies.Reference>>
 
-    fun from(dependencies: OciTaggableImageDependencies) {
+    fun from(dependencies: ResolvableOciImageDependencies) {
         files.setFrom(dependencies.configuration)
         rootCapabilities.set(dependencies.rootCapabilities)
     }
@@ -38,7 +38,7 @@ abstract class OciImagesInputTask : DefaultTask() {
     @get:Nested
     val imagesInputs = project.objects.listProperty<OciImagesInput>()
 
-    fun from(dependencies: OciTaggableImageDependencies) =
+    fun from(dependencies: ResolvableOciImageDependencies) =
         imagesInputs.add(project.objects.newInstance<OciImagesInput>().apply { from(dependencies) })
 
     @TaskAction

@@ -5,8 +5,8 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
-import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies
-import io.github.sgtsilvio.gradle.oci.dsl.OciTaggableImageDependencies.*
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.*
 import io.github.sgtsilvio.gradle.oci.internal.gradle.optional
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ExternalDependency
@@ -29,7 +29,7 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class OciTaggableImageDependenciesImpl @Inject constructor(
+abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,
@@ -46,7 +46,7 @@ abstract class OciTaggableImageDependenciesImpl @Inject constructor(
         }
     },
     dependencyHandler,
-), OciTaggableImageDependencies {
+), ResolvableOciImageDependencies {
 
     private val dependencyReferencePairs = objectFactory.listProperty<Pair<ModuleDependency, Reference>>()
 

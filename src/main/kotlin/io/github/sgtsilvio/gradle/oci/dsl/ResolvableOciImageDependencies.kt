@@ -8,7 +8,7 @@ import java.io.Serializable
 /**
  * @author Silvio Giebl
  */
-interface OciTaggableImageDependencies : OciImageDependencies<OciTaggableImageDependencies.Nameable>, Named {
+interface ResolvableOciImageDependencies : OciImageDependencies<ResolvableOciImageDependencies.Nameable>, Named {
 
     val rootCapabilities: Provider<Map<Coordinates, Set<Reference>>>
 
