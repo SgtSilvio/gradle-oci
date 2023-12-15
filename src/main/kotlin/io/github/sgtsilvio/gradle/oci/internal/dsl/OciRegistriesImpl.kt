@@ -63,17 +63,25 @@ abstract class OciRegistriesImpl @Inject constructor(
         }
     }
 
-    final override fun registry(name: String, configuration: Action<in OciRegistry>) =
-        configuration.execute(getOrCreateRegistry(name))
-
-    final override fun dockerHub(configuration: Action<in OciRegistry>) {
-        val registry = getOrCreateRegistry("dockerHub")
-        registry.url.convention(URI("https://registry-1.docker.io"))
+    final override fun registry(name: String, configuration: Action<in OciRegistry>): OciRegistry {
+        val registry = getOrCreateRegistry(name)
         configuration.execute(registry)
+        return registry
     }
 
-    private fun getOrCreateRegistry(name: String) =
-        list.findByName(name) ?: objectFactory.newInstance<OciRegistryImpl>(name, this).also { list += it }
+    final override fun dockerHub(configuration: Action<in OciRegistry>): OciRegistry {
+        val registry = getOrCreateRegistry("dockerHub") {
+            url.convention(URI("https://registry-1.docker.io"))
+        }
+        configuration.execute(registry)
+        return registry
+    }
+
+    private inline fun getOrCreateRegistry(name: String, init: OciRegistry.() -> Unit = {}) =
+        list.findByName(name) ?: objectFactory.newInstance<OciRegistryImpl>(name, this).also {
+            it.init()
+            list += it
+        }
 
     private fun ResolvableDependencies.resolvesOciImages() =
         attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE

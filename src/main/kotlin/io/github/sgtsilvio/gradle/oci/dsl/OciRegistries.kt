@@ -15,8 +15,8 @@ interface OciRegistries {
     val list: NamedDomainObjectList<OciRegistry>
     val repositoryPort: Property<Int>
 
-    fun registry(name: String, configuration: Action<in OciRegistry>)
-    fun dockerHub(configuration: Action<in OciRegistry>)
+    fun registry(name: String, configuration: Action<in OciRegistry>): OciRegistry
+    fun dockerHub(configuration: Action<in OciRegistry>): OciRegistry
 }
 
 interface OciRegistry : Named {
