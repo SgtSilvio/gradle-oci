@@ -77,11 +77,15 @@ abstract class OciRegistriesImpl @Inject constructor(
         return registry
     }
 
-    private inline fun getOrCreateRegistry(name: String, init: OciRegistry.() -> Unit = {}) =
-        list.findByName(name) ?: objectFactory.newInstance<OciRegistryImpl>(name, this).also {
-            it.init()
-            list += it
+    private inline fun getOrCreateRegistry(name: String, init: OciRegistry.() -> Unit = {}): OciRegistry {
+        var registry = list.findByName(name)
+        if (registry == null) {
+            registry = objectFactory.newInstance<OciRegistryImpl>(name, this)
+            registry.init()
+            list += registry
         }
+        return registry
+    }
 
     private fun ResolvableDependencies.resolvesOciImages() =
         attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE
