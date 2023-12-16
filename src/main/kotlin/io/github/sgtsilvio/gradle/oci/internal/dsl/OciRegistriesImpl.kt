@@ -25,6 +25,7 @@ import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.authentication.http.HttpHeaderAuthentication
 import org.gradle.kotlin.dsl.*
 import reactor.netty.ChannelBindException
@@ -116,14 +117,17 @@ abstract class OciRegistryImpl @Inject constructor(
     private val name: String,
     registries: OciRegistriesImpl,
     objectFactory: ObjectFactory,
+    providerFactory: ProviderFactory,
     repositoryHandler: RepositoryHandler,
 ) : OciRegistry {
 
     final override val url = objectFactory.property<URI>()
+    final override val finalUrl: Provider<URI> =
+        providerFactory.gradleProperty(url.map(URI::toString)).map(::URI).orElse(url)
     final override val credentials = objectFactory.property<PasswordCredentials>()
     final override val repository = repositoryHandler.maven {
         name = this@OciRegistryImpl.name + "OciRegistry"
-        setUrl(this@OciRegistryImpl.url.zip(registries.repositoryPort) { url, repositoryPort ->
+        setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
             val urlBase64 = Base64.getUrlEncoder().encodeToString(url.toString().toByteArray())
             URI("http://localhost:$repositoryPort/v1/repository/$urlBase64")
         })

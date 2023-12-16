@@ -6,6 +6,7 @@ import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import java.net.URI
 
 /**
@@ -21,6 +22,7 @@ interface OciRegistries {
 
 interface OciRegistry : Named {
     val url: Property<URI>
+    val finalUrl: Provider<URI>
     val credentials: Property<PasswordCredentials>
     val repository: MavenArtifactRepository
 }
