@@ -17,7 +17,6 @@ import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
 import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
-import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
@@ -40,7 +39,6 @@ import javax.inject.Inject
  */
 abstract class OciRegistriesImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
-    project: Project,
     configurationContainer: ConfigurationContainer,
     imageMapping: OciImageMappingImpl,
 ) : OciRegistries {
@@ -50,9 +48,6 @@ abstract class OciRegistriesImpl @Inject constructor(
     private var beforeResolveInitialized = false
 
     init {
-        project.afterEvaluate {
-            afterEvaluate()
-        }
         configurationContainer.configureEach {
             incoming.beforeResolve {
                 if (!beforeResolveInitialized && resolvesOciImages()) {
@@ -90,12 +85,6 @@ abstract class OciRegistriesImpl @Inject constructor(
     private fun ResolvableDependencies.resolvesOciImages() =
         attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE
 
-    private fun afterEvaluate() {
-        for (registry in list) {
-            (registry as OciRegistryImpl).afterEvaluate()
-        }
-    }
-
     private fun beforeResolve(imageMapping: OciImageMappingImpl) {
         startRepository()
         for (registry in list) {
@@ -132,8 +121,15 @@ abstract class OciRegistryImpl @Inject constructor(
 
     final override val url = objectFactory.property<URI>()
     final override val credentials = objectFactory.property<PasswordCredentials>()
+
+    private val repositoryUrl: Provider<URI> = url.zip(registries.repositoryPort) { url, repositoryPort ->
+        val urlBase64 = Base64.getUrlEncoder().encodeToString(url.toString().toByteArray())
+        URI("http://localhost:$repositoryPort/v1/repository/$urlBase64")
+    }
+
     final override val repository = repositoryHandler.maven {
         name = this@OciRegistryImpl.name + "OciRegistry"
+        setUrl(repositoryUrl)
         isAllowInsecureProtocol = true
         metadataSources {
             gradleMetadata()
@@ -144,18 +140,7 @@ abstract class OciRegistryImpl @Inject constructor(
         }
     }
 
-    private val repositoryUrl: Provider<URI> = url.zip(registries.repositoryPort) { url, repositoryPort ->
-        URI(
-            "http://localhost:$repositoryPort/v1/repository/" + Base64.getUrlEncoder()
-                .encodeToString(url.toString().toByteArray())
-        )
-    }
-
     final override fun getName() = name
-
-    fun afterEvaluate() {
-        repository.url = repositoryUrl.get()
-    }
 
     fun beforeResolve(imageMapping: OciImageMappingImpl) {
         repository.credentials(HttpHeaderCredentials::class) {
