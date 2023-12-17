@@ -100,7 +100,7 @@ class OciRegistryApi(httpClient: HttpClient) {
 
     class Manifest(val mediaType: String, val data: ByteArray, val digest: OciDigest)
 
-    fun pullManifest(
+    private fun pullManifestInternal(
         registry: String,
         imageName: String,
         reference: String,
@@ -137,10 +137,20 @@ class OciRegistryApi(httpClient: HttpClient) {
     fun pullManifest(
         registry: String,
         imageName: String,
+        reference: String,
+        credentials: Credentials?,
+    ): Mono<Manifest> = when {
+        ':' in reference -> pullManifest(registry, imageName, reference.toOciDigest(), -1, credentials)
+        else -> pullManifestInternal(registry, imageName, reference, credentials)
+    }
+
+    fun pullManifest(
+        registry: String,
+        imageName: String,
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<Manifest> = pullManifest(registry, imageName, digest.toString(), credentials).map { manifest ->
+    ): Mono<Manifest> = pullManifestInternal(registry, imageName, digest.toString(), credentials).map { manifest ->
         val manifestBytes = manifest.data
         if ((size != -1) && (size != manifestBytes.size)) {
             throw sizeMismatchException(size.toLong(), manifestBytes.size.toLong())
