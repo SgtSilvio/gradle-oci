@@ -5,7 +5,7 @@ commons-compress = "1.25.0"
 commons-io = "2.15.1"
 json = "20231013"
 junit-jupiter = "5.10.1"
-netty = "4.1.102.Final"
+netty = "4.1.104.Final"
 reactor-kotlin = "1.2.2"
 reactor-netty = "1.1.14"
 
