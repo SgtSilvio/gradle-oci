@@ -126,14 +126,20 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         val variantName = segments[lastIndex - 1]
         val last = segments[lastIndex]
         val digestEndIndex = last.lastIndexOf('-')
-        val digestStartIndex = last.lastIndexOf('-', digestEndIndex - 1) + 1
+        var digestStartIndex = last.lastIndexOf('@', digestEndIndex - 1) + 1
         if (digestEndIndex < digestStartIndex) {
             return response.sendBadRequest()
         }
         val digest = try {
             last.substring(digestStartIndex, digestEndIndex).toOciDigest()
         } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
+            // backwards compatibility with old scheme
+            digestStartIndex = last.lastIndexOf('-', digestEndIndex - 1) + 1
+            try {
+                last.substring(digestStartIndex, digestEndIndex).toOciDigest()
+            } catch (e: IllegalArgumentException) {
+                return response.sendBadRequest()
+            }
         }
         val size = try {
             last.substring(digestEndIndex + 1).toLong()
@@ -192,8 +198,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
                                 val componentName =
-                                    "oci-component-${componentWithDigest.digest}-${componentWithDigest.size}"
-                                addString("name", componentName.replace(':', '-'))
+                                    "oci-component@${componentWithDigest.digest}-${componentWithDigest.size}"
+                                addString("name", componentName.replace(':', '!'))
                                 addString("url", "$variantName/$componentName")
                                 addNumber("size", componentJson.size.toLong())
                                 addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(componentJson)))
@@ -204,8 +210,8 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
                             for ((digest, size) in component.collectLayerDigestToSize()) {
                                 val layerVariantName = layerDigestToVariantName.putIfAbsent(digest, variantName) ?: variantName
                                 addObject {
-                                    val layerName = "oci-layer-$digest-$size"
-                                    addString("name", layerName.replace(':', '-'))
+                                    val layerName = "oci-layer@$digest-$size"
+                                    addString("name", layerName.replace(':', '!'))
                                     addString("url", "$layerVariantName/$layerName")
                                     addNumber("size", size)
                                     addString(digest.algorithm.ociPrefix, digest.encodedHash)
