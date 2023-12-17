@@ -117,7 +117,7 @@ abstract class OciRegistryImpl @Inject constructor(
     private val name: String,
     registries: OciRegistriesImpl,
     objectFactory: ObjectFactory,
-    providerFactory: ProviderFactory,
+    private val providerFactory: ProviderFactory,
     repositoryHandler: RepositoryHandler,
 ) : OciRegistry {
 
@@ -142,6 +142,8 @@ abstract class OciRegistryImpl @Inject constructor(
     }
 
     final override fun getName() = name
+
+    final override fun credentials() = credentials.set(providerFactory.credentials(PasswordCredentials::class, name))
 
     fun beforeResolve(imageMapping: OciImageMappingImpl) {
         repository.credentials(HttpHeaderCredentials::class) {

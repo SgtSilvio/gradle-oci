@@ -25,4 +25,6 @@ interface OciRegistry : Named {
     val finalUrl: Provider<URI>
     val credentials: Property<PasswordCredentials>
     val repository: MavenArtifactRepository
+
+    fun credentials()
 }
