@@ -24,7 +24,7 @@ class OciComponentRegistry(val registryApi: OciRegistryApi) {
         capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
     ): Mono<ComponentWithDigest> =
-        registryApi.pullManifest(registry, imageReference.name, imageReference.tag.replaceFirst('#', ':'), credentials)
+        registryApi.pullManifest(registry, imageReference.name, imageReference.tag.replaceFirst('!', ':'), credentials)
             .transformToComponent(registry, imageReference, credentials, capabilities)
 
     fun pullComponent(
