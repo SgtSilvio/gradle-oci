@@ -133,7 +133,7 @@ interface OciCopySpec {
     /**
      * Default (UNIX) permissions for files created at the destination.
      * If no value is present, the value is inherited from the parent copy spec if there is one in the used scope.
-     * If no value is present and this is a root copy spec in the used scope, it defaults to `0b111_101_101`/`0755`.
+     * If no value is present and this is a root copy spec in the used scope, it defaults to `0b110_100_100`/`0644`.
      * The default value is used unless a specific permission supplied via [permissions] matches.
      */
     val filePermissions: Property<Int>
@@ -141,7 +141,7 @@ interface OciCopySpec {
     /**
      * Default (UNIX) permissions for directories created at the destination.
      * If no value is present, the value is inherited from the parent copy spec if there is one in the used scope.
-     * If no value is present and this is a root copy spec in the used scope, it defaults to `0b110_100_100`/`0644`.
+     * If no value is present and this is a root copy spec in the used scope, it defaults to `0b111_101_101`/`0755`.
      * The default value is used unless a specific permission supplied via [permissions] matches.
      */
     val directoryPermissions: Property<Int>
