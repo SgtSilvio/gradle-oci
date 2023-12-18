@@ -22,7 +22,7 @@ rootProject.name = "oci-demo"
 ```kotlin
 plugins {
     java
-    id("io.github.sgtsilvio.gradle.oci") version "0.3.0"
+    id("io.github.sgtsilvio.gradle.oci") version "0.4.0"
 }
 
 group = "org.example"
@@ -49,7 +49,7 @@ tasks.test {
 oci {
     registries {
         dockerHub {
-            credentials.set(providers.credentials(PasswordCredentials::class, "dockerHub"))
+            credentials()
         }
     }
     imageDefinitions.register("main") {
