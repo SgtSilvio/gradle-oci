@@ -4,19 +4,19 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
-import io.github.sgtsilvio.gradle.oci.internal.json.addObject
-import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
+import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciComponentRegistry
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRepositoryHandler
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
-import io.github.sgtsilvio.gradle.oci.mapping.encodeOciImageMappingData
 import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
 import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
+import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
@@ -26,9 +26,13 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
+import org.gradle.api.services.BuildServiceRegistry
 import org.gradle.authentication.http.HttpHeaderAuthentication
 import org.gradle.kotlin.dsl.*
 import reactor.netty.ChannelBindException
+import reactor.netty.DisposableServer
 import reactor.netty.http.server.HttpServer
 import java.net.InetSocketAddress
 import java.net.URI
@@ -39,12 +43,16 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 abstract class OciRegistriesImpl @Inject constructor(
+    private val imageMapping: OciImageMappingImpl,
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,
-    imageMapping: OciImageMappingImpl,
+    buildServiceRegistry: BuildServiceRegistry,
+    project: Project,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
     final override val repositoryPort: Property<Int> = objectFactory.property<Int>().convention(5123)
+    private val registriesService =
+        buildServiceRegistry.registerIfAbsent("ociRegistriesService-${project.path}", OciRegistriesService::class) {}
 
     private var beforeResolveInitialized = false
 
@@ -53,7 +61,7 @@ abstract class OciRegistriesImpl @Inject constructor(
             incoming.beforeResolve {
                 if (!beforeResolveInitialized && resolvesOciImages()) {
                     beforeResolveInitialized = true
-                    beforeResolve(imageMapping)
+                    beforeResolve()
                 }
             }
         }
@@ -86,30 +94,73 @@ abstract class OciRegistriesImpl @Inject constructor(
     private fun ResolvableDependencies.resolvesOciImages() =
         attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE
 
-    private fun beforeResolve(imageMapping: OciImageMappingImpl) {
-        startRepository()
-        for (registry in list) {
-            (registry as OciRegistryImpl).beforeResolve(imageMapping)
+    private fun beforeResolve() {
+        if (list.isNotEmpty()) {
+            val registriesService = registriesService.get()
+            val imageMappingData = imageMapping.getData()
+            for (registry in list) {
+                registriesService.register(registry, imageMappingData)
+            }
+        }
+    }
+}
+
+abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    private val httpServers = mutableListOf<DisposableServer>()
+    private val loopResources = OciLoopResources.acquire()
+    private val ociComponentRegistry = OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
+
+    init {
+        try {
+            httpServers += HttpServer.create()
+                .bindAddress { InetSocketAddress("localhost", 5123) }
+                .runOn(loopResources)
+                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
+                .handle { request, response ->
+                    val port = request.requestHeaders()["port"]
+                    response.sendRedirect("http://localhost:" + port + request.uri())
+                }
+                .bindNow()
+        } catch (_: ChannelBindException) {
+        } finally {
+            // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
+            // The current classloader can then not be collected, although it has a narrower scope then the current thread.
+            FastThreadLocal.destroy()
         }
     }
 
-    private fun startRepository() {
-        try {
-            val port = repositoryPort.get()
-            HttpServer.create()
-                .bindAddress { InetSocketAddress("localhost", port) }
-                .httpRequestDecoder { it.maxHeaderSize(1_048_576) }
-                .runOn(OciLoopResources.acquire())
+    fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
+        val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
+        val port = try {
+            val httpServer = HttpServer.create()
+                .bindAddress { InetSocketAddress("localhost", 0) }
+                .runOn(loopResources)
                 .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
-                .handle(OciRepositoryHandler(OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))))
+                .handle(OciRepositoryHandler(ociComponentRegistry, imageMappingData, credentials))
                 .bindNow()
-        } catch (_: ChannelBindException) {
-            OciRegistryHttpClient.release() // TODO maybe do only acquire the http client if actually needed
-            OciLoopResources.release()
+            httpServers += httpServer
+            httpServer.port()
+        } finally {
+            // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
+            // The current classloader can then not be collected, although it has a narrower scope then the current thread.
+            FastThreadLocal.destroy()
         }
-        // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
-        // The current classloader can then not be collected, although it has a narrower scope then the current thread.
-        FastThreadLocal.destroy()
+        registry.repository.credentials(HttpHeaderCredentials::class) {
+            name = "port"
+            value = port.toString()
+        }
+        registry.repository.authentication {
+            create<HttpHeaderAuthentication>("header")
+        }
+    }
+
+    final override fun close() {
+        for (httpServer in httpServers) {
+            httpServer.disposeNow()
+        }
+        httpServers.clear()
+        OciRegistryHttpClient.release()
+        OciLoopResources.release()
     }
 }
 
@@ -144,25 +195,4 @@ abstract class OciRegistryImpl @Inject constructor(
     final override fun getName() = name
 
     final override fun credentials() = credentials.set(providerFactory.credentials(PasswordCredentials::class, name))
-
-    fun beforeResolve(imageMapping: OciImageMappingImpl) {
-        repository.credentials(HttpHeaderCredentials::class) {
-            name = "context"
-            val credentials = credentials.orNull
-            value = jsonObject {
-                if (credentials != null) {
-                    addObject("credentials") {
-                        addString("username", credentials.username!!)
-                        addString("password", credentials.password!!)
-                    }
-                }
-                addObject("imageMapping") {
-                    encodeOciImageMappingData(imageMapping.getData())
-                }
-            }
-        }
-        repository.authentication {
-            create<HttpHeaderAuthentication>("header")
-        }
-    }
 }

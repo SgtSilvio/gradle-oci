@@ -10,10 +10,12 @@ import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.component.allLayers
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
-import io.github.sgtsilvio.gradle.oci.internal.json.*
+import io.github.sgtsilvio.gradle.oci.internal.json.addArray
+import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
+import io.github.sgtsilvio.gradle.oci.internal.json.addObject
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
-import io.github.sgtsilvio.gradle.oci.mapping.decodeOciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.map
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
@@ -41,8 +43,11 @@ import java.util.function.BiFunction
 /**
  * @author Silvio Giebl
  */
-class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) :
-    BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
+class OciRepositoryHandler(
+    private val componentRegistry: OciComponentRegistry,
+    private val imageMappingData: OciImageMappingData,
+    private val credentials: Credentials?,
+) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
     private val componentCache: AsyncCache<ComponentCacheKey, OciComponentRegistry.ComponentWithDigest> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
@@ -57,7 +62,6 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
     )
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
-//        println("REQUEST: " + request.method() + " " + request.uri() + " " + request.requestHeaders())
         val segments = request.uri().substring(1).split('/')
         if ((segments[0] == "v1") && (segments[1] == "repository")) {
             return handleRepository(request, segments.drop(2), response)
@@ -70,12 +74,6 @@ class OciRepositoryHandler(private val componentRegistry: OciComponentRegistry) 
         segments: List<String>,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val context = jsonObject(request.requestHeaders()["context"] ?: return response.sendBadRequest())
-        val credentials = context.getOrNull("credentials") {
-            asObject().run { Credentials(getString("username"), getString("password")) }
-        }
-        val imageMappingData = context.get("imageMapping") { asObject().decodeOciImageMappingData() }
-
         val isGET = when (request.method()) {
             HttpMethod.GET -> true
             HttpMethod.HEAD -> false
