@@ -31,12 +31,16 @@ import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.services.BuildServiceRegistry
 import org.gradle.authentication.http.HttpHeaderAuthentication
 import org.gradle.kotlin.dsl.*
+import org.reactivestreams.Publisher
 import reactor.netty.ChannelBindException
 import reactor.netty.DisposableServer
 import reactor.netty.http.server.HttpServer
+import reactor.netty.http.server.HttpServerRequest
+import reactor.netty.http.server.HttpServerResponse
 import java.net.InetSocketAddress
 import java.net.URI
 import java.util.*
+import java.util.function.BiFunction
 import javax.inject.Inject
 
 /**
@@ -97,70 +101,12 @@ abstract class OciRegistriesImpl @Inject constructor(
     private fun beforeResolve() {
         if (list.isNotEmpty()) {
             val registriesService = registriesService.get()
+            registriesService.init(repositoryPort.get())
             val imageMappingData = imageMapping.getData()
             for (registry in list) {
                 registriesService.register(registry, imageMappingData)
             }
         }
-    }
-}
-
-abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
-    private val httpServers = mutableListOf<DisposableServer>()
-    private val loopResources = OciLoopResources.acquire()
-    private val ociComponentRegistry = OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
-
-    init {
-        try {
-            httpServers += HttpServer.create()
-                .bindAddress { InetSocketAddress("localhost", 5123) }
-                .runOn(loopResources)
-                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
-                .handle { request, response ->
-                    val port = request.requestHeaders()["port"]
-                    response.sendRedirect("http://localhost:" + port + request.uri())
-                }
-                .bindNow()
-        } catch (_: ChannelBindException) {
-        } finally {
-            // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
-            // The current classloader can then not be collected, although it has a narrower scope then the current thread.
-            FastThreadLocal.destroy()
-        }
-    }
-
-    fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
-        val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
-        val port = try {
-            val httpServer = HttpServer.create()
-                .bindAddress { InetSocketAddress("localhost", 0) }
-                .runOn(loopResources)
-                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
-                .handle(OciRepositoryHandler(ociComponentRegistry, imageMappingData, credentials))
-                .bindNow()
-            httpServers += httpServer
-            httpServer.port()
-        } finally {
-            // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
-            // The current classloader can then not be collected, although it has a narrower scope then the current thread.
-            FastThreadLocal.destroy()
-        }
-        registry.repository.credentials(HttpHeaderCredentials::class) {
-            name = "port"
-            value = port.toString()
-        }
-        registry.repository.authentication {
-            create<HttpHeaderAuthentication>("header")
-        }
-    }
-
-    final override fun close() {
-        for (httpServer in httpServers) {
-            httpServer.disposeNow()
-        }
-        httpServers.clear()
-        OciRegistryHttpClient.release()
-        OciLoopResources.release()
     }
 }
 
@@ -195,4 +141,63 @@ abstract class OciRegistryImpl @Inject constructor(
     final override fun getName() = name
 
     final override fun credentials() = credentials.set(providerFactory.credentials(PasswordCredentials::class, name))
+}
+
+private const val PORT_HTTP_HEADER_NAME = "port"
+
+abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    private val httpServers = mutableListOf<DisposableServer>()
+    private val loopResources = OciLoopResources.acquire()
+    private val ociComponentRegistry = OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
+
+    fun init(port: Int) {
+        try {
+            addHttpServer(port) { request, response ->
+                val redirectPort = request.requestHeaders()[PORT_HTTP_HEADER_NAME]
+                response.sendRedirect("http://localhost:" + redirectPort + request.uri())
+            }
+        } catch (_: ChannelBindException) {
+        }
+    }
+
+    fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
+        val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
+        val port = addHttpServer(0, OciRepositoryHandler(ociComponentRegistry, imageMappingData, credentials)).port()
+        registry.repository.credentials(HttpHeaderCredentials::class) {
+            name = PORT_HTTP_HEADER_NAME
+            value = port.toString()
+        }
+        registry.repository.authentication {
+            create<HttpHeaderAuthentication>("header")
+        }
+    }
+
+    private fun addHttpServer(
+        port: Int,
+        handler: BiFunction<in HttpServerRequest, in HttpServerResponse, out Publisher<Void>>,
+    ): DisposableServer {
+        return try {
+            val httpServer = HttpServer.create()
+                .bindAddress { InetSocketAddress("localhost", port) }
+                .runOn(loopResources)
+                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
+                .handle(handler)
+                .bindNow()
+            httpServers += httpServer
+            httpServer
+        } finally {
+            // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
+            // The current classloader can then not be collected, although it has a narrower scope then the current thread.
+            FastThreadLocal.destroy()
+        }
+    }
+
+    final override fun close() {
+        for (httpServer in httpServers) {
+            httpServer.disposeNow()
+        }
+        httpServers.clear()
+        OciRegistryHttpClient.release()
+        OciLoopResources.release()
+    }
 }
