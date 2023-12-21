@@ -10,6 +10,7 @@ import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.component.allLayers
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
+import io.github.sgtsilvio.gradle.oci.internal.fromCamelToKebabCase
 import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
@@ -362,17 +363,4 @@ class OciRepositoryHandler(
         }
         return sendByteArray(if (isGETelseHEAD) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }
-}
-
-internal fun String.fromCamelToKebabCase(): String {
-    val stringBuilder = StringBuilder(length)
-    for (c in this) {
-        if (c.isUpperCase()) {
-            stringBuilder.append('-')
-            stringBuilder.append(c.lowercaseChar())
-        } else {
-            stringBuilder.append(c)
-        }
-    }
-    return stringBuilder.toString()
 }
