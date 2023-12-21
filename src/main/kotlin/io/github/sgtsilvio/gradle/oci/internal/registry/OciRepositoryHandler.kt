@@ -63,7 +63,7 @@ class OciRepositoryHandler(
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
         val segments = request.uri().substring(1).split('/')
-        if ((segments[0] == "v1") && (segments[1] == "repository")) {
+        if ((segments[0] == "v2") && (segments[1] == "repository")) {
             return handleRepository(request, segments.drop(2), response)
         }
         return response.sendNotFound()
@@ -92,7 +92,7 @@ class OciRepositoryHandler(
         if (segments.last().endsWith(".module")) {
             return handleModule(registryUri, segments, imageMappingData, credentials, isGET, response)
         }
-        if (segments.size < 6) {
+        if (segments.size < 8) {
             return response.sendNotFound()
         }
         return handleComponentOrLayer(registryUri, segments, imageMappingData, credentials, isGET, response)
@@ -120,35 +120,23 @@ class OciRepositoryHandler(
         response: HttpServerResponse,
     ): Publisher<Void> {
         val lastIndex = segments.lastIndex
-        val componentId = decodeComponentId(segments, lastIndex - 2)
-        val variantName = segments[lastIndex - 1]
-        val last = segments[lastIndex]
-        val digestEndIndex = last.lastIndexOf('-')
-        var digestStartIndex = last.lastIndexOf('@', digestEndIndex - 1) + 1
-        if (digestEndIndex < digestStartIndex) {
+        val componentId = decodeComponentId(segments, lastIndex - 4)
+        val variantName = segments[lastIndex - 3]
+        val digest = try {
+            segments[lastIndex - 2].toOciDigest()
+        } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
-        val digest = try {
-            last.substring(digestStartIndex, digestEndIndex).toOciDigest()
-        } catch (e: IllegalArgumentException) {
-            // backwards compatibility with old scheme
-            digestStartIndex = last.lastIndexOf('-', digestEndIndex - 1) + 1
-            try {
-                last.substring(digestStartIndex, digestEndIndex).toOciDigest()
-            } catch (e: IllegalArgumentException) {
-                return response.sendBadRequest()
-            }
-        }
         val size = try {
-            last.substring(digestEndIndex + 1).toLong()
+            segments[lastIndex - 1].toLong()
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
         val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
-        val prefix = last.substring(0, digestStartIndex - 1)
+        val last = segments[lastIndex]
         return when {
-            prefix.endsWith("oci-component") -> getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
-            prefix.endsWith("oci-layer") -> getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
+            last.endsWith("oci-component.json") -> getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
+            last.endsWith("oci-layer") -> getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
             else -> response.sendNotFound()
         }
     }
@@ -181,7 +169,8 @@ class OciRepositoryHandler(
                         addString("org.gradle.status", "release")
                     }
                 }
-                val layerDigestToVariantName = mutableMapOf<OciDigest, String>()
+                val fileNamePrefix = "${componentId.name}-${componentId.version}"
+                val layerDigestToVariantNameAndCounter = mutableMapOf<OciDigest, Pair<String, Int>>()
                 addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
                     val component = componentWithDigest.component
                     addObject {
@@ -195,22 +184,33 @@ class OciRepositoryHandler(
                         addArray("files") {
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
-                                val componentName =
-                                    "oci-component@${componentWithDigest.digest}-${componentWithDigest.size}"
-                                addString("name", componentName.replace(':', '!'))
-                                addString("url", "$variantName/$componentName")
+                                val componentName = when (variantName) {
+                                    "main" -> "$fileNamePrefix-oci-component.json"
+                                    else -> "$fileNamePrefix-${variantName.fromCamelToKebabCase()}-oci-component.json"
+                                }
+                                addString("name", componentName)
+                                addString("url", "$variantName/${componentWithDigest.digest}/${componentWithDigest.size}/$componentName")
                                 addNumber("size", componentJson.size.toLong())
                                 addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(componentJson)))
                                 addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(componentJson)))
                                 addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(componentJson)))
                                 addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(componentJson)))
                             }
+                            var counter = 0
                             for ((digest, size) in component.collectLayerDigestToSize()) {
-                                val layerVariantName = layerDigestToVariantName.putIfAbsent(digest, variantName) ?: variantName
                                 addObject {
-                                    val layerName = "oci-layer@$digest-$size"
-                                    addString("name", layerName.replace(':', '!'))
-                                    addString("url", "$layerVariantName/$layerName")
+                                    var layerVariantNameAndCounter = layerDigestToVariantNameAndCounter[digest]
+                                    if (layerVariantNameAndCounter == null) {
+                                        layerVariantNameAndCounter = Pair(variantName, counter++)
+                                        layerDigestToVariantNameAndCounter[digest] = layerVariantNameAndCounter
+                                    }
+                                    val (layerVariantName, layerCounter) = layerVariantNameAndCounter
+                                    val layerName = when (layerVariantName) {
+                                        "main" -> "$fileNamePrefix-$layerCounter-oci-layer"
+                                        else -> "$fileNamePrefix-${layerVariantName.fromCamelToKebabCase()}-$layerCounter-oci-layer"
+                                    }
+                                    addString("name", layerName)
+                                    addString("url", "$layerVariantName/$digest/$size/$layerName")
                                     addNumber("size", size)
                                     addString(digest.algorithm.ociPrefix, digest.encodedHash)
                                 }
@@ -362,4 +362,17 @@ class OciRepositoryHandler(
         }
         return sendByteArray(if (isGETelseHEAD) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }
+}
+
+internal fun String.fromCamelToKebabCase(): String {
+    val stringBuilder = StringBuilder(length)
+    for (c in this) {
+        if (c.isUpperCase()) {
+            stringBuilder.append('-')
+            stringBuilder.append(c.lowercaseChar())
+        } else {
+            stringBuilder.append(c)
+        }
+    }
+    return stringBuilder.toString()
 }

@@ -126,7 +126,7 @@ abstract class OciRegistryImpl @Inject constructor(
         name = this@OciRegistryImpl.name + "OciRegistry"
         setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
             val urlBase64 = Base64.getUrlEncoder().encodeToString(url.toString().toByteArray())
-            URI("http://localhost:$repositoryPort/v1/repository/$urlBase64")
+            URI("http://localhost:$repositoryPort/v2/repository/$urlBase64")
         })
         isAllowInsecureProtocol = true
         metadataSources {
