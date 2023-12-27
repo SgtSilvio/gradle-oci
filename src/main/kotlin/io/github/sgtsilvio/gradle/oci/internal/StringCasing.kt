@@ -102,11 +102,7 @@ private const val STATE_SEPARATOR = 1
 private const val STATE_LOWERCASE = 2
 private const val STATE_UPPERCASE = 3
 
-fun String.toCamelCase(): CamelCaseString {
-    if (isCamelCase()) {
-        return CamelCaseString(this)
-    }
-    val stringBuilder = StringBuilder(length)
+private inline fun String.convertCase(consume: (Char, isIntermediateWordStart: Boolean) -> Unit) {
     var state = STATE_EMPTY
     for ((i, c) in withIndex()) {
         if (c.isSeparator()) {
@@ -114,16 +110,26 @@ fun String.toCamelCase(): CamelCaseString {
                 state = STATE_SEPARATOR
             }
         } else {
-            var upperCase: Boolean
+            var isIntermediateWordStart: Boolean
             if (c.isWordStart()) {
-                upperCase = (state != STATE_EMPTY) && !((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrWordStart()))
+                isIntermediateWordStart = (state != STATE_EMPTY) && !((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrWordStart()))
                 state = STATE_UPPERCASE
             } else {
-                upperCase = state == STATE_SEPARATOR
+                isIntermediateWordStart = state == STATE_SEPARATOR
                 state = STATE_LOWERCASE
             }
-            stringBuilder.append(if (upperCase) c.uppercaseChar() else c.lowercaseChar())
+            consume(c, isIntermediateWordStart)
         }
+    }
+}
+
+fun String.toCamelCase(): CamelCaseString {
+    if (isCamelCase()) {
+        return CamelCaseString(this)
+    }
+    val stringBuilder = StringBuilder(length)
+    convertCase { c, isIntermediateWordStart ->
+        stringBuilder.append(if (isIntermediateWordStart) c.uppercaseChar() else c.lowercaseChar())
     }
     return CamelCaseString(stringBuilder.toString())
 }
@@ -133,26 +139,11 @@ fun String.toKebabCase(): KebabCaseString {
         return KebabCaseString(this)
     }
     val stringBuilder = StringBuilder(length + 2)
-    var state = STATE_EMPTY
-    for ((i, c) in withIndex()) {
-        if (c.isSeparator()) {
-            if (state != STATE_EMPTY) {
-                state = STATE_SEPARATOR
-            }
-        } else {
-            var hyphen: Boolean
-            if (c.isWordStart()) {
-                hyphen = (state != STATE_EMPTY) && !((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrWordStart()))
-                state = STATE_UPPERCASE
-            } else {
-                hyphen = state == STATE_SEPARATOR
-                state = STATE_LOWERCASE
-            }
-            if (hyphen) {
-                stringBuilder.append('-')
-            }
-            stringBuilder.append(c.lowercaseChar())
+    convertCase { c, isIntermediateWordStart ->
+        if (isIntermediateWordStart) {
+            stringBuilder.append('-')
         }
+        stringBuilder.append(c.lowercaseChar())
     }
     return KebabCaseString(stringBuilder.toString())
 }
