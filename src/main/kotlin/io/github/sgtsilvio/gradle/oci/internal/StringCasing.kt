@@ -54,23 +54,23 @@ fun KebabCaseString.toCamelCase(): CamelCaseString {
 fun String.isCamelCase(): Boolean {
     when {
         isEmpty() -> return true
-        this[0].isUpperCase() -> return false
+        this[0].isWordStart() -> return false
         else -> {
-            var upperCaseCount = 0
+            var wordStartCount = 0
             for (c in this) {
                 if (c.isSeparator()) {
                     return false
                 }
-                if (c.isUpperCase()) {
-                    upperCaseCount++
-                    if (upperCaseCount > 2) {
+                if (c.isWordStart()) {
+                    wordStartCount++
+                    if (wordStartCount > 2) {
                         return false
                     }
                 } else {
-                    upperCaseCount = 0
+                    wordStartCount = 0
                 }
             }
-            return upperCaseCount < 2
+            return wordStartCount < 2
         }
     }
 }
@@ -83,7 +83,7 @@ fun String.isKebabCase(): Boolean {
         else -> {
             var prevIsHyphen = false
             for (c in this) {
-                if (c.isSeparatorOrUpperCase()) {
+                if (c.isSeparatorOrWordStart()) {
                     return false
                 }
                 val isHyphen = c == '-'
@@ -114,19 +114,15 @@ fun String.toCamelCase(): CamelCaseString {
                 state = STATE_SEPARATOR
             }
         } else {
-            var transformedC = c
-            if (c.isUpperCase()) {
-                if ((state == STATE_EMPTY) || ((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrUpperCase()))) {
-                    transformedC = c.lowercaseChar()
-                }
+            var upperCase: Boolean
+            if (c.isWordStart()) {
+                upperCase = (state != STATE_EMPTY) && !((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrWordStart()))
                 state = STATE_UPPERCASE
             } else {
-                if (state == STATE_SEPARATOR) {
-                    transformedC = c.uppercaseChar()
-                }
+                upperCase = state == STATE_SEPARATOR
                 state = STATE_LOWERCASE
             }
-            stringBuilder.append(transformedC)
+            stringBuilder.append(if (upperCase) c.uppercaseChar() else c.lowercaseChar())
         }
     }
     return CamelCaseString(stringBuilder.toString())
@@ -143,18 +139,19 @@ fun String.toKebabCase(): KebabCaseString {
             if (state != STATE_EMPTY) {
                 state = STATE_SEPARATOR
             }
-        } else if (c.isUpperCase()) {
-            if (!((state == STATE_EMPTY) || ((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrUpperCase())))) {
+        } else {
+            var hyphen: Boolean
+            if (c.isWordStart()) {
+                hyphen = (state != STATE_EMPTY) && !((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrWordStart()))
+                state = STATE_UPPERCASE
+            } else {
+                hyphen = state == STATE_SEPARATOR
+                state = STATE_LOWERCASE
+            }
+            if (hyphen) {
                 stringBuilder.append('-')
             }
             stringBuilder.append(c.lowercaseChar())
-            state = STATE_UPPERCASE
-        } else {
-            if (state == STATE_SEPARATOR) {
-                stringBuilder.append('-')
-            }
-            stringBuilder.append(c)
-            state = STATE_LOWERCASE
         }
     }
     return KebabCaseString(stringBuilder.toString())
@@ -162,7 +159,9 @@ fun String.toKebabCase(): KebabCaseString {
 
 private fun Char.isSeparator() = this in " -_"
 
-private fun Char.isSeparatorOrUpperCase() = isSeparator() || isUpperCase()
+private fun Char.isWordStart() = isUpperCase() || isTitleCase()
+
+private fun Char.isSeparatorOrWordStart() = isSeparator() || isWordStart()
 
 fun main() {
     println("test-test".toKebabCase())
