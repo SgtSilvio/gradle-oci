@@ -13,7 +13,9 @@ internal fun String.concatKebabCase(other: String) = when {
 }
 
 @JvmInline
-value class CamelCaseString(val string: String)
+value class CamelCaseString(val string: String) {
+    override fun toString() = string
+}
 
 operator fun CamelCaseString.plus(other: CamelCaseString) = CamelCaseString(string.concatCamelCase(other.string))
 
@@ -30,7 +32,9 @@ fun CamelCaseString.toKebabCase(): KebabCaseString {
 }
 
 @JvmInline
-value class KebabCaseString(val string: String)
+value class KebabCaseString(val string: String) {
+    override fun toString() = string
+}
 
 operator fun KebabCaseString.plus(other: KebabCaseString) = KebabCaseString(string.concatKebabCase(other.string))
 

@@ -10,11 +10,11 @@ import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.component.allLayers
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
-import io.github.sgtsilvio.gradle.oci.internal.fromCamelToKebabCase
 import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.toKebabCase
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.map
@@ -187,7 +187,7 @@ class OciRepositoryHandler(
                                 val componentJson = component.encodeToJsonString().toByteArray()
                                 val componentName = when (variantName) {
                                     "main" -> "$fileNamePrefix-oci-component.json"
-                                    else -> "$fileNamePrefix-${variantName.fromCamelToKebabCase()}-oci-component.json"
+                                    else -> "$fileNamePrefix-${variantName.toKebabCase()}-oci-component.json"
                                 }
                                 addString("name", componentName)
                                 addString("url", "$variantName/${componentWithDigest.digest}/${componentWithDigest.size}/$componentName")
@@ -208,7 +208,7 @@ class OciRepositoryHandler(
                                     val (layerVariantName, layerCounter) = layerVariantNameAndCounter
                                     val layerName = when (layerVariantName) {
                                         "main" -> "$fileNamePrefix-$layerCounter-oci-layer"
-                                        else -> "$fileNamePrefix-${layerVariantName.fromCamelToKebabCase()}-$layerCounter-oci-layer"
+                                        else -> "$fileNamePrefix-${layerVariantName.toKebabCase()}-$layerCounter-oci-layer"
                                     }
                                     addString("name", layerName)
                                     addString("url", "$layerVariantName/$digest/$size/$layerName")
