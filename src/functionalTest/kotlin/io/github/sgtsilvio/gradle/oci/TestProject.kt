@@ -105,9 +105,9 @@ internal class TestProject(projectDir: File) {
 
     fun assertJarOciLayer(isBeforeGradle8: Boolean = false) {
         val jarDir = buildDir.resolve("oci/images/main/jar")
-        val diffIdFile = jarDir.resolve("layer.diffid")
-        val digestFile = jarDir.resolve("layer.digest")
-        val tarFile = jarDir.resolve("layer.tar.gz")
+        val diffIdFile = jarDir.resolve("jar-oci-layer.diffid")
+        val digestFile = jarDir.resolve("jar-oci-layer.digest")
+        val tarFile = jarDir.resolve("jar-oci-layer.tgz")
         assertTrue(diffIdFile.exists())
         assertTrue(digestFile.exists())
         assertTrue(tarFile.exists())
@@ -127,7 +127,7 @@ internal class TestProject(projectDir: File) {
 
     fun assertOciComponent(isBeforeGradle8: Boolean = false) {
         val imageDir = buildDir.resolve("oci/images/main")
-        val componentJsonFile = imageDir.resolve("component.json")
+        val componentJsonFile = imageDir.resolve("oci-component.json")
         assertTrue(componentJsonFile.exists())
         // https://docs.gradle.org/current/userguide/upgrading_version_7.html#reproducible_archives_can_change_compared_to_past_versions
         val expectedComponentJson = if (isBeforeGradle8) {

@@ -9,10 +9,8 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
-import io.github.sgtsilvio.gradle.oci.internal.gradle.getDefaultCapability
-import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptyMap
-import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsEmptySet
-import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.internal.*
+import io.github.sgtsilvio.gradle.oci.internal.gradle.*
 import io.github.sgtsilvio.gradle.oci.mapping.defaultMappedImageNamespace
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
@@ -57,7 +55,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         })
     final override val imageTag: Property<String> =
         objectFactory.property<String>().convention(providerFactory.provider {
-            if (name == "main") project.version.toString() else "${project.version}-$name"
+            project.version.toString().concatKebabCase(name.mainToEmpty().toKebabCase().string)
         })
     final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
@@ -76,20 +74,18 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         configurationContainer: ConfigurationContainer,
         imageDefName: String,
         objectFactory: ObjectFactory,
-    ): Configuration = configurationContainer.create(createConfigurationName(imageDefName)) {
-        description = "OCI elements for $imageDefName"
-        isCanBeConsumed = true
-        isCanBeResolved = false
-        attributes {
-            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
-            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+    ): Configuration =
+        configurationContainer.create((imageDefName.mainToEmpty().toCamelCase() + "ociImage".toCamelCase()).string) {
+            description = "OCI elements for $imageDefName"
+            isCanBeConsumed = true
+            isCanBeResolved = false
+            attributes {
+                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
 //                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
+            }
         }
-    }
-
-    private fun createConfigurationName(imageDefName: String) =
-        if (imageDefName == "main") "ociImage" else "${imageDefName}OciImage"
 
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
@@ -108,30 +104,25 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 setOf(
                     VersionedCoordinates(
                         project.group.toString(),
-                        createDefaultCapabilityName(project.name, name),
+                        project.name.concatKebabCase(name.mainToEmpty().toKebabCase().string),
                         project.version.toString(),
                     )
                 )
             }
         }
 
-    private fun createDefaultCapabilityName(projectName: String, imageDefName: String) =
-        if (imageDefName == "main") projectName else "$projectName-$imageDefName"
-
     private fun createComponentBundleOrPlatformBundles(providerFactory: ProviderFactory): Provider<OciComponent.BundleOrPlatformBundles> =
         providerFactory.provider { getBundleOrPlatformBundles() }
             .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
 
     private fun createComponentTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
-        taskContainer.register<OciComponentTask>(createComponentTaskName(imageDefName)) {
+        taskContainer.register<OciComponentTask>((imageDefName.mainToEmpty().toCamelCase() + "ociComponent".toCamelCase()).string) {
             group = TASK_GROUP_NAME
             description = "Assembles an OCI component json file for the $imageDefName image."
             component.set(this@OciImageDefinitionImpl.component)
-            componentFile.set(projectLayout.buildDirectory.file("oci/images/$imageDefName/component.json"))
+            destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName")) // TODO toKebabCase?
+            classifier.set((imageDefName.mainToEmpty().toKebabCase() + "oci-component".toKebabCase()).string)
         }
-
-    private fun createComponentTaskName(imageDefName: String) =
-        if (imageDefName == "main") "ociComponent" else "${imageDefName}OciComponent"
 
     private fun registerArtifacts(providerFactory: ProviderFactory) {
         imageConfiguration.outgoing.artifact(componentTask)
@@ -558,13 +549,12 @@ private fun TaskContainer.createLayerTask(
     platformString: String,
     projectLayout: ProjectLayout,
     configuration: Action<in OciCopySpec>,
-) = register<OciLayerTask>(createLayerTaskName(imageDefName, layerName, platformString)) {
+) = register<OciLayerTask>((imageDefName.mainToEmpty().toCamelCase() + layerName.toCamelCase() + "ociLayer".toCamelCase()).string + platformString) {
     group = TASK_GROUP_NAME
     description = "Assembles the OCI layer '$layerName' for the $imageDefName image."
-    outputDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName/$layerName$platformString"))
+    destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName/$layerName")) // TODO toKebabCase?
+    classifier.set((imageDefName.mainToEmpty().toKebabCase() + layerName.toKebabCase() + "oci-layer".toKebabCase()).string + platformString)
     contents(configuration)
 }
 
-private fun createLayerTaskName(imageDefName: String, layerName: String, platformString: String) =
-    if (imageDefName == "main") "${layerName}OciLayer$platformString"
-    else "$imageDefName${layerName.replaceFirstChar(Char::uppercaseChar)}OciLayer$platformString"
+private fun String.mainToEmpty() = if (this == "main") "" else this

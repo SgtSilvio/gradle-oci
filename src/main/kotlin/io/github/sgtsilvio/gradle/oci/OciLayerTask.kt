@@ -15,6 +15,7 @@ import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.property
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPOutputStream
@@ -30,18 +31,22 @@ abstract class OciLayerTask : DefaultTask() {
     protected val copySpecInput = _contents.asInput(project.providers)
 
     @get:Internal
-    val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
+    val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
+
+    @get:Internal
+    val classifier = project.objects.property<String>()
 
     @get:OutputFile
-    val tarFile: RegularFileProperty = project.objects.fileProperty().convention(outputDirectory.file("layer.tar.gz"))
+    val tarFile: RegularFileProperty =
+        project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.tgz" }))
 
     @get:OutputFile
     val digestFile: RegularFileProperty =
-        project.objects.fileProperty().convention(outputDirectory.file("layer.digest"))
+        project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.digest" }))
 
     @get:OutputFile
     val diffIdFile: RegularFileProperty =
-        project.objects.fileProperty().convention(outputDirectory.file("layer.diffid"))
+        project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.diffid" }))
 
     @get:Internal
     val contents: OciCopySpec get() = _contents
