@@ -67,7 +67,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
     private val componentTask = createComponentTask(name, taskContainer, projectLayout)
 
     init {
-        registerArtifacts(providerFactory)
+        registerArtifacts(objectFactory, providerFactory)
     }
 
     private fun createConfiguration(
@@ -124,12 +124,23 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             classifier.set((imageDefName.mainToEmpty().toKebabCase() + "oci-component".toKebabCase()).string)
         }
 
-    private fun registerArtifacts(providerFactory: ProviderFactory) {
-        imageConfiguration.outgoing.artifact(componentTask)
-        imageConfiguration.outgoing.artifacts(providerFactory.provider {
-            val linkedMap = LinkedHashMap<String, TaskProvider<OciLayerTask>>()
-            getBundleOrPlatformBundles().collectLayerTasks(linkedMap)
-            linkedMap.map { (_, taskProvider) -> taskProvider.flatMap { it.tarFile } }
+    private fun registerArtifacts(objectFactory: ObjectFactory, providerFactory: ProviderFactory) {
+        imageConfiguration.outgoing.addArtifacts(providerFactory.provider {
+            val layerTasks = LinkedHashMap<String, TaskProvider<OciLayerTask>>()
+            getBundleOrPlatformBundles().collectLayerTasks(layerTasks)
+            listOf(LazyPublishArtifact(objectFactory).apply {
+                file.set(componentTask.flatMap { it.componentFile })
+                name.set(project.name)
+                classifier.set(componentTask.flatMap { it.classifier })
+                extension.set("json")
+            }) + layerTasks.map { (_, layerTask) ->
+                LazyPublishArtifact(objectFactory).apply {
+                    file.set(layerTask.flatMap { it.tarFile })
+                    name.set(project.name)
+                    classifier.set(layerTask.flatMap { it.classifier })
+                    extension.set("tgz")
+                }
+            }
         })
     }
 
