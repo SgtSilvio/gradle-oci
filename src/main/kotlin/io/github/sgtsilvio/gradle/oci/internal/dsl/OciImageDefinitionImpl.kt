@@ -388,12 +388,11 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 if (externalTask != null) {
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
-                var task = task
+                val task = task
                 if (task == null) {
-                    task = taskContainer.createLayerTask(
+                    this.task = taskContainer.createLayerTask(
                         imageDefName, name, platform?.toString() ?: "", projectLayout, configuration
                     )
-                    this.task = task
                 } else {
                     task {
                         contents(configuration)
