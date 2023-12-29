@@ -74,18 +74,17 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         configurationContainer: ConfigurationContainer,
         imageDefName: String,
         objectFactory: ObjectFactory,
-    ): Configuration =
-        configurationContainer.create((imageDefName.mainToEmpty().toCamelCase() + "ociImage".toCamelCase()).string) {
-            description = "OCI elements for $imageDefName"
-            isCanBeConsumed = true
-            isCanBeResolved = false
-            attributes {
-                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
-                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-//                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
-            }
+    ): Configuration = configurationContainer.create(createOciVariantName(imageDefName).toString()) {
+        description = "OCI elements for $imageDefName"
+        isCanBeConsumed = true
+        isCanBeResolved = false
+        attributes {
+            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+//            attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
         }
+    }
 
     private fun createComponent(providerFactory: ProviderFactory): Provider<OciComponent> =
         providerFactory.provider { OciComponentBuilder() }
@@ -116,12 +115,12 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
 
     private fun createComponentTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
-        taskContainer.register<OciComponentTask>((imageDefName.mainToEmpty().toCamelCase() + "ociComponent".toCamelCase()).string) {
+        taskContainer.register<OciComponentTask>(createOciComponentClassifier(imageDefName).toCamelCase().toString()) {
             group = TASK_GROUP_NAME
             description = "Assembles an OCI component json file for the $imageDefName image."
             component.set(this@OciImageDefinitionImpl.component)
-            destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName")) // TODO toKebabCase?
-            classifier.set((imageDefName.mainToEmpty().toKebabCase() + "oci-component".toKebabCase()).string)
+            destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
+            classifier.set(createOciComponentClassifier(imageDefName).toString())
         }
 
     private fun registerArtifacts(objectFactory: ObjectFactory, providerFactory: ProviderFactory) {
@@ -560,12 +559,10 @@ private fun TaskContainer.createLayerTask(
     platformString: String,
     projectLayout: ProjectLayout,
     configuration: Action<in OciCopySpec>,
-) = register<OciLayerTask>((imageDefName.mainToEmpty().toCamelCase() + layerName.toCamelCase() + "ociLayer".toCamelCase()).string + platformString) {
+) = register<OciLayerTask>(createOciLayerClassifier(imageDefName, layerName).toCamelCase().toString() + platformString) {
     group = TASK_GROUP_NAME
     description = "Assembles the OCI layer '$layerName' for the $imageDefName image."
-    destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName/$layerName")) // TODO toKebabCase?
-    classifier.set((imageDefName.mainToEmpty().toKebabCase() + layerName.toKebabCase() + "oci-layer".toKebabCase()).string + platformString)
+    destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName/$layerName"))
+    classifier.set(createOciLayerClassifier(imageDefName, layerName).toString() + platformString)
     contents(configuration)
 }
-
-private fun String.mainToEmpty() = if (this == "main") "" else this

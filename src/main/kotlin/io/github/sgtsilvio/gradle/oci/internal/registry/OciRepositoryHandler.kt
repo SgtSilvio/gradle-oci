@@ -10,11 +10,13 @@ import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.component.allLayers
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
+import io.github.sgtsilvio.gradle.oci.internal.createOciComponentClassifier
+import io.github.sgtsilvio.gradle.oci.internal.createOciLayerClassifier
+import io.github.sgtsilvio.gradle.oci.internal.createOciVariantName
 import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
-import io.github.sgtsilvio.gradle.oci.internal.toKebabCase
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.map
@@ -175,7 +177,7 @@ class OciRepositoryHandler(
                 addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
                     val component = componentWithDigest.component
                     addObject {
-                        addString("name", if (variantName == "main") "ociImage" else variantName + "OciImage")
+                        addString("name", createOciVariantName(variantName).toString())
                         addObject("attributes") {
                             addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
                             addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
@@ -185,10 +187,7 @@ class OciRepositoryHandler(
                         addArray("files") {
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
-                                val componentName = when (variantName) {
-                                    "main" -> "$fileNamePrefix-oci-component.json"
-                                    else -> "$fileNamePrefix-${variantName.toKebabCase()}-oci-component.json"
-                                }
+                                val componentName = "$fileNamePrefix-${createOciComponentClassifier(variantName)}.json"
                                 addString("name", componentName)
                                 addString("url", "$variantName/${componentWithDigest.digest}/${componentWithDigest.size}/$componentName")
                                 addNumber("size", componentJson.size.toLong())
@@ -206,10 +205,7 @@ class OciRepositoryHandler(
                                         layerDigestToVariantNameAndCounter[digest] = layerVariantNameAndCounter
                                     }
                                     val (layerVariantName, layerCounter) = layerVariantNameAndCounter
-                                    val layerName = when (layerVariantName) {
-                                        "main" -> "$fileNamePrefix-$layerCounter-oci-layer"
-                                        else -> "$fileNamePrefix-${layerVariantName.toKebabCase()}-$layerCounter-oci-layer"
-                                    }
+                                    val layerName = "$fileNamePrefix-${createOciLayerClassifier(layerVariantName, layerCounter.toString())}"
                                     addString("name", layerName)
                                     addString("url", "$layerVariantName/$digest/$size/$layerName")
                                     addNumber("size", size)
