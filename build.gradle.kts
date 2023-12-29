@@ -10,24 +10,24 @@ group = "io.github.sgtsilvio.gradle"
 description = "Gradle plugin to ease producing (multi-arch) OCI images without requiring external tools"
 
 metadata {
-    readableName.set("Gradle OCI Plugin")
+    readableName = "Gradle OCI Plugin"
     license {
         apache2()
     }
     developers {
         register("SgtSilvio") {
-            fullName.set("Silvio Giebl")
+            fullName = "Silvio Giebl"
         }
     }
     github {
-        org.set("SgtSilvio")
+        org = "SgtSilvio"
         issues()
     }
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion = JavaLanguageVersion.of(11)
     }
 }
 
@@ -52,15 +52,15 @@ dependencies {
 }
 
 gradlePlugin {
-    website.set(metadata.url)
-    vcsUrl.set(metadata.scm.get().url)
+    website = metadata.url
+    vcsUrl = metadata.scm.get().url
     plugins {
         create("oci") {
             id = "$group.$name"
             implementationClass = "$group.$name.OciPlugin"
             displayName = metadata.readableName.get()
             description = project.description
-            tags.set(listOf("oci", "oci-image", "docker", "multi-arch"))
+            tags = listOf("oci", "oci-image", "docker", "multi-arch")
         }
     }
 }
