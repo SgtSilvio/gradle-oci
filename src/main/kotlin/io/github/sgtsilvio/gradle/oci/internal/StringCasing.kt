@@ -1,18 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-internal fun String.concatCamelCase(other: String) = when {
-    other.isEmpty() -> this
-    isEmpty() -> other
-    else -> this + other[0].uppercaseChar() + other.substring(1)
-}
-
-internal fun String.concatKebabCase(other: String) = when {
-    other.isEmpty() -> this
-    isEmpty() -> other
-    else -> "$this-$other"
-}
-
-fun String.isCamelCase(): Boolean {
+internal fun String.isCamelCase(): Boolean {
     when {
         isEmpty() -> return true
         this[0].isWordStart() -> return false
@@ -36,7 +24,7 @@ fun String.isCamelCase(): Boolean {
     }
 }
 
-fun String.isKebabCase(): Boolean {
+internal fun String.isKebabCase(): Boolean {
     when {
         isEmpty() -> return true
         this[0] == '-' -> return false
@@ -84,7 +72,7 @@ private inline fun String.convertCase(consume: (Char, isIntermediateWordStart: B
     }
 }
 
-fun String.camelCase(): String {
+internal fun String.camelCase(): String {
     if (isCamelCase()) {
         return this
     }
@@ -95,7 +83,7 @@ fun String.camelCase(): String {
     return stringBuilder.toString()
 }
 
-fun String.kebabCase(): String {
+internal fun String.kebabCase(): String {
     if (isKebabCase()) {
         return this
     }
@@ -115,33 +103,14 @@ private fun Char.isWordStart() = isUpperCase() || isTitleCase()
 
 private fun Char.isSeparatorOrWordStart() = isSeparator() || isWordStart()
 
-fun main() {
-    println("test-test".kebabCase())
-    println("test-test".kebabCase().camelCase())
-    println("test-test".camelCase())
-    println("test-test".camelCase().kebabCase())
-    println("TEST TEST".kebabCase())
-    println("TEST TEST".kebabCase().camelCase())
-    println("TEST TEST".camelCase())
-    println("TEST TEST".camelCase().kebabCase())
+internal fun String.concatCamelCase(other: String) = when {
+    other.isEmpty() -> this
+    isEmpty() -> other
+    else -> this + other[0].uppercaseChar() + other.substring(1)
+}
 
-    println("TEST TEST".kebabCase())
-    println("TEST TEST".kebabCase().camelCase())
-    println("TEST TEST".camelCase())
-    println("TEST TEST".camelCase().kebabCase())
-
-    println("-test-test--test-TEST TEST--".kebabCase())
-    println("-test-test--test-TEST TEST--".kebabCase().camelCase())
-    println("-test-test--test-TEST TEST--".camelCase())
-    println("-test-test--test-TEST TEST--".camelCase().kebabCase())
-
-    for (string in listOf("XMLTransformer", "IOBuffer", "IObuffer", "TestIO", "TestI", "ITest", "testIO", "testI", "iTest")) {
-        println(string.isKebabCase())
-        println(string.isCamelCase())
-        println(string.kebabCase())
-        println(string.kebabCase().camelCase())
-        println(string.camelCase())
-        println(string.camelCase().kebabCase())
-        println()
-    }
+internal fun String.concatKebabCase(other: String) = when {
+    other.isEmpty() -> this
+    isEmpty() -> other
+    else -> "$this-$other"
 }
