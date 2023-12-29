@@ -1,51 +1,52 @@
 package io.github.sgtsilvio.gradle.oci.internal.copyspec
 
 import org.gradle.api.file.FileTree
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.util.PatternSet
 
 /**
  * @author Silvio Giebl
  */
-class OciCopySpecInput(copySpec: OciCopySpecImpl, parentFilter: PatternSet? = null) {
+class OciCopySpecInput(copySpec: OciCopySpecImpl, parentFilter: PatternSet?) {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
     val sources: FileTree
 
     @get:Input
-    val destinationPath = copySpec.destinationPath
+    val destinationPath: Provider<String> = copySpec.destinationPath
 
     @get:Input
-    val renamePatterns = copySpec.renamePatterns
+    val renamePatterns: List<Triple<String, String, String>> = copySpec.renamePatterns
 
     @get:Input
-    val movePatterns = copySpec.movePatterns
-
-    @get:Input
-    @get:Optional
-    val filePermissions = copySpec.filePermissions
+    val movePatterns: List<Triple<String, String, String>> = copySpec.movePatterns
 
     @get:Input
     @get:Optional
-    val directoryPermissions = copySpec.directoryPermissions
-
-    @get:Input
-    val permissionPatterns = copySpec.permissionPatterns
+    val filePermissions: Provider<Int> = copySpec.filePermissions
 
     @get:Input
     @get:Optional
-    val userId = copySpec.userId
+    val directoryPermissions: Provider<Int> = copySpec.directoryPermissions
 
     @get:Input
-    val userIdPatterns = copySpec.userIdPatterns
+    val permissionPatterns: List<Pair<String, Int>> = copySpec.permissionPatterns
 
     @get:Input
     @get:Optional
-    val groupId = copySpec.groupId
+    val userId: Provider<Long> = copySpec.userId
 
     @get:Input
-    val groupIdPatterns = copySpec.groupIdPatterns
+    val userIdPatterns: List<Pair<String, Long>> = copySpec.userIdPatterns
+
+    @get:Input
+    @get:Optional
+    val groupId: Provider<Long> = copySpec.groupId
+
+    @get:Input
+    val groupIdPatterns: List<Pair<String, Long>> = copySpec.groupIdPatterns
 
     @get:Nested
     val children: List<OciCopySpecInput>
@@ -53,11 +54,7 @@ class OciCopySpecInput(copySpec: OciCopySpecImpl, parentFilter: PatternSet? = nu
     init {
         val filter = parentFilter + copySpec.filter
         sources = copySpec.sources.asFileTree.matching(filter)
-        children = ArrayList<OciCopySpecInput>(copySpec.children.size).apply {
-            for (child in copySpec.children) {
-                add(OciCopySpecInput(child, filter))
-            }
-        }
+        children = copySpec.children.map { OciCopySpecInput(it, filter) }
     }
 }
 
