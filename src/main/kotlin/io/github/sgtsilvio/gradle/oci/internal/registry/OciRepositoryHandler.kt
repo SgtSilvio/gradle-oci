@@ -177,7 +177,7 @@ class OciRepositoryHandler(
                 addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
                     val component = componentWithDigest.component
                     addObject {
-                        addString("name", createOciVariantName(variantName).toString())
+                        addString("name", createOciVariantName(variantName))
                         addObject("attributes") {
                             addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
                             addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)

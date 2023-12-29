@@ -55,7 +55,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         })
     final override val imageTag: Property<String> =
         objectFactory.property<String>().convention(providerFactory.provider {
-            project.version.toString().concatKebabCase(name.mainToEmpty().toKebabCase().string)
+            project.version.toString().concatKebabCase(name.mainToEmpty().kebabCase())
         })
     final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
@@ -74,7 +74,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
         configurationContainer: ConfigurationContainer,
         imageDefName: String,
         objectFactory: ObjectFactory,
-    ): Configuration = configurationContainer.create(createOciVariantName(imageDefName).toString()) {
+    ): Configuration = configurationContainer.create(createOciVariantName(imageDefName)) {
         description = "OCI elements for $imageDefName"
         isCanBeConsumed = true
         isCanBeResolved = false
@@ -103,7 +103,7 @@ abstract class OciImageDefinitionImpl @Inject constructor(
                 setOf(
                     VersionedCoordinates(
                         project.group.toString(),
-                        project.name.concatKebabCase(name.mainToEmpty().toKebabCase().string),
+                        project.name.concatKebabCase(name.mainToEmpty().kebabCase()),
                         project.version.toString(),
                     )
                 )
@@ -115,12 +115,12 @@ abstract class OciImageDefinitionImpl @Inject constructor(
             .flatMap { it.createComponentBundleOrPlatformBundles(providerFactory) }
 
     private fun createComponentTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
-        taskContainer.register<OciComponentTask>(createOciComponentClassifier(imageDefName).toCamelCase().toString()) {
+        taskContainer.register<OciComponentTask>(createOciComponentClassifier(imageDefName).camelCase()) {
             group = TASK_GROUP_NAME
             description = "Assembles an OCI component json file for the $imageDefName image."
             component.set(this@OciImageDefinitionImpl.component)
             destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
-            classifier.set(createOciComponentClassifier(imageDefName).toString())
+            classifier.set(createOciComponentClassifier(imageDefName))
         }
 
     private fun registerArtifacts(objectFactory: ObjectFactory, providerFactory: ProviderFactory) {
@@ -559,10 +559,10 @@ private fun TaskContainer.createLayerTask(
     platformString: String,
     projectLayout: ProjectLayout,
     configuration: Action<in OciCopySpec>,
-) = register<OciLayerTask>(createOciLayerClassifier(imageDefName, layerName).toCamelCase().toString() + platformString) {
+) = register<OciLayerTask>(createOciLayerClassifier(imageDefName, layerName).camelCase() + platformString) {
     group = TASK_GROUP_NAME
     description = "Assembles the OCI layer '$layerName' for the $imageDefName image."
     destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName/$layerName"))
-    classifier.set(createOciLayerClassifier(imageDefName, layerName).toString() + platformString)
+    classifier.set(createOciLayerClassifier(imageDefName, layerName) + platformString)
     contents(configuration)
 }
