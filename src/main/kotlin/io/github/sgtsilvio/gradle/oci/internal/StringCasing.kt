@@ -188,3 +188,76 @@ fun main() {
         println()
     }
 }
+
+@JvmInline
+value class Phrase(val words: Array<String>)
+
+operator fun Phrase.plus(other: Phrase) = when {
+    other.words.isEmpty() -> this
+    words.isEmpty() -> other
+    else -> Phrase(words + other.words)
+}
+
+operator fun Phrase.plus(other: String) = this + other.toPhrase()
+
+fun String.toPhrase(): Phrase {
+    val words = mutableListOf<String>()
+    val stringBuilder = StringBuilder()
+    var state = STATE_EMPTY
+    for ((i, c) in withIndex()) {
+        if (c.isSeparator()) {
+            if (state != STATE_EMPTY) {
+                state = STATE_SEPARATOR
+            }
+        } else {
+            var isIntermediateWordStart: Boolean
+            if (c.isWordStart()) {
+                isIntermediateWordStart = (state != STATE_EMPTY) && !((state == STATE_UPPERCASE) && (((i + 1) == length) || this[i + 1].isSeparatorOrWordStart()))
+                state = STATE_UPPERCASE
+            } else {
+                isIntermediateWordStart = state == STATE_SEPARATOR
+                state = STATE_LOWERCASE
+            }
+            if (isIntermediateWordStart) {
+                words += stringBuilder.toString()
+                stringBuilder.clear()
+            }
+            stringBuilder.append(c.lowercaseChar())
+        }
+    }
+    if (stringBuilder.isNotEmpty()) {
+        words += stringBuilder.toString()
+    }
+    return Phrase(words.toTypedArray())
+}
+
+fun Phrase.toCamelCase() = when (words.size) {
+    0 -> ""
+    1 -> words[0]
+    else -> {
+        val stringBuilder = StringBuilder(words.sumOf { it.length })
+        stringBuilder.append(words[0])
+        var i = 1
+        while (i < words.size) {
+            val word = words[i]
+            stringBuilder.append(word[0].uppercaseChar()).append(word, 1, word.length)
+            i++
+        }
+        stringBuilder.toString()
+    }
+}
+
+fun Phrase.toKebabCase() = when (words.size) {
+    0 -> ""
+    1 -> words[0]
+    else -> {
+        val stringBuilder = StringBuilder(words.sumOf { it.length } + words.size - 1)
+        stringBuilder.append(words[0])
+        var i = 1
+        while (i < words.size) {
+            stringBuilder.append('-').append(words[i])
+            i++
+        }
+        stringBuilder.toString()
+    }
+}
