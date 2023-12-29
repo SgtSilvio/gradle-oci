@@ -175,7 +175,7 @@ class OciRepositoryHandler(
                 val fileNamePrefix = "${componentId.name}-${componentId.version}"
                 val layerDigestToVariantNameAndCounter = mutableMapOf<OciDigest, Pair<String, Int>>()
                 addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
-                    val component = componentWithDigest.component
+                    val (component, componentDigest, componentSize) = componentWithDigest
                     addObject {
                         addString("name", createOciVariantName(variantName))
                         addObject("attributes") {
@@ -189,7 +189,7 @@ class OciRepositoryHandler(
                                 val componentJson = component.encodeToJsonString().toByteArray()
                                 val componentName = "$fileNamePrefix-${createOciComponentClassifier(variantName)}.json"
                                 addString("name", componentName)
-                                addString("url", "$variantName/${componentWithDigest.digest}/${componentWithDigest.size}/$componentName")
+                                addString("url", "$variantName/$componentDigest/$componentSize/$componentName")
                                 addNumber("size", componentJson.size.toLong())
                                 addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(componentJson)))
                                 addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(componentJson)))
@@ -205,7 +205,9 @@ class OciRepositoryHandler(
                                         layerDigestToVariantNameAndCounter[digest] = layerVariantNameAndCounter
                                     }
                                     val (layerVariantName, layerCounter) = layerVariantNameAndCounter
-                                    val layerName = "$fileNamePrefix-${createOciLayerClassifier(layerVariantName, layerCounter.toString())}"
+                                    val layerName = "$fileNamePrefix-${
+                                        createOciLayerClassifier(layerVariantName, layerCounter.toString())
+                                    }"
                                     addString("name", layerName)
                                     addString("url", "$layerVariantName/$digest/$size/$layerName")
                                     addNumber("size", size)
