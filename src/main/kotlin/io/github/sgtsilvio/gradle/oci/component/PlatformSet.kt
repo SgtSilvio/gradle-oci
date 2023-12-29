@@ -4,7 +4,7 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 class PlatformSet : Iterable<Platform> {
     var isInfinite: Boolean private set
-    private val set = hashSetOf<Platform>()
+    private val set = HashSet<Platform>()
 
     constructor(isInfinite: Boolean) {
         this.isInfinite = isInfinite
@@ -27,7 +27,7 @@ class PlatformSet : Iterable<Platform> {
         }
     }
 
-    fun unionise(other: PlatformSet) {
+    fun union(other: PlatformSet) {
         if (isInfinite) {
             return
         }

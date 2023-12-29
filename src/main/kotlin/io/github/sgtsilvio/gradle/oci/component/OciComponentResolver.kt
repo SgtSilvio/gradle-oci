@@ -96,7 +96,7 @@ private class PlatformsResolvedOciComponent(
     private val platformBundles: Map<Platform, ResolvedOciBundle>,
 ) : ResolvedOciComponentImpl(component, PlatformSet(false).apply {
     for ((platform, bundle) in platformBundles) {
-        unionise(bundle.resolvePlatforms(PlatformSet(platform)))
+        union(bundle.resolvePlatforms(PlatformSet(platform)))
     }
 }) {
 
