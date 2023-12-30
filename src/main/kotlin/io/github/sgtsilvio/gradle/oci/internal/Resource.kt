@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * @author Silvio Giebl
  */
-abstract class Resource<T : Any> {
+internal abstract class Resource<T : Any> {
 
     private val holder = AtomicReference<Holder<T>>()
 

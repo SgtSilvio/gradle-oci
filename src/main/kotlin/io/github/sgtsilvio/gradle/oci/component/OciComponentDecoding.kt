@@ -7,7 +7,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import java.util.*
 
-fun String.decodeAsJsonToOciComponent() = jsonObject(this).decodeOciComponent()
+internal fun String.decodeAsJsonToOciComponent() = jsonObject(this).decodeOciComponent()
 
 private fun JsonObject.decodeOciComponent() = OciComponent(
     get("imageReference") { asString().toOciImageReference() },

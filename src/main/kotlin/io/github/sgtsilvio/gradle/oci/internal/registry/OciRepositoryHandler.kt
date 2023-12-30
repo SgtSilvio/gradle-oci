@@ -46,7 +46,7 @@ import java.util.function.BiFunction
 /**
  * @author Silvio Giebl
  */
-class OciRepositoryHandler(
+internal class OciRepositoryHandler(
     private val componentRegistry: OciComponentRegistry,
     private val imageMappingData: OciImageMappingData,
     private val credentials: Credentials?,

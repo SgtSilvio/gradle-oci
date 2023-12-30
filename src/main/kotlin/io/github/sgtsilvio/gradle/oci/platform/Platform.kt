@@ -15,7 +15,7 @@ interface Platform : Comparable<Platform>, Serializable {
     val osFeatures: SortedSet<String>
 }
 
-data class PlatformImpl(
+internal data class PlatformImpl(
     override val os: String,
     override val architecture: String,
     override val variant: String,

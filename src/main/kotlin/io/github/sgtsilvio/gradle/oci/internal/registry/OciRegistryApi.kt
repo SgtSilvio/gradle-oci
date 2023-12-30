@@ -67,7 +67,7 @@ end-12b GET     /v2/<name>/referrers/<digest>?artifactType=<artifactType>   200 
 /**
  * @author Silvio Giebl
  */
-class OciRegistryApi(httpClient: HttpClient) {
+internal class OciRegistryApi(httpClient: HttpClient) {
 
     private val httpClient = httpClient.followRedirect(true)
     private val tokenCache: AsyncCache<TokenCacheKey, OciRegistryToken> =
@@ -635,7 +635,7 @@ class OciRegistryApi(httpClient: HttpClient) {
 
 private val RETRY_SPEC: RetrySpec = Retry.max(3).filter { error -> error is PrematureCloseException }
 
-class DigestVerifyingFlux(
+private class DigestVerifyingFlux(
     source: Flux<ByteBuf>,
     private val messageDigest: MessageDigest,
     private val expectedDigest: ByteArray,
@@ -713,7 +713,7 @@ private fun digestMismatchException(expectedDigest: ByteArray, actualDigest: Byt
 private fun sizeMismatchException(expectedSize: Long, actualSize: Long) =
     DigestException("expected and actual size do not match (expected: $expectedSize, actual: $actualSize)")
 
-class HttpResponseException(
+internal class HttpResponseException(
     val statusCode: Int,
     val headers: HttpHeaders,
     val body: String,
@@ -729,19 +729,19 @@ class HttpResponseException(
     }
 }
 
-class InsufficientScopesException(
+internal class InsufficientScopesException(
     val requiredScopes: Set<OciRegistryResourceScope>,
     val grantedScopes: Set<OciRegistryResourceScope>,
 ) : RuntimeException("insufficient scopes", null, false, false) {
     override val message get() = super.message + ", required: $requiredScopes, granted: $grantedScopes"
 }
 
-fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
+private fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
 
-const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
-const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
-const val DOCKER_CONFIG_MEDIA_TYPE = "application/vnd.docker.container.image.v1+json"
-const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+internal const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
+internal const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
+internal const val DOCKER_CONFIG_MEDIA_TYPE = "application/vnd.docker.container.image.v1+json"
+internal const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.tar.gzip"
 private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
 private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
 private val RESOURCE_SCOPE_PUSH_ACTIONS = setOf("pull", "push")

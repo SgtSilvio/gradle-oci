@@ -191,13 +191,13 @@ abstract class OciPushTask @Inject constructor(
         }
     }
 
-    data class ImageData(
+    private data class ImageData(
         val resolvedBundles: List<ResolvedOciComponent.Bundle>,
         val config: OciDataDescriptor,
         val manifest: OciDataDescriptor,
     )
 
-    class Blob(
+    private class Blob(
         val digest: OciDigest,
         val size: Long,
         val sender: NettyOutbound.() -> Publisher<Void>,
@@ -206,7 +206,7 @@ abstract class OciPushTask @Inject constructor(
         val future: CompletableFuture<Unit>,
     )
 
-    class Context(
+    internal class Context(
         val pushService: Provider<OciPushService>,
         val workQueue: WorkQueue,
         val progressLoggerFactory: ProgressLoggerFactory,
@@ -221,7 +221,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
     private val actionIdCounter = AtomicInteger()
     private val actions = ConcurrentHashMap<Int, () -> Unit>()
 
-    fun pushBlob(
+    internal fun pushBlob(
         context: OciPushTask.Context,
         imageName: String,
         digest: OciDigest,
@@ -269,7 +269,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
         future?.complete(Unit)
     }
 
-    fun pushManifest(
+    internal fun pushManifest(
         context: OciPushTask.Context,
         imageName: String,
         reference: String,
@@ -291,7 +291,7 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
         future?.complete(Unit)
     }
 
-    override fun close() = OciRegistryHttpClient.release()
+    final override fun close() = OciRegistryHttpClient.release()
 
     private fun WorkQueue.submit(pushService: Provider<OciPushService>, action: () -> Unit) {
         val actionId = actionIdCounter.getAndIncrement()
@@ -308,11 +308,11 @@ abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoC
             val pushService: Property<OciPushService>
         }
 
-        override fun execute() = parameters.pushService.get().actions.remove(parameters.actionId.get())!!()
+        final override fun execute() = parameters.pushService.get().actions.remove(parameters.actionId.get())!!()
     }
 }
 
-fun formatBytesString(bytes: Long): String = when {
+private fun formatBytesString(bytes: Long): String = when {
     bytes < 1_000 -> "$bytes B"
     bytes < 1_000_000 -> {
         val hundredBytes = bytes / 100

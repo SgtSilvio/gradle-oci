@@ -10,7 +10,7 @@ import java.time.Duration
 /**
  * @author Silvio Giebl
  */
-class LoopResourcesWithCustomByteBufAllocator(
+internal class LoopResourcesWithCustomByteBufAllocator(
     private val delegate: LoopResources,
     private val byteBufAllocator: ByteBufAllocator,
 ) : LoopResources {

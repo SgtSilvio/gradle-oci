@@ -9,20 +9,20 @@ private const val NAME_PARAMETER_KEY = "name"
 private const val VERSION_PARAMETER_KEY = "version"
 private const val FEATURE_VARIANT_PARAMETER_KEY = "featureVariant"
 private const val IMAGE_NAMESPACE_PARAMETER_KEY = "imageNamespace"
-val GROUP_PARAMETER_NAME_SPEC = ParameterNameSpec(GROUP_PARAMETER_KEY, null)
-val NAME_PARAMETER_NAME_SPEC = ParameterNameSpec(NAME_PARAMETER_KEY, null)
-val VERSION_PARAMETER_NAME_SPEC = ParameterNameSpec(VERSION_PARAMETER_KEY, null)
-val FEATURE_VARIANT_PARAMETER_NAME_SPEC = ParameterNameSpec(FEATURE_VARIANT_PARAMETER_KEY, "")
-val IMAGE_NAMESPACE_PARAMETER_NAME_SPEC = ParameterNameSpec(IMAGE_NAMESPACE_PARAMETER_KEY, null)
-val DEFAULT_CAPABILITY = Triple(
+internal val GROUP_PARAMETER_NAME_SPEC = ParameterNameSpec(GROUP_PARAMETER_KEY, null)
+internal val NAME_PARAMETER_NAME_SPEC = ParameterNameSpec(NAME_PARAMETER_KEY, null)
+internal val VERSION_PARAMETER_NAME_SPEC = ParameterNameSpec(VERSION_PARAMETER_KEY, null)
+internal val FEATURE_VARIANT_PARAMETER_NAME_SPEC = ParameterNameSpec(FEATURE_VARIANT_PARAMETER_KEY, "")
+private val IMAGE_NAMESPACE_PARAMETER_NAME_SPEC = ParameterNameSpec(IMAGE_NAMESPACE_PARAMETER_KEY, null)
+private val DEFAULT_CAPABILITY = Triple(
     GROUP_PARAMETER_NAME_SPEC,
     NAME_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-"),
     VERSION_PARAMETER_NAME_SPEC,
 )
-val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + NAME_PARAMETER_NAME_SPEC
-val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-")
+private val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + NAME_PARAMETER_NAME_SPEC
+private val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-")
 
-fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedComponent {
+internal fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedComponent {
     val componentSpec = componentMappings[componentId]
         ?: moduleMappings[componentId.coordinates]
         ?: groupMappings[componentId.group]
@@ -78,7 +78,7 @@ private fun defaultMappedComponent(componentId: VersionedCoordinates) = MappedCo
     ),
 )
 
-fun defaultMappedImageNamespace(group: String) = when (val tldEndIndex = group.indexOf('.')) {
+internal fun defaultMappedImageNamespace(group: String) = when (val tldEndIndex = group.indexOf('.')) {
     -1 -> if (group.isEmpty()) "" else "$group/"
     else -> group.substring(tldEndIndex + 1).replace('.', '/') + '/'
 }

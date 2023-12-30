@@ -7,12 +7,12 @@ import java.time.Instant
 /**
  * @author Silvio Giebl
  */
-interface OciCopySpecVisitor {
+internal interface OciCopySpecVisitor {
     fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource)
     fun visitDirectory(fileMetadata: FileMetadata)
 }
 
-data class FileMetadata(
+internal data class FileMetadata(
     val path: String,
     val permissions: Int,
     val userId: Long,
@@ -21,7 +21,7 @@ data class FileMetadata(
     val size: Long = 0,
 )
 
-interface FileSource {
+internal interface FileSource {
     fun asFile(): File
     fun copyTo(output: OutputStream)
 }

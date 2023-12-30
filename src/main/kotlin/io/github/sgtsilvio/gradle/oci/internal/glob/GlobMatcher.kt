@@ -5,7 +5,7 @@ import java.util.regex.Pattern
 /**
  * @author Silvio Giebl
  */
-class GlobMatcher(regexString: String, private val startIndex: Int) {
+internal class GlobMatcher(regexString: String, private val startIndex: Int) {
 
     private val pattern: Pattern = Pattern.compile(regexString)
 

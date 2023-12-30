@@ -2,9 +2,9 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 
 import java.security.MessageDigest
 
-class Credentials(val username: String, val password: String)
+internal class Credentials(val username: String, val password: String)
 
-class HashedCredentials(val username: String, val hashedPassword: ByteArray) {
+internal class HashedCredentials(val username: String, val hashedPassword: ByteArray) {
     override fun equals(other: Any?) = when {
         this === other -> true
         other !is HashedCredentials -> false
@@ -20,5 +20,5 @@ class HashedCredentials(val username: String, val hashedPassword: ByteArray) {
     }
 }
 
-fun Credentials.hashed() =
+internal fun Credentials.hashed() =
     HashedCredentials(username, MessageDigest.getInstance("SHA-256").digest(password.toByteArray()))

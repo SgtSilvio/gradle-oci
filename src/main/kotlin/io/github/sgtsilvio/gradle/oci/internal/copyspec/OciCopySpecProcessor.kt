@@ -9,13 +9,13 @@ import java.io.OutputStream
 import java.time.Instant
 import java.util.*
 
-const val DEFAULT_FILE_PERMISSIONS = 0b110_100_100
-const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
-const val DEFAULT_USER_ID = 0L
-const val DEFAULT_GROUP_ID = 0L
-val DEFAULT_MODIFICATION_TIME: Instant = Instant.ofEpochSecond(1)
+private const val DEFAULT_FILE_PERMISSIONS = 0b110_100_100
+private const val DEFAULT_DIRECTORY_PERMISSIONS = 0b111_101_101
+private const val DEFAULT_USER_ID = 0L
+private const val DEFAULT_GROUP_ID = 0L
+private val DEFAULT_MODIFICATION_TIME: Instant = Instant.ofEpochSecond(1)
 
-fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
+internal fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
     val allFiles = HashMap<String, FileMetadata>()
     process(
         "",

@@ -7,7 +7,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-class MappedComponent(
+internal class MappedComponent(
     val componentId: VersionedCoordinates,
     val variants: Map<String, Variant>,
 ) {

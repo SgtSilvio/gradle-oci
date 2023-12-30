@@ -49,17 +49,17 @@ data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) : S
     override fun toString() = algorithm.ociPrefix + ":" + encodedHash
 }
 
-fun String.toOciDigest() = when {
+internal fun String.toOciDigest() = when {
     startsWith(OciDigestAlgorithm.SHA_256.ociPrefix) -> OciDigestAlgorithm.SHA_256
     startsWith(OciDigestAlgorithm.SHA_512.ociPrefix) -> OciDigestAlgorithm.SHA_512
     else -> throw IllegalArgumentException("unsupported algorithm in digest '$this'")
 }.let { algorithm -> OciDigest(algorithm, algorithm.decode(substring(algorithm.ociPrefix.length + 1))) }
 
-fun ByteArray.calculateOciDigest(algorithm: OciDigestAlgorithm) =
+internal fun ByteArray.calculateOciDigest(algorithm: OciDigestAlgorithm) =
     OciDigest(algorithm, algorithm.createMessageDigest().digest(this))
 
 @OptIn(ExperimentalContracts::class)
-inline fun OutputStream.calculateOciDigest(
+internal inline fun OutputStream.calculateOciDigest(
     algorithm: OciDigestAlgorithm,
     block: (DigestOutputStream) -> Unit,
 ): OciDigest {
@@ -71,4 +71,4 @@ inline fun OutputStream.calculateOciDigest(
     return OciDigest(algorithm, messageDigest.digest())
 }
 
-fun JsonObject.getOciDigest(key: String) = get(key) { asString().toOciDigest() }
+internal fun JsonObject.getOciDigest(key: String) = get(key) { asString().toOciDigest() }

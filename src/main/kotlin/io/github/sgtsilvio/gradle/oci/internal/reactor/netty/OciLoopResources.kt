@@ -7,7 +7,7 @@ import reactor.netty.resources.LoopResources
 /**
  * @author Silvio Giebl
  */
-object OciLoopResources : Resource<LoopResources>() {
+internal object OciLoopResources : Resource<LoopResources>() {
 
     override fun create() =
         LoopResourcesWithCustomByteBufAllocator(LoopResources.create("oci"), UnpooledByteBufAllocator.DEFAULT)

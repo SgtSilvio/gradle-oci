@@ -7,7 +7,7 @@ import org.json.JSONTokener
 import java.time.Instant
 import java.util.*
 
-fun jsonValue(string: String) = JsonValue(run {
+internal fun jsonValue(string: String) = JsonValue(run {
     val jsonTokener = JSONTokener(string)
     val value = try {
         jsonTokener.nextValue()
@@ -21,14 +21,14 @@ fun jsonValue(string: String) = JsonValue(run {
     value
 })
 
-fun jsonObject(string: String): JsonObject = jsonValue(string).asObject()
+internal fun jsonObject(string: String): JsonObject = jsonValue(string).asObject()
 
 @DslMarker
-annotation class JsonDecodingDsl
+internal annotation class JsonDecodingDsl
 
 @JsonDecodingDsl
 @JvmInline
-value class JsonValue @PublishedApi internal constructor(private val delegate: Any) {
+internal value class JsonValue @PublishedApi internal constructor(private val delegate: Any) {
 
     fun isObject() = delegate is JSONObject
 
@@ -69,7 +69,7 @@ value class JsonValue @PublishedApi internal constructor(private val delegate: A
 
 @JsonDecodingDsl
 @JvmInline
-value class JsonObject internal constructor(@PublishedApi internal val delegate: JSONObject) {
+internal value class JsonObject internal constructor(@PublishedApi internal val delegate: JSONObject) {
 
     fun hasKey(key: String) = delegate.has(key)
 
@@ -99,26 +99,26 @@ value class JsonObject internal constructor(@PublishedApi internal val delegate:
     }
 }
 
-fun JsonObject.getString(key: String) = get(key) { asString() }
-fun JsonObject.getStringOrNull(key: String) = getOrNull(key) { asString() }
+internal fun JsonObject.getString(key: String) = get(key) { asString() }
+internal fun JsonObject.getStringOrNull(key: String) = getOrNull(key) { asString() }
 
-fun JsonObject.getLong(key: String) = get(key) { asLong() }
+internal fun JsonObject.getLong(key: String) = get(key) { asLong() }
 
-fun JsonObject.getBooleanOrNull(key: String) = getOrNull(key) { asBoolean() }
+internal fun JsonObject.getBooleanOrNull(key: String) = getOrNull(key) { asBoolean() }
 
-fun JsonObject.getStringList(key: String) = get(key) { asArray().toStringList() }
-fun JsonObject.getStringListOrNull(key: String) = getOrNull(key) { asArray().toStringList() }
+internal fun JsonObject.getStringList(key: String) = get(key) { asArray().toStringList() }
+internal fun JsonObject.getStringListOrNull(key: String) = getOrNull(key) { asArray().toStringList() }
 
-fun JsonObject.getStringSetOrNull(key: String) = getOrNull(key) { asArray().toStringSet() }
+internal fun JsonObject.getStringSetOrNull(key: String) = getOrNull(key) { asArray().toStringSet() }
 
-fun JsonObject.toStringMap() = toMap(TreeMap()) { asString() }
-fun JsonObject.getStringMapOrNull(key: String) = getOrNull(key) { asObject().toStringMap() }
+internal fun JsonObject.toStringMap() = toMap(TreeMap()) { asString() }
+internal fun JsonObject.getStringMapOrNull(key: String) = getOrNull(key) { asObject().toStringMap() }
 
-fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) }
+internal fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) }
 
 @JsonDecodingDsl
 @JvmInline
-value class JsonArray internal constructor(@PublishedApi internal val delegate: JSONArray) {
+internal value class JsonArray internal constructor(@PublishedApi internal val delegate: JSONArray) {
 
     inline fun <T> toList(transform: JsonValue.() -> T): List<T> {
         var i = 0
@@ -148,11 +148,11 @@ value class JsonArray internal constructor(@PublishedApi internal val delegate: 
     }
 }
 
-fun JsonArray.toStringList() = toList { asString() }
+internal fun JsonArray.toStringList() = toList { asString() }
 
-fun JsonArray.toStringSet() = toSet(TreeSet()) { asString() }
+internal fun JsonArray.toStringSet() = toSet(TreeSet()) { asString() }
 
-class JsonException private constructor(
+internal class JsonException private constructor(
     private val path: String,
     messageWithoutPath: String,
     cause: Throwable?,
@@ -180,4 +180,4 @@ class JsonException private constructor(
     override val message get() = "'$path' $messageWithoutPath"
 }
 
-fun JSONObject.getOrNull(key: String) = opt(key)?.takeIf { it != JSONObject.NULL }
+private fun JSONObject.getOrNull(key: String) = opt(key)?.takeIf { it != JSONObject.NULL }

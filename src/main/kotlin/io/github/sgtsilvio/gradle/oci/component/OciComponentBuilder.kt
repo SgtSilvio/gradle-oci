@@ -9,7 +9,7 @@ import java.time.Instant
 /**
  * @author Silvio Giebl
  */
-class OciComponentBuilder : Serializable {
+internal class OciComponentBuilder : Serializable {
     private var imageReference: OciImageReference? = null
     private var capabilities: Set<VersionedCoordinates> = setOf()
     private var bundleOrPlatformBundles: OciComponent.BundleOrPlatformBundles? = null
@@ -28,7 +28,7 @@ class OciComponentBuilder : Serializable {
     )
 }
 
-class OciComponentBundleBuilder : Serializable {
+internal class OciComponentBundleBuilder : Serializable {
     private var creationTime: Instant? = null
     private var author: String? = null
     private var user: String? = null
@@ -80,7 +80,7 @@ class OciComponentBundleBuilder : Serializable {
     )
 }
 
-class OciComponentBundleCommandBuilder : Serializable {
+internal class OciComponentBundleCommandBuilder : Serializable {
     private var entryPoint: List<String>? = null
     private var arguments: List<String>? = null
 
@@ -93,7 +93,7 @@ class OciComponentBundleCommandBuilder : Serializable {
     }
 }
 
-class OciComponentBundleLayerBuilder : Serializable {
+internal class OciComponentBundleLayerBuilder : Serializable {
     private var descriptor: OciComponent.Bundle.Layer.Descriptor? = null
     private var creationTime: Instant? = null
     private var author: String? = null
@@ -109,7 +109,7 @@ class OciComponentBundleLayerBuilder : Serializable {
     fun build() = OciComponent.Bundle.Layer(descriptor, creationTime, author, createdBy, comment)
 }
 
-class OciComponentBundleLayerDescriptorBuilder : Serializable {
+internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
     private var digest: OciDigest? = null
     private var size: Long? = null
     private var diffId: OciDigest? = null

@@ -11,11 +11,11 @@ sealed interface PlatformFilter {
     fun matches(platform: Platform?): Boolean
 }
 
-fun PlatformFilter(oses: Set<String>, architectures: Set<String>, variants: Set<String>, osVersions: Set<String>) =
+internal fun PlatformFilter(oses: Set<String>, architectures: Set<String>, variants: Set<String>, osVersions: Set<String>) =
     if ((oses.size + architectures.size + variants.size + osVersions.size) == 0) AllPlatformFilter
     else FieldPlatformFilter(oses, architectures, variants, osVersions)
 
-object AllPlatformFilter : PlatformFilter {
+internal object AllPlatformFilter : PlatformFilter {
     override fun or(other: PlatformFilter) = this
     override fun matches(platform: Platform?) = true
     override fun toString() = ""

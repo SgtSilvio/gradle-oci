@@ -82,7 +82,7 @@ abstract class OciImageMappingImpl @Inject constructor(
         componentMappings.put(VersionedCoordinates(group, name, version), componentSpec)
     }
 
-    fun getData() = OciImageMappingData(
+    internal fun getData() = OciImageMappingData(
         groupMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
         moduleMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
         componentMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
@@ -90,10 +90,10 @@ abstract class OciImageMappingImpl @Inject constructor(
 
     abstract class VariantSpec : OciImageMapping.VariantSpec, OciImageMapping.VariantSpec.CapabilitySpecs,
         OciImageMapping.VariantSpec.ImageNameSpec {
-        final override val group get() = GROUP_PARAMETER_NAME_SPEC
-        final override val name get() = NAME_PARAMETER_NAME_SPEC
-        final override val version get() = VERSION_PARAMETER_NAME_SPEC
-        final override val featureVariant get() = FEATURE_VARIANT_PARAMETER_NAME_SPEC
+        final override val group: NameSpec get() = GROUP_PARAMETER_NAME_SPEC
+        final override val name: NameSpec get() = NAME_PARAMETER_NAME_SPEC
+        final override val version: NameSpec get() = VERSION_PARAMETER_NAME_SPEC
+        final override val featureVariant: NameSpec get() = FEATURE_VARIANT_PARAMETER_NAME_SPEC
         protected val capabilities = mutableListOf<Triple<NameSpec, NameSpec, NameSpec>>()
         protected var imageName: NameSpec? = null
         protected var imageTag: NameSpec? = null
@@ -101,7 +101,7 @@ abstract class OciImageMappingImpl @Inject constructor(
         final override fun withCapabilities(action: Action<in OciImageMapping.VariantSpec.CapabilitySpecs>) =
             action.execute(this)
 
-        override fun add(group: NameSpec, name: NameSpec, version: NameSpec) {
+        final override fun add(group: NameSpec, name: NameSpec, version: NameSpec) {
             capabilities += Triple(group, name, version)
         }
 
@@ -118,7 +118,7 @@ abstract class OciImageMappingImpl @Inject constructor(
             imageTag = tag
         }
 
-        final override fun nameSpec(string: String) = StringNameSpec(string)
+        final override fun nameSpec(string: String): NameSpec = StringNameSpec(string)
     }
 
     abstract class ComponentSpec @Inject constructor(
@@ -126,14 +126,14 @@ abstract class OciImageMappingImpl @Inject constructor(
     ) : VariantSpec(), OciImageMapping.ComponentSpec {
         private val featureVariants = mutableMapOf<String, FeatureVariantSpec>()
 
-        override fun featureVariant(name: String, action: Action<in OciImageMapping.FeatureVariantSpec>) {
+        final override fun featureVariant(name: String, action: Action<in OciImageMapping.FeatureVariantSpec>) {
             require(name != "main") { "featureVariant name must not be 'main'" }
             val featureVariantSpec = objectFactory.newInstance<FeatureVariantSpec>()
             action.execute(featureVariantSpec)
             featureVariants[name] = featureVariantSpec
         }
 
-        fun getData() = OciImageMappingData.ComponentSpec(
+        internal fun getData() = OciImageMappingData.ComponentSpec(
             OciImageMappingData.VariantSpec(capabilities, imageName, imageTag),
             featureVariants.mapValuesTo(TreeMap()) { it.value.getData() },
         )
@@ -141,6 +141,6 @@ abstract class OciImageMappingImpl @Inject constructor(
 
     abstract class FeatureVariantSpec : VariantSpec(), OciImageMapping.FeatureVariantSpec {
 
-        fun getData() = OciImageMappingData.VariantSpec(capabilities, imageName, imageTag)
+        internal fun getData() = OciImageMappingData.VariantSpec(capabilities, imageName, imageTag)
     }
 }

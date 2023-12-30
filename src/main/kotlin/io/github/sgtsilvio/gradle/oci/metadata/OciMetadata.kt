@@ -5,12 +5,12 @@ import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.util.*
 
-const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
-const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
-const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
-const val LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
+internal const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
+internal const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
+internal const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
+internal const val LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
 
-fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
+internal fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
     var user: String? = null
     val ports = TreeSet<String>()
     val environment = TreeMap<String, String>()
@@ -88,7 +88,7 @@ fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDat
     return OciDataDescriptor(CONFIG_MEDIA_TYPE, data, lastBundle.configDescriptorAnnotations)
 }
 
-fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
+internal fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
     val lastBundle = bundles.last()
     val data = jsonObject {
         // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
@@ -109,7 +109,7 @@ fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.B
     return OciDataDescriptor(MANIFEST_MEDIA_TYPE, data, lastBundle.manifestDescriptorAnnotations)
 }
 
-fun createIndex(manifestDescriptors: List<Pair<Platform, OciDescriptor>>, component: OciComponent): OciDataDescriptor {
+internal fun createIndex(manifestDescriptors: List<Pair<Platform, OciDescriptor>>, component: OciComponent): OciDataDescriptor {
     val data = jsonObject {
         // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
         addObjectIfNotEmpty("annotations", component.indexAnnotations)

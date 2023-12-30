@@ -4,7 +4,7 @@ import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
-fun OciComponent.encodeToJsonString() = jsonObject { encodeOciComponent(this@encodeToJsonString) }
+internal fun OciComponent.encodeToJsonString() = jsonObject { encodeOciComponent(this@encodeToJsonString) }
 
 private fun JsonObjectStringBuilder.encodeOciComponent(component: OciComponent) {
     addString("imageReference", component.imageReference.toString())

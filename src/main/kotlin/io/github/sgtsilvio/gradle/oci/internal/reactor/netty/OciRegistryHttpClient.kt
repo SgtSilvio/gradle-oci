@@ -9,7 +9,7 @@ import java.time.Duration
 /**
  * @author Silvio Giebl
  */
-object OciRegistryHttpClient : Resource<HttpClient>() {
+internal object OciRegistryHttpClient : Resource<HttpClient>() {
 
     override fun create(): HttpClient {
         val connectionProvider = ConnectionProvider.builder("oci-registry")

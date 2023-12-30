@@ -21,11 +21,11 @@ sealed interface NameSpec {
     fun generateName(parameters: Map<String, String>): String
 }
 
-class StringNameSpec(val value: String) : NameSpec {
+internal class StringNameSpec(val value: String) : NameSpec {
     override fun generateName(parameters: Map<String, String>) = value
 }
 
-class ParameterNameSpec(val key: String, val defaultValue: String?) : NameSpec {
+internal class ParameterNameSpec(val key: String, val defaultValue: String?) : NameSpec {
     override fun generateName(parameters: Map<String, String>) =
         parameters[key] ?: defaultValue ?: throw IllegalStateException("required parameter '$key' is missing")
 }

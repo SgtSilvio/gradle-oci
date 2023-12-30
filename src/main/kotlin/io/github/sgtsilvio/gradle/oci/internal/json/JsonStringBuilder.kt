@@ -1,16 +1,16 @@
 package io.github.sgtsilvio.gradle.oci.internal.json
 
-inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
+internal inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): String {
     val builder = JsonStringBuilderImpl()
     builder.addObject(block)
     return builder.toString()
 }
 
 @DslMarker
-annotation class JsonStringBuilderDsl
+internal annotation class JsonStringBuilderDsl
 
 @JsonStringBuilderDsl
-sealed interface JsonObjectStringBuilder {
+internal sealed interface JsonObjectStringBuilder {
     fun addString(key: String, value: String)
 
     fun addNumber(key: String, value: Long)
@@ -18,14 +18,14 @@ sealed interface JsonObjectStringBuilder {
     fun addBoolean(key: String, value: Boolean)
 }
 
-inline fun JsonObjectStringBuilder.addObject(key: String, block: JsonObjectStringBuilder.() -> Unit) =
+internal inline fun JsonObjectStringBuilder.addObject(key: String, block: JsonObjectStringBuilder.() -> Unit) =
     (this as JsonStringBuilderImpl).addObject(key, block)
 
-inline fun JsonObjectStringBuilder.addArray(key: String, block: JsonArrayStringBuilder.() -> Unit) =
+internal inline fun JsonObjectStringBuilder.addArray(key: String, block: JsonArrayStringBuilder.() -> Unit) =
     (this as JsonStringBuilderImpl).addArray(key, block)
 
 @JsonStringBuilderDsl
-sealed interface JsonArrayStringBuilder {
+internal sealed interface JsonArrayStringBuilder {
     fun addString(value: String)
 
     fun addNumber(value: Long)
@@ -33,10 +33,10 @@ sealed interface JsonArrayStringBuilder {
     fun addBoolean(value: Boolean)
 }
 
-inline fun JsonArrayStringBuilder.addObject(block: JsonObjectStringBuilder.() -> Unit) =
+internal inline fun JsonArrayStringBuilder.addObject(block: JsonObjectStringBuilder.() -> Unit) =
     (this as JsonStringBuilderImpl).addObject(block)
 
-inline fun JsonArrayStringBuilder.addArray(block: JsonArrayStringBuilder.() -> Unit) =
+internal inline fun JsonArrayStringBuilder.addArray(block: JsonArrayStringBuilder.() -> Unit) =
     (this as JsonStringBuilderImpl).addArray(block)
 
 @PublishedApi
@@ -143,57 +143,57 @@ internal fun String.jsonEscape() = replace(jsonEscapeRegex) {
 }
 
 // TODO no sorting, use supplied sorting => ensure we always pass a sorted map
-fun JsonObjectStringBuilder.addAll(map: Map<String, String>) = map.toSortedMap().forEach { addString(it.key, it.value) }
-fun JsonObjectStringBuilder.addAll(set: Set<String>) = set.toSortedSet().forEach { addObject(it) {} }
-fun JsonArrayStringBuilder.addAll(list: Iterable<String>) = list.forEach { addString(it) }
+internal fun JsonObjectStringBuilder.addAll(map: Map<String, String>) = map.toSortedMap().forEach { addString(it.key, it.value) }
+internal fun JsonObjectStringBuilder.addAll(set: Set<String>) = set.toSortedSet().forEach { addObject(it) {} }
+internal fun JsonArrayStringBuilder.addAll(list: Iterable<String>) = list.forEach { addString(it) }
 
-fun JsonObjectStringBuilder.addObject(key: String, map: Map<String, String>) = addObject(key) { addAll(map) }
-fun JsonObjectStringBuilder.addObject(key: String, set: Set<String>) = addObject(key) { addAll(set) }
-fun JsonObjectStringBuilder.addArray(key: String, list: Iterable<String>) = addArray(key) { addAll(list) }
+internal fun JsonObjectStringBuilder.addObject(key: String, map: Map<String, String>) = addObject(key) { addAll(map) }
+internal fun JsonObjectStringBuilder.addObject(key: String, set: Set<String>) = addObject(key) { addAll(set) }
+internal fun JsonObjectStringBuilder.addArray(key: String, list: Iterable<String>) = addArray(key) { addAll(list) }
 
-fun JsonObjectStringBuilder.addStringIfNotNull(key: String, value: String?) {
+internal fun JsonObjectStringBuilder.addStringIfNotNull(key: String, value: String?) {
     if (value != null) {
         addString(key, value)
     }
 }
 
-fun JsonObjectStringBuilder.addStringIfNotEmpty(key: String, value: String?) {
+internal fun JsonObjectStringBuilder.addStringIfNotEmpty(key: String, value: String?) {
     if (!value.isNullOrEmpty()) {
         addString(key, value)
     }
 }
 
-fun JsonObjectStringBuilder.addObjectIfNotEmpty(key: String, map: Map<String, String>?) {
+internal fun JsonObjectStringBuilder.addObjectIfNotEmpty(key: String, map: Map<String, String>?) {
     if (!map.isNullOrEmpty()) {
         addObject(key, map)
     }
 }
 
-fun JsonObjectStringBuilder.addObjectIfNotEmpty(key: String, set: Set<String>?) {
+internal fun JsonObjectStringBuilder.addObjectIfNotEmpty(key: String, set: Set<String>?) {
     if (!set.isNullOrEmpty()) {
         addObject(key, set)
     }
 }
 
-fun JsonObjectStringBuilder.addArrayIfNotNull(key: String, list: Collection<String>?) {
+internal fun JsonObjectStringBuilder.addArrayIfNotNull(key: String, list: Collection<String>?) {
     if (list != null) {
         addArray(key, list)
     }
 }
 
-fun JsonObjectStringBuilder.addArrayIfNotEmpty(key: String, list: Collection<String>?) {
+internal fun JsonObjectStringBuilder.addArrayIfNotEmpty(key: String, list: Collection<String>?) {
     if (!list.isNullOrEmpty()) {
         addArray(key, list)
     }
 }
 
-inline fun <T> JsonObjectStringBuilder.addArray(
+internal inline fun <T> JsonObjectStringBuilder.addArray(
     key: String,
     list: Iterable<T>,
     block: JsonArrayStringBuilder.(T) -> Unit,
 ) = addArray(key) { list.forEach { block(it) } }
 
-inline fun <T> JsonObjectStringBuilder.addArrayIfNotEmpty(
+internal inline fun <T> JsonObjectStringBuilder.addArrayIfNotEmpty(
     key: String,
     list: Collection<T>?,
     block: JsonArrayStringBuilder.(T) -> Unit,

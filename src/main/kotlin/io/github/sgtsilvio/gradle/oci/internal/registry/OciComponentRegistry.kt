@@ -14,7 +14,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-class OciComponentRegistry(val registryApi: OciRegistryApi) {
+internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
 
     data class ComponentWithDigest(val component: OciComponent, val digest: OciDigest, val size: Int)
 
