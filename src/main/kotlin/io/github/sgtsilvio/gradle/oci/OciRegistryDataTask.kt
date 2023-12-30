@@ -43,7 +43,7 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
         repositoriesDirectory: Path,
     ) {
         val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-        val blobDigests = hashSetOf<OciDigest>()
+        val blobDigests = mutableSetOf<OciDigest>()
         for (platform in resolvedComponent.platforms) {
             val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform).map { it.bundle }
             for (bundle in bundlesForPlatform) {

@@ -24,7 +24,7 @@ sealed interface ResolvedOciComponent {
 }
 
 private class OciComponentResolverImpl : OciComponentResolver {
-    private val resolvableComponents = hashMapOf<Coordinates, ResolvableOciComponent>()
+    private val resolvableComponents = HashMap<Coordinates, ResolvableOciComponent>()
 
     override fun addComponent(component: OciComponent) {
         val resolvableComponent = ResolvableOciComponent(component)

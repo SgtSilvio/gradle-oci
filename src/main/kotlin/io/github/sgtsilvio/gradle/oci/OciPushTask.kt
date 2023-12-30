@@ -85,7 +85,7 @@ abstract class OciPushTask @Inject constructor(
             registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) },
         )
 
-        val blobs = hashMapOf<OciDigest, Blob>()
+        val blobs = HashMap<OciDigest, Blob>()
         for ((resolvedComponent, imageReferences) in resolvedComponentToImageReferences) {
 
             val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()

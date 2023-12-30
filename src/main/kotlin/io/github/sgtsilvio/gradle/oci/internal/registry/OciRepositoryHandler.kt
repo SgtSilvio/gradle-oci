@@ -173,7 +173,7 @@ internal class OciRepositoryHandler(
                     }
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}"
-                val layerDigestToVariantNameAndCounter = mutableMapOf<OciDigest, Pair<String, Int>>()
+                val layerDigestToVariantNameAndCounter = HashMap<OciDigest, Pair<String, Int>>()
                 addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
                     val (component, componentDigest, componentSize) = componentWithDigest
                     addObject {

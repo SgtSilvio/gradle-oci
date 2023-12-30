@@ -44,8 +44,8 @@ abstract class OciImagesInputTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val imagesInputs: List<OciImagesInput> = imagesInputs.get()
-        val resolvedComponentToImageReferences = hashMapOf<ResolvedOciComponent, HashSet<OciImageReference>>()
-        val allDigestToLayer = hashMapOf<OciDigest, File>()
+        val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
+        val allDigestToLayer = HashMap<OciDigest, File>()
         for (imagesInput in imagesInputs) {
             val componentWithLayersList = findComponents(imagesInput.files)
             val componentResolver = OciComponentResolver()
@@ -84,7 +84,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         val iterator = ociFiles.iterator()
         while (iterator.hasNext()) {
             val component = iterator.next().readText().decodeAsJsonToOciComponent()
-            val digestToLayer = hashMapOf<OciDigest, File>()
+            val digestToLayer = HashMap<OciDigest, File>()
             for (layer in component.allLayers) {
                 layer.descriptor?.let { (_, digest) ->
                     if (digest !in digestToLayer) {
