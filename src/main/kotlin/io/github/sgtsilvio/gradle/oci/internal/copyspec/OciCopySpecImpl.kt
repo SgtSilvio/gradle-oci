@@ -37,7 +37,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return this
     }
 
-    final override fun from(source: Any, action: Action<in OciCopySpec>) = addChild({ it.from(source) }, action)
+    final override fun from(source: Any, action: Action<in OciCopySpec>) = addChild({ from(source) }, action)
 
     final override fun into(destinationPath: String): OciCopySpecImpl {
         if (destinationPath.contains("//")) {
@@ -54,11 +54,11 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
     }
 
     final override fun into(destinationPath: String, action: Action<in OciCopySpec>) =
-        addChild({ it.into(destinationPath) }, action)
+        addChild({ into(destinationPath) }, action)
 
-    private inline fun addChild(init: (OciCopySpecImpl) -> Unit, userAction: Action<in OciCopySpec>): OciCopySpecImpl {
+    private inline fun addChild(init: OciCopySpecImpl.() -> Unit, userAction: Action<in OciCopySpec>): OciCopySpecImpl {
         val child = objectFactory.newInstance<OciCopySpecImpl>()
-        init(child) // invoke the action before adding the child as the action performs validations
+        child.init() // invoke init before adding the child as it performs validations
         children += child
         userAction.execute(child)
         return child
@@ -73,7 +73,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         if (parentPathPattern.startsWith('/')) {
             throw IllegalArgumentException("parentPathPattern must not start with '/'")
         }
-        if (parentPathPattern != "" && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
+        if ((parentPathPattern != "") && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
             throw IllegalArgumentException("parentPathPattern must match a directory ('', end with '/' or '**')")
         }
         renamePatterns += Triple(parentPathPattern, fileNameRegex, replacement)
@@ -91,7 +91,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         if (parentPathPattern.startsWith('/')) {
             throw IllegalArgumentException("parentPathPattern must not start with '/'")
         }
-        if (parentPathPattern != "" && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
+        if ((parentPathPattern != "") && !parentPathPattern.endsWith('/') && !parentPathPattern.endsWith("**")) {
             throw IllegalArgumentException("parentPathPattern must match a directory ('', end with '/' or '**')")
         }
         movePatterns += Triple(parentPathPattern, directoryNameRegex, replacement)
