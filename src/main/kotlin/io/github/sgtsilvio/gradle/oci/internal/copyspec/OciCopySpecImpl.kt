@@ -132,7 +132,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
     }
 
     fun asInput(providerFactory: ProviderFactory): Provider<OciCopySpecInput> {
-        val lazy = lazy { OciCopySpecInput(this, null) }
+        val lazy = lazy { OciCopySpecInput(this, PatternSet()) }
         return providerFactory.provider { lazy.value }
     }
 }

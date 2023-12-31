@@ -8,7 +8,7 @@ import org.gradle.api.tasks.util.PatternSet
 /**
  * @author Silvio Giebl
  */
-class OciCopySpecInput(copySpec: OciCopySpecImpl, parentFilter: PatternSet?) {
+class OciCopySpecInput(copySpec: OciCopySpecImpl, parentFilter: PatternSet) {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -58,18 +58,13 @@ class OciCopySpecInput(copySpec: OciCopySpecImpl, parentFilter: PatternSet?) {
     }
 }
 
-private operator fun PatternSet?.plus(other: PatternSet): PatternSet {
-    if ((this == null) || isEmpty) {
-        return other
-    }
-    val combined = PatternSet()
-    combined.include(includes)
-    combined.include(other.includes)
-    combined.exclude(excludes)
-    combined.exclude(other.excludes)
-    combined.includeSpecs(includeSpecs)
-    combined.includeSpecs(other.includeSpecs)
-    combined.excludeSpecs(excludeSpecs)
-    combined.excludeSpecs(other.excludeSpecs)
-    return combined
+private operator fun PatternSet.plus(other: PatternSet) = PatternSet().apply {
+    include(includes)
+    include(other.includes)
+    exclude(excludes)
+    exclude(other.excludes)
+    includeSpecs(includeSpecs)
+    includeSpecs(other.includeSpecs)
+    excludeSpecs(excludeSpecs)
+    excludeSpecs(other.excludeSpecs)
 }
