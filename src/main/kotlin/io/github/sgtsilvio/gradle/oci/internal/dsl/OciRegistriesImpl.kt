@@ -46,7 +46,7 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class OciRegistriesImpl @Inject constructor(
+internal abstract class OciRegistriesImpl @Inject constructor(
     private val imageMapping: OciImageMappingImpl,
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,
@@ -110,7 +110,7 @@ abstract class OciRegistriesImpl @Inject constructor(
     }
 }
 
-abstract class OciRegistryImpl @Inject constructor(
+internal abstract class OciRegistryImpl @Inject constructor(
     private val name: String,
     registries: OciRegistriesImpl,
     objectFactory: ObjectFactory,
@@ -145,7 +145,7 @@ abstract class OciRegistryImpl @Inject constructor(
 
 private const val PORT_HTTP_HEADER_NAME = "port"
 
-abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
     private val httpServers = mutableListOf<DisposableServer>()
     private val loopResources = OciLoopResources.acquire()
     private val ociComponentRegistry = OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))

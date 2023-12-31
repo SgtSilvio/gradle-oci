@@ -12,7 +12,7 @@ import org.gradle.kotlin.dsl.withType
 /**
  * @author Silvio Giebl
  */
-abstract class OciImageDependenciesImpl<T>(
+internal abstract class OciImageDependenciesImpl<T>(
     final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
 ) : OciImageDependencies<T> {

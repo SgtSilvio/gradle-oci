@@ -215,7 +215,7 @@ abstract class OciPushTask @Inject constructor(
     )
 }
 
-abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+internal abstract class OciPushService : BuildService<BuildServiceParameters.None>, AutoCloseable {
 
     private val registryApi = OciRegistryApi(OciRegistryHttpClient.acquire())
     private val actionIdCounter = AtomicInteger()

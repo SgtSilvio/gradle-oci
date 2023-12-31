@@ -29,7 +29,7 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
+internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,

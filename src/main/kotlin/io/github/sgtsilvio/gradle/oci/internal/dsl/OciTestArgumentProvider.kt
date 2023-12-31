@@ -13,7 +13,7 @@ import org.gradle.process.CommandLineArgumentProvider
 /**
  * @author Silvio Giebl
  */
-class OciTestArgumentProvider(
+internal class OciTestArgumentProvider(
     objectFactory: ObjectFactory,
     registryDataTask: TaskProvider<OciRegistryDataTask>,
 ) : CommandLineArgumentProvider {

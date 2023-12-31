@@ -52,7 +52,7 @@ interface OciImageMapping {
     interface FeatureVariantSpec : VariantSpec
 }
 
-abstract class OciImageMappingImpl @Inject constructor(
+internal abstract class OciImageMappingImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
 ) : OciImageMapping {
     private val groupMappings = objectFactory.mapProperty<String, ComponentSpec>()

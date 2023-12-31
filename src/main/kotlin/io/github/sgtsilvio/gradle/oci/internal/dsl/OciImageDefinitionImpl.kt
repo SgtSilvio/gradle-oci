@@ -38,7 +38,7 @@ import org.gradle.kotlin.dsl.*
 import java.util.*
 import javax.inject.Inject
 
-abstract class OciImageDefinitionImpl @Inject constructor(
+internal abstract class OciImageDefinitionImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
     providerFactory: ProviderFactory,

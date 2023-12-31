@@ -24,7 +24,7 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class OciExtensionImpl @Inject constructor(
+internal abstract class OciExtensionImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     private val taskContainer: TaskContainer,
     private val projectLayout: ProjectLayout,
