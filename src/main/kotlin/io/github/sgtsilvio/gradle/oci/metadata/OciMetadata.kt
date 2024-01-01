@@ -109,7 +109,10 @@ internal fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciCo
     return OciDataDescriptor(MANIFEST_MEDIA_TYPE, data, lastBundle.manifestDescriptorAnnotations)
 }
 
-internal fun createIndex(manifestDescriptors: List<Pair<Platform, OciDescriptor>>, component: OciComponent): OciDataDescriptor {
+internal fun createIndex(
+    manifestDescriptors: List<Pair<Platform, OciDescriptor>>,
+    component: OciComponent,
+): OciDataDescriptor {
     val data = jsonObject {
         // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
         addObjectIfNotEmpty("annotations", component.indexAnnotations)
