@@ -150,7 +150,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
     private val loopResources = OciLoopResources.acquire()
     private val ociComponentRegistry = OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
 
-    internal fun init(port: Int) {
+    fun init(port: Int) {
         try {
             addHttpServer(port) { request, response ->
                 val redirectPort = request.requestHeaders()[PORT_HTTP_HEADER_NAME]
@@ -160,7 +160,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         }
     }
 
-    internal fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
+    fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
         val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
         val port = addHttpServer(0, OciRepositoryHandler(ociComponentRegistry, imageMappingData, credentials)).port()
         registry.repository.credentials(HttpHeaderCredentials::class) {

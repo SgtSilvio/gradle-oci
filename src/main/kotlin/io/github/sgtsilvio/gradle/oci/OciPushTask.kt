@@ -221,7 +221,7 @@ internal abstract class OciPushService : BuildService<BuildServiceParameters.Non
     private val actionIdCounter = AtomicInteger()
     private val actions = ConcurrentHashMap<Int, () -> Unit>()
 
-    internal fun pushBlob(
+    fun pushBlob(
         context: OciPushTask.Context,
         imageName: String,
         digest: OciDigest,
@@ -269,7 +269,7 @@ internal abstract class OciPushService : BuildService<BuildServiceParameters.Non
         future?.complete(Unit)
     }
 
-    internal fun pushManifest(
+    fun pushManifest(
         context: OciPushTask.Context,
         imageName: String,
         reference: String,
