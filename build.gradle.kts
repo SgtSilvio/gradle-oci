@@ -77,6 +77,9 @@ testing {
             useJUnitJupiter(libs.versions.junit.jupiter)
         }
         register<JvmTestSuite>("functionalTest") {
+            dependencies {
+                implementation(libs.json)
+            }
             targets.configureEach {
                 testTask {
                     environment(
