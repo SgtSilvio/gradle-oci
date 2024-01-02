@@ -122,13 +122,14 @@ internal abstract class OciRegistryImpl @Inject constructor(
     final override val finalUrl: Provider<URI> =
         providerFactory.gradleProperty(url.map(URI::toString)).map(::URI).orElse(url)
     final override val credentials = objectFactory.property<PasswordCredentials>()
-    final override val repository = repositoryHandler.maven {
+    final override val repository = repositoryHandler.ivy {
         name = this@OciRegistryImpl.name + "OciRegistry"
         setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
             val urlBase64 = Base64.getUrlEncoder().encodeToString(url.toString().toByteArray())
             URI("http://localhost:$repositoryPort/v2/repository/$urlBase64")
         })
         isAllowInsecureProtocol = true
+        layout("gradle")
         metadataSources {
             gradleMetadata()
             artifact()

@@ -92,63 +92,35 @@ internal class OciRepositoryHandler(
         } catch (e: URISyntaxException) {
             return response.sendBadRequest()
         }
-        if (segments.last().endsWith(".module")) {
-            return handleModule(registryUri, segments, imageMappingData, credentials, isGET, response)
+        val componentId = VersionedCoordinates(segments[1], segments[2], segments[3])
+        val mappedComponent = imageMappingData.map(componentId)
+        if ((segments.size == 5) && segments[4].endsWith(".module")) {
+            return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGET, response)
         }
-        if (segments.size < 8) {
+        if (segments.size != 8) {
             return response.sendNotFound()
         }
-        return handleComponentOrLayer(registryUri, segments, imageMappingData, credentials, isGET, response)
-    }
-
-    private fun handleModule(
-        registryUri: URI,
-        segments: List<String>,
-        imageMappingData: OciImageMappingData,
-        credentials: Credentials?,
-        isGET: Boolean,
-        response: HttpServerResponse,
-    ): Publisher<Void> {
-        val componentId = decodeComponentId(segments, segments.lastIndex - 1)
-        val mappedComponent = imageMappingData.map(componentId)
-        return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGET, response)
-    }
-
-    private fun handleComponentOrLayer(
-        registryUri: URI,
-        segments: List<String>,
-        imageMappingData: OciImageMappingData,
-        credentials: Credentials?,
-        isGET: Boolean,
-        response: HttpServerResponse,
-    ): Publisher<Void> {
-        val lastIndex = segments.lastIndex
-        val componentId = decodeComponentId(segments, lastIndex - 4)
-        val variantName = segments[lastIndex - 3]
+        val variantName = segments[4]
         val digest = try {
-            segments[lastIndex - 2].toOciDigest()
+            segments[5].toOciDigest()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
         val size = try {
-            segments[lastIndex - 1].toLong()
+            segments[6].toLong()
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        val variant = imageMappingData.map(componentId).variants[variantName] ?: return response.sendNotFound()
-        val last = segments[lastIndex]
+        val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
+        val last = segments[7]
         return when {
-            last.endsWith("oci-component.json") -> getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
-            last.endsWith("oci-layer") -> getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
+            last.endsWith("oci-component.json") ->
+                getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
+            last.endsWith("oci-layer") ->
+                getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
             else -> response.sendNotFound()
         }
     }
-
-    private fun decodeComponentId(segments: List<String>, versionIndex: Int) = VersionedCoordinates(
-        segments.subList(1, versionIndex - 1).joinToString("."),
-        segments[versionIndex - 1],
-        segments[versionIndex],
-    )
 
     private fun getOrHeadGradleModuleMetadata(
         registryUri: URI,
