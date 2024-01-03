@@ -92,6 +92,10 @@ testing {
     }
 }
 
+tasks.check {
+    dependsOn(testing.suites)
+}
+
 gradlePlugin {
     testSourceSets(sourceSets["functionalTest"])
 }
