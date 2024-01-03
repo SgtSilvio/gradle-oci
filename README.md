@@ -4,7 +4,7 @@
 [![GitHub](https://img.shields.io/github/license/sgtsilvio/gradle-oci?color=brightgreen&style=for-the-badge)](LICENSE)
 [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/sgtsilvio/gradle-oci/check.yml?branch=main&style=for-the-badge)](https://github.com/SgtSilvio/gradle-oci/actions/workflows/check.yml?query=branch%3Amain)
 
-Gradle plugin to ease producing (multi-arch) OCI images without requiring external tools.
+Gradle plugin to ease using and producing (multi-arch) OCI images without requiring external tools.
 
 ## How to Use
 
