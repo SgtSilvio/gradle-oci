@@ -122,7 +122,7 @@ Considered replacement options for `:`:
   - does not work unescaped in urls, violates constraint 5
 
 - `$`
-  
+
   CONS:
   - may be used for string substitution, violates constraint 4
   - not good as separator characters, as they fill too much space and don't visually separate
@@ -156,6 +156,7 @@ Considered replacement options for `:`:
 
   PROS:
   - do not violate any constraint
+
   CONS:
   - not in the list of characters best to use in URLs
 
