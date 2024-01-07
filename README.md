@@ -6,9 +6,9 @@
 
 Gradle plugin to ease using and producing (multi-arch) OCI images without requiring external tools.
 
-## Why OCI and Not Docker?
+## OCI / Docker Conformance
 
-OCI is the acronym of the [Open Container Initiative](https://github.com/opencontainers) which creates open standards around container technology, previously mainly driven by Docker.
+OCI is the acronym of the [Open Container Initiative](https://github.com/opencontainers) that creates open standards around container technology, previously mainly driven by Docker.
 People still commonly use the term _Docker image_ even if talking about _OCI images_.
 So if you are looking for building Docker images, you are right here.
 Whenever OCI is mentioned on this page, just think of it as the successor of Docker (simplified).
@@ -19,13 +19,13 @@ This plugin allows:
 
 ## Why Another Image Builder?
 
-This plugin does not aim to only be "yet another image builder", but instead tries to solve usability issues of other images builders.
+This plugin does not aim to only be "yet another image builder", but instead tries to solve usability issues of other image builders.
 
 ### OCI Images as Plain Files
 
 OCI images are a form of distribution of your application.
 You may know other distribution formats (deb, rpm, some zip/tar); all of them are just plain files with some metadata.
-The same applies to OCI images which consist of filesystem layers (tar files) and metadata (json files).
+The same applies to OCI images: they consist of filesystem layers (tar files) and metadata (json files).
 
 The problem here is that most image builders hide these files from the user.
 This creates multiple usability issues.
@@ -34,7 +34,49 @@ While the previous point might be subjective, the software and services needed f
 Examples for the software in question here are the Docker daemon and registries.
 
 This plugin simply outputs all artifacts of an OCI image as files; no Docker daemon or registry required.
-Having access to the plain files of an OCI image is beneficial. Copying files and consuming files in other tools is easy.
+Having access to the plain files of an OCI image is beneficial.
+Copying files and consuming files in other tools is easy.
+
+### Dependency Management for OCI Images
+
+The following paragraph defines build system terminology before talking about dependency management:
+Gradle projects are composed of _tasks_.
+Each task can have _inputs_ and _outputs_ - these are just files.
+Some task outputs are defined as outputs of the project and are then called _artifacts_.
+Artifacts (usually from outside the project) can be consumed by declaring _dependencies_.
+When a dependency is resolved, _module metadata_ is used to locate the artifacts and optionally _transitive dependencies_.
+The dependency and all its transitive dependencies in the end resolve to a set of artifacts - files that can be used as task inputs.
+
+Now that OCI images are just files they can be modelled as artifacts.
+The OCI image artifacts can then be consumed by declaring dependencies.
+Furthermore, an OCI image can then also have transitive dependencies.
+Parent images (for example declared by the FROM statement in Dockerfiles) should actually be a transitive dependency.
+Unfortunately, OCI images lose the metadata about their parent images.
+The following diagram shows an example comparison of the representation of OCI images (top) and the representation of _OCI components_ by this plugin (bottom).
+
+![parent-image-dependencies-high-level.drawio.svg](docs/images/parent-image-dependencies-high-level.drawio.svg)
+
+In the above diagram, image 3 has image 2 as parent image that in turn has image 1 as parent image.
+Image 3 has no pointer to their parent images anymore.
+It is also not possible to split the metadata of image 3 because it is a mix of its own and all parent images' metadata.
+This representation is good for using the image, but not ideal for building.
+The bottom part visualizes how it looks, when all three images would be built with this plugin.
+Each component would only contain its own layers and its own metadata with explicit dependencies on the parent images.
+When image 3 needs to be used, it needs to be assembled in the OCI image format.
+
+While this might just seem like an extra step, it enables a lot of flexibility.
+For example, it is easy to upgrade the version of a parent image independently, as can be seen in the following example diagram.
+
+![version-upgrade.drawio.svg](docs/images/version-upgrade.drawio.svg)
+
+More sophisticated dependency management can be applied, such as substituting a parent image with one from a different vendor as long as it provides the same capabilities.
+Also, the OCI components can be published without the need to republish all artifacts of parent images.
+
+Furthermore, we are used to an image having at maximum one parent image, but this plugin allows to declare multiple parent image dependencies.
+The dependencies than form a directed graph which will be traversed when assembling the OCI image.
+The following diagram shows an example, where the "application" and "java" OCI components have two parent image dependencies.
+
+![multiple-parent-image-dependencies.drawio.svg](docs/images/multiple-parent-image-dependencies.drawio.svg)
 
 ### WIP
 
