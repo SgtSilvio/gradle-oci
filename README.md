@@ -186,4 +186,20 @@ The following diagram shows an example, where the "application" and "java" OCI c
 
 ![multiple-parent-image-dependencies.drawio.svg](docs/images/multiple-parent-image-dependencies.drawio.svg)
 
-### WIP
+WIP
+
+### Fine-grained Configurability
+
+WIP
+
+### Clear Separation Between Image and Registry
+
+WIP
+
+### Reproducible Builds
+
+WIP
+
+### Gradle Native Integration
+
+WIP
