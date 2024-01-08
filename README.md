@@ -181,8 +181,8 @@ More sophisticated dependency management can be applied, such as substituting a 
 Also, the OCI components can be published without the need to republish all artifacts of parent images.
 
 Furthermore, we are used to an image having at maximum one parent image, but this plugin allows to declare multiple parent image dependencies.
-The dependencies than form a directed graph which will be traversed when assembling the OCI image.
-The following diagram shows an example, where the "application" and "java" OCI components have two parent image dependencies.
+The dependencies then form a directed graph which will be traversed when assembling the OCI image.
+The following diagram shows an example where the "application" and "java" OCI components have two parent image dependencies.
 
 ![multiple-parent-image-dependencies.drawio.svg](docs/images/multiple-parent-image-dependencies.drawio.svg)
 
