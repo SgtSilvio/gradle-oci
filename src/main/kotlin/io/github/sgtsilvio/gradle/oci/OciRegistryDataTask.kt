@@ -8,9 +8,9 @@ import org.gradle.api.tasks.OutputDirectory
 import java.io.File
 import java.io.IOException
 import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import kotlin.io.path.*
 
 /**
  * @author Silvio Giebl
@@ -25,11 +25,11 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
         digestToLayer: Map<OciDigest, File>,
     ) {
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
-        val blobsDirectory: Path = Files.createDirectory(registryDataDirectory.resolve("blobs"))
-        val repositoriesDirectory: Path = Files.createDirectory(registryDataDirectory.resolve("repositories"))
+        val blobsDirectory = registryDataDirectory.resolve("blobs").createDirectory()
+        val repositoriesDirectory = registryDataDirectory.resolve("repositories").createDirectory()
 
         for ((digest, layer) in digestToLayer) {
-            Files.createLink(blobsDirectory.resolveDigestFile(digest), layer.toPath())
+            blobsDirectory.resolveDigestFile(digest).createLinkPointingTo(layer.toPath())
         }
         for ((resolvedComponent, imageReferences) in resolvedComponentToImageReferences) {
             writeImage(resolvedComponent, imageReferences, blobsDirectory, repositoriesDirectory)
@@ -65,12 +65,12 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
         val indexDigest = index.digest
 
         for (imageReference in imageReferences) {
-            val repositoryDirectory: Path = Files.createDirectories(repositoriesDirectory.resolve(imageReference.name))
-            val repositoryBlobsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("blobs"))
+            val repositoryDirectory = repositoriesDirectory.resolve(imageReference.name).createDirectories()
+            val repositoryBlobsDirectory = repositoryDirectory.resolve("blobs").createDirectories()
             for (blobDigest in blobDigests) {
                 repositoryBlobsDirectory.writeDigestLink(blobDigest)
             }
-            val manifestsDirectory: Path = Files.createDirectories(repositoryDirectory.resolve("manifests"))
+            val manifestsDirectory = repositoryDirectory.resolve("manifests").createDirectories()
             for ((_, manifestDescriptor) in manifests) {
                 manifestsDirectory.writeDigestLink(manifestDescriptor.digest)
             }
@@ -79,31 +79,30 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
         }
     }
 
-    private fun Path.resolveDigestFile(digest: OciDigest): Path {
-        return Files.createDirectories(resolve(digest.algorithm.ociPrefix)).resolve(digest.encodedHash)
-    }
+    private fun Path.resolveDigestFile(digest: OciDigest): Path =
+        resolve(digest.algorithm.ociPrefix).createDirectories().resolve(digest.encodedHash)
 
     private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
         val digestDataFile = resolveDigestFile(dataDescriptor.digest)
         try {
-            Files.write(digestDataFile, dataDescriptor.data, StandardOpenOption.CREATE_NEW)
+            digestDataFile.writeBytes(dataDescriptor.data, StandardOpenOption.CREATE_NEW)
         } catch (e: FileAlreadyExistsException) {
-            if (!dataDescriptor.data.contentEquals(Files.readAllBytes(digestDataFile))) {
+            if (!dataDescriptor.data.contentEquals(digestDataFile.readBytes())) {
                 throw IllegalStateException("hash collision for digest ${dataDescriptor.digest}: expected file content of $digestDataFile to be the same as ${dataDescriptor.data.contentToString()}")
             }
         }
     }
 
     private fun Path.writeDigestLink(digest: OciDigest) {
-        Files.write(resolveDigestFile(digest), digest.toString().toByteArray())
+        resolveDigestFile(digest).writeBytes(digest.toString().toByteArray())
     }
 
     private fun Path.writeTagLink(digest: OciDigest) {
         val digestBytes = digest.toString().toByteArray()
         try {
-            Files.write(this, digestBytes, StandardOpenOption.CREATE_NEW)
+            writeBytes(digestBytes, StandardOpenOption.CREATE_NEW)
         } catch (e: FileAlreadyExistsException) {
-            if (!digestBytes.contentEquals(Files.readAllBytes(this))) {
+            if (!digestBytes.contentEquals(readBytes())) {
                 throw IllegalStateException("tried to link the same image name/tag to different images")
             }
         }
@@ -114,5 +113,5 @@ internal fun Path.ensureEmptyDirectory(): Path {
     if (!toFile().deleteRecursively()) {
         throw IOException("$this could not be deleted")
     }
-    return Files.createDirectories(this)
+    return createDirectories()
 }

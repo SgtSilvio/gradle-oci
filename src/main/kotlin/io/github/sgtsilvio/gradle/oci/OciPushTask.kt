@@ -34,11 +34,11 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.netty.NettyOutbound
 import java.io.File
 import java.net.URI
-import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
+import kotlin.io.path.fileSize
 
 /**
  * @author Silvio Giebl
@@ -110,7 +110,7 @@ abstract class OciPushTask @Inject constructor(
                                 val sourceBlob = blobs[digest]
                                 blobFutures += if (sourceBlob == null) {
                                     val file = digestToLayer[digest]!!.toPath()
-                                    val size = Files.size(file)
+                                    val size = file.fileSize()
                                     val sender: NettyOutbound.() -> Publisher<Void> = { sendFileChunked(file, 0, size) }
                                     val sourceImageName = resolvedBundle.component.imageReference.name
                                     val future = CompletableFuture<Unit>()
