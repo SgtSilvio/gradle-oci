@@ -47,9 +47,9 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
-    testImplementation("org.testcontainers:testcontainers:1.19.0")
-    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
+    testImplementation("org.testcontainers:testcontainers:1.19.3")
+    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.2.0")
 }
 
 tasks.test {
