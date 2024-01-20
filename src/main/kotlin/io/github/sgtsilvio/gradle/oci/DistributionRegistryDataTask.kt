@@ -26,12 +26,12 @@ abstract class DistributionRegistryDataTask : OciImagesInputTask() {
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
         val blobsDirectory = registryDataDirectory.resolve("blobs").createDirectory()
         val repositoriesDirectory = registryDataDirectory.resolve("repositories").createDirectory()
-
-        for ((digest, layer) in digestToLayer) {
-            blobsDirectory.resolveDigestDataFile(digest).createLinkPointingTo(layer.toPath())
-        }
+        val layerDigests = mutableSetOf<OciDigest>()
         for ((resolvedComponent, imageReferences) in resolvedComponentToImageReferences) {
-            writeImage(resolvedComponent, imageReferences, blobsDirectory, repositoriesDirectory)
+            writeImage(resolvedComponent, imageReferences, blobsDirectory, repositoriesDirectory, layerDigests)
+        }
+        for (digest in layerDigests) {
+            blobsDirectory.resolveDigestDataFile(digest).createLinkPointingTo(digestToLayer[digest]!!.toPath())
         }
     }
 
@@ -40,6 +40,7 @@ abstract class DistributionRegistryDataTask : OciImagesInputTask() {
         imageReferences: Set<OciImageReference>,
         blobsDirectory: Path,
         repositoriesDirectory: Path,
+        layerDigests: MutableSet<OciDigest>,
     ) {
         val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
         val blobDigests = mutableSetOf<OciDigest>()
@@ -47,8 +48,9 @@ abstract class DistributionRegistryDataTask : OciImagesInputTask() {
             val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform).map { it.bundle }
             for (bundle in bundlesForPlatform) {
                 for (layer in bundle.layers) {
-                    layer.descriptor?.let {
-                        blobDigests += it.digest
+                    layer.descriptor?.let { (_, digest) ->
+                        layerDigests += digest
+                        blobDigests += digest
                     }
                 }
             }
