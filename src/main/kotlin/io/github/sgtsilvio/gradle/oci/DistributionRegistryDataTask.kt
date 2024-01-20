@@ -6,6 +6,7 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.OutputDirectory
 import java.io.File
+import java.io.IOException
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -120,4 +121,11 @@ abstract class DistributionRegistryDataTask : OciImagesInputTask() {
             }
         }
     }
+}
+
+internal fun Path.ensureEmptyDirectory(): Path {
+    if (!toFile().deleteRecursively()) {
+        throw IOException("$this could not be deleted")
+    }
+    return createDirectories()
 }
