@@ -15,7 +15,7 @@ import kotlin.io.path.*
 /**
  * @author Silvio Giebl
  */
-abstract class DistributionRegistryDataTask : OciImagesInputTask() {
+abstract class OciRegistryDataTask : OciImagesInputTask() {
 
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()

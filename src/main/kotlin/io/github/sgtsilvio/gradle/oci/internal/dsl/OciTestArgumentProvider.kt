@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.DistributionRegistryDataTask
+import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
 import org.gradle.api.file.FileTree
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
@@ -15,7 +15,7 @@ import org.gradle.process.CommandLineArgumentProvider
  */
 internal class OciTestArgumentProvider(
     objectFactory: ObjectFactory,
-    registryDataTask: TaskProvider<DistributionRegistryDataTask>,
+    registryDataTask: TaskProvider<OciRegistryDataTask>,
 ) : CommandLineArgumentProvider {
 
     @get:InputFiles
