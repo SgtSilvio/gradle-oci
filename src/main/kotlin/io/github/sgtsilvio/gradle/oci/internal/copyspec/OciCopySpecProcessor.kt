@@ -274,6 +274,5 @@ private fun <T> findMatch(patterns: List<Pair<GlobMatcher, T>>, path: String, de
 private fun String.addDirectorySlash() = if (isEmpty()) "" else "$this/"
 
 private class FileSourceAdapter(private val fileTreeElement: FileTreeElement) : FileSource {
-    override fun asFile() = fileTreeElement.file
     override fun copyTo(output: OutputStream) = fileTreeElement.copyTo(output)
 }

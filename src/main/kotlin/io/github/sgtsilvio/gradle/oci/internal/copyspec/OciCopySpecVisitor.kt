@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.internal.copyspec
 
-import java.io.File
 import java.io.OutputStream
 import java.time.Instant
 
@@ -22,6 +21,5 @@ internal data class FileMetadata(
 )
 
 internal interface FileSource {
-    fun asFile(): File
     fun copyTo(output: OutputStream)
 }
