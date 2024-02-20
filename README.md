@@ -186,7 +186,12 @@ The following diagram shows an example where the "application" and "java" OCI co
 
 ![multiple-parent-image-dependencies.drawio.svg](docs/images/multiple-parent-image-dependencies.drawio.svg)
 
-WIP
+Looking into more detail, an OCI component can support multiple platforms; and each OCI component could support a different set of platforms.
+When resolving the graph of OCI components, the actual set of supported platforms is determined.
+The following diagram shows an example where the "app" OCI component support all platforms and the parent OCI components "java" and "os packages" support different platforms.
+The intersection of the supported platforms results in an assembled multi-arch OCI image that supports 2 platforms.
+
+![components-bundles-multi-arch.drawio.svg](docs/images/components-bundles-multi-arch.drawio.svg)
 
 ### Fine-grained Configurability
 
