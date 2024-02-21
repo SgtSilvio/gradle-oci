@@ -207,9 +207,17 @@ The following module dependency types can be used for OCI components:
 
 This section of the documentation is still WIP.
 
+- flexible and explicit definition of OCI image layers
+- easy to package outputs of other tasks (similar to Gradle's copyspecs)
+- easy to declare file ownership and permissions
+- full configuration of OCI image metadata (all properties in config, manifest and index)
+- declarative
+
 ### Clear Separation Between Image and Registry
 
 This section of the documentation is still WIP.
+
+- split registry from image name (same as Gradle's repositories and dependencies)
 
 ### Reproducible Builds
 
@@ -221,3 +229,15 @@ More information on reproducible builds can be found on [https://reproducible-bu
 ### Gradle Native Integration
 
 This section of the documentation is still WIP.
+
+- already described above, using Gradle's dependency model (configurations, dependencies, artifacts, attributes, capabilities)
+- utilize Gradle up-to-date checks
+- utilize Gradle build cache
+- utilize Gradle dependency cache for images downloaded from repositories or OCI registries
+- OCI images as test inputs, compatibility with Develocity test distribution
+
+Difference to jib
+- in contrast to jib not opinionated about the content/structure of OCI images, not only suitable to build java application images
+- jib does not allow flexible configuration, not easy to package outputs of other tasks
+- jib is not Gradle native: does not use Gradle caches and up-to-date checks
+- jib does not allow to build multi-arch images as files, requires registry
