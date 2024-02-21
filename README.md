@@ -193,6 +193,16 @@ The intersection of the supported platforms results in an assembled multi-arch O
 
 ![components-bundles-multi-arch.drawio.svg](docs/images/components-bundles-multi-arch.drawio.svg)
 
+This plugin uses Gradle's model to represent the OCI component artifacts and dependencies.
+It does not reinvent the dependency model.
+Instead, it allows to use the same dependency types for declaring dependencies on OCI component artifacts as for declaring any other dependencies on e.g. Java libraries.
+The following module dependency types can be used for OCI components:
+- Project dependencies: depend on OCI components produced by other Gradle subprojects.
+- External module dependencies:
+  - Can be downloaded from a repository that supports Gradle Module Metadata.
+  - Can also be downloaded from an OCI registry acting as a special kind of a repository.
+  - Can be substituted by project dependencies of included Gradle builds.
+
 ### Fine-grained Configurability
 
 WIP
