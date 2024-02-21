@@ -213,7 +213,10 @@ WIP
 
 ### Reproducible Builds
 
-WIP
+The artifacts produced by this plugin are fully reproducible.
+This includes OCI layers as well as the OCI metadata.
+Reproducibility means that the exact same binaries can be recreated when using the same inputs.
+More information on reproducible builds can be found on [https://reproducible-builds.org/](https://reproducible-builds.org/).
 
 ### Gradle Native Integration
 
