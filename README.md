@@ -205,11 +205,11 @@ The following module dependency types can be used for OCI components:
 
 ### Fine-grained Configurability
 
-WIP
+This section of the documentation is still WIP.
 
 ### Clear Separation Between Image and Registry
 
-WIP
+This section of the documentation is still WIP.
 
 ### Reproducible Builds
 
@@ -220,4 +220,4 @@ More information on reproducible builds can be found on [https://reproducible-bu
 
 ### Gradle Native Integration
 
-WIP
+This section of the documentation is still WIP.
