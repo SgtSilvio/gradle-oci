@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
+import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
@@ -20,10 +21,9 @@ import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.options.Option
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
-import org.gradle.kotlin.dsl.newInstance
-import org.gradle.kotlin.dsl.registerIfAbsent
-import org.gradle.kotlin.dsl.submit
+import org.gradle.kotlin.dsl.*
 import org.gradle.work.DisableCachingByDefault
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
@@ -72,6 +72,23 @@ abstract class OciPushTask @Inject constructor(
     }
 
     fun registry(action: Action<in Registry>) = action.execute(registry)
+
+    @Option(
+        option = "registry",
+        description = "Pushes to the registry defined with the specified name in oci.registries.",
+    )
+    protected fun setRegistryName(registryName: String) =
+        registry.from(project.extensions.getByType<OciExtension>().registries.list[registryName])
+
+    @Option(option = "url", description = "Pushes to the specified registry url.")
+    protected fun setRegistryUrl(registryUrl: String) = registry.url.set(project.uri(registryUrl))
+
+    @Option(
+        option = "credentials",
+        description = "Authenticates to the registry using the credentials with the specified id.",
+    )
+    protected fun setRegistryCredentialsId(credentialsId: String) =
+        registry.credentials.set(project.providers.credentials(PasswordCredentials::class, credentialsId))
 
     override fun run(
         resolvedComponentToImageReferences: Map<ResolvedOciComponent, Set<OciImageReference>>,
