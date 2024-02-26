@@ -4,6 +4,8 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
+import io.github.sgtsilvio.gradle.oci.internal.gradle.optionalPasswordCredentials
+import io.github.sgtsilvio.gradle.oci.internal.gradle.passwordCredentials
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
@@ -141,7 +143,9 @@ internal abstract class OciRegistryImpl @Inject constructor(
 
     final override fun getName() = name
 
-    final override fun credentials() = credentials.set(providerFactory.credentials(PasswordCredentials::class, name))
+    final override fun credentials() = credentials.set(providerFactory.passwordCredentials(name))
+
+    final override fun optionalCredentials() = credentials.set(providerFactory.optionalPasswordCredentials(name))
 }
 
 private const val PORT_HTTP_HEADER_NAME = "port"

@@ -27,4 +27,5 @@ interface OciRegistry : Named {
     val repository: IvyArtifactRepository
 
     fun credentials()
+    fun optionalCredentials()
 }

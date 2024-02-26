@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci
 import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
+import io.github.sgtsilvio.gradle.oci.internal.gradle.passwordCredentials
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
@@ -88,7 +89,7 @@ abstract class OciPushTask @Inject constructor(
         description = "Authenticates to the registry using the credentials with the specified id.",
     )
     protected fun setRegistryCredentialsId(credentialsId: String) =
-        registry.credentials.set(project.providers.credentials(PasswordCredentials::class, credentialsId))
+        registry.credentials.set(project.providers.passwordCredentials(credentialsId))
 
     override fun run(
         resolvedComponentToImageReferences: Map<ResolvedOciComponent, Set<OciImageReference>>,
