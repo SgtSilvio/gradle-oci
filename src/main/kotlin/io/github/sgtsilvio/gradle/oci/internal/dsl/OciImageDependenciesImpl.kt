@@ -84,54 +84,41 @@ internal abstract class OciImageDependenciesImpl<T>(
 
     // add constraint
 
-    final override fun constraint(dependencyConstraint: DependencyConstraint) {
+    final override fun add(dependencyConstraint: DependencyConstraint) {
         configuration.dependencyConstraints.add(dependencyConstraint)
     }
 
-    final override fun constraint(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>) {
+    final override fun add(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>) {
         action.execute(dependencyConstraint)
         configuration.dependencyConstraints.add(dependencyConstraint)
     }
 
-    // add constraint converted from a different notation
+    @Suppress("INAPPLICABLE_JVM_NAME")
+    @JvmName("addConstraint")
+    final override fun add(dependencyConstraintProvider: Provider<out DependencyConstraint>) =
+        configuration.dependencyConstraints.addLater(dependencyConstraintProvider)
 
-    private fun createDependencyConstraint(dependencyNotation: CharSequence): DependencyConstraint =
-        dependencyHandler.constraints.create(dependencyNotation)
+    @Suppress("INAPPLICABLE_JVM_NAME")
+    @JvmName("addConstraint")
+    final override fun add(
+        dependencyConstraintProvider: Provider<out DependencyConstraint>,
+        action: Action<in DependencyConstraint>,
+    ) = configuration.dependencyConstraints.addLater(dependencyConstraintProvider.map { action.execute(it); it })
 
-    private fun createDependencyConstraint(project: Project): DependencyConstraint =
+    // create constraint from a different notation
+
+    final override fun constraint(dependencyConstraintNotation: CharSequence): DependencyConstraint =
+        dependencyHandler.constraints.create(dependencyConstraintNotation)
+
+    final override fun constraint(project: Project): DependencyConstraint =
         dependencyHandler.constraints.create(project)
 
-    private fun createDependencyConstraint(dependency: MinimalExternalModuleDependency): DependencyConstraint =
+    private fun constraint(dependency: MinimalExternalModuleDependency): DependencyConstraint =
         dependencyHandler.constraints.create(dependency)
 
-    final override fun constraint(dependencyConstraintNotation: CharSequence) =
-        constraint(createDependencyConstraint(dependencyConstraintNotation))
-
-    final override fun constraint(dependencyConstraintNotation: CharSequence, action: Action<in DependencyConstraint>) =
-        constraint(createDependencyConstraint(dependencyConstraintNotation), action)
-
-    final override fun constraint(project: Project) = constraint(createDependencyConstraint(project))
-
-    final override fun constraint(project: Project, action: Action<in DependencyConstraint>) =
-        constraint(createDependencyConstraint(project), action)
-
     final override fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>) =
-        configuration.dependencyConstraints.addLater(dependencyProvider.map { createDependencyConstraint(it) })
-
-    final override fun constraint(
-        dependencyProvider: Provider<out MinimalExternalModuleDependency>,
-        action: Action<in DependencyConstraint>,
-    ) = configuration.dependencyConstraints.addLater(dependencyProvider.map {
-        val dependencyConstraint = createDependencyConstraint(it)
-        action.execute(dependencyConstraint)
-        dependencyConstraint
-    })
+        dependencyProvider.map { constraint(it) }
 
     final override fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
         constraint(dependencyProvider.asProvider())
-
-    final override fun constraint(
-        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
-        action: Action<in DependencyConstraint>,
-    ) = constraint(dependencyProvider.asProvider(), action)
 }

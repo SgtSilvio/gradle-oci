@@ -44,33 +44,30 @@ interface OciImageDependencies<T> {
 
     // add constraint
 
-    fun constraint(dependencyConstraint: DependencyConstraint)
+    fun add(dependencyConstraint: DependencyConstraint)
 
-    fun constraint(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>)
+    fun add(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>)
 
-    // add constraint converted from a different notation
+    @Suppress("INAPPLICABLE_JVM_NAME")
+    @JvmName("addConstraint")
+    fun add(dependencyConstraintProvider: Provider<out DependencyConstraint>)
 
-    fun constraint(dependencyConstraintNotation: CharSequence)
-
-    fun constraint(dependencyConstraintNotation: CharSequence, action: Action<in DependencyConstraint>)
-
-    fun constraint(project: Project)
-
-    fun constraint(project: Project, action: Action<in DependencyConstraint>)
-
-    fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>)
-
-    fun constraint(
-        dependencyProvider: Provider<out MinimalExternalModuleDependency>,
+    @Suppress("INAPPLICABLE_JVM_NAME")
+    @JvmName("addConstraint")
+    fun add(
+        dependencyConstraintProvider: Provider<out DependencyConstraint>,
         action: Action<in DependencyConstraint>,
     )
 
-    fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>)
+    // create constraint from a different notation
 
-    fun constraint(
-        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
-        action: Action<in DependencyConstraint>,
-    )
+    fun constraint(dependencyConstraintNotation: CharSequence): DependencyConstraint
+
+    fun constraint(project: Project): DependencyConstraint
+
+    fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>): Provider<DependencyConstraint>
+
+    fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>): Provider<DependencyConstraint>
 
     // dsl syntactic sugar for adding dependency
 
@@ -101,4 +98,23 @@ interface OciImageDependencies<T> {
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in ExternalModuleDependency>,
     ) = add(dependencyProvider, action)
+
+    // dsl syntactic sugar for adding dependency constraint
+
+    operator fun invoke(dependencyConstraint: DependencyConstraint) = add(dependencyConstraint)
+
+    operator fun invoke(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>) =
+        add(dependencyConstraint, action)
+
+    @Suppress("INAPPLICABLE_JVM_NAME")
+    @JvmName("invokeConstraint")
+    operator fun invoke(dependencyConstraintProvider: Provider<out DependencyConstraint>) =
+        add(dependencyConstraintProvider)
+
+    @Suppress("INAPPLICABLE_JVM_NAME")
+    @JvmName("invokeConstraint")
+    operator fun invoke(
+        dependencyConstraintProvider: Provider<out DependencyConstraint>,
+        action: Action<in DependencyConstraint>,
+    ) = add(dependencyConstraintProvider, action)
 }
