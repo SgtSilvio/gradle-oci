@@ -43,7 +43,7 @@ internal class TestProject(projectDir: File) {
             oci {
                 registries {
                     dockerHub {
-                        credentials.set(providers.credentials(PasswordCredentials::class, "dockerHub"))
+                        optionalCredentials()
                     }
                 }
                 imageDefinitions.register("main") {
