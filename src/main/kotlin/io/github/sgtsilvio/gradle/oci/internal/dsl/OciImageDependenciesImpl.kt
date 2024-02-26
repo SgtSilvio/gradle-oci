@@ -6,7 +6,6 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.provider.Provider
-import org.gradle.api.provider.ProviderConvertible
 import org.gradle.kotlin.dsl.withType
 
 /**
@@ -74,14 +73,6 @@ internal abstract class OciImageDependenciesImpl<T>(
     final override fun add(project: Project, action: Action<in ProjectDependency>) =
         add(createDependency(project), action)
 
-    final override fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
-        add(dependencyProvider.asProvider())
-
-    final override fun add(
-        dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
-        action: Action<in ExternalModuleDependency>,
-    ) = add(dependencyProvider.asProvider(), action)
-
     // add constraint
 
     final override fun add(dependencyConstraint: DependencyConstraint) {
@@ -118,7 +109,4 @@ internal abstract class OciImageDependenciesImpl<T>(
 
     final override fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>) =
         dependencyProvider.map { constraint(it) }
-
-    final override fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
-        constraint(dependencyProvider.asProvider())
 }

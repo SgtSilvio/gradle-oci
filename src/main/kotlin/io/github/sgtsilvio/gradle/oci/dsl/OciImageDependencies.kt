@@ -35,12 +35,13 @@ interface OciImageDependencies<T> {
 
     fun add(project: Project, action: Action<in ProjectDependency>): T
 
-    fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>): T
+    fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
+        add(dependencyProvider.asProvider())
 
     fun add(
         dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>,
         action: Action<in ExternalModuleDependency>,
-    ): T
+    ) = add(dependencyProvider.asProvider(), action)
 
     // add constraint
 
@@ -67,7 +68,8 @@ interface OciImageDependencies<T> {
 
     fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>): Provider<DependencyConstraint>
 
-    fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>): Provider<DependencyConstraint>
+    fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
+        constraint(dependencyProvider.asProvider())
 
     // dsl syntactic sugar for adding dependency
 
