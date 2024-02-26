@@ -58,20 +58,19 @@ internal abstract class OciImageDependenciesImpl<T>(
 
     // add dependency converted from a different notation
 
-    private fun createDependency(dependencyNotation: CharSequence) =
+    private fun module(dependencyNotation: CharSequence) =
         dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
 
-    private fun createDependency(project: Project) = dependencyHandler.create(project) as ProjectDependency
+    private fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency
 
-    final override fun add(dependencyNotation: CharSequence) = add(createDependency(dependencyNotation))
+    final override fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
 
     final override fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
-        add(createDependency(dependencyNotation), action)
+        add(module(dependencyNotation), action)
 
-    final override fun add(project: Project) = add(createDependency(project))
+    final override fun add(project: Project) = add(project(project))
 
-    final override fun add(project: Project, action: Action<in ProjectDependency>) =
-        add(createDependency(project), action)
+    final override fun add(project: Project, action: Action<in ProjectDependency>) = add(project(project), action)
 
     // add constraint
 
