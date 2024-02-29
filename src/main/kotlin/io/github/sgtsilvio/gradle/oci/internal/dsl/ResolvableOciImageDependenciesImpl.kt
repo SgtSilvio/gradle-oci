@@ -24,6 +24,7 @@ import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.property
+import org.gradle.kotlin.dsl.setProperty
 import javax.inject.Inject
 
 /**
@@ -48,13 +49,13 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     dependencyHandler,
 ), ResolvableOciImageDependencies {
 
-    private val dependencyReferencePairs = objectFactory.listProperty<Pair<ModuleDependency, Reference>>()
+    private val dependencyReferencesPairs = objectFactory.listProperty<Pair<ModuleDependency, List<Reference>>>()
 
     final override val rootCapabilities: Provider<Map<Coordinates, Set<Reference>>> =
-        configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferencePairs) { rootComponent, dependencyReferencePairs ->
+        configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferencesPairs) { rootComponent, dependencyReferencesPairs ->
             val descriptorToReferences = HashMap<ModuleDependencyDescriptor, List<Reference>>()
-            for ((dependency, reference) in dependencyReferencePairs) {
-                descriptorToReferences.merge(dependency.toDescriptor(), listOf(reference)) { a, b -> a + b }
+            for ((dependency, references) in dependencyReferencesPairs) {
+                descriptorToReferences.merge(dependency.toDescriptor(), references) { a, b -> a + b }
             }
             val coordinatesToReferences = HashMap<Coordinates, HashSet<Reference>>()
             val rootVariant = rootComponent.variants.first()
@@ -75,21 +76,26 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
 
     final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
         val referenceSpec = ReferenceSpec(objectFactory)
-        dependencyReferencePairs.add(referenceSpec.reference.map { Pair(dependency, it) })
+        dependencyReferencesPairs.add(referenceSpec.references.map { Pair(dependency, it) })
         return referenceSpec
     }
 
     final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpec {
         val referenceSpec = ReferenceSpec(objectFactory)
-        dependencyReferencePairs.add(dependencyProvider.zip(referenceSpec.reference, ::Pair))
+        dependencyReferencesPairs.add(dependencyProvider.zip(referenceSpec.references, ::Pair))
         return referenceSpec
     }
 
     class ReferenceSpec(objectFactory: ObjectFactory) : Nameable, Taggable {
         private val nameProperty = objectFactory.property<String>()
-        private val tagProperty = objectFactory.property<String>()
-        val reference: Provider<Reference> = nameProperty.optional().zip(tagProperty.optional()) { name, tag ->
-            Reference(name.orElse(null), tag.orElse(null))
+        private val tagsProperty = objectFactory.setProperty<String>()
+        val references: Provider<List<Reference>> = nameProperty.optional().zip(tagsProperty) { optionalName, tags ->
+            val name = optionalName.orElse(null)
+            if (tags.isEmpty()) {
+                listOf(Reference(name, null))
+            } else {
+                tags.map { tag -> Reference(name, if (tag == ".") null else tag) }
+            }
         }
 
         override fun name(name: String): ReferenceSpec {
@@ -102,9 +108,27 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
             return this
         }
 
-        override fun tag(tag: String) = tagProperty.set(tag)
+        override fun tag(vararg tags: String): ReferenceSpec {
+            tagsProperty.addAll(*tags)
+            return this
+        }
 
-        override fun tag(tagProvider: Provider<String>) = tagProperty.set(tagProvider)
+        override fun tag(tags: Iterable<String>): ReferenceSpec {
+            tagsProperty.addAll(tags)
+            return this
+        }
+
+        override fun tag(tagProvider: Provider<String>): ReferenceSpec {
+            tagsProperty.addAll(tagProvider.map { listOf(it) }.orElse(emptyList()))
+            return this
+        }
+
+        @Suppress("INAPPLICABLE_JVM_NAME")
+        @JvmName("tagMultiple")
+        override fun tag(tagsProvider: Provider<out Iterable<String>>): ReferenceSpec {
+            tagsProperty.addAll(tagsProvider.map { it }.orElse(emptyList()))
+            return this
+        }
     }
 }
 

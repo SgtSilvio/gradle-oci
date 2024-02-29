@@ -15,8 +15,13 @@ interface ResolvableOciImageDependencies : OciImageDependencies<ResolvableOciIma
     data class Reference(val name: String?, val tag: String?) : Serializable
 
     interface Taggable {
-        fun tag(tag: String)
-        fun tag(tagProvider: Provider<String>)
+        fun tag(vararg tags: String): Taggable
+        fun tag(tags: Iterable<String>): Taggable
+        fun tag(tagProvider: Provider<String>): Taggable
+
+        @Suppress("INAPPLICABLE_JVM_NAME")
+        @JvmName("tagMultiple")
+        fun tag(tagsProvider: Provider<out Iterable<String>>): Taggable
     }
 
     interface Nameable : Taggable {
