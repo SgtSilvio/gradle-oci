@@ -1,8 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.internal.gradle.SerializableInstant
-import io.github.sgtsilvio.gradle.oci.internal.gradle.toInstant
-import io.github.sgtsilvio.gradle.oci.internal.gradle.toSerializableInstant
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
@@ -134,3 +131,11 @@ internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
         )
     }
 }
+
+private class SerializableInstant(val epochSecond: Long, val nano: Int) : Serializable {
+    override fun toString() = toInstant().toString()
+}
+
+private fun Instant.toSerializableInstant() = SerializableInstant(epochSecond, nano)
+
+private fun SerializableInstant.toInstant(): Instant = Instant.ofEpochSecond(epochSecond, nano.toLong())
