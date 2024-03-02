@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.json
 
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toSerializableInstant
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -114,7 +115,8 @@ internal fun JsonObject.getStringSetOrNull(key: String) = getOrNull(key) { asArr
 internal fun JsonObject.toStringMap() = toMap(TreeMap()) { asString() }
 internal fun JsonObject.getStringMapOrNull(key: String) = getOrNull(key) { asObject().toStringMap() }
 
-internal fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) }
+internal fun JsonObject.getInstantOrNull(key: String) =
+    getOrNull(key) { Instant.parse(asString()).toSerializableInstant() }
 
 @JsonDecodingDsl
 @JvmInline

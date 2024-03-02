@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.internal.gradle.SerializableInstant
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toSerializableInstant
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
@@ -29,7 +31,7 @@ internal class OciComponentBuilder : Serializable {
 }
 
 internal class OciComponentBundleBuilder : Serializable {
-    private var creationTime: Instant? = null
+    private var creationTime: SerializableInstant? = null
     private var author: String? = null
     private var user: String? = null
     private var ports: Set<String> = setOf()
@@ -46,7 +48,7 @@ internal class OciComponentBundleBuilder : Serializable {
     private var layers: List<OciComponent.Bundle.Layer> = listOf()
 
     fun parentCapabilities(v: List<Coordinates>) = apply { parentCapabilities = v }
-    fun creationTime(v: Instant?) = apply { creationTime = v }
+    fun creationTime(v: Instant?) = apply { creationTime = v?.toSerializableInstant() }
     fun author(v: String?) = apply { author = v }
     fun user(v: String?) = apply { user = v }
     fun ports(v: Set<String>) = apply { ports = v }
@@ -95,13 +97,13 @@ internal class OciComponentBundleCommandBuilder : Serializable {
 
 internal class OciComponentBundleLayerBuilder : Serializable {
     private var descriptor: OciComponent.Bundle.Layer.Descriptor? = null
-    private var creationTime: Instant? = null
+    private var creationTime: SerializableInstant? = null
     private var author: String? = null
     private var createdBy: String? = null
     private var comment: String? = null
 
     fun descriptor(v: OciComponent.Bundle.Layer.Descriptor?) = apply { descriptor = v }
-    fun creationTime(v: Instant?) = apply { creationTime = v }
+    fun creationTime(v: Instant?) = apply { creationTime = v?.toSerializableInstant() }
     fun author(v: String?) = apply { author = v }
     fun createdBy(v: String?) = apply { createdBy = v }
     fun comment(v: String?) = apply { comment = v }
