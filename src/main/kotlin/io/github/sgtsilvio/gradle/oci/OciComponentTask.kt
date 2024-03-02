@@ -1,7 +1,5 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
@@ -17,12 +15,8 @@ import org.gradle.kotlin.dsl.property
  */
 abstract class OciComponentTask : DefaultTask() {
 
-    @get:Internal
-    val component = project.objects.property<OciComponent>()
-
     @get:Input
-    val encodedComponent: Property<String> =
-        project.objects.property<String>().value(component.map { it.encodeToJsonString() })
+    val encodedComponent: Property<String> = project.objects.property<String>()
 
     @get:Internal
     val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()

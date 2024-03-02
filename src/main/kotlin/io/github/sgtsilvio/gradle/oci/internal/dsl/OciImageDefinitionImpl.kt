@@ -118,7 +118,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         taskContainer.register<OciComponentTask>(createOciComponentClassifier(imageDefName).camelCase()) {
             group = TASK_GROUP_NAME
             description = "Assembles an OCI component json file for the $imageDefName image."
-            component.set(this@OciImageDefinitionImpl.component)
+            encodedComponent.set(this@OciImageDefinitionImpl.component.map { it.encodeToJsonString() })
             destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
             classifier.set(createOciComponentClassifier(imageDefName))
         }

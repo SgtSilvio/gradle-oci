@@ -2,13 +2,13 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 
 import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
-import io.github.sgtsilvio.gradle.oci.internal.gradle.SerializableInstant
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.Instant
 import java.util.*
 
 /**
@@ -330,7 +330,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
     ) // TODO order?
 
     private class HistoryEntry(
-        val creationTime: SerializableInstant?,
+        val creationTime: Instant?,
         val author: String?,
         val createdBy: String?,
         val comment: String?,

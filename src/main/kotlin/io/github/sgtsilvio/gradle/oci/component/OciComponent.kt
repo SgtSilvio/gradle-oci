@@ -1,11 +1,11 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.internal.gradle.SerializableInstant
 import io.github.sgtsilvio.gradle.oci.metadata.OciDescriptor
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.io.Serializable
+import java.time.Instant
 import java.util.*
 
 /**
@@ -24,7 +24,7 @@ data class OciComponent(
 
     data class Bundle(
         val parentCapabilities: List<Coordinates>,
-        val creationTime: SerializableInstant?,
+        val creationTime: Instant?,
         val author: String?,
         val user: String?,
         val ports: SortedSet<String>,
@@ -47,7 +47,7 @@ data class OciComponent(
 
         data class Layer(
             val descriptor: Descriptor?,
-            val creationTime: SerializableInstant?,
+            val creationTime: Instant?,
             val author: String?,
             val createdBy: String?,
             val comment: String?,

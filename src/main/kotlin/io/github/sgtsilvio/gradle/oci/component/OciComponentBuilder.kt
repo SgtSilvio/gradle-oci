@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.internal.gradle.SerializableInstant
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toInstant
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toSerializableInstant
 import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
@@ -65,7 +66,7 @@ internal class OciComponentBundleBuilder : Serializable {
 
     fun build() = OciComponent.Bundle(
         parentCapabilities,
-        creationTime,
+        creationTime?.toInstant(),
         author,
         user,
         ports.toSortedSet(),
@@ -108,7 +109,7 @@ internal class OciComponentBundleLayerBuilder : Serializable {
     fun createdBy(v: String?) = apply { createdBy = v }
     fun comment(v: String?) = apply { comment = v }
 
-    fun build() = OciComponent.Bundle.Layer(descriptor, creationTime, author, createdBy, comment)
+    fun build() = OciComponent.Bundle.Layer(descriptor, creationTime?.toInstant(), author, createdBy, comment)
 }
 
 internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
