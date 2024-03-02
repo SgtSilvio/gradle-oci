@@ -132,9 +132,7 @@ internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
     }
 }
 
-private class SerializableInstant(val epochSecond: Long, val nano: Int) : Serializable {
-    override fun toString() = toInstant().toString()
-}
+private class SerializableInstant(val epochSecond: Long, val nano: Int) : Serializable
 
 private fun Instant.toSerializableInstant() = SerializableInstant(epochSecond, nano)
 
