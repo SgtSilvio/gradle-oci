@@ -633,7 +633,9 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         }
 }
 
-private val RETRY_SPEC: RetrySpec = Retry.max(3).filter { error -> error is PrematureCloseException }
+private val RETRY_SPEC: RetrySpec = Retry.max(3).filter { error ->
+    (error is PrematureCloseException) && (error.message?.contains("BEFORE response") == true)
+}
 
 private class DigestVerifyingFlux(
     source: Flux<ByteBuf>,
