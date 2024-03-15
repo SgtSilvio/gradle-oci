@@ -81,7 +81,7 @@ abstract class OciPushTask @Inject constructor(
     protected fun setRegistryName(registryName: String) =
         registry.from(project.extensions.getByType<OciExtension>().registries.list[registryName])
 
-    @Option(option = "url", description = "Pushes to the specified registry url.")
+    @Option(option = "url", description = "Pushes to the specified registry URL.")
     protected fun setRegistryUrl(registryUrl: String) = registry.url.set(project.uri(registryUrl))
 
     @Option(

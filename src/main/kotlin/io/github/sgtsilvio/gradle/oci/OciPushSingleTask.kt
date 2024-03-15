@@ -17,14 +17,14 @@ abstract class OciPushSingleTask @Inject constructor(workerExecutor: WorkerExecu
     @get:Internal
     @get:Option(
         option = "name",
-        description = "Names the image. If not specified the imageName defined in the image definition is used.",
+        description = "Names the image. If not specified, the imageName defined in the image definition is used.",
     )
     val imageName = project.objects.property<String>()
 
     @get:Internal
     @get:Option(
         option = "tag",
-        description = "Tags the image. Option can be specified multiple times. The value '.' translates to the imageTag defined in the image definition. If not specified the imageTag defined in the image definition is used.",
+        description = "Tags the image. Option can be specified multiple times. The value '.' translates to the imageTag defined in the image definition. If not specified, the imageTag defined in the image definition is used.",
     )
     val imageTags = project.objects.setProperty<String>()
 }
