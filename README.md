@@ -47,9 +47,9 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
-    testImplementation("org.testcontainers:testcontainers:1.19.3")
-    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.3.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.testcontainers:testcontainers:1.19.7")
+    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.4.0")
 }
 
 tasks.test {
@@ -65,7 +65,7 @@ oci {
     imageDefinitions.register("main") {
         allPlatforms {
             parentImages {
-                add("library:eclipse-temurin:17.0.7_7-jre-jammy")
+                add("library:eclipse-temurin:21.0.2_13-jre-jammy")
             }
             config {
                 entryPoint.set(listOf("java", "-jar", "app.jar"))
