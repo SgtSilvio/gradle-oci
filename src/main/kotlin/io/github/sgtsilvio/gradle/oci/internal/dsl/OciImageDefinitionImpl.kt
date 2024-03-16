@@ -23,6 +23,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
@@ -65,6 +66,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private var platformBundles: TreeMap<Platform, Bundle>? = null
     final override val component = createComponent(providerFactory)
     private val componentTask = createComponentTask(name, taskContainer, projectLayout)
+    final override val dependency = createDependency()
 
     init {
         registerArtifacts(objectFactory, providerFactory)
@@ -122,6 +124,16 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
             classifier.set(createOciComponentClassifier(imageDefName))
         }
+
+    private fun createDependency(): Provider<ProjectDependency> = capabilities.set.map { capabilities ->
+        val projectDependency = project.dependencies.create(project) as ProjectDependency
+        projectDependency.capabilities {
+            for (capability in capabilities) {
+                requireCapability("${capability.group}:${capability.name}")
+            }
+        }
+        projectDependency
+    }
 
     private fun registerArtifacts(objectFactory: ObjectFactory, providerFactory: ProviderFactory) {
         imageConfiguration.outgoing.addArtifacts(providerFactory.provider {
