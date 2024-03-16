@@ -83,8 +83,8 @@ testing {
             targets.configureEach {
                 testTask {
                     environment(
-                        "ORG_GRADLE_PROJECT_dockerHubUsername" to project.property("dockerHubUsername"),
-                        "ORG_GRADLE_PROJECT_dockerHubPassword" to project.property("dockerHubPassword"),
+                        "ORG_GRADLE_PROJECT_dockerHubUsername" to ToStringProvider(providers.gradleProperty("dockerHubUsername")),
+                        "ORG_GRADLE_PROJECT_dockerHubPassword" to ToStringProvider(providers.gradleProperty("dockerHubPassword")),
                     )
                 }
             }
@@ -98,4 +98,8 @@ tasks.check {
 
 gradlePlugin {
     testSourceSets(sourceSets["functionalTest"])
+}
+
+class ToStringProvider(private val provider: Provider<String>) {
+    override fun toString() = provider.get()
 }
