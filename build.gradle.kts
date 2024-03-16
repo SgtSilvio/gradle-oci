@@ -7,10 +7,10 @@ plugins {
 }
 
 group = "io.github.sgtsilvio.gradle"
-description = "Gradle plugin to ease using and producing (multi-arch) OCI images without requiring external tools"
 
 metadata {
     readableName = "Gradle OCI Plugin"
+    description = "Gradle plugin to ease using and producing (multi-arch) OCI images without requiring external tools"
     license {
         apache2()
     }
