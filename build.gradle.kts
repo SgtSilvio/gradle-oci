@@ -90,14 +90,14 @@ testing {
             }
         }
     }
-}
 
-tasks.check {
-    dependsOn(testing.suites)
-}
+    tasks.check {
+        dependsOn(suites)
+    }
 
-gradlePlugin {
-    testSourceSets(sourceSets["functionalTest"])
+    gradlePlugin {
+        testSourceSets(sourceSets["functionalTest"])
+    }
 }
 
 class ToStringProvider(private val provider: Provider<String>) {
