@@ -36,8 +36,16 @@ internal class TestProject(projectDir: File) {
                 mavenCentral()
             }
             testing {
-                suites.withType<JvmTestSuite> {
-                    useJUnitJupiter("5.10.0")
+                suites {
+                    "test"(JvmTestSuite::class) {
+                        useJUnitJupiter("5.10.0")
+                        ociDependencies {
+                            image(project)
+                            image(project).tag("latest")
+                            image(constraint("library:eclipse-temurin:20.0.1_9-jre-jammy"))
+                            image("hivemq:hivemq4:4.16.0")
+                        }
+                    }
                 }
             }
             oci {
@@ -63,12 +71,6 @@ internal class TestProject(projectDir: File) {
                             }
                         }
                     }
-                }
-                imageDependencies.forTest(tasks.test) {
-                    add(project)
-                    add(project).tag("latest")
-                    add(constraint("library:eclipse-temurin:20.0.1_9-jre-jammy"))
-                    add("hivemq:hivemq4:4.16.0")
                 }
             }
             """.trimIndent()

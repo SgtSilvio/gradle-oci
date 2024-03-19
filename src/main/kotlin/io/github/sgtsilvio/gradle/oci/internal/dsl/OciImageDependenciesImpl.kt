@@ -106,6 +106,7 @@ internal abstract class OciImageDependenciesImpl<T>(
     private fun constraint(dependency: MinimalExternalModuleDependency): DependencyConstraint =
         dependencyHandler.constraints.create(dependency)
 
-    final override fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>) =
-        dependencyProvider.map { constraint(it) }
+    final override fun constraint(
+        dependencyProvider: Provider<out MinimalExternalModuleDependency>,
+    ): Provider<DependencyConstraint> = dependencyProvider.map { constraint(it) }
 }

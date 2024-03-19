@@ -1,8 +1,10 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.dsl.OciDependenciesExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.internal.concatCamelCase
+import io.github.sgtsilvio.gradle.oci.internal.dsl.OciDependenciesExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
 import org.gradle.api.Plugin
@@ -20,6 +22,12 @@ class OciPlugin : Plugin<Project> {
         project.dependencies.attributesSchema.attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
         val extension = project.extensions.create(OciExtension::class, EXTENSION_NAME, OciExtensionImpl::class)
         registerPushTasks(project, extension)
+        project.extensions.create(
+            OciDependenciesExtension::class,
+            DEPENDENCIES_EXTENSION_NAME,
+            OciDependenciesExtensionImpl::class,
+            extension,
+        )
     }
 
     private fun registerPushTasks(project: Project, extension: OciExtension) {
@@ -40,4 +48,5 @@ class OciPlugin : Plugin<Project> {
 }
 
 const val EXTENSION_NAME = "oci"
+const val DEPENDENCIES_EXTENSION_NAME = "ociDependencies"
 const val TASK_GROUP_NAME = "oci"

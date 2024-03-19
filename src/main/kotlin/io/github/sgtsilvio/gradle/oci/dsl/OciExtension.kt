@@ -9,8 +9,6 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.TaskProvider
-import org.gradle.api.tasks.testing.Test
 
 /**
  * @author Silvio Giebl
@@ -47,15 +45,4 @@ interface OciExtension {
         val variants: SetProperty<String>
         val osVersions: SetProperty<String>
     }
-
-    fun NamedDomainObjectContainer<ResolvableOciImageDependencies>.forTest(
-        testTask: TaskProvider<Test>,
-        action: Action<in ResolvableOciImageDependencies>,
-    )
-
-    fun NamedDomainObjectContainer<ResolvableOciImageDependencies>.forTest(
-        testTask: TaskProvider<Test>,
-        scope: String,
-        action: Action<in ResolvableOciImageDependencies>,
-    )
 }
