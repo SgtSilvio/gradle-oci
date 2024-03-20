@@ -14,7 +14,7 @@ import org.gradle.kotlin.dsl.withType
 internal abstract class OciImageDependenciesImpl<T>(
     final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
-) : OciImageDependencies<T> {
+) : DependencyConstraintFactoriesImpl(dependencyHandler.constraints), OciImageDependencies<T> {
 
     final override val set get() = configuration.allDependencies.withType(ModuleDependency::class)
 
@@ -94,19 +94,4 @@ internal abstract class OciImageDependenciesImpl<T>(
         dependencyConstraintProvider: Provider<out DependencyConstraint>,
         action: Action<in DependencyConstraint>,
     ) = configuration.dependencyConstraints.addLater(dependencyConstraintProvider.map { action.execute(it); it })
-
-    // create constraint from a different notation
-
-    final override fun constraint(dependencyConstraintNotation: CharSequence): DependencyConstraint =
-        dependencyHandler.constraints.create(dependencyConstraintNotation)
-
-    final override fun constraint(project: Project): DependencyConstraint =
-        dependencyHandler.constraints.create(project)
-
-    private fun constraint(dependency: MinimalExternalModuleDependency): DependencyConstraint =
-        dependencyHandler.constraints.create(dependency)
-
-    final override fun constraint(
-        dependencyProvider: Provider<out MinimalExternalModuleDependency>,
-    ): Provider<DependencyConstraint> = dependencyProvider.map { constraint(it) }
 }

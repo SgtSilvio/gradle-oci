@@ -10,7 +10,7 @@ import org.gradle.api.provider.ProviderConvertible
 /**
  * @author Silvio Giebl
  */
-interface OciImageDependencies<T> {
+interface OciImageDependencies<T> : DependencyConstraintFactories {
 
     val configuration: Configuration
     val set: DomainObjectSet<ModuleDependency>
@@ -59,17 +59,6 @@ interface OciImageDependencies<T> {
         dependencyConstraintProvider: Provider<out DependencyConstraint>,
         action: Action<in DependencyConstraint>,
     )
-
-    // create constraint from a different notation
-
-    fun constraint(dependencyConstraintNotation: CharSequence): DependencyConstraint
-
-    fun constraint(project: Project): DependencyConstraint
-
-    fun constraint(dependencyProvider: Provider<out MinimalExternalModuleDependency>): Provider<DependencyConstraint>
-
-    fun constraint(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
-        constraint(dependencyProvider.asProvider())
 
     // dsl syntactic sugar for adding dependency
 
