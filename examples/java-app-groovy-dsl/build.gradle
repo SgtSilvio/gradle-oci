@@ -1,0 +1,65 @@
+import java.time.Instant
+
+plugins {
+    id("java")
+    alias(libs.plugins.oci)
+}
+
+group = "org.example"
+version = "1.0.0"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+tasks.named("jar") {
+    manifest.attributes["Main-Class"] = "org.example.java.app.Main"
+}
+
+repositories {
+    mavenCentral()
+}
+
+oci {
+    registries {
+        dockerHub {
+            optionalCredentials()
+        }
+    }
+    imageDefinitions.register("main") {
+        allPlatforms {
+            parentImages {
+                add("library:eclipse-temurin:21.0.2_13-jre-jammy")
+            }
+            config {
+                creationTime = Instant.EPOCH
+                entryPoint = ["java", "-jar"]
+                entryPoint.add(tasks.named("jar").flatMap { it.archiveFileName })
+            }
+            layers {
+                layer("app") {
+                    contents {
+                        from(tasks.named("jar"))
+                    }
+                }
+            }
+        }
+    }
+}
+
+testing {
+    suites {
+        test {
+            useJUnitJupiter()
+            dependencies {
+                implementation(libs.testcontainers)
+                implementation(libs.gradleOci.junitJupiter)
+            }
+            ociDependencies.forTestSuite(it) {
+                image.add(project).tag("latest")
+            }
+        }
+    }
+}
