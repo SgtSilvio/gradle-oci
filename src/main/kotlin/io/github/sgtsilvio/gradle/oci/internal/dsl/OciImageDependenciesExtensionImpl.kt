@@ -2,9 +2,9 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
 import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
-import io.github.sgtsilvio.gradle.oci.dsl.OciDependencies
-import io.github.sgtsilvio.gradle.oci.dsl.OciDependenciesExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesExtension
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesForRuntime
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.concatCamelCase
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
@@ -22,16 +22,16 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-internal abstract class OciDependenciesExtensionImpl @Inject constructor(
+internal abstract class OciImageDependenciesExtensionImpl @Inject constructor(
     private val oci: OciExtension,
     private val objectFactory: ObjectFactory,
     private val taskContainer: TaskContainer,
     private val projectLayout: ProjectLayout,
     dependencyConstraintHandler: DependencyConstraintHandler,
-) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciDependenciesExtension {
+) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDependenciesExtension {
 
-    private val testSuiteDependencies = HashMap<String, OciDependenciesImpl>()
-    private val testDependencies = HashMap<String, OciDependenciesImpl>()
+    private val testSuiteDependencies = HashMap<String, OciImageDependenciesForRuntimeImpl>()
+    private val testDependencies = HashMap<String, OciImageDependenciesForRuntimeImpl>()
 
     final override fun forTestSuite(testSuite: JvmTestSuite) = testSuiteDependencies.getOrPut(testSuite.name) {
         val testSuiteName = testSuite.name
@@ -45,7 +45,7 @@ internal abstract class OciDependenciesExtensionImpl @Inject constructor(
                 jvmArgumentProviders += OciTestArgumentProvider(objectFactory, registryDataTask)
             }
         }
-        objectFactory.newInstance<OciDependenciesImpl>(testSuiteName, registryDataTask, oci)
+        objectFactory.newInstance<OciImageDependenciesForRuntimeImpl>(testSuiteName, registryDataTask, oci)
     }
 
     final override fun forTest(testTask: TaskProvider<Test>) = testDependencies.getOrPut(testTask.name) {
@@ -58,22 +58,22 @@ internal abstract class OciDependenciesExtensionImpl @Inject constructor(
         testTask {
             jvmArgumentProviders += OciTestArgumentProvider(objectFactory, registryDataTask)
         }
-        objectFactory.newInstance<OciDependenciesImpl>(testTaskName, registryDataTask, oci)
+        objectFactory.newInstance<OciImageDependenciesForRuntimeImpl>(testTaskName, registryDataTask, oci)
     }
 }
 
-internal abstract class OciDependenciesImpl @Inject constructor(
+internal abstract class OciImageDependenciesForRuntimeImpl @Inject constructor(
     private val name: String,
     private val registryDataTask: TaskProvider<OciRegistryDataTask>,
     private val oci: OciExtension,
     dependencyConstraintHandler: DependencyConstraintHandler,
-) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciDependencies {
+) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDependenciesForRuntime {
 
     private val scopes = HashMap<String, ResolvableOciImageDependencies>()
 
-    final override val image = imageScope("")
+    final override val runtime = runtimeScope("")
 
-    final override fun imageScope(scope: String): ResolvableOciImageDependencies = scopes.getOrPut(scope) {
+    final override fun runtimeScope(scope: String): ResolvableOciImageDependencies = scopes.getOrPut(scope) {
         val imageDependencies = oci.imageDependencies.create(name.concatCamelCase(scope))
         registryDataTask {
             from(imageDependencies)
