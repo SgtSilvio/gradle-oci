@@ -39,11 +39,11 @@ internal class TestProject(projectDir: File) {
                 suites {
                     "test"(JvmTestSuite::class) {
                         useJUnitJupiter("5.10.0")
-                        ociDependencies {
-                            image(project)
-                            image(project).tag("latest")
-                            image(constraint("library:eclipse-temurin:20.0.1_9-jre-jammy"))
-                            image("hivemq:hivemq4:4.16.0")
+                        ociImageDependencies {
+                            runtime(project)
+                            runtime(project).tag("latest")
+                            runtime(constraint("library:eclipse-temurin:20.0.1_9-jre-jammy"))
+                            runtime("hivemq:hivemq4:4.16.0")
                         }
                     }
                 }
