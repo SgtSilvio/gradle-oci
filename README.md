@@ -59,7 +59,7 @@ tasks.test {
 oci {
     registries {
         dockerHub {
-            credentials()
+            optionalCredentials()
         }
     }
     imageDefinitions.register("main") {
