@@ -74,7 +74,7 @@ internal abstract class OciImageDependenciesForRuntimeImpl @Inject constructor(
     final override val runtime = runtimeScope("")
 
     final override fun runtimeScope(scope: String): ResolvableOciImageDependencies = scopes.getOrPut(scope) {
-        val imageDependencies = oci.imageDependencies.create(name.concatCamelCase(scope))
+        val imageDependencies = oci.imageDependencies.create(name.concatCamelCase("runtime").concatCamelCase(scope))
         registryDataTask {
             from(imageDependencies)
         }
