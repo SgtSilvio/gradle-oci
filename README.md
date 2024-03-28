@@ -32,28 +32,18 @@ rootProject.name = "oci-demo"
 ```kotlin
 plugins {
     java
-    id("io.github.sgtsilvio.gradle.oci") version "0.8.0"
+    id("io.github.sgtsilvio.gradle.oci") version "0.9.0"
 }
 
 group = "org.example"
 version = "1.0.0"
 
 tasks.jar {
-    manifest.attributes("Main-Class" to "org.example.oci.demo.Main")
+    manifest.attributes["Main-Class"] = "org.example.oci.demo.Main"
 }
 
 repositories {
     mavenCentral()
-}
-
-dependencies {
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.testcontainers:testcontainers:1.19.7")
-    testImplementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.4.0")
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 oci {
@@ -68,20 +58,32 @@ oci {
                 add("library:eclipse-temurin:21.0.2_13-jre-jammy")
             }
             config {
-                entryPoint.set(listOf("java", "-jar", "app.jar"))
+                entryPoint = listOf("java", "-jar")
+                entryPoint.add(tasks.jar.flatMap { it.archiveFileName })
             }
             layers {
                 layer("jar") {
                     contents {
                         from(tasks.jar)
-                        rename(".*", "app.jar")
                     }
                 }
             }
         }
     }
-    imageDependencies.forTest(tasks.test) {
-        add(project)
+}
+
+testing {
+    suites {
+        "test"(JvmTestSuite::class) {
+            useJUnitJupiter()
+            dependencies {
+                implementation("org.testcontainers:testcontainers:1.19.7")
+                implementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.4.0")
+            }
+            ociImageDependencies {
+                runtime(project)
+            }
+        }
     }
 }
 ```
@@ -112,7 +114,7 @@ public class ImageTest {
 
     @Test
     void test() throws InterruptedException {
-        final GenericContainer<?> container = new GenericContainer(OciImages.getImageName("example/oci-demo:1.0.0"));
+        final GenericContainer<?> container = new GenericContainer<>(OciImages.getImageName("example/oci-demo:1.0.0"));
         container.withLogConsumer(outputFrame -> System.out.println(outputFrame.getUtf8StringWithoutLineEnding()));
         container.start();
         Thread.sleep(100);
