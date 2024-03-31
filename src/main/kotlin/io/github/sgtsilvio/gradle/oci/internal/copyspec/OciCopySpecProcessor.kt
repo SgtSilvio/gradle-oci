@@ -28,6 +28,7 @@ internal fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
         listOf(),
         groupId.orNull ?: DEFAULT_GROUP_ID,
         listOf(),
+        LinkedList(),
         object : OciCopySpecVisitor {
             override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
                 if (allFiles.putIfAbsent(fileMetadata.path, fileMetadata) == null) {
@@ -63,18 +64,21 @@ private fun OciCopySpecInput.process(
     parentUserIdPatterns: List<Pair<GlobMatcher, Long>>,
     parentGroupId: Long,
     parentGroupIdPatterns: List<Pair<GlobMatcher, Long>>,
+    parentDirectoryVisitors: LinkedList<() -> Unit>,
     visitor: OciCopySpecVisitor,
 ) {
     val currentDestinationPath = destinationPath.get()
-    visitAllDirectories(parentDestinationPath, currentDestinationPath) { path ->
-        val fileMetadata = FileMetadata(
-            path,
-            findMatch(parentPermissionPatterns, path, parentDirectoryPermissions),
-            findMatch(parentUserIdPatterns, path, parentUserId),
-            findMatch(parentGroupIdPatterns, path, parentGroupId),
-            DEFAULT_MODIFICATION_TIME
-        )
-        visitor.visitDirectory(fileMetadata)
+    parentDirectoryVisitors += {
+        visitAllDirectories(parentDestinationPath, currentDestinationPath) { path ->
+            val fileMetadata = FileMetadata(
+                path,
+                findMatch(parentPermissionPatterns, path, parentDirectoryPermissions),
+                findMatch(parentUserIdPatterns, path, parentUserId),
+                findMatch(parentGroupIdPatterns, path, parentGroupId),
+                DEFAULT_MODIFICATION_TIME
+            )
+            visitor.visitDirectory(fileMetadata)
+        }
     }
 
     val destinationPath = parentDestinationPath + currentDestinationPath.addDirectorySlash()
@@ -91,6 +95,7 @@ private fun OciCopySpecInput.process(
     val moveCache = HashMap<String, String>()
     sources.asFileTree.visit(object : ReproducibleFileVisitor {
         override fun visitDir(dirDetails: FileVisitDetails) {
+            visitParentDirectories(parentDirectoryVisitors)
             move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveCache) { path ->
                 val fileMetadata = FileMetadata(
                     path,
@@ -104,6 +109,7 @@ private fun OciCopySpecInput.process(
         }
 
         override fun visitFile(fileDetails: FileVisitDetails) {
+            visitParentDirectories(parentDirectoryVisitors)
             val parentPath =
                 move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveCache) { path ->
                     val fileMetadata = FileMetadata(
@@ -144,9 +150,17 @@ private fun OciCopySpecInput.process(
             userIdPatterns,
             groupId,
             groupIdPatterns,
+            parentDirectoryVisitors,
             visitor
         )
     }
+}
+
+private fun visitParentDirectories(parentDirectoryVisitors: LinkedList<() -> Unit>) {
+    for (parentDirectoryVisitor in parentDirectoryVisitors) {
+        parentDirectoryVisitor()
+    }
+    parentDirectoryVisitors.clear()
 }
 
 private fun convertRenamePatterns(
