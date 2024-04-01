@@ -17,7 +17,7 @@ internal data class FileMetadata(
     val userId: Long,
     val groupId: Long,
     val modificationTime: Instant,
-    val size: Long = 0,
+    val size: Long,
 )
 
 internal interface FileSource {

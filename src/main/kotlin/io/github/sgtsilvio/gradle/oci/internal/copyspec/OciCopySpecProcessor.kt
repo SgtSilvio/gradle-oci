@@ -56,7 +56,7 @@ internal fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
 private class DestinationPathState(
     val destinationPath: String,
     val childDestinationPath: String,
-    val directoryPermissions: Int,
+    val permissions: Int,
     val permissionPatterns: List<Pair<GlobMatcher, Int>>,
     val userId: Long,
     val userIdPatterns: List<Pair<GlobMatcher, Long>>,
@@ -179,7 +179,7 @@ private fun visitDirectories(
     segments: Array<String>,
     movePatterns: List<Triple<GlobMatcher, Regex, String>>,
     moveCache: HashMap<String, String>,
-    directoryPermissions: Int,
+    permissions: Int,
     permissionPatterns: List<Pair<GlobMatcher, Int>>,
     userId: Long,
     userIdPatterns: List<Pair<GlobMatcher, Long>>,
@@ -187,36 +187,71 @@ private fun visitDirectories(
     groupIdPatterns: List<Pair<GlobMatcher, Long>>,
     visitor: OciCopySpecVisitor,
 ): String {
-    visitPendingDestinationPaths(pendingDestinationPathStates, visitor)
-    return move(destinationPath, segments, movePatterns, moveCache) { path ->
-        val fileMetadata = FileMetadata(
-            path,
-            findMatch(permissionPatterns, path, directoryPermissions),
-            findMatch(userIdPatterns, path, userId),
-            findMatch(groupIdPatterns, path, groupId),
-            DEFAULT_MODIFICATION_TIME,
+    for (state in pendingDestinationPathStates) {
+        visitDirectories(
+            state.destinationPath,
+            state.childDestinationPath,
+            state.permissions,
+            state.permissionPatterns,
+            state.userId,
+            state.userIdPatterns,
+            state.groupId,
+            state.groupIdPatterns,
+            visitor,
         )
-        visitor.visitDirectory(fileMetadata)
     }
+    pendingDestinationPathStates.clear()
+
+    var path = destinationPath
+    for (segment in segments) {
+        val pathBeforeMove = "$path$segment"
+        val movedSegmentPath = moveCache[pathBeforeMove] ?: rename(path, segment, movePatterns, ::validateMove).also {
+            visitDirectories(
+                path,
+                it,
+                permissions,
+                permissionPatterns,
+                userId,
+                userIdPatterns,
+                groupId,
+                groupIdPatterns,
+                visitor,
+            )
+            moveCache[pathBeforeMove] = it
+        }
+        if (movedSegmentPath.isNotEmpty()) {
+            path += "$movedSegmentPath/"
+        }
+    }
+    return path
 }
 
-private fun visitPendingDestinationPaths(
-    pendingDestinationPathStates: LinkedList<DestinationPathState>,
+private fun visitDirectories(
+    parentPath: String,
+    directoryPath: String,
+    permissions: Int,
+    permissionPatterns: List<Pair<GlobMatcher, Int>>,
+    userId: Long,
+    userIdPatterns: List<Pair<GlobMatcher, Long>>,
+    groupId: Long,
+    groupIdPatterns: List<Pair<GlobMatcher, Long>>,
     visitor: OciCopySpecVisitor,
 ) {
-    for (state in pendingDestinationPathStates) {
-        visitAllDirectories(state.destinationPath, state.childDestinationPath) { path ->
+    if (directoryPath.isNotEmpty()) {
+        var path = parentPath
+        for (directoryName in directoryPath.split('/')) {
+            path = "$path$directoryName/"
             val fileMetadata = FileMetadata(
                 path,
-                findMatch(state.permissionPatterns, path, state.directoryPermissions),
-                findMatch(state.userIdPatterns, path, state.userId),
-                findMatch(state.groupIdPatterns, path, state.groupId),
+                findMatch(permissionPatterns, path, permissions),
+                findMatch(userIdPatterns, path, userId),
+                findMatch(groupIdPatterns, path, groupId),
                 DEFAULT_MODIFICATION_TIME,
+                0,
             )
             visitor.visitDirectory(fileMetadata)
         }
     }
-    pendingDestinationPathStates.clear()
 }
 
 private fun convertRenamePatterns(
@@ -274,27 +309,6 @@ private fun validateRename(fileName: String, renamedFileName: String): String {
     return renamedFileName
 }
 
-private inline fun move(
-    destinationPath: String,
-    segments: Array<String>,
-    patterns: List<Triple<GlobMatcher, Regex, String>>,
-    moveCache: HashMap<String, String>,
-    newDirectoryAction: (String) -> Unit,
-): String {
-    var path = destinationPath
-    for (segment in segments) {
-        val pathBeforeMove = "$path$segment"
-        val movedSegmentPath = moveCache[pathBeforeMove] ?: rename(path, segment, patterns, ::validateMove).also {
-            visitAllDirectories(path, it, newDirectoryAction)
-            moveCache[pathBeforeMove] = it
-        }
-        if (movedSegmentPath.isNotEmpty()) {
-            path += "$movedSegmentPath/"
-        }
-    }
-    return path
-}
-
 private fun validateMove(directoryName: String, movedDirectoryPath: String): String {
     if (movedDirectoryPath.startsWith('/')) {
         error("directory must not start with '/' after movement ($directoryName -> $movedDirectoryPath)")
@@ -304,16 +318,6 @@ private fun validateMove(directoryName: String, movedDirectoryPath: String): Str
         error("directory must not contain '//' after movement ($directoryName -> $movedDirectoryPath)")
     }
     return movedDirectoryPath
-}
-
-private inline fun visitAllDirectories(parentPath: String, directoryPath: String, visitor: (String) -> Unit) {
-    if (directoryPath.isNotEmpty()) {
-        var path = parentPath
-        for (directoryName in directoryPath.split('/')) {
-            path = "$path$directoryName/"
-            visitor(path)
-        }
-    }
 }
 
 private fun <T> convertPatterns(
