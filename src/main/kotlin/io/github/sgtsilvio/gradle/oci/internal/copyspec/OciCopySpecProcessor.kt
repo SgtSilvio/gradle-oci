@@ -279,21 +279,20 @@ private inline fun move(
     segments: Array<String>,
     patterns: List<Triple<GlobMatcher, Regex, String>>,
     moveCache: HashMap<String, String>,
-    crossinline newDirectoryAction: (String) -> Unit,
+    newDirectoryAction: (String) -> Unit,
 ): String {
-    var movedPath = destinationPath
-    for (directoryName in segments) {
-        val parentPath = movedPath
-        val movedDirectoryPath = moveCache.computeIfAbsent("$parentPath/$directoryName") {
-            val movedDirectoryPath = rename(parentPath, directoryName, patterns, ::validateMove)
-            visitAllDirectories(parentPath, movedDirectoryPath, newDirectoryAction)
-            movedDirectoryPath
+    var path = destinationPath
+    for (segment in segments) {
+        val pathBeforeMove = "$path$segment"
+        val movedSegmentPath = moveCache[pathBeforeMove] ?: rename(path, segment, patterns, ::validateMove).also {
+            visitAllDirectories(path, it, newDirectoryAction)
+            moveCache[pathBeforeMove] = it
         }
-        if (movedDirectoryPath.isNotEmpty()) {
-            movedPath += "$movedDirectoryPath/"
+        if (movedSegmentPath.isNotEmpty()) {
+            path += "$movedSegmentPath/"
         }
     }
-    return movedPath
+    return path
 }
 
 private fun validateMove(directoryName: String, movedDirectoryPath: String): String {
