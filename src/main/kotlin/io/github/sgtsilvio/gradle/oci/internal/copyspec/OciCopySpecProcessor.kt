@@ -20,15 +20,15 @@ internal fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
     process(
         LinkedList(),
         "",
-        listOf(),
-        listOf(),
+        emptyList(),
+        emptyList(),
         filePermissions.orNull ?: DEFAULT_FILE_PERMISSIONS,
         directoryPermissions.orNull ?: DEFAULT_DIRECTORY_PERMISSIONS,
-        listOf(),
+        emptyList(),
         userId.orNull ?: DEFAULT_USER_ID,
-        listOf(),
+        emptyList(),
         groupId.orNull ?: DEFAULT_GROUP_ID,
-        listOf(),
+        emptyList(),
         object : OciCopySpecVisitor {
             override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
                 if (allFiles.putIfAbsent(fileMetadata.path, fileMetadata) == null) {
@@ -52,17 +52,6 @@ internal fun OciCopySpecInput.process(visitor: OciCopySpecVisitor) {
     )
     allFiles.clear()
 }
-
-private class DestinationPathState(
-    val destinationPath: String,
-    val childDestinationPath: String,
-    val permissions: Int,
-    val permissionPatterns: List<Pair<GlobMatcher, Int>>,
-    val userId: Long,
-    val userIdPatterns: List<Pair<GlobMatcher, Long>>,
-    val groupId: Long,
-    val groupIdPatterns: List<Pair<GlobMatcher, Long>>,
-)
 
 private fun OciCopySpecInput.process(
     pendingDestinationPathStates: LinkedList<DestinationPathState>,
@@ -173,6 +162,17 @@ private fun OciCopySpecInput.process(
     }
 }
 
+private class DestinationPathState(
+    val destinationPath: String,
+    val childDestinationPath: String,
+    val permissions: Int,
+    val permissionPatterns: List<Pair<GlobMatcher, Int>>,
+    val userId: Long,
+    val userIdPatterns: List<Pair<GlobMatcher, Long>>,
+    val groupId: Long,
+    val groupIdPatterns: List<Pair<GlobMatcher, Long>>,
+)
+
 private fun visitDirectories(
     pendingDestinationPathStates: LinkedList<DestinationPathState>,
     destinationPath: String,
@@ -254,33 +254,6 @@ private fun visitDirectories(
     }
 }
 
-private fun convertRenamePatterns(
-    parentPatterns: List<Triple<GlobMatcher, Regex, String>>,
-    patterns: List<Triple<String, String, String>>,
-    destinationPath: String,
-): List<Triple<GlobMatcher, Regex, String>> {
-    if (parentPatterns.isEmpty() && patterns.isEmpty()) {
-        return listOf()
-    }
-    val convertedPatterns = LinkedList<Triple<GlobMatcher, Regex, String>>()
-    for (parentPattern in parentPatterns) {
-        if (parentPattern.first.matchesParentDirectory(destinationPath)) {
-            convertedPatterns.add(parentPattern)
-        }
-    }
-    for (pattern in patterns) {
-        val pathRegex = convertGlobToRegex(pattern.first)
-        convertedPatterns.add(
-            Triple(
-                GlobMatcher("^$pathRegex$", destinationPath.length),
-                Regex("^${pattern.second}$"),
-                pattern.third,
-            )
-        )
-    }
-    return convertedPatterns
-}
-
 private inline fun rename(
     parentPath: String,
     fileName: String,
@@ -320,13 +293,40 @@ private fun validateMove(directoryName: String, movedDirectoryPath: String): Str
     return movedDirectoryPath
 }
 
+private fun convertRenamePatterns(
+    parentPatterns: List<Triple<GlobMatcher, Regex, String>>,
+    patterns: List<Triple<String, String, String>>,
+    destinationPath: String,
+): List<Triple<GlobMatcher, Regex, String>> {
+    if (parentPatterns.isEmpty() && patterns.isEmpty()) {
+        return emptyList()
+    }
+    val convertedPatterns = LinkedList<Triple<GlobMatcher, Regex, String>>()
+    for (parentPattern in parentPatterns) {
+        if (parentPattern.first.matchesParentDirectory(destinationPath)) {
+            convertedPatterns.add(parentPattern)
+        }
+    }
+    for (pattern in patterns) {
+        val pathRegex = convertGlobToRegex(pattern.first)
+        convertedPatterns.add(
+            Triple(
+                GlobMatcher("^$pathRegex$", destinationPath.length),
+                Regex("^${pattern.second}$"),
+                pattern.third,
+            )
+        )
+    }
+    return convertedPatterns
+}
+
 private fun <T> convertPatterns(
     parentPatterns: List<Pair<GlobMatcher, T>>,
     patterns: List<Pair<String, T>>,
     destinationPath: String,
 ): List<Pair<GlobMatcher, T>> {
     if (parentPatterns.isEmpty() && patterns.isEmpty()) {
-        return listOf()
+        return emptyList()
     }
     val convertedPatterns = LinkedList<Pair<GlobMatcher, T>>()
     for (parentPattern in parentPatterns) {
