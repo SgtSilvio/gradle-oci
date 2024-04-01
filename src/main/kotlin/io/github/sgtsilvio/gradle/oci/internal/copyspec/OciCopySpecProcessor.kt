@@ -75,7 +75,7 @@ private fun OciCopySpecInput.process(
                 findMatch(parentPermissionPatterns, path, parentDirectoryPermissions),
                 findMatch(parentUserIdPatterns, path, parentUserId),
                 findMatch(parentGroupIdPatterns, path, parentGroupId),
-                DEFAULT_MODIFICATION_TIME
+                DEFAULT_MODIFICATION_TIME,
             )
             visitor.visitDirectory(fileMetadata)
         }
@@ -95,32 +95,37 @@ private fun OciCopySpecInput.process(
     val moveCache = HashMap<String, String>()
     sources.asFileTree.visit(object : ReproducibleFileVisitor {
         override fun visitDir(dirDetails: FileVisitDetails) {
-            visitParentDirectories(parentDirectoryVisitors)
-            move(destinationPath, dirDetails.relativePath.segments, movePatterns, moveCache) { path ->
-                val fileMetadata = FileMetadata(
-                    path,
-                    findMatch(permissionPatterns, path, directoryPermissions),
-                    findMatch(userIdPatterns, path, userId),
-                    findMatch(groupIdPatterns, path, groupId),
-                    DEFAULT_MODIFICATION_TIME
-                )
-                visitor.visitDirectory(fileMetadata)
-            }
+            visitDirectories(
+                parentDirectoryVisitors,
+                destinationPath,
+                dirDetails.relativePath.segments,
+                movePatterns,
+                moveCache,
+                directoryPermissions,
+                permissionPatterns,
+                userId,
+                userIdPatterns,
+                groupId,
+                groupIdPatterns,
+                visitor,
+            )
         }
 
         override fun visitFile(fileDetails: FileVisitDetails) {
-            visitParentDirectories(parentDirectoryVisitors)
-            val parentPath =
-                move(destinationPath, fileDetails.relativePath.parent.segments, movePatterns, moveCache) { path ->
-                    val fileMetadata = FileMetadata(
-                        path,
-                        findMatch(permissionPatterns, path, directoryPermissions),
-                        findMatch(userIdPatterns, path, userId),
-                        findMatch(groupIdPatterns, path, groupId),
-                        DEFAULT_MODIFICATION_TIME
-                    )
-                    visitor.visitDirectory(fileMetadata)
-                }
+            val parentPath = visitDirectories(
+                parentDirectoryVisitors,
+                destinationPath,
+                fileDetails.relativePath.parent.segments,
+                movePatterns,
+                moveCache,
+                directoryPermissions,
+                permissionPatterns,
+                userId,
+                userIdPatterns,
+                groupId,
+                groupIdPatterns,
+                visitor,
+            )
             val fileName = rename(parentPath, fileDetails.name, renamePatterns)
             val path = "$parentPath$fileName"
             val fileMetadata = FileMetadata(
@@ -129,7 +134,7 @@ private fun OciCopySpecInput.process(
                 findMatch(userIdPatterns, path, userId),
                 findMatch(groupIdPatterns, path, groupId),
                 DEFAULT_MODIFICATION_TIME,
-                fileDetails.size
+                fileDetails.size,
             )
             visitor.visitFile(fileMetadata, FileSourceAdapter(fileDetails))
         }
@@ -151,8 +156,35 @@ private fun OciCopySpecInput.process(
             groupId,
             groupIdPatterns,
             parentDirectoryVisitors,
-            visitor
+            visitor,
         )
+    }
+}
+
+private fun visitDirectories(
+    parentDirectoryVisitors: LinkedList<() -> Unit>,
+    destinationPath: String,
+    segments: Array<String>,
+    movePatterns: List<Triple<GlobMatcher, Regex, String>>,
+    moveCache: HashMap<String, String>,
+    directoryPermissions: Int,
+    permissionPatterns: List<Pair<GlobMatcher, Int>>,
+    userId: Long,
+    userIdPatterns: List<Pair<GlobMatcher, Long>>,
+    groupId: Long,
+    groupIdPatterns: List<Pair<GlobMatcher, Long>>,
+    visitor: OciCopySpecVisitor,
+): String {
+    visitParentDirectories(parentDirectoryVisitors)
+    return move(destinationPath, segments, movePatterns, moveCache) { path ->
+        val fileMetadata = FileMetadata(
+            path,
+            findMatch(permissionPatterns, path, directoryPermissions),
+            findMatch(userIdPatterns, path, userId),
+            findMatch(groupIdPatterns, path, groupId),
+            DEFAULT_MODIFICATION_TIME,
+        )
+        visitor.visitDirectory(fileMetadata)
     }
 }
 
@@ -273,9 +305,9 @@ private fun <T> convertPatterns(
             convertedPatterns.add(parentPattern)
         }
     }
-    for (pattern in patterns) {
-        val pathRegex = convertGlobToRegex(pattern.first)
-        convertedPatterns.add(Pair(GlobMatcher("^$pathRegex$", destinationPath.length), pattern.second))
+    for ((pathPattern, value) in patterns) {
+        val pathRegex = convertGlobToRegex(pathPattern)
+        convertedPatterns.add(Pair(GlobMatcher("^$pathRegex$", destinationPath.length), value))
     }
     return convertedPatterns
 }
