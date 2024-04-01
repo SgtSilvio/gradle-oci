@@ -307,15 +307,9 @@ private fun convertRenamePatterns(
             convertedPatterns.add(parentPattern)
         }
     }
-    for (pattern in patterns) {
-        val pathRegex = convertGlobToRegex(pattern.first)
-        convertedPatterns.add(
-            Triple(
-                GlobMatcher("^$pathRegex$", destinationPath.length),
-                Regex("^${pattern.second}$"),
-                pattern.third,
-            )
-        )
+    for ((pathPattern, regex, replacement) in patterns) {
+        val pathRegex = "^${convertGlobToRegex(pathPattern)}$"
+        convertedPatterns.add(Triple(GlobMatcher(pathRegex, destinationPath.length), Regex("^$regex$"), replacement))
     }
     return convertedPatterns
 }
@@ -335,8 +329,8 @@ private fun <T> convertPatterns(
         }
     }
     for ((pathPattern, value) in patterns) {
-        val pathRegex = convertGlobToRegex(pathPattern)
-        convertedPatterns.add(Pair(GlobMatcher("^$pathRegex$", destinationPath.length), value))
+        val pathRegex = "^${convertGlobToRegex(pathPattern)}$"
+        convertedPatterns.add(Pair(GlobMatcher(pathRegex, destinationPath.length), value))
     }
     return convertedPatterns
 }
