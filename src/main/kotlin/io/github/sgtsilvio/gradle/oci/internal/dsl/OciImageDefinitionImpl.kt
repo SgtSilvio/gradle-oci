@@ -432,6 +432,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             private fun createComponentLayerDescriptor(providerFactory: ProviderFactory): Provider<OciComponentBundleLayerDescriptorBuilder> {
                 val task = providerFactory.provider { getTask() }.flatMap { it }
                 return providerFactory.provider { OciComponentBundleLayerDescriptorBuilder() }
+                    .zipAbsentAsNull(
+                        task.flatMap { it.classifier },
+                        OciComponentBundleLayerDescriptorBuilder::classifier,
+                    )
+                    .zipAbsentAsNull(task.flatMap { it.extension }, OciComponentBundleLayerDescriptorBuilder::extension)
                     .zipAbsentAsEmptyMap(metadata.annotations, OciComponentBundleLayerDescriptorBuilder::annotations)
                     .zipAbsentAsNull(
                         task.flatMap { it.digestFile }.map { it.asFile.readText().toOciDigest() },

@@ -74,5 +74,7 @@ private fun JsonObject.decodeLayerDescriptor() = OciComponent.Bundle.Layer.Descr
     getOciDigest("digest"),
     getLong("size"),
     getOciDigest("diffId"),
+    getStringOrNull("classifier"),
+    getStringOrNull("extension"),
     getStringMapOrNull("annotations") ?: TreeMap(),
 )

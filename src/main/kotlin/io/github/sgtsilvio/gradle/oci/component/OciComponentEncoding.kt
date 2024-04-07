@@ -75,5 +75,7 @@ private fun JsonObjectStringBuilder.encodeLayerDescriptor(descriptor: OciCompone
     addString("digest", descriptor.digest.toString())
     addNumber("size", descriptor.size)
     addString("diffId", descriptor.diffId.toString())
+    addStringIfNotNull("classifier", descriptor.classifier)
+    addStringIfNotNull("extension", descriptor.extension)
     addObjectIfNotEmpty("annotations", descriptor.annotations)
 }
