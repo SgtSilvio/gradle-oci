@@ -63,9 +63,9 @@ abstract class OciLayerTask : DefaultTask() {
         val digestFile = digestFile.get().asFile
         val diffIdFile = diffIdFile.get().asFile
 
-        val digest: OciDigest
-        val diffId = FileOutputStream(tarFile).calculateOciDigest(OciDigestAlgorithm.SHA_256) { compressedDos ->
-            digest = GZIPOutputStream(compressedDos).calculateOciDigest(OciDigestAlgorithm.SHA_256) { dos ->
+        val diffId: OciDigest
+        val digest = FileOutputStream(tarFile).calculateOciDigest(OciDigestAlgorithm.SHA_256) { compressedDos ->
+            diffId = GZIPOutputStream(compressedDos).calculateOciDigest(OciDigestAlgorithm.SHA_256) { dos ->
                 TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tos ->
                     tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                     tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
@@ -99,7 +99,7 @@ abstract class OciLayerTask : DefaultTask() {
                 }
             }
         }
-        diffIdFile.writeText(digest.toString())
-        digestFile.writeText(diffId.toString())
+        diffIdFile.writeText(diffId.toString())
+        digestFile.writeText(digest.toString())
     }
 }
