@@ -149,7 +149,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     file.set(layerTask.flatMap { it.tarFile })
                     name.set(project.name)
                     classifier.set(layerTask.flatMap { it.classifier })
-                    extension.set("tgz")
+                    extension.set(layerTask.flatMap { it.extension })
                 }
             }
         })

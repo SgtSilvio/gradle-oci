@@ -36,9 +36,12 @@ abstract class OciLayerTask : DefaultTask() {
     @get:Internal
     val classifier = project.objects.property<String>()
 
+    @get:Internal
+    val extension = project.objects.property<String>().convention("tgz")
+
     @get:OutputFile
-    val tarFile: RegularFileProperty =
-        project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.tgz" }))
+    val tarFile: RegularFileProperty = project.objects.fileProperty()
+        .convention(destinationDirectory.file(classifier.zip(extension) { classifier, ext -> "$classifier.$ext" }))
 
     @get:OutputFile
     val digestFile: RegularFileProperty =
