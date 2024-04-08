@@ -1,5 +1,3 @@
-import java.time.Instant
-
 plugins {
     java
     alias(libs.plugins.oci)
@@ -34,7 +32,6 @@ oci {
                 add("library:eclipse-temurin:21.0.2_13-jre-jammy")
             }
             config {
-                creationTime = Instant.EPOCH
                 entryPoint = listOf("java", "-jar")
                 entryPoint.add(tasks.jar.flatMap { it.archiveFileName })
             }
