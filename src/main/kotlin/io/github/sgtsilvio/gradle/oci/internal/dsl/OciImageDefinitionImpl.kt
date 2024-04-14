@@ -13,7 +13,6 @@ import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.gradle.*
 import io.github.sgtsilvio.gradle.oci.mapping.defaultMappedImageNamespace
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
-import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
@@ -424,12 +423,13 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     .zipAbsentAsNull(metadata.author, OciComponentBundleLayerBuilder::author)
                     .zipAbsentAsNull(metadata.createdBy, OciComponentBundleLayerBuilder::createdBy)
                     .zipAbsentAsNull(metadata.comment, OciComponentBundleLayerBuilder::comment)
-                    .zip(createComponentLayerDescriptor(providerFactory)) { layerBuilder, descriptorBuilder ->
-                        layerBuilder.descriptor(descriptorBuilder.build())
-                    }
+                    .zipAbsentAsNull(
+                        createComponentLayerDescriptor(providerFactory),
+                        OciComponentBundleLayerBuilder::descriptor,
+                    )
                     .map { it.build() }
 
-            private fun createComponentLayerDescriptor(providerFactory: ProviderFactory): Provider<OciComponentBundleLayerDescriptorBuilder> {
+            private fun createComponentLayerDescriptor(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer.Descriptor> {
                 val task = providerFactory.provider { getTask() }.flatMap { it }
                 return providerFactory.provider { OciComponentBundleLayerDescriptorBuilder() }
                     .zipAbsentAsNull(
@@ -438,18 +438,10 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     )
                     .zipAbsentAsNull(task.flatMap { it.extension }, OciComponentBundleLayerDescriptorBuilder::extension)
                     .zipAbsentAsEmptyMap(metadata.annotations, OciComponentBundleLayerDescriptorBuilder::annotations)
-                    .zipAbsentAsNull(
-                        task.flatMap { it.digestFile }.map { it.asFile.readText().toOciDigest() },
-                        OciComponentBundleLayerDescriptorBuilder::digest,
-                    )
-                    .zipAbsentAsNull(
-                        task.flatMap { it.tarFile }.map { it.asFile.length() },
-                        OciComponentBundleLayerDescriptorBuilder::size,
-                    )
-                    .zipAbsentAsNull(
-                        task.flatMap { it.diffIdFile }.map { it.asFile.readText().toOciDigest() },
-                        OciComponentBundleLayerDescriptorBuilder::diffId,
-                    )
+                    .zipAbsentAsNull(task.flatMap { it.digest }, OciComponentBundleLayerDescriptorBuilder::digest)
+                    .zipAbsentAsNull(task.flatMap { it.size }, OciComponentBundleLayerDescriptorBuilder::size)
+                    .zipAbsentAsNull(task.flatMap { it.diffId }, OciComponentBundleLayerDescriptorBuilder::diffId)
+                    .map { it.build() }
             }
         }
     }

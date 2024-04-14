@@ -131,8 +131,8 @@ internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
             digest!!,
             size!!,
             diffId!!,
-            classifier,
-            extension,
+            classifier!!,
+            extension!!,
             annotations.toSortedMap(),
         )
     }

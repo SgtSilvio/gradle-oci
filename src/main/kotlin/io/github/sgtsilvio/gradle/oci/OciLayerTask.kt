@@ -4,20 +4,24 @@ import io.github.sgtsilvio.gradle.oci.internal.copyspec.*
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigestAlgorithm
 import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
+import java.util.*
 import java.util.zip.GZIPOutputStream
 
 /**
@@ -44,12 +48,24 @@ abstract class OciLayerTask : DefaultTask() {
         .convention(destinationDirectory.file(classifier.zip(extension) { classifier, ext -> "$classifier.$ext" }))
 
     @get:OutputFile
-    val digestFile: RegularFileProperty =
-        project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.digest" }))
+    protected val propertiesFile: RegularFileProperty =
+        project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.properties" }))
 
-    @get:OutputFile
-    val diffIdFile: RegularFileProperty =
-        project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.diffid" }))
+    @get:Internal
+    val digest: Provider<OciDigest>
+
+    @get:Internal
+    val size: Provider<Long>
+
+    @get:Internal
+    val diffId: Provider<OciDigest>
+
+    init {
+        val properties = propertiesFile.map { Properties().apply { load(FileInputStream(it.asFile)) } }
+        digest = properties.map { it.getProperty("digest").toOciDigest() }
+        size = properties.map { it.getProperty("size").toLong() }
+        diffId = properties.map { it.getProperty("diffId").toOciDigest() }
+    }
 
     @get:Internal
     val contents: OciCopySpec get() = _contents
@@ -60,8 +76,7 @@ abstract class OciLayerTask : DefaultTask() {
     protected fun run() {
         val copySpecInput = copySpecInput.get()
         val tarFile = tarFile.get().asFile
-        val digestFile = digestFile.get().asFile
-        val diffIdFile = diffIdFile.get().asFile
+        val propertiesFile = propertiesFile.get().asFile
 
         val diffId: OciDigest
         val digest = FileOutputStream(tarFile).calculateOciDigest(OciDigestAlgorithm.SHA_256) { compressedDos ->
@@ -99,7 +114,6 @@ abstract class OciLayerTask : DefaultTask() {
                 }
             }
         }
-        diffIdFile.writeText(diffId.toString())
-        digestFile.writeText(digest.toString())
+        propertiesFile.writeText("digest=$digest\nsize=${tarFile.length()}\ndiffId=$diffId")
     }
 }
