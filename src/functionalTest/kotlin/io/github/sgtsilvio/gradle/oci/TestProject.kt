@@ -106,12 +106,10 @@ internal class TestProject(projectDir: File) {
     }
 
     fun assertJarOciLayer(isBeforeGradle8: Boolean = false) {
-        val jarDir = buildDir.resolve("oci/images/main/jar")
-        val diffIdFile = jarDir.resolve("jar-oci-layer.diffid")
-        val digestFile = jarDir.resolve("jar-oci-layer.digest")
-        val tarFile = jarDir.resolve("jar-oci-layer.tgz")
-        assertTrue(diffIdFile.exists())
-        assertTrue(digestFile.exists())
+        val imageDir = buildDir.resolve("oci/images/main")
+        val propertiesFile = imageDir.resolve("jar-oci-layer.properties")
+        val tarFile = imageDir.resolve("jar-oci-layer.tgz")
+        assertTrue(propertiesFile.exists())
         assertTrue(tarFile.exists())
         val expectedDiffId: String
         val expectedDigest: String
@@ -123,8 +121,7 @@ internal class TestProject(projectDir: File) {
             expectedDiffId = "sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"
             expectedDigest = "sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0"
         }
-        assertEquals(expectedDiffId, diffIdFile.readText())
-        assertEquals(expectedDigest, digestFile.readText())
+        assertEquals("digest=$expectedDigest\nsize=704\ndiffId=$expectedDiffId", propertiesFile.readText())
     }
 
     fun assertOciComponent(isBeforeGradle8: Boolean = false) {
