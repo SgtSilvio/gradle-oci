@@ -109,10 +109,10 @@ internal fun JsonObject.getBooleanOrNull(key: String) = getOrNull(key) { asBoole
 internal fun JsonObject.getStringList(key: String) = get(key) { asArray().toStringList() }
 internal fun JsonObject.getStringListOrNull(key: String) = getOrNull(key) { asArray().toStringList() }
 
-internal fun JsonObject.getStringSetOrNull(key: String) = getOrNull(key) { asArray().toStringSet() }
+internal fun JsonObject.getStringSetOrEmpty(key: String) = getOrNull(key) { asArray().toStringSet() } ?: TreeSet()
 
 internal fun JsonObject.toStringMap() = toMap(TreeMap()) { asString() }
-internal fun JsonObject.getStringMapOrNull(key: String) = getOrNull(key) { asObject().toStringMap() }
+internal fun JsonObject.getStringMapOrEmpty(key: String) = getOrNull(key) { asObject().toStringMap() } ?: TreeMap()
 
 internal fun JsonObject.getInstantOrNull(key: String) = getOrNull(key) { Instant.parse(asString()) }
 

@@ -107,7 +107,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         configMediaType: String,
     ): Mono<OciComponent> {
         val indexJsonObject = jsonObject(String(index))
-        val indexAnnotations = indexJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
+        val indexAnnotations = indexJsonObject.getStringMapOrEmpty("annotations")
         val manifestFutures = indexJsonObject.get("manifests") {
             asArray().toList {
                 val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType)
@@ -175,7 +175,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         configMediaType: String,
     ): Mono<Pair<Platform, OciComponent.Bundle>> {
         val manifestJsonObject = jsonObject(String(manifest))
-        val manifestAnnotations = manifestJsonObject.getStringMapOrNull("annotations") ?: TreeMap()
+        val manifestAnnotations = manifestJsonObject.getStringMapOrEmpty("annotations")
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor(configMediaType) }
         val layerDescriptors =
             manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor() } } ?: listOf()
@@ -210,11 +210,11 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
                             Pair(environmentString.substring(0, splitIndex), environmentString.substring(splitIndex + 1))
                         }
                     } ?: TreeMap()
-                    ports = getStringSetOrNull("ExposedPorts") ?: TreeSet()
-                    configAnnotations = getStringMapOrNull("Labels") ?: TreeMap()
+                    ports = getStringKeySetOrEmpty("ExposedPorts")
+                    configAnnotations = getStringMapOrEmpty("Labels")
                     stopSignal = getStringOrNull("StopSignal")
                     user = getStringOrNull("User")
-                    volumes = getStringSetOrNull("Volumes") ?: TreeSet()
+                    volumes = getStringKeySetOrEmpty("Volumes")
                     workingDirectory = getStringOrNull("WorkingDir")
                 }
             }
@@ -223,7 +223,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
                 asArray().toList { asObject().decodeHistoryEntry() }
             }
             val os = configJsonObject.getString("os")
-            val osFeatures = configJsonObject.getStringSetOrNull("os.features") ?: TreeSet()
+            val osFeatures = configJsonObject.getStringSetOrEmpty("os.features")
             val osVersion = configJsonObject.getStringOrNull("os.version") ?: ""
             val diffIds = configJsonObject.get("rootfs") {
                 asObject().run {
@@ -316,7 +316,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         getString("mediaType"),
         getOciDigest("digest"),
         getLong("size"),
-        getStringMapOrNull("annotations") ?: TreeMap()
+        getStringMapOrEmpty("annotations"),
     ) // TODO order?
     // TODO support data
 
@@ -330,7 +330,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         getString("architecture"),
         getStringOrNull("variant") ?: "",
         getStringOrNull("os.version") ?: "",
-        getStringSetOrNull("os.features") ?: TreeSet(),
+        getStringSetOrEmpty("os.features"),
     ) // TODO order?
 
     private class HistoryEntry(
@@ -349,8 +349,8 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         getBooleanOrNull("empty_layer") ?: false,
     )
 
-    private fun JsonObject.getStringSetOrNull(key: String) = // TODO function name
-        getOrNull(key) { asObject().toMap(TreeMap()) { asObject() }.keys.toSortedSet() }
+    private fun JsonObject.getStringKeySetOrEmpty(key: String) =
+        getOrNull(key) { asObject().toMap(TreeMap()) { asObject() }.keys.toSortedSet() } ?: TreeSet()
 
     private fun JsonObject.requireString(key: String, expectedValue: String) {
         val actualValue = getString(key)

@@ -18,7 +18,7 @@ private fun JsonObject.decodeOciComponent() = OciComponent(
     } else {
         get("platformBundles") { asArray().decodePlatformBundles() }
     },
-    getStringMapOrNull("indexAnnotations") ?: TreeMap(),
+    getStringMapOrEmpty("indexAnnotations"),
 )
 
 private fun JsonArray.decodePlatformBundles() = OciComponent.PlatformBundles(toMap(TreeMap()) {
@@ -35,7 +35,7 @@ private fun JsonObject.decodePlatform() = PlatformImpl(
     getString("architecture"),
     getStringOrNull("variant") ?: "",
     getStringOrNull("osVersion") ?: "",
-    getStringSetOrNull("osFeatures") ?: TreeSet(),
+    getStringSetOrEmpty("osFeatures"),
 )
 
 private fun JsonObject.decodeBundle() = OciComponent.Bundle(
@@ -43,16 +43,16 @@ private fun JsonObject.decodeBundle() = OciComponent.Bundle(
     getInstantOrNull("creationTime"),
     getStringOrNull("author"),
     getStringOrNull("user"),
-    getStringSetOrNull("ports") ?: TreeSet(),
-    getStringMapOrNull("environment") ?: TreeMap(),
+    getStringSetOrEmpty("ports"),
+    getStringMapOrEmpty("environment"),
     getOrNull("command") { asObject().decodeCommand() },
-    getStringSetOrNull("volumes") ?: TreeSet(),
+    getStringSetOrEmpty("volumes"),
     getStringOrNull("workingDirectory"),
     getStringOrNull("stopSignal"),
-    getStringMapOrNull("configAnnotations") ?: TreeMap(),
-    getStringMapOrNull("configDescriptorAnnotations") ?: TreeMap(),
-    getStringMapOrNull("manifestAnnotations") ?: TreeMap(),
-    getStringMapOrNull("manifestDescriptorAnnotations") ?: TreeMap(),
+    getStringMapOrEmpty("configAnnotations"),
+    getStringMapOrEmpty("configDescriptorAnnotations"),
+    getStringMapOrEmpty("manifestAnnotations"),
+    getStringMapOrEmpty("manifestDescriptorAnnotations"),
     getOrNull("layers") { asArray().toList { asObject().decodeLayer() } } ?: listOf(),
 )
 
@@ -76,5 +76,5 @@ private fun JsonObject.decodeLayerDescriptor() = OciComponent.Bundle.Layer.Descr
     getOciDigest("diffId"),
     getStringOrNull("classifier"),
     getStringOrNull("extension"),
-    getStringMapOrNull("annotations") ?: TreeMap(),
+    getStringMapOrEmpty("annotations"),
 )
