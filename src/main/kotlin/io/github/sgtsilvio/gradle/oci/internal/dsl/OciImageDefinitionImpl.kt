@@ -570,7 +570,7 @@ private fun TaskContainer.createLayerTask(
 ) = register<OciLayerTask>(createOciLayerClassifier(imageDefName, layerName).camelCase() + platformString) {
     group = TASK_GROUP_NAME
     description = "Assembles the OCI layer '$layerName' for the $imageDefName image."
-    destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName/$layerName"))
+    destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
     classifier.set(createOciLayerClassifier(imageDefName, layerName) + platformString)
     contents(configuration)
 }
