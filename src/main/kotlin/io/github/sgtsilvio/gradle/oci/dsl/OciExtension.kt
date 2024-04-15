@@ -32,7 +32,7 @@ interface OciExtension {
         architecture: String,
         variant: String = "",
         osVersion: String = "",
-        osFeatures: Set<String> = setOf(),
+        osFeatures: Set<String> = emptySet(),
     ): Platform
 
     fun platformFilter(configuration: Action<in PlatformFilterBuilder>): PlatformFilter

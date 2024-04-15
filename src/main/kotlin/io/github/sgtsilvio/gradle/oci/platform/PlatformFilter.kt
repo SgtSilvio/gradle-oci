@@ -119,9 +119,9 @@ private class OrPlatformFilter(filters: Array<FieldPlatformFilter>) : PlatformFi
 
 private fun normalizeFilters(filters: Array<FieldPlatformFilter>): Array<FieldPlatformFilter> {
     fun <K> MutableMap<K, Set<String>>.merge(key: K, value: String?) {
-        val valueSet = if (value == null) setOf() else setOf(value)
+        val valueSet = if (value == null) emptySet() else setOf(value)
         merge(key, valueSet) { a, b ->
-            if (a.isEmpty() || b.isEmpty()) setOf() else a + b
+            if (a.isEmpty() || b.isEmpty()) emptySet() else a + b
         }
     }
 

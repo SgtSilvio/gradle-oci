@@ -178,7 +178,8 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         val manifestAnnotations = manifestJsonObject.getStringMapOrEmpty("annotations")
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor(configMediaType) }
         val layerDescriptors =
-            manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor() } } ?: listOf()
+            manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor() } }
+                ?: emptyList()
         manifestJsonObject.requireStringOrNull("mediaType", manifestMediaType)
         manifestJsonObject.requireLong("schemaVersion", 2)
         return registryApi.pullBlobAsString(registry, imageName, configDescriptor.digest, configDescriptor.size, credentials).map { config ->
@@ -199,7 +200,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
                     // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
                     val arguments = getStringListOrNull("Cmd")
                     val entryPoint = getStringListOrNull("Entrypoint")
-                    command = if ((entryPoint == null) && (arguments == null)) null else OciComponent.Bundle.Command(entryPoint, arguments ?: listOf())
+                    command = if ((entryPoint == null) && (arguments == null)) null else OciComponent.Bundle.Command(entryPoint, arguments ?: emptyList())
                     environment = getOrNull("Env") {
                         asArray().toMap(TreeMap()) {
                             val environmentString = asString()
@@ -282,7 +283,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
             Pair(
                 PlatformImpl(os, architecture, variant, osVersion, osFeatures),
                 OciComponent.Bundle(
-                    listOf(),
+                    emptyList(),
                     creationTime,
                     author,
                     user,

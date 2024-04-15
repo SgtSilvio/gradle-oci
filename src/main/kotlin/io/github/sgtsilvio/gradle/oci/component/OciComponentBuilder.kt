@@ -11,9 +11,9 @@ import java.time.Instant
  */
 internal class OciComponentBuilder : Serializable {
     private var imageReference: OciImageReference? = null
-    private var capabilities: Set<VersionedCoordinates> = setOf()
+    private var capabilities: Set<VersionedCoordinates> = emptySet()
     private var bundleOrPlatformBundles: OciComponent.BundleOrPlatformBundles? = null
-    private var indexAnnotations: Map<String, String> = mapOf()
+    private var indexAnnotations: Map<String, String> = emptyMap()
 
     fun imageReference(v: OciImageReference) = apply { imageReference = v }
     fun capabilities(v: Set<VersionedCoordinates>) = apply { capabilities = v }
@@ -32,18 +32,18 @@ internal class OciComponentBundleBuilder : Serializable {
     private var creationTime: SerializableInstant? = null
     private var author: String? = null
     private var user: String? = null
-    private var ports: Set<String> = setOf()
-    private var environment: Map<String, String> = mapOf()
+    private var ports: Set<String> = emptySet()
+    private var environment: Map<String, String> = emptyMap()
     private var command: OciComponent.Bundle.Command? = null
-    private var volumes: Set<String> = setOf()
+    private var volumes: Set<String> = emptySet()
     private var workingDirectory: String? = null
     private var stopSignal: String? = null
-    private var configAnnotations: Map<String, String> = mapOf()
-    private var configDescriptorAnnotations: Map<String, String> = mapOf()
-    private var manifestAnnotations: Map<String, String> = mapOf()
-    private var manifestDescriptorAnnotations: Map<String, String> = mapOf()
-    private var parentCapabilities: List<Coordinates> = listOf()
-    private var layers: List<OciComponent.Bundle.Layer> = listOf()
+    private var configAnnotations: Map<String, String> = emptyMap()
+    private var configDescriptorAnnotations: Map<String, String> = emptyMap()
+    private var manifestAnnotations: Map<String, String> = emptyMap()
+    private var manifestDescriptorAnnotations: Map<String, String> = emptyMap()
+    private var parentCapabilities: List<Coordinates> = emptyList()
+    private var layers: List<OciComponent.Bundle.Layer> = emptyList()
 
     fun parentCapabilities(v: List<Coordinates>) = apply { parentCapabilities = v }
     fun creationTime(v: Instant?) = apply { creationTime = v?.toSerializableInstant() }
@@ -89,7 +89,7 @@ internal class OciComponentBundleCommandBuilder : Serializable {
 
     fun build() = when {
         (entryPoint == null) && (arguments == null) -> null
-        else -> OciComponent.Bundle.Command(entryPoint, arguments ?: listOf())
+        else -> OciComponent.Bundle.Command(entryPoint, arguments ?: emptyList())
     }
 }
 
@@ -115,7 +115,7 @@ internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
     private var diffId: OciDigest? = null
     private var classifier: String? = null
     private var extension: String? = null
-    private var annotations: Map<String, String> = mapOf()
+    private var annotations: Map<String, String> = emptyMap()
 
     fun digest(v: OciDigest?) = apply { digest = v }
     fun size(v: Long?) = apply { size = v }

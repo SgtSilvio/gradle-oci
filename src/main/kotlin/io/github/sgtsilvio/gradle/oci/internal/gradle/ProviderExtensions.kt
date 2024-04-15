@@ -12,9 +12,9 @@ internal fun <T, U, R> Provider<T>.zipAbsentAsNull(other: Provider<U>, combiner:
 internal fun <T, E, R> Provider<T>.zipAbsentAsEmptySet(
     other: Provider<Set<E>>,
     combiner: (T, Set<E>) -> R,
-): Provider<R> = zip(other.orElse(setOf())) { t, set -> combiner(t, set) }
+): Provider<R> = zip(other.orElse(emptySet())) { t, set -> combiner(t, set) }
 
 internal fun <T, K, V, R> Provider<T>.zipAbsentAsEmptyMap(
     other: Provider<Map<K, V>>,
     combiner: (T, Map<K, V>) -> R,
-): Provider<R> = zip(other.orElse(mapOf())) { t, map -> combiner(t, map) }
+): Provider<R> = zip(other.orElse(emptyMap())) { t, map -> combiner(t, map) }

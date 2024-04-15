@@ -28,12 +28,12 @@ internal data class OciRegistryTokenPayload(
 internal fun JsonObject.decodeOciRegistryTokenPayload() = OciRegistryTokenPayload(
     getStringOrNull("iss"),
     getStringOrNull("sub"),
-    getOrNull("aud") { if (isString()) listOf(asString()) else asArray().toStringList() } ?: listOf(),
+    getOrNull("aud") { if (isString()) listOf(asString()) else asArray().toStringList() } ?: emptyList(),
     getInstantOfEpochSecondOrNull("exp"),
     getInstantOfEpochSecondOrNull("nbf"),
     getInstantOfEpochSecondOrNull("iat"),
     getStringOrNull("jti"),
-    getOrNull("access") { asArray().toSet(HashSet()) { asObject().decodeResourceScope() } } ?: setOf(),
+    getOrNull("access") { asArray().toSet(HashSet()) { asObject().decodeResourceScope() } } ?: emptySet(),
 )
 
 private fun JsonObject.getInstantOfEpochSecondOrNull(key: String) = getOrNull(key) { Instant.ofEpochSecond(asLong()) }
