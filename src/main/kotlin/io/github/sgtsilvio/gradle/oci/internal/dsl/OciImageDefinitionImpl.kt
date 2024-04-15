@@ -92,7 +92,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             .zip(createImageReference(), OciComponentBuilder::imageReference)
             .zip(createComponentCapabilities(), OciComponentBuilder::capabilities)
             .zip(createComponentBundleOrPlatformBundles(providerFactory), OciComponentBuilder::bundleOrPlatformBundles)
-            .zipAbsentAsEmptyMap(indexAnnotations, OciComponentBuilder::indexAnnotations)
+            .zip(indexAnnotations.orElse(emptyMap()), OciComponentBuilder::indexAnnotations)
             .map { it.build() }
 
     private fun createImageReference(): Provider<OciImageReference> =
@@ -287,20 +287,20 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 .zipAbsentAsNull(config.creationTime, OciComponentBundleBuilder::creationTime)
                 .zipAbsentAsNull(config.author, OciComponentBundleBuilder::author)
                 .zipAbsentAsNull(config.user, OciComponentBundleBuilder::user)
-                .zipAbsentAsEmptySet(config.ports, OciComponentBundleBuilder::ports)
-                .zipAbsentAsEmptyMap(config.environment, OciComponentBundleBuilder::environment)
+                .zip(config.ports.orElse(emptySet()), OciComponentBundleBuilder::ports)
+                .zip(config.environment.orElse(emptyMap()), OciComponentBundleBuilder::environment)
                 .zipAbsentAsNull(createComponentCommand(providerFactory), OciComponentBundleBuilder::command)
-                .zipAbsentAsEmptySet(config.volumes, OciComponentBundleBuilder::volumes)
+                .zip(config.volumes.orElse(emptySet()), OciComponentBundleBuilder::volumes)
                 .zipAbsentAsNull(config.workingDirectory, OciComponentBundleBuilder::workingDirectory)
                 .zipAbsentAsNull(config.stopSignal, OciComponentBundleBuilder::stopSignal)
-                .zipAbsentAsEmptyMap(config.configAnnotations, OciComponentBundleBuilder::configAnnotations)
-                .zipAbsentAsEmptyMap(
-                    config.configDescriptorAnnotations,
+                .zip(config.configAnnotations.orElse(emptyMap()), OciComponentBundleBuilder::configAnnotations)
+                .zip(
+                    config.configDescriptorAnnotations.orElse(emptyMap()),
                     OciComponentBundleBuilder::configDescriptorAnnotations,
                 )
-                .zipAbsentAsEmptyMap(config.manifestAnnotations, OciComponentBundleBuilder::manifestAnnotations)
-                .zipAbsentAsEmptyMap(
-                    config.manifestDescriptorAnnotations,
+                .zip(config.manifestAnnotations.orElse(emptyMap()), OciComponentBundleBuilder::manifestAnnotations)
+                .zip(
+                    config.manifestDescriptorAnnotations.orElse(emptyMap()),
                     OciComponentBundleBuilder::manifestDescriptorAnnotations,
                 )
                 .zip(createComponentLayers(providerFactory), OciComponentBundleBuilder::layers)
@@ -437,7 +437,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                         OciComponentBundleLayerDescriptorBuilder::classifier,
                     )
                     .zipAbsentAsNull(task.flatMap { it.extension }, OciComponentBundleLayerDescriptorBuilder::extension)
-                    .zipAbsentAsEmptyMap(metadata.annotations, OciComponentBundleLayerDescriptorBuilder::annotations)
+                    .zip(metadata.annotations.orElse(emptyMap()), OciComponentBundleLayerDescriptorBuilder::annotations)
                     .zipAbsentAsNull(task.flatMap { it.digest }, OciComponentBundleLayerDescriptorBuilder::digest)
                     .zipAbsentAsNull(task.flatMap { it.size }, OciComponentBundleLayerDescriptorBuilder::size)
                     .zipAbsentAsNull(task.flatMap { it.diffId }, OciComponentBundleLayerDescriptorBuilder::diffId)
