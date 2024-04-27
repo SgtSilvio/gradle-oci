@@ -1,6 +1,6 @@
 [versions]
 caffeine = "3.1.8"
-commons-codec = "1.16.1"
+commons-codec = "1.17.0"
 commons-compress = "1.26.1"
 commons-io = "2.16.1"
 json = "20240303"
