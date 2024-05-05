@@ -253,14 +253,16 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
                         continue
                     }
                     var leaves = LinkedList<Node>()
-                    val root = Node(null, null, 0)
+                    val root = Node(null, 0)
                     leaves += root
-                    root.addChild(layerDescriptor, leaves)
+                    root.addChild(null, layerDescriptor, leaves)
+                    val dummyFile = File("")
                     while (layerDescriptorsIndex < layerDescriptors.size) {
                         val nextLayerDescriptor = layerDescriptors[layerDescriptorsIndex++]
                         if (nextLayerDescriptor.digest in layers) { // optional
                             val newLeaves = LinkedList<Node>()
                             val oldLeavesIterator = leaves.listIterator()
+                            var newLeaf: Node? = null
                             for (leaf in leaves) {
                                 while (oldLeavesIterator.hasNext()) {
                                     val oldLeaf = oldLeavesIterator.next()
@@ -276,19 +278,20 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
                                     if (nextLayer.extension == "json") -1 else nextLayer.length()
                                 }
                                 if (nextLayerSize == nextLayerDescriptor.size) {
-                                    leaf.addChild(nextLayerDescriptor, newLeaves)
+                                    newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
                                 }
                             }
                             leaves = newLeaves
                         } else { // required
                             val newLeaves = LinkedList<Node>()
+                            var newLeaf: Node? = null
                             for (leaf in leaves) {
                                 val nextLayerSize = if ((filesIndex + leaf.depth) >= filesArray.size) -1 else {
                                     val nextLayer = filesArray[filesIndex + leaf.depth]
                                     if (nextLayer.extension == "json") -1 else nextLayer.length()
                                 }
                                 if (nextLayerSize == nextLayerDescriptor.size) {
-                                    leaf.addChild(nextLayerDescriptor, newLeaves)
+                                    newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
                                 } else {
                                     leaf.drop()
                                 }
@@ -297,53 +300,61 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
                             if (leaves.isEmpty()) {
                                 throw IllegalStateException("missing required layer") // TODO message
                             }
-                            //if (all leaves same length/depth) { => if (leaves.size == 1) {
-                            //    break
-                            //}
-                            layers[nextLayerDescriptor.digest] = File("") // dummy
+                            if (leaves.size == 1) {
+                                break
+                            }
+                            layers[nextLayerDescriptor.digest] = dummyFile
                         }
                     }
                     println(root)
                     var node = root
                     while (node.children.isNotEmpty()) {
+                        val digest: OciDigest
                         if (node.children.size == 1) {
                             val next = node.children.iterator().next()
-                            val digest = next.key
-                            val layer = filesArray[filesIndex++]
-                            val prevLayer = layers[digest]
-                            if (prevLayer == null) {
-                                layers[digest] = layer
-                            } else {
-                                checkDuplicateLayer(digest, prevLayer, layer)
-                            }
+                            digest = next.key
                             node = next.value
                         } else {
                             TODO()
+//                            DigestUtils.digest(digest.algorithm.createMessageDigest(), file)
+                        }
+                        val layer = filesArray[filesIndex++]
+                        val prevLayer = layers[digest]
+                        if ((prevLayer == null) || (prevLayer == dummyFile)) {
+                            layers[digest] = layer
+                        } else {
+                            checkDuplicateLayer(digest, prevLayer, layer)
                         }
                     }
-//                    DigestUtils.digest(digest.algorithm.createMessageDigest(), file)
                 }
             }
         }
         return Pair(components, layers)
     }
 
-    private class Node(val prev: Node?, val layerDescriptor: OciComponent.Bundle.Layer.Descriptor?, val depth: Int) {
-        val children = HashMap<OciDigest, Node>()
+    private class Node(val layerDescriptor: OciComponent.Bundle.Layer.Descriptor?, val depth: Int) {
+        val parents = LinkedList<Node>()
+        val children = LinkedHashMap<OciDigest, Node>()
 
-        fun addChild(layerDescriptor: OciComponent.Bundle.Layer.Descriptor, leaves: LinkedList<Node>) {
+        fun addChild(node: Node?, layerDescriptor: OciComponent.Bundle.Layer.Descriptor, leaves: LinkedList<Node>): Node? {
+            var child = node
             if (layerDescriptor.digest !in children) {
-                val child = Node(this, layerDescriptor, depth + 1)
+                if ((child == null) || (child.depth == (depth + 1))) {
+                    child = Node(layerDescriptor, depth + 1)
+                    leaves += child
+                }
                 children[layerDescriptor.digest] = child
-                leaves += child
+                child.parents += this
             }
+            return child
         }
 
         fun drop() {
-            val prev = prev ?: return
-            prev.children.remove(layerDescriptor!!.digest)
-            if (prev.children.isEmpty()) {
-                prev.drop()
+            for (parent in parents) {
+                parent.children.remove(layerDescriptor!!.digest)
+                if (parent.children.isEmpty()) {
+                    parent.drop()
+                }
             }
         }
 
