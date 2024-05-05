@@ -230,10 +230,9 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
         while (filesIndex < filesArray.size) {
             val component = filesArray[filesIndex++].readText().decodeAsJsonToOciComponent()
             components += component
-            val layerDescriptors = component.allLayers.mapNotNull { it.descriptor }.toList().toTypedArray()
-            var layerDescriptorsIndex = 0
-            while (layerDescriptorsIndex < layerDescriptors.size) {
-                val layerDescriptor = layerDescriptors[layerDescriptorsIndex++]
+            val layerDescriptorsIterator = component.allLayers.mapNotNull { it.descriptor }.iterator()
+            while (layerDescriptorsIterator.hasNext()) {
+                val layerDescriptor = layerDescriptorsIterator.next()
                 if (layerDescriptor.digest !in layers) { // layer file is required as digest has not been seen yet
                     if (filesIndex == filesArray.size) {
                         throw IllegalStateException() // TODO message
@@ -257,8 +256,8 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
                     leaves += root
                     root.addChild(null, layerDescriptor, leaves)
                     val dummyFile = File("")
-                    while (layerDescriptorsIndex < layerDescriptors.size) {
-                        val nextLayerDescriptor = layerDescriptors[layerDescriptorsIndex++]
+                    while (layerDescriptorsIterator.hasNext()) {
+                        val nextLayerDescriptor = layerDescriptorsIterator.next()
                         if (nextLayerDescriptor.digest in layers) { // optional
                             val newLeaves = LinkedList<Node>()
                             val oldLeavesIterator = leaves.listIterator()
