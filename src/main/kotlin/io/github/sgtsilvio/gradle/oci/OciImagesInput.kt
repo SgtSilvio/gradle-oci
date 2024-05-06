@@ -266,7 +266,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         fun addChild(node: Node?, layerDescriptor: OciComponent.Bundle.Layer.Descriptor, leaves: LinkedList<Node>): Node? {
             var child = node
             if (layerDescriptor.digest !in children) {
-                if ((child == null) || (child.depth == (depth + 1))) {
+                if ((child == null) || (child.depth != (depth + 1))) {
                     child = Node(layerDescriptor, depth + 1)
                     leaves += child
                 }
