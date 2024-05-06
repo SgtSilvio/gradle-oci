@@ -140,40 +140,43 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
     @TaskAction
     protected fun run() {
         components.get()
-        for (ociComponentInput in components.get()) {
-            println("component: " + ociComponentInput.componentFile)
-//            if (ociComponentInput.layers.isNotEmpty()) {
-//                println("layers:")
-//                println(ociComponentInput.layers.joinToString("\n") { " - $it" })
-//            }
-//            if (ociComponentInput.references.isNotEmpty()) {
-//                println("references:")
-//                println(ociComponentInput.references.joinToString("\n") { " - $it" })
-//            }
-//            println()
-        }
+//        for (ociComponentInput in components.get()) {
+//            println("component: " + ociComponentInput.componentFile)
+////            if (ociComponentInput.layers.isNotEmpty()) {
+////                println("layers:")
+////                println(ociComponentInput.layers.joinToString("\n") { " - $it" })
+////            }
+////            if (ociComponentInput.references.isNotEmpty()) {
+////                println("references:")
+////                println(ociComponentInput.references.joinToString("\n") { " - $it" })
+////            }
+////            println()
+//        }
         val imagesInputs: List<OciImagesInput> = imagesInputs.get()
         val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
         val allDigestToLayer = HashMap<OciDigest, File>()
         for (imagesInput in imagesInputs) {
-            val componentWithLayersList = findComponents(imagesInput.files, imagesInput.componentIdentifiers.get())
-            val (c, l) = findComponents(imagesInput.files.files)
-            for (component in c) {
-                println(component.imageReference)
-            }
-            for (layer in l) {
-                println(layer)
-            }
+//            val componentWithLayersList = findComponents(imagesInput.files, imagesInput.componentIdentifiers.get())
+            val (components, digestToLayer) = findComponents(imagesInput.files.files)
             val componentResolver = OciComponentResolver()
-            for ((component, digestToLayer) in componentWithLayersList) {
+//            for ((component, digestToLayer) in componentWithLayersList) {
+//                componentResolver.addComponent(component)
+//
+//                for ((digest, layer) in digestToLayer) {
+//                    val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
+//                    if ((prevLayer != null) && (layer != prevLayer)) {
+//                        checkDuplicateLayer(digest, prevLayer, layer)
+//                        logger.warn("the same layer ($digest) should not be provided by multiple components")
+//                    }
+//                }
+//            }
+            for (component in components) {
                 componentResolver.addComponent(component)
-
-                for ((digest, layer) in digestToLayer) {
-                    val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
-                    if ((prevLayer != null) && (layer != prevLayer)) {
-                        checkDuplicateLayer(digest, prevLayer, layer)
-                        logger.warn("the same layer ($digest) should not be provided by multiple components")
-                    }
+            }
+            for ((digest, layer) in digestToLayer) {
+                val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
+                if ((prevLayer != null) && (layer != prevLayer)) {
+                    checkDuplicateLayer(digest, prevLayer, layer)
                 }
             }
             for ((rootCapability, references) in imagesInput.rootCapabilities.get()) {
@@ -307,7 +310,6 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
                             layers[nextLayerDescriptor.digest] = dummyFile
                         }
                     }
-                    println(root)
                     var node = root
                     while (node.children.isNotEmpty()) {
                         val layer = filesArray[filesIndex++]
@@ -342,7 +344,7 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
                         }
                         val digest = node.layerDescriptor!!.digest
                         val prevLayer = layers[digest]
-                        if ((prevLayer == null) || (prevLayer == dummyFile)) {
+                        if ((prevLayer == null) || (prevLayer === dummyFile)) {
                             layers[digest] = layer
                         } else {
                             checkDuplicateLayer(digest, prevLayer, layer)
@@ -395,6 +397,13 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
         if (!FileUtils.contentEquals(file1, file2)) {
             throw IllegalStateException("hash collision for digest $digest: expected file contents of $file1 and $file2 to be the same")
         }
+//        val EMPTY_LAYER_DIFF_IDS = setOf(
+//            "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef".toOciDigest(),
+//            "sha512:8efb4f73c5655351c444eb109230c556d39e2c7624e9c11abc9e3fb4b9b9254218cc5085b454a9698d085cfa92198491f07a723be4574adc70617b73eb0b6461".toOciDigest(),
+//        )
+//        if (diffId !in EMPTY_LAYER_DIFF_IDS) {
+            logger.warn("the same layer ($digest) should not be provided by multiple artifacts ($file1, $file2)")
+//        }
     }
 
     private data class ArtifactKey(
@@ -404,3 +413,7 @@ abstract class OciImagesInputTask : DefaultTask(), Serializable {
         val extension: String?,
     )
 }
+
+// empty tar diffIds (1024 bytes zeros)
+// sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef
+// sha512:8efb4f73c5655351c444eb109230c556d39e2c7624e9c11abc9e3fb4b9b9254218cc5085b454a9698d085cfa92198491f07a723be4574adc70617b73eb0b6461
