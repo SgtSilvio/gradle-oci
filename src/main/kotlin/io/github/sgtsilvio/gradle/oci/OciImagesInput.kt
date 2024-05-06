@@ -50,9 +50,8 @@ abstract class OciImagesInputTask : DefaultTask() {
     @get:Nested
     val imagesInputs = project.objects.listProperty<OciImagesInput>()
 
-    fun from(dependencies: ResolvableOciImageDependencies) {
+    fun from(dependencies: ResolvableOciImageDependencies) =
         imagesInputs.add(project.objects.newInstance<OciImagesInput>().apply { from(dependencies) })
-    }
 
     @TaskAction
     protected fun run() {
