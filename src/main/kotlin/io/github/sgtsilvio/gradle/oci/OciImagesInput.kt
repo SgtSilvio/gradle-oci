@@ -12,7 +12,6 @@ import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
@@ -47,111 +46,17 @@ interface OciImagesInput {
     }
 }
 
-//interface OciComponentInput {
-//
-//    @get:InputFile
-//    @get:PathSensitive(PathSensitivity.NONE)
-//    val componentFile: RegularFileProperty
-//
-//    @get:InputFiles
-//    @get:PathSensitive(PathSensitivity.NONE)
-//    val layers: ConfigurableFileCollection
-//
-//    @get:Input
-//    val references: SetProperty<ResolvableOciImageDependencies.Reference>
-//}
-
-class OciComponentInput(
-    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val componentFile: File,
-    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layers: List<File>,
-    @get:Input val references: Set<ResolvableOciImageDependencies.Reference>,
-)
-
-fun ResolvableOciImageDependencies.components(): Provider<List<OciComponentInput>> {
-    return configuration.incoming.artifacts.resolvedArtifacts.zip(rootCapabilities) { results, rootCapabilities ->
-//    return configuration.incoming.artifacts.resolvedArtifacts.map { println("MAP");it }.zip(rootCapabilities) { results, rootCapabilities ->
-        println("zip " + System.identityHashCode(results) + " " + System.identityHashCode(rootCapabilities))
-//        Exception().printStackTrace()
-        val files = HashSet<File>()
-        val resolvedArtifacts = results.filter { files.add(it.file) }
-
-        val componentInputs = mutableListOf<OciComponentInput>()
-
-        val iterator = resolvedArtifacts.iterator()
-        val artifacts = HashMap<ArtifactKey, File>()
-        while (iterator.hasNext()) {
-            val artifact = iterator.next()
-            val componentFile = artifact.file
-            val component = componentFile.readText().decodeAsJsonToOciComponent()
-            val componentIdentifier = artifact.id.componentIdentifier
-            val digestToLayer = HashMap<OciDigest, File>()
-            val layers = mutableListOf<File>()
-            for (layer in component.allLayers) {
-                layer.descriptor?.let { (_, digest, _, _, classifier, extension) ->
-                    val artifactKey = ArtifactKey(componentIdentifier, digest, classifier, extension)
-                    if (artifactKey !in artifacts) {
-                        check(iterator.hasNext()) { "ociFiles are missing layers referenced in components" }
-                        val layerFile = iterator.next().file
-                        artifacts[artifactKey] = layerFile
-                        val prevLayerFile = digestToLayer.putIfAbsent(digest, layerFile)
-                        if (prevLayerFile == null) {
-                            layers += layerFile
-                        } else {
-//                            checkDuplicateLayer(digest, prevLayerFile, layerFile)
-                        }
-                    }
-                }
-            }
-            val references = rootCapabilities[component.capabilities.first().coordinates] ?: emptySet() // TODO first is wrong
-            componentInputs += OciComponentInput(componentFile, layers.toList(), references)
-        }
-
-        componentInputs
-    }
-}
-
-private data class ArtifactKey( // TODO name
-    val componentId: ComponentIdentifier,
-    val digest: OciDigest,
-    val classifier: String?,
-    val extension: String?,
-)
-
 abstract class OciImagesInputTask : DefaultTask(), Serializable {
 
     @get:Nested
     val imagesInputs = project.objects.listProperty<OciImagesInput>()
 
-    @get:Nested
-    val components = project.objects.listProperty<OciComponentInput>()//.apply { finalizeValueOnRead() }
-
-//    private val zzz = object : Serializable {
-//        private fun readObject(input: ObjectInputStream) {
-//            input.defaultReadObject()
-//            components.finalizeValueOnRead()
-//        }
-//    }
-
     fun from(dependencies: ResolvableOciImageDependencies) {
         imagesInputs.add(project.objects.newInstance<OciImagesInput>().apply { from(dependencies) })
-        components.addAll(dependencies.components())
     }
 
     @TaskAction
     protected fun run() {
-        components.get()
-//        for (ociComponentInput in components.get()) {
-//            println("component: " + ociComponentInput.componentFile)
-////            if (ociComponentInput.layers.isNotEmpty()) {
-////                println("layers:")
-////                println(ociComponentInput.layers.joinToString("\n") { " - $it" })
-////            }
-////            if (ociComponentInput.references.isNotEmpty()) {
-////                println("references:")
-////                println(ociComponentInput.references.joinToString("\n") { " - $it" })
-////            }
-////            println()
-//        }
         val imagesInputs: List<OciImagesInput> = imagesInputs.get()
         val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
         val allDigestToLayer = HashMap<OciDigest, File>()
