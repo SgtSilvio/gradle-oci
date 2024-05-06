@@ -17,7 +17,6 @@ import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
 import java.io.File
 import java.io.FileInputStream
-import java.io.Serializable
 import java.util.*
 
 /**
@@ -46,7 +45,7 @@ interface OciImagesInput {
     }
 }
 
-abstract class OciImagesInputTask : DefaultTask(), Serializable {
+abstract class OciImagesInputTask : DefaultTask() {
 
     @get:Nested
     val imagesInputs = project.objects.listProperty<OciImagesInput>()
