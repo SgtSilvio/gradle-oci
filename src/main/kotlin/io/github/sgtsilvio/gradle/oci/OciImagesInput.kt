@@ -255,6 +255,9 @@ abstract class OciImagesInputTask : DefaultTask() {
                     }
                 }
             }
+            if ((filesIndex < filesArray.size) && (filesArray[filesIndex].extension != "json")) {
+                throw IllegalStateException() // TODO message (layer files remaining for current component)
+            }
         }
         return Pair(components, layers)
     }
@@ -277,10 +280,12 @@ abstract class OciImagesInputTask : DefaultTask() {
         }
 
         fun drop() {
-            for (parent in parents) {
-                parent.children.remove(layerDescriptor!!.digest)
-                if (parent.children.isEmpty()) {
-                    parent.drop()
+            if (children.isEmpty()) {
+                for (parent in parents) {
+                    parent.children.remove(layerDescriptor!!.digest)
+                    if (parent.children.isEmpty()) {
+                        parent.drop()
+                    }
                 }
             }
         }
