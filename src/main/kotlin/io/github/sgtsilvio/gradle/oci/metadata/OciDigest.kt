@@ -55,6 +55,12 @@ internal fun String.toOciDigest() = when {
     else -> throw IllegalArgumentException("unsupported algorithm in digest '$this'")
 }.let { algorithm -> OciDigest(algorithm, algorithm.decode(substring(algorithm.ociPrefix.length + 1))) }
 
+internal fun MessageDigest.toOciDigest() = OciDigest(when (algorithm) {
+    OciDigestAlgorithm.SHA_256.algorithmName -> OciDigestAlgorithm.SHA_256
+    OciDigestAlgorithm.SHA_512.algorithmName -> OciDigestAlgorithm.SHA_512
+    else -> throw IllegalArgumentException("unsupported message digest algorithm $algorithm")
+}, digest())
+
 internal fun ByteArray.calculateOciDigest(algorithm: OciDigestAlgorithm) =
     OciDigest(algorithm, algorithm.createMessageDigest().digest(this))
 

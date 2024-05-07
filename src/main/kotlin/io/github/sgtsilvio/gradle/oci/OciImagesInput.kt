@@ -5,6 +5,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigestAlgorithm
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
+import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
@@ -98,11 +99,11 @@ abstract class OciImagesInputTask : DefaultTask() {
                     if (getLayer(files, filesIndex)?.length() != layerDescriptor.size) {
                         continue
                     }
+                    val dummyFile = File("")
                     var leaves = LinkedList<Node>()
                     val root = Node()
                     leaves += root
                     root.addChild(null, layerDescriptor, leaves)
-                    val dummyFile = File("")
                     while (true) {
                         if (!layerDescriptorsIterator.hasNext()) {
                             val lastDepth = leaves.last.depth
@@ -161,21 +162,19 @@ abstract class OciImagesInputTask : DefaultTask() {
                         } else {
                             val messageDigests =
                                 node.children.keys.mapTo(EnumSet.noneOf(OciDigestAlgorithm::class.java)) { it.algorithm }
-                                    .map { Pair(it, it.createMessageDigest()) }
+                                    .map { it.createMessageDigest() }
                             FileInputStream(layer).use { inputStream ->
                                 val BUFFER_SIZE = 4096
                                 val buffer = ByteArray(BUFFER_SIZE)
                                 var read = inputStream.read(buffer, 0, BUFFER_SIZE)
                                 while (read > -1) {
-                                    for ((_, messageDigest) in messageDigests) {
+                                    for (messageDigest in messageDigests) {
                                         messageDigest.update(buffer, 0, read)
                                     }
                                     read = inputStream.read(buffer, 0, BUFFER_SIZE)
                                 }
                             }
-                            val digests = messageDigests.map { (digestAlgorithm, messageDigest) ->
-                                OciDigest(digestAlgorithm, messageDigest.digest())
-                            }
+                            val digests = messageDigests.map { it.toOciDigest() }
                             var nextNode: Node? = null
                             for (digest in digests) {
                                 nextNode = node.children[digest]
