@@ -238,12 +238,5 @@ abstract class OciImagesInputTask : DefaultTask() {
         if (!FileUtils.contentEquals(file1, file2)) {
             throw IllegalStateException("hash collision for digest $digest: expected file contents of $file1 and $file2 to be the same")
         }
-//        val EMPTY_LAYER_DIFF_IDS = setOf(
-//            "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef".toOciDigest(),
-//            "sha512:8efb4f73c5655351c444eb109230c556d39e2c7624e9c11abc9e3fb4b9b9254218cc5085b454a9698d085cfa92198491f07a723be4574adc70617b73eb0b6461".toOciDigest(),
-//        ) // empty tar = 1024 bytes zeros
-//        if (diffId !in EMPTY_LAYER_DIFF_IDS) {
-//            logger.warn("the same layer ($digest) should not be provided by multiple artifacts ($file1, $file2)")
-//        }
     }
 }
