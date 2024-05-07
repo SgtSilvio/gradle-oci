@@ -93,20 +93,10 @@ abstract class OciImagesInputTask : DefaultTask() {
             while (layerDescriptorsIterator.hasNext()) {
                 val layerDescriptor = layerDescriptorsIterator.next()
                 if (layerDescriptor.digest !in layers) { // layer file is required as digest has not been seen yet
-                    if (filesIndex == filesArray.size) {
-                        throw IllegalStateException("missing required layer") // TODO message
-                    }
-                    val file = filesArray[filesIndex++]
-                    if (file.extension == "json") {
-                        throw IllegalStateException("missing required layer") // TODO message
-                    }
-                    layers[layerDescriptor.digest] = file
+                    layers[layerDescriptor.digest] = getLayer(filesArray, filesIndex++)
+                        ?: throw IllegalStateException("missing required layer") // TODO message
                 } else { // layer file is optional as digest has already been seen
-                    if (filesIndex == filesArray.size) {
-                        continue
-                    }
-                    val file = filesArray[filesIndex]
-                    if ((file.extension == "json") || (layerDescriptor.size != file.length())) {
+                    if (getLayer(filesArray, filesIndex)?.length() != layerDescriptor.size) {
                         continue
                     }
                     var leaves = LinkedList<Node>()
@@ -139,11 +129,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                                         break
                                     }
                                 }
-                                val nextLayerSize = if ((filesIndex + leaf.depth) >= filesArray.size) -1 else {
-                                    val nextLayer = filesArray[filesIndex + leaf.depth]
-                                    if (nextLayer.extension == "json") -1 else nextLayer.length()
-                                }
-                                if (nextLayerSize == nextLayerDescriptor.size) {
+                                if (getLayer(filesArray, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
                                     newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
                                 }
                             }
@@ -152,11 +138,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                             val newLeaves = LinkedList<Node>()
                             var newLeaf: Node? = null
                             for (leaf in leaves) {
-                                val nextLayerSize = if ((filesIndex + leaf.depth) >= filesArray.size) -1 else {
-                                    val nextLayer = filesArray[filesIndex + leaf.depth]
-                                    if (nextLayer.extension == "json") -1 else nextLayer.length()
-                                }
-                                if (nextLayerSize == nextLayerDescriptor.size) {
+                                if (getLayer(filesArray, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
                                     newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
                                 } else {
                                     leaf.drop()
@@ -216,6 +198,11 @@ abstract class OciImagesInputTask : DefaultTask() {
             }
         }
         return Pair(components, layers)
+    }
+
+    private fun getLayer(files: Array<File>, index: Int) = if (index >= files.size) null else {
+        val file = files[index]
+        if (file.extension == "json") null else file
     }
 
     private class Node(val layerDescriptor: OciComponent.Bundle.Layer.Descriptor?, val depth: Int) {
