@@ -169,7 +169,12 @@ abstract class OciImagesInputTask : DefaultTask() {
                     val dummyFile = File("")
                     while (true) {
                         if (!layerDescriptorsIterator.hasNext()) {
-                            // TODO for leaves if nextLayerSize != -1 drop(if no children, so start in reverse leaves order, maybe not necessary because parents will be cleaned up recursively)
+                            val lastDepth = leaves.last.depth
+                            for (leaf in leaves) {
+                                if (leaf.depth < lastDepth) {
+                                    leaf.drop()
+                                }
+                            }
                             break
                         }
                         val nextLayerDescriptor = layerDescriptorsIterator.next()
