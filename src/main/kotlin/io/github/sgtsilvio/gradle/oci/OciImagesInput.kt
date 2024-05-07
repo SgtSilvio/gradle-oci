@@ -161,17 +161,8 @@ abstract class OciImagesInputTask : DefaultTask() {
                         } else {
                             val digests =
                                 layer.calculateOciDigests(node.children.keys.mapTo(EnumSet.noneOf(OciDigestAlgorithm::class.java)) { it.algorithm })
-                            var nextNode: Node? = null
-                            for (digest in digests) {
-                                nextNode = node.children[digest]
-                                if (nextNode != null) {
-                                    break
-                                }
-                            }
-                            if (nextNode == null) {
-                                throw IllegalStateException("expected layer ($layer) to match any of the digests ${node.children.keys}, but calculated the digests $digests")
-                            }
-                            nextNode
+                            digests.firstNotNullOfOrNull { node.children[it] }
+                                ?: throw IllegalStateException("expected layer ($layer) to match any of the digests ${node.children.keys}, but calculated the digests $digests")
                         }
                         val digest = node.layerDescriptor!!.digest
                         val prevLayer = layers[digest]
