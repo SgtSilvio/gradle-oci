@@ -8,9 +8,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
-import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
@@ -29,18 +27,11 @@ interface OciImagesInput {
     @get:PathSensitive(PathSensitivity.NONE)
     val files: ConfigurableFileCollection
 
-    @get:Internal
-    val componentIdentifiers: ListProperty<ComponentIdentifier>
-
     @get:Input
     val rootCapabilities: MapProperty<Coordinates, Set<ResolvableOciImageDependencies.Reference>>
 
     fun from(dependencies: ResolvableOciImageDependencies) {
         files.setFrom(dependencies.configuration)
-        componentIdentifiers.set(dependencies.configuration.incoming.artifacts.resolvedArtifacts.map { results ->
-            val files = HashSet<File>()
-            results.mapNotNull { if (files.add(it.file)) it.id.componentIdentifier else null }
-        })
         rootCapabilities.set(dependencies.rootCapabilities)
     }
 }
@@ -59,20 +50,8 @@ abstract class OciImagesInputTask : DefaultTask() {
         val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
         val allDigestToLayer = HashMap<OciDigest, File>()
         for (imagesInput in imagesInputs) {
-//            val componentWithLayersList = findComponents(imagesInput.files, imagesInput.componentIdentifiers.get())
             val (components, digestToLayer) = findComponents(imagesInput.files.files)
             val componentResolver = OciComponentResolver()
-//            for ((component, digestToLayer) in componentWithLayersList) {
-//                componentResolver.addComponent(component)
-//
-//                for ((digest, layer) in digestToLayer) {
-//                    val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
-//                    if ((prevLayer != null) && (layer != prevLayer)) {
-//                        checkDuplicateLayer(digest, prevLayer, layer)
-//                        logger.warn("the same layer ($digest) should not be provided by multiple components")
-//                    }
-//                }
-//            }
             for (component in components) {
                 componentResolver.addComponent(component)
             }
@@ -97,38 +76,6 @@ abstract class OciImagesInputTask : DefaultTask() {
         resolvedComponentToImageReferences: Map<ResolvedOciComponent, Set<OciImageReference>>,
         digestToLayer: Map<OciDigest, File>,
     )
-
-    private fun findComponents(
-        files: Iterable<File>,
-        componentIdentifiers: Iterable<ComponentIdentifier>,
-    ): List<Pair<OciComponent, Map<OciDigest, File>>> {
-        val componentWithLayersList = mutableListOf<Pair<OciComponent, Map<OciDigest, File>>>()
-        val filesIterator = files.iterator()
-        val componentIdentifiersIterator = componentIdentifiers.iterator()
-        val artifacts = HashMap<ArtifactKey, File>()
-        while (filesIterator.hasNext()) {
-            val component = filesIterator.next().readText().decodeAsJsonToOciComponent()
-            val componentIdentifier = componentIdentifiersIterator.next()
-            val digestToLayer = HashMap<OciDigest, File>()
-            for (layer in component.allLayers) {
-                layer.descriptor?.let { (_, digest, _, _, classifier, extension) ->
-                    val artifactKey = ArtifactKey(componentIdentifier, digest, classifier, extension)
-                    if (artifactKey !in artifacts) {
-                        check(filesIterator.hasNext()) { "ociFiles are missing layers referenced in components" }
-                        val layerFile = filesIterator.next()
-                        componentIdentifiersIterator.next()
-                        artifacts[artifactKey] = layerFile
-                        val prevLayerFile = digestToLayer.putIfAbsent(digest, layerFile)
-                        if (prevLayerFile != null) { // TODO maybe only allow known empty diffIds as duplicate in same component, add check in component builder
-                            checkDuplicateLayer(digest, prevLayerFile, layerFile)
-                        }
-                    }
-                }
-            }
-            componentWithLayersList += Pair(component, digestToLayer)
-        }
-        return componentWithLayersList
-    }
 
     private fun findComponents(files: Collection<File>): Pair<List<OciComponent>, Map<OciDigest, File>> {
         val filesArray = files.toTypedArray()
@@ -322,13 +269,6 @@ abstract class OciImagesInputTask : DefaultTask() {
             logger.warn("the same layer ($digest) should not be provided by multiple artifacts ($file1, $file2)")
 //        }
     }
-
-    private data class ArtifactKey(
-        val componentId: ComponentIdentifier,
-        val digest: OciDigest,
-        val classifier: String?,
-        val extension: String?,
-    )
 }
 
 // empty tar diffIds (1024 bytes zeros)

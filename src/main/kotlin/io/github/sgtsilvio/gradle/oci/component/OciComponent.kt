@@ -58,8 +58,6 @@ data class OciComponent(
                 override val digest: OciDigest,
                 override val size: Long,
                 val diffId: OciDigest,
-                val classifier: String?,
-                val extension: String?,
                 override val annotations: SortedMap<String, String>,
             ) : OciDescriptor, Serializable
         }

@@ -251,8 +251,6 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
                             descriptor.digest,
                             descriptor.size,
                             diffId,
-                            null,
-                            null,
                             descriptor.annotations,
                         )
                     },
@@ -269,8 +267,6 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
                         descriptor.digest,
                         descriptor.size,
                         diffId,
-                        null,
-                        null,
                         descriptor.annotations,
                     ),
                     null,

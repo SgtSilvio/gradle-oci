@@ -113,26 +113,20 @@ internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
     private var digest: OciDigest? = null
     private var size: Long? = null
     private var diffId: OciDigest? = null
-    private var classifier: String? = null
-    private var extension: String? = null
     private var annotations: Map<String, String> = emptyMap()
 
     fun digest(v: OciDigest?) = apply { digest = v }
     fun size(v: Long?) = apply { size = v }
     fun diffId(v: OciDigest?) = apply { diffId = v }
-    fun classifier(v: String?) = apply { classifier = v }
-    fun extension(v: String?) = apply { extension = v }
     fun annotations(v: Map<String, String>) = apply { annotations = v }
 
     fun build() = when {
-        (digest == null) && (size == null) && (diffId == null) && (classifier == null) && (extension == null) && annotations.isEmpty() -> null
+        (digest == null) && (size == null) && (diffId == null) && annotations.isEmpty() -> null
         else -> OciComponent.Bundle.Layer.Descriptor(
             LAYER_MEDIA_TYPE,
             digest!!,
             size!!,
             diffId!!,
-            classifier!!,
-            extension!!,
             annotations.toSortedMap(),
         )
     }
