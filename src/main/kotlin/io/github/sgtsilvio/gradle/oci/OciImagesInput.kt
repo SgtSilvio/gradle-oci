@@ -50,7 +50,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
         val allDigestToLayer = HashMap<OciDigest, File>()
         for (imagesInput in imagesInputs) {
-            val (components, digestToLayer) = findComponents(imagesInput.files.files)
+            val (components, digestToLayer) = findComponents(imagesInput.files.files.toTypedArray())
             val componentResolver = OciComponentResolver()
             for (component in components) {
                 componentResolver.addComponent(component)
@@ -77,13 +77,12 @@ abstract class OciImagesInputTask : DefaultTask() {
         digestToLayer: Map<OciDigest, File>,
     )
 
-    private fun findComponents(files: Collection<File>): Pair<List<OciComponent>, Map<OciDigest, File>> {
-        val filesArray = files.toTypedArray()
+    private fun findComponents(files: Array<File>): Pair<List<OciComponent>, Map<OciDigest, File>> {
         val components = mutableListOf<OciComponent>()
         val layers = HashMap<OciDigest, File>()
         var filesIndex = 0
-        while (filesIndex < filesArray.size) {
-            val componentFile = filesArray[filesIndex++]
+        while (filesIndex < files.size) {
+            val componentFile = files[filesIndex++]
             if (componentFile.extension != "json") {
                 throw IllegalStateException("expected oci component json file, but got $componentFile")
             }
@@ -93,10 +92,10 @@ abstract class OciImagesInputTask : DefaultTask() {
             while (layerDescriptorsIterator.hasNext()) {
                 val layerDescriptor = layerDescriptorsIterator.next()
                 if (layerDescriptor.digest !in layers) { // layer file is required as digest has not been seen yet
-                    layers[layerDescriptor.digest] = getLayer(filesArray, filesIndex++)
+                    layers[layerDescriptor.digest] = getLayer(files, filesIndex++)
                         ?: throw IllegalStateException("missing layer for digest ${layerDescriptor.digest}")
                 } else { // layer file is optional as digest has already been seen
-                    if (getLayer(filesArray, filesIndex)?.length() != layerDescriptor.size) {
+                    if (getLayer(files, filesIndex)?.length() != layerDescriptor.size) {
                         continue
                     }
                     var leaves = LinkedList<Node>()
@@ -129,7 +128,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                                         break
                                     }
                                 }
-                                if (getLayer(filesArray, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
+                                if (getLayer(files, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
                                     newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
                                 }
                             }
@@ -138,7 +137,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                             val newLeaves = LinkedList<Node>()
                             var newLeaf: Node? = null
                             for (leaf in leaves) {
-                                if (getLayer(filesArray, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
+                                if (getLayer(files, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
                                     newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
                                 } else {
                                     leaf.drop()
@@ -156,7 +155,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                     }
                     var node = root
                     while (node.children.isNotEmpty()) {
-                        val layer = filesArray[filesIndex++]
+                        val layer = files[filesIndex++]
                         node = if (node.children.size == 1) {
                             node.children.iterator().next().value
                         } else {
