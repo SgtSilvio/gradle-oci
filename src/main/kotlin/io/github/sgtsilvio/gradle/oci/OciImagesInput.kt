@@ -50,7 +50,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
         val allDigestToLayer = HashMap<OciDigest, File>()
         for (imagesInput in imagesInputs) {
-            val (components, digestToLayer) = findComponents(imagesInput.files.files.toTypedArray())
+            val (components, digestToLayer) = findComponentsAndLayers(imagesInput.files.files.toTypedArray())
             val componentResolver = OciComponentResolver()
             for (component in components) {
                 componentResolver.addComponent(component)
@@ -77,7 +77,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         digestToLayer: Map<OciDigest, File>,
     )
 
-    private fun findComponents(files: Array<File>): Pair<List<OciComponent>, Map<OciDigest, File>> {
+    private fun findComponentsAndLayers(files: Array<File>): Pair<List<OciComponent>, Map<OciDigest, File>> {
         val components = mutableListOf<OciComponent>()
         val layers = HashMap<OciDigest, File>()
         var filesIndex = 0
@@ -99,7 +99,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                         continue
                     }
                     var leaves = LinkedList<Node>()
-                    val root = Node(null, 0)
+                    val root = Node()
                     leaves += root
                     root.addChild(null, layerDescriptor, leaves)
                     val dummyFile = File("")
@@ -157,7 +157,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                     while (node.children.isNotEmpty()) {
                         val layer = files[filesIndex++]
                         node = if (node.children.size == 1) {
-                            node.children.iterator().next().value
+                            node.children.values.iterator().next()
                         } else {
                             val messageDigests =
                                 node.children.keys.mapTo(EnumSet.noneOf(OciDigestAlgorithm::class.java)) { it.algorithm }
@@ -207,11 +207,20 @@ abstract class OciImagesInputTask : DefaultTask() {
         if (file.extension == "json") null else file
     }
 
-    private class Node(val layerDescriptor: OciComponent.Bundle.Layer.Descriptor?, val depth: Int) {
+    private class Node private constructor(
+        val layerDescriptor: OciComponent.Bundle.Layer.Descriptor?,
+        val depth: Int,
+    ) {
         val parents = LinkedList<Node>()
         val children = LinkedHashMap<OciDigest, Node>()
 
-        fun addChild(node: Node?, layerDescriptor: OciComponent.Bundle.Layer.Descriptor, leaves: LinkedList<Node>): Node? {
+        constructor() : this(null, 0)
+
+        fun addChild(
+            node: Node?,
+            layerDescriptor: OciComponent.Bundle.Layer.Descriptor,
+            leaves: LinkedList<Node>,
+        ): Node? {
             var child = node
             if (layerDescriptor.digest !in children) {
                 if ((child == null) || (child.depth != (depth + 1))) {
