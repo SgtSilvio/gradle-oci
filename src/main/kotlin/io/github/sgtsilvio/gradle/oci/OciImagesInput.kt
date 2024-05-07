@@ -5,7 +5,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigestAlgorithm
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
-import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigests
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
@@ -15,7 +15,6 @@ import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
 import java.io.File
-import java.io.FileInputStream
 import java.util.*
 
 /**
@@ -160,21 +159,8 @@ abstract class OciImagesInputTask : DefaultTask() {
                         node = if (node.children.size == 1) {
                             node.children.values.iterator().next()
                         } else {
-                            val messageDigests =
-                                node.children.keys.mapTo(EnumSet.noneOf(OciDigestAlgorithm::class.java)) { it.algorithm }
-                                    .map { it.createMessageDigest() }
-                            FileInputStream(layer).use { inputStream ->
-                                val BUFFER_SIZE = 4096
-                                val buffer = ByteArray(BUFFER_SIZE)
-                                var read = inputStream.read(buffer, 0, BUFFER_SIZE)
-                                while (read > -1) {
-                                    for (messageDigest in messageDigests) {
-                                        messageDigest.update(buffer, 0, read)
-                                    }
-                                    read = inputStream.read(buffer, 0, BUFFER_SIZE)
-                                }
-                            }
-                            val digests = messageDigests.map { it.toOciDigest() }
+                            val digests =
+                                layer.calculateOciDigests(node.children.keys.mapTo(EnumSet.noneOf(OciDigestAlgorithm::class.java)) { it.algorithm })
                             var nextNode: Node? = null
                             for (digest in digests) {
                                 nextNode = node.children[digest]
