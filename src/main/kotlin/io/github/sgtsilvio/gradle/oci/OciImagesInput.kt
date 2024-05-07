@@ -85,7 +85,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         while (filesIndex < filesArray.size) {
             val componentFile = filesArray[filesIndex++]
             if (componentFile.extension != "json") {
-                throw IllegalStateException("expecting oci component json file") // TODO message
+                throw IllegalStateException("expected oci component json file, but got $componentFile")
             }
             val component = componentFile.readText().decodeAsJsonToOciComponent()
             components += component
@@ -94,7 +94,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                 val layerDescriptor = layerDescriptorsIterator.next()
                 if (layerDescriptor.digest !in layers) { // layer file is required as digest has not been seen yet
                     layers[layerDescriptor.digest] = getLayer(filesArray, filesIndex++)
-                        ?: throw IllegalStateException("missing required layer") // TODO message
+                        ?: throw IllegalStateException("missing layer for digest ${layerDescriptor.digest}")
                 } else { // layer file is optional as digest has already been seen
                     if (getLayer(filesArray, filesIndex)?.length() != layerDescriptor.size) {
                         continue
@@ -146,7 +146,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                             }
                             leaves = newLeaves
                             if (leaves.isEmpty()) {
-                                throw IllegalStateException("missing required layer") // TODO message
+                                throw IllegalStateException("missing layer for digest ${nextLayerDescriptor.digest}")
                             }
                             if (leaves.size == 1) {
                                 break
@@ -160,7 +160,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                         node = if (node.children.size == 1) {
                             node.children.iterator().next().value
                         } else {
-                            val digests =
+                            val messageDigests =
                                 node.children.keys.mapTo(EnumSet.noneOf(OciDigestAlgorithm::class.java)) { it.algorithm }
                                     .map { Pair(it, it.createMessageDigest()) }
                             FileInputStream(layer).use { inputStream ->
@@ -168,21 +168,24 @@ abstract class OciImagesInputTask : DefaultTask() {
                                 val buffer = ByteArray(BUFFER_SIZE)
                                 var read = inputStream.read(buffer, 0, BUFFER_SIZE)
                                 while (read > -1) {
-                                    for ((_, messageDigest) in digests) {
+                                    for ((_, messageDigest) in messageDigests) {
                                         messageDigest.update(buffer, 0, read)
                                     }
                                     read = inputStream.read(buffer, 0, BUFFER_SIZE)
                                 }
                             }
+                            val digests = messageDigests.map { (digestAlgorithm, messageDigest) ->
+                                OciDigest(digestAlgorithm, messageDigest.digest())
+                            }
                             var nextNode: Node? = null
-                            for ((digestAlgorithm, messageDigest) in digests) {
-                                nextNode = node.children[OciDigest(digestAlgorithm, messageDigest.digest())]
+                            for (digest in digests) {
+                                nextNode = node.children[digest]
                                 if (nextNode != null) {
                                     break
                                 }
                             }
                             if (nextNode == null) {
-                                throw IllegalStateException("layer does not match any of the digests") // TODO message
+                                throw IllegalStateException("expected layer ($layer) to match any of the digests ${node.children.keys}, but calculated the digests $digests")
                             }
                             nextNode
                         }
