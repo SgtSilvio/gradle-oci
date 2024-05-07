@@ -239,9 +239,7 @@ abstract class OciImagesInputTask : DefaultTask() {
             if (children.isEmpty()) {
                 for (parent in parents) {
                     parent.children.remove(layerDescriptor!!.digest)
-                    if (parent.children.isEmpty()) {
-                        parent.drop()
-                    }
+                    parent.drop()
                 }
             }
         }
