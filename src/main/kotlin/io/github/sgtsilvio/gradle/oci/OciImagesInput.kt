@@ -138,7 +138,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         while (filesIndex < filesArray.size) {
             val componentFile = filesArray[filesIndex++]
             if (componentFile.extension != "json") {
-                throw IllegalStateException() // TODO message (expecting oci component as json file)
+                throw IllegalStateException("expecting oci component json file") // TODO message
             }
             val component = componentFile.readText().decodeAsJsonToOciComponent()
             components += component
@@ -147,13 +147,12 @@ abstract class OciImagesInputTask : DefaultTask() {
                 val layerDescriptor = layerDescriptorsIterator.next()
                 if (layerDescriptor.digest !in layers) { // layer file is required as digest has not been seen yet
                     if (filesIndex == filesArray.size) {
-                        throw IllegalStateException() // TODO message
+                        throw IllegalStateException("missing required layer") // TODO message
                     }
-                    val file = filesArray[filesIndex]
+                    val file = filesArray[filesIndex++]
                     if (file.extension == "json") {
-                        throw IllegalStateException() // TODO message
+                        throw IllegalStateException("missing required layer") // TODO message
                     }
-                    filesIndex++
                     layers[layerDescriptor.digest] = file
                 } else { // layer file is optional as digest has already been seen
                     if (filesIndex == filesArray.size) {
@@ -168,7 +167,11 @@ abstract class OciImagesInputTask : DefaultTask() {
                     leaves += root
                     root.addChild(null, layerDescriptor, leaves)
                     val dummyFile = File("")
-                    while (layerDescriptorsIterator.hasNext()) {
+                    while (true) {
+                        if (!layerDescriptorsIterator.hasNext()) {
+                            // TODO for leaves if nextLayerSize != -1 drop(if no children, so start in reverse leaves order, maybe not necessary because parents will be cleaned up recursively)
+                            break
+                        }
                         val nextLayerDescriptor = layerDescriptorsIterator.next()
                         if (nextLayerDescriptor.digest in layers) { // optional
                             val newLeaves = LinkedList<Node>()
@@ -217,8 +220,6 @@ abstract class OciImagesInputTask : DefaultTask() {
                             layers[nextLayerDescriptor.digest] = dummyFile
                         }
                     }
-                    // TODO if !layerDescriptorsIterator.hasNext() for leaves if nextLayerSize != -1 drop(if no children, so start in reverse leaves order)
-                    //  > move this check into while(true) { if(!hasNext) { check; break } ... }
                     var node = root
                     while (node.children.isNotEmpty()) {
                         val layer = filesArray[filesIndex++]
@@ -247,7 +248,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                                 }
                             }
                             if (nextNode == null) {
-                                throw IllegalStateException() // TODO message
+                                throw IllegalStateException("layer does not match any of the digests") // TODO message
                             }
                             nextNode
                         }
