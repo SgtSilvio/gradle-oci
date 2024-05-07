@@ -136,7 +136,11 @@ abstract class OciImagesInputTask : DefaultTask() {
         val layers = HashMap<OciDigest, File>()
         var filesIndex = 0
         while (filesIndex < filesArray.size) {
-            val component = filesArray[filesIndex++].readText().decodeAsJsonToOciComponent()
+            val componentFile = filesArray[filesIndex++]
+            if (componentFile.extension != "json") {
+                throw IllegalStateException() // TODO message (expecting oci component as json file)
+            }
+            val component = componentFile.readText().decodeAsJsonToOciComponent()
             components += component
             val layerDescriptorsIterator = component.allLayers.mapNotNull { it.descriptor }.iterator()
             while (layerDescriptorsIterator.hasNext()) {
@@ -213,6 +217,8 @@ abstract class OciImagesInputTask : DefaultTask() {
                             layers[nextLayerDescriptor.digest] = dummyFile
                         }
                     }
+                    // TODO if !layerDescriptorsIterator.hasNext() for leaves if nextLayerSize != -1 drop(if no children, so start in reverse leaves order)
+                    //  > move this check into while(true) { if(!hasNext) { check; break } ... }
                     var node = root
                     while (node.children.isNotEmpty()) {
                         val layer = filesArray[filesIndex++]
@@ -254,9 +260,6 @@ abstract class OciImagesInputTask : DefaultTask() {
                         }
                     }
                 }
-            }
-            if ((filesIndex < filesArray.size) && (filesArray[filesIndex].extension != "json")) {
-                throw IllegalStateException() // TODO message (layer files remaining for current component)
             }
         }
         return Pair(components, layers)
