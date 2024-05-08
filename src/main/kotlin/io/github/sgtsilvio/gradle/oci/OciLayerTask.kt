@@ -43,7 +43,7 @@ abstract class OciLayerTask : DefaultTask() {
     val classifier = project.objects.property<String>()
 
     @get:Internal
-    val extension = project.objects.property<String>().convention("tgz")
+    val extension: Property<String> = project.objects.property<String>().convention("tgz")
 
     @get:OutputFile
     val tarFile: RegularFileProperty = project.objects.fileProperty()
