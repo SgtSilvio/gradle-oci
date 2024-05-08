@@ -50,15 +50,15 @@ abstract class OciImagesInputTask : DefaultTask() {
         val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
         val allDigestToLayer = HashMap<OciDigest, File>()
         for (imagesInput in imagesInputs) {
-            val (components, digestToLayer) = findComponentsAndLayers(imagesInput.files.files.toTypedArray())
+            val (components, layers) = findComponentsAndLayers(imagesInput.files.files.toTypedArray())
             val componentResolver = OciComponentResolver()
             for (component in components) {
                 componentResolver.addComponent(component)
             }
-            for ((digest, layer) in digestToLayer) {
-                val prevLayer = allDigestToLayer.putIfAbsent(digest, layer)
+            for ((layerDescriptor, layer) in layers) {
+                val prevLayer = allDigestToLayer.putIfAbsent(layerDescriptor.digest, layer)
                 if ((prevLayer != null) && (layer != prevLayer)) {
-                    checkDuplicateLayer(digest, prevLayer, layer)
+                    checkDuplicateLayer(layerDescriptor.digest, prevLayer, layer)
                 }
             }
             for ((rootCapability, references) in imagesInput.rootCapabilities.get()) {
@@ -77,9 +77,10 @@ abstract class OciImagesInputTask : DefaultTask() {
         digestToLayer: Map<OciDigest, File>,
     )
 
-    private fun findComponentsAndLayers(files: Array<File>): Pair<List<OciComponent>, Map<OciDigest, File>> {
+    private fun findComponentsAndLayers(files: Array<File>): Pair<List<OciComponent>, List<Pair<OciComponent.Bundle.Layer.Descriptor, File>>> {
         val components = mutableListOf<OciComponent>()
-        val layers = HashMap<OciDigest, File>()
+        val layers = mutableListOf<Pair<OciComponent.Bundle.Layer.Descriptor, File>>()
+        val layerDigests = HashSet<OciDigest>()
         var filesIndex = 0
         while (filesIndex < files.size) {
             val componentFile = files[filesIndex++]
@@ -91,14 +92,14 @@ abstract class OciImagesInputTask : DefaultTask() {
             val layerDescriptorsIterator = component.allLayers.mapNotNull { it.descriptor }.iterator()
             while (layerDescriptorsIterator.hasNext()) {
                 val layerDescriptor = layerDescriptorsIterator.next()
-                if (layerDescriptor.digest !in layers) { // layer file is required as digest has not been seen yet
-                    layers[layerDescriptor.digest] = getLayer(files, filesIndex++)
+                if (layerDigests.add(layerDescriptor.digest)) { // layer file is required as digest has not been seen yet
+                    val layer = getLayer(files, filesIndex++)
                         ?: throw IllegalStateException("missing layer for digest ${layerDescriptor.digest}")
+                    layers += Pair(layerDescriptor, layer)
                 } else { // layer file is optional as digest has already been seen
                     if (getLayer(files, filesIndex)?.length() != layerDescriptor.size) {
                         continue
                     }
-                    val dummyFile = File("")
                     var leaves = LinkedList<Node>()
                     val root = Node()
                     leaves += root
@@ -114,7 +115,24 @@ abstract class OciImagesInputTask : DefaultTask() {
                             break
                         }
                         val nextLayerDescriptor = layerDescriptorsIterator.next()
-                        if (nextLayerDescriptor.digest in layers) { // optional
+                        if (layerDigests.add(nextLayerDescriptor.digest)) { // required
+                            val newLeaves = LinkedList<Node>()
+                            var newLeaf: Node? = null
+                            for (leaf in leaves) {
+                                if (getLayer(files, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
+                                    newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
+                                } else {
+                                    leaf.drop()
+                                }
+                            }
+                            leaves = newLeaves
+                            if (leaves.isEmpty()) {
+                                throw IllegalStateException("missing layer for digest ${nextLayerDescriptor.digest}")
+                            }
+                            if (leaves.size == 1) {
+                                break
+                            }
+                        } else { // optional
                             val newLeaves = LinkedList<Node>()
                             val oldLeavesIterator = leaves.listIterator()
                             var newLeaf: Node? = null
@@ -133,24 +151,6 @@ abstract class OciImagesInputTask : DefaultTask() {
                                 }
                             }
                             leaves = newLeaves
-                        } else { // required
-                            val newLeaves = LinkedList<Node>()
-                            var newLeaf: Node? = null
-                            for (leaf in leaves) {
-                                if (getLayer(files, filesIndex + leaf.depth)?.length() == nextLayerDescriptor.size) {
-                                    newLeaf = leaf.addChild(newLeaf, nextLayerDescriptor, newLeaves)
-                                } else {
-                                    leaf.drop()
-                                }
-                            }
-                            leaves = newLeaves
-                            if (leaves.isEmpty()) {
-                                throw IllegalStateException("missing layer for digest ${nextLayerDescriptor.digest}")
-                            }
-                            if (leaves.size == 1) {
-                                break
-                            }
-                            layers[nextLayerDescriptor.digest] = dummyFile
                         }
                     }
                     var node = root
@@ -164,13 +164,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                             digests.firstNotNullOfOrNull { node.children[it] }
                                 ?: throw IllegalStateException("expected layer ($layer) to match any of the digests ${node.children.keys}, but calculated the digests $digests")
                         }
-                        val digest = node.layerDescriptor!!.digest
-                        val prevLayer = layers[digest]
-                        if ((prevLayer == null) || (prevLayer === dummyFile)) {
-                            layers[digest] = layer
-                        } else {
-                            checkDuplicateLayer(digest, prevLayer, layer)
-                        }
+                        layers += Pair(node.layerDescriptor!!, layer)
                     }
                 }
             }
