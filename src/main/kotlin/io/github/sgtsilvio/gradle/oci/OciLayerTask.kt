@@ -11,11 +11,9 @@ import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.Nested
-import org.gradle.api.tasks.OutputFile
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
 import java.io.FileInputStream
@@ -33,6 +31,10 @@ abstract class OciLayerTask : DefaultTask() {
 
     @get:Nested
     protected val copySpecInput = _contents.asInput(project.providers)
+
+    @get:Input
+    val digestAlgorithm: Property<OciDigestAlgorithm> =
+        project.objects.property<OciDigestAlgorithm>().convention(OciDigestAlgorithm.SHA_256)
 
     @get:Internal
     val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
@@ -75,12 +77,13 @@ abstract class OciLayerTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val copySpecInput = copySpecInput.get()
+        val digestAlgorithm = digestAlgorithm.get()
         val tarFile = tarFile.get().asFile
         val propertiesFile = propertiesFile.get().asFile
 
         val diffId: OciDigest
-        val digest = FileOutputStream(tarFile).calculateOciDigest(OciDigestAlgorithm.SHA_256) { compressedDos ->
-            diffId = GZIPOutputStream(compressedDos).calculateOciDigest(OciDigestAlgorithm.SHA_256) { dos ->
+        val digest = FileOutputStream(tarFile).calculateOciDigest(digestAlgorithm) { compressedDos ->
+            diffId = GZIPOutputStream(compressedDos).calculateOciDigest(digestAlgorithm) { dos ->
                 TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tos ->
                     tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                     tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
