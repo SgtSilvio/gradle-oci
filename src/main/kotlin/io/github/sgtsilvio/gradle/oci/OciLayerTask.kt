@@ -18,6 +18,7 @@ import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.util.*
 import java.util.zip.GZIPOutputStream
@@ -36,6 +37,10 @@ abstract class OciLayerTask : DefaultTask() {
     val digestAlgorithm: Property<OciDigestAlgorithm> =
         project.objects.property<OciDigestAlgorithm>().convention(OciDigestAlgorithm.SHA_256)
 
+    @get:Input
+    val compression: Property<OciLayerCompression> =
+        project.objects.property<OciLayerCompression>().convention(OciLayerCompression.GZIP)
+
     @get:Internal
     val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
 
@@ -43,7 +48,7 @@ abstract class OciLayerTask : DefaultTask() {
     val classifier = project.objects.property<String>()
 
     @get:Internal
-    val extension: Property<String> = project.objects.property<String>().convention("tgz")
+    val extension: Property<String> = project.objects.property<String>().convention(compression.map { it.extension })
 
     @get:OutputFile
     val tarFile: RegularFileProperty = project.objects.fileProperty()
@@ -78,12 +83,13 @@ abstract class OciLayerTask : DefaultTask() {
     protected fun run() {
         val copySpecInput = copySpecInput.get()
         val digestAlgorithm = digestAlgorithm.get()
+        val compression = compression.get()
         val tarFile = tarFile.get().asFile
         val propertiesFile = propertiesFile.get().asFile
 
         val diffId: OciDigest
         val digest = FileOutputStream(tarFile).calculateOciDigest(digestAlgorithm) { compressedDos ->
-            diffId = GZIPOutputStream(compressedDos).calculateOciDigest(digestAlgorithm) { dos ->
+            diffId = compression.createOutputStream(compressedDos).calculateOciDigest(digestAlgorithm) { dos ->
                 TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tos ->
                     tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                     tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
@@ -119,4 +125,15 @@ abstract class OciLayerTask : DefaultTask() {
         }
         propertiesFile.writeText("digest=$digest\nsize=${tarFile.length()}\ndiffId=$diffId")
     }
+}
+
+enum class OciLayerCompression(val extension: String) {
+    NONE("tar") {
+        override fun createOutputStream(out: OutputStream) = out
+    },
+    GZIP("tgz") {
+        override fun createOutputStream(out: OutputStream) = GZIPOutputStream(out)
+    };
+
+    abstract fun createOutputStream(out: OutputStream): OutputStream
 }
