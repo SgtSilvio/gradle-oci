@@ -48,7 +48,7 @@ abstract class OciImagesInputTask : DefaultTask() {
     protected fun run() {
         val imagesInputs: List<OciImagesInput> = imagesInputs.get()
         val resolvedComponentToImageReferences = HashMap<ResolvedOciComponent, HashSet<OciImageReference>>()
-        val allDigestToLayer = HashMap<OciDigest, File>()
+        val digestToLayer = HashMap<OciDigest, File>()
         for (imagesInput in imagesInputs) {
             val (components, layers) = findComponentsAndLayers(imagesInput.files.files.toTypedArray())
             val componentResolver = OciComponentResolver()
@@ -56,9 +56,9 @@ abstract class OciImagesInputTask : DefaultTask() {
                 componentResolver.addComponent(component)
             }
             for ((layerDescriptor, layer) in layers) {
-                val prevLayer = allDigestToLayer.putIfAbsent(layerDescriptor.digest, layer)
-                if ((prevLayer != null) && (layer != prevLayer)) {
-                    checkDuplicateLayer(layerDescriptor.digest, prevLayer, layer)
+                val prevLayer = digestToLayer.putIfAbsent(layerDescriptor.digest, layer)
+                if ((prevLayer != null) && (prevLayer != layer) && !FileUtils.contentEquals(prevLayer, layer)) {
+                    throw IllegalStateException("hash collision for digest ${layerDescriptor.digest}: expected file contents of $prevLayer and $layer to be the same")
                 }
             }
             for ((rootCapability, references) in imagesInput.rootCapabilities.get()) {
@@ -69,7 +69,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                 resolvedComponentToImageReferences.getOrPut(resolvedComponent) { HashSet() }.addAll(imageReferences)
             }
         }
-        run(resolvedComponentToImageReferences, allDigestToLayer)
+        run(resolvedComponentToImageReferences, digestToLayer)
     }
 
     protected abstract fun run(
@@ -210,12 +210,6 @@ abstract class OciImagesInputTask : DefaultTask() {
                     parent.drop()
                 }
             }
-        }
-    }
-
-    private fun checkDuplicateLayer(digest: OciDigest, file1: File, file2: File) {
-        if (!FileUtils.contentEquals(file1, file2)) {
-            throw IllegalStateException("hash collision for digest $digest: expected file contents of $file1 and $file2 to be the same")
         }
     }
 }
