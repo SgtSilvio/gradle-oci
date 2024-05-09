@@ -18,21 +18,29 @@ enum class OciDigestAlgorithm(val id: String, val standardName: String, private 
     SHA_256("sha256", "SHA-256", 32),
     SHA_512("sha512", "SHA-512", 64);
 
-    fun decode(hash: String): ByteArray =
-        if (hash.length == (hashByteLength * 2)) Hex.decodeHex(hash) else throw IllegalArgumentException(
-            "hash '$hash' has wrong length ${hash.length}, algorithm $standardName requires ${hashByteLength * 2}"
-        )
+    fun decode(encodedHash: String): ByteArray = Hex.decodeHex(checkEncodedHash(encodedHash))
 
-    fun encode(hash: ByteArray): String =
-        if (hash.size == hashByteLength) Hex.encodeHexString(hash) else throw IllegalArgumentException(
-            "hash has wrong length ${hash.size}, algorithm $standardName requires $hashByteLength"
-        )
+    private fun checkEncodedHash(encodedHash: String): String {
+        if (encodedHash.length == (hashByteLength * 2)) return encodedHash
+        throw IllegalArgumentException("encoded hash '$encodedHash' has wrong length ${encodedHash.length}, $standardName requires ${hashByteLength * 2}")
+    }
+
+    fun encode(hash: ByteArray): String = Hex.encodeHexString(checkHash(hash))
+
+    fun checkHash(hash: ByteArray): ByteArray {
+        if (hash.size == hashByteLength) return hash
+        throw IllegalArgumentException("hash has wrong length ${hash.size}, $standardName requires $hashByteLength")
+    }
 
     fun createMessageDigest(): MessageDigest = MessageDigest.getInstance(standardName)
 }
 
 data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) : Serializable {
     val encodedHash get() = algorithm.encode(hash)
+
+    init {
+        algorithm.checkHash(hash)
+    }
 
     override fun equals(other: Any?) = when {
         this === other -> true
