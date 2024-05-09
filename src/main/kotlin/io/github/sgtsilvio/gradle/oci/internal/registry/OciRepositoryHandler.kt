@@ -26,7 +26,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpHeaderValues
 import io.netty.handler.codec.http.HttpMethod
-import org.apache.commons.codec.binary.Hex
+import org.apache.commons.codec.digest.DigestUtils
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.reactivestreams.Publisher
@@ -37,7 +37,6 @@ import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
 import java.net.URI
 import java.net.URISyntaxException
-import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
@@ -163,10 +162,10 @@ internal class OciRepositoryHandler(
                                 addString("name", componentName)
                                 addString("url", "$variantName/$componentDigest/$componentSize/$componentName")
                                 addNumber("size", componentJson.size.toLong())
-                                addString("sha512", Hex.encodeHexString(MessageDigest.getInstance("SHA-512").digest(componentJson)))
-                                addString("sha256", Hex.encodeHexString(MessageDigest.getInstance("SHA-256").digest(componentJson)))
-                                addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(componentJson)))
-                                addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(componentJson)))
+                                addString("sha512", DigestUtils.sha512Hex(componentJson))
+                                addString("sha256", DigestUtils.sha256Hex(componentJson))
+                                addString("sha1", DigestUtils.sha1Hex(componentJson))
+                                addString("md5", DigestUtils.md5Hex(componentJson))
                             }
                             for ((digest, size) in component.collectLayerDigestToSize()) {
                                 addObject {
@@ -325,7 +324,7 @@ internal class OciRepositoryHandler(
     private fun HttpServerResponse.sendByteArray(data: Mono<ByteArray>, isGETelseHEAD: Boolean): Publisher<Void> {
         val dataAfterHeadersAreSet = data.doOnNext { bytes ->
             header(HttpHeaderNames.CONTENT_LENGTH, bytes.size.toString())
-            val sha1 = Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(bytes))
+            val sha1 = DigestUtils.sha1Hex(bytes)
             header(HttpHeaderNames.ETAG, sha1)
             header("x-checksum-sha1", sha1)
         }
