@@ -12,23 +12,23 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-// https://github.com/opencontainers/image-spec/blob/main/descriptor.md#registered-algorithms
-// https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest
-enum class OciDigestAlgorithm(val algorithmName: String, val ociPrefix: String, private val hashByteLength: Int) {
-    SHA_256("SHA-256", "sha256", 32),
-    SHA_512("SHA-512", "sha512", 64);
+// id: https://github.com/opencontainers/image-spec/blob/main/descriptor.md#registered-algorithms
+// standardName: https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html#messagedigest-algorithms
+enum class OciDigestAlgorithm(val id: String, val standardName: String, private val hashByteLength: Int) {
+    SHA_256("sha256", "SHA-256", 32),
+    SHA_512("sha512", "SHA-512", 64);
 
     fun decode(hash: String): ByteArray =
         if (hash.length == (hashByteLength * 2)) Hex.decodeHex(hash) else throw IllegalArgumentException(
-            "hash '$hash' has wrong length ${hash.length}, algorithm $algorithmName requires ${hashByteLength * 2}"
+            "hash '$hash' has wrong length ${hash.length}, algorithm $standardName requires ${hashByteLength * 2}"
         )
 
     fun encode(hash: ByteArray): String =
         if (hash.size == hashByteLength) Hex.encodeHexString(hash) else throw IllegalArgumentException(
-            "hash has wrong length ${hash.size}, algorithm $algorithmName requires $hashByteLength"
+            "hash has wrong length ${hash.size}, algorithm $standardName requires $hashByteLength"
         )
 
-    fun createMessageDigest(): MessageDigest = MessageDigest.getInstance(algorithmName)
+    fun createMessageDigest(): MessageDigest = MessageDigest.getInstance(standardName)
 }
 
 data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) : Serializable {
@@ -48,20 +48,30 @@ data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) : S
         return result
     }
 
-    override fun toString() = algorithm.ociPrefix + ":" + encodedHash
+    override fun toString() = algorithm.id + ":" + encodedHash
 }
 
-internal fun String.toOciDigest() = when {
-    startsWith(OciDigestAlgorithm.SHA_256.ociPrefix) -> OciDigestAlgorithm.SHA_256
-    startsWith(OciDigestAlgorithm.SHA_512.ociPrefix) -> OciDigestAlgorithm.SHA_512
-    else -> throw IllegalArgumentException("unsupported algorithm in digest '$this'")
-}.let { algorithm -> OciDigest(algorithm, algorithm.decode(substring(algorithm.ociPrefix.length + 1))) }
+internal fun String.toOciDigest(): OciDigest {
+    val colonIndex = indexOf(':')
+    if (colonIndex == -1) {
+        throw IllegalArgumentException("missing ':' in digest '$this'")
+    }
+    val algorithm = when (substring(0, colonIndex)) {
+        OciDigestAlgorithm.SHA_256.id -> OciDigestAlgorithm.SHA_256
+        OciDigestAlgorithm.SHA_512.id -> OciDigestAlgorithm.SHA_512
+        else -> throw IllegalArgumentException("unsupported algorithm in digest '$this'")
+    }
+    return OciDigest(algorithm, algorithm.decode(substring(colonIndex + 1)))
+}
 
-internal fun MessageDigest.toOciDigest() = OciDigest(when (algorithm) {
-    OciDigestAlgorithm.SHA_256.algorithmName -> OciDigestAlgorithm.SHA_256
-    OciDigestAlgorithm.SHA_512.algorithmName -> OciDigestAlgorithm.SHA_512
-    else -> throw IllegalArgumentException("unsupported message digest algorithm $algorithm")
-}, digest())
+internal fun MessageDigest.toOciDigest(): OciDigest {
+    val algorithm = when (algorithm) {
+        OciDigestAlgorithm.SHA_256.standardName -> OciDigestAlgorithm.SHA_256
+        OciDigestAlgorithm.SHA_512.standardName -> OciDigestAlgorithm.SHA_512
+        else -> throw IllegalArgumentException("unsupported digest algorithm '$algorithm'")
+    }
+    return OciDigest(algorithm, digest())
+}
 
 internal fun ByteArray.calculateOciDigest(algorithm: OciDigestAlgorithm) =
     OciDigest(algorithm, algorithm.createMessageDigest().digest(this))

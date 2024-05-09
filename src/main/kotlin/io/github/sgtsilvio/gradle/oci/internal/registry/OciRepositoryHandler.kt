@@ -170,17 +170,17 @@ internal class OciRepositoryHandler(
                             for ((digest, size) in component.collectLayerDigestToSize()) {
                                 addObject {
                                     val layerVariantName = layerDigestToVariantName.getOrPut(digest) { variantName }
-                                    val algorithm = digest.algorithm.ociPrefix
+                                    val algorithmId = digest.algorithm.id
                                     val encodedHash = digest.encodedHash
                                     val classifier = createOciLayerClassifier(
                                         layerVariantName,
-                                        algorithm + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
+                                        algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
                                     )
                                     val layerName = "$fileNamePrefix-$classifier"
                                     addString("name", layerName)
                                     addString("url", "$layerVariantName/$digest/$size/$layerName")
                                     addNumber("size", size)
-                                    addString(algorithm, encodedHash)
+                                    addString(algorithmId, encodedHash)
                                 }
                             }
                         }

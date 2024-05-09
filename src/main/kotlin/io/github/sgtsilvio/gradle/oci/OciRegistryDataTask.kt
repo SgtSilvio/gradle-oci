@@ -86,7 +86,7 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
 
     private fun Path.resolveDigestDataFile(digest: OciDigest): Path {
         val encodedHash = digest.encodedHash
-        return resolve(digest.algorithm.ociPrefix).resolve(encodedHash.substring(0, 2))
+        return resolve(digest.algorithm.id).resolve(encodedHash.substring(0, 2))
             .resolve(encodedHash)
             .createDirectories()
             .resolve("data")
@@ -104,7 +104,7 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
     }
 
     private fun Path.writeDigestLink(digest: OciDigest) {
-        resolve(digest.algorithm.ociPrefix).resolve(digest.encodedHash)
+        resolve(digest.algorithm.id).resolve(digest.encodedHash)
             .createDirectories()
             .resolve("link")
             .writeBytes(digest.toString().toByteArray())
