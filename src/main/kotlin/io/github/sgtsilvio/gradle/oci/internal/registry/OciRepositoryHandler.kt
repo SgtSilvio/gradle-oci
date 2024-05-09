@@ -145,7 +145,7 @@ internal class OciRepositoryHandler(
                     }
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}"
-                val layerDigestToVariantNameAndCounter = HashMap<OciDigest, Pair<String, Int>>()
+                val layerDigestToVariantName = HashMap<OciDigest, String>()
                 addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
                     val (component, componentDigest, componentSize) = componentWithDigest
                     addObject {
@@ -168,22 +168,20 @@ internal class OciRepositoryHandler(
                                 addString("sha1", Hex.encodeHexString(MessageDigest.getInstance("SHA-1").digest(componentJson)))
                                 addString("md5", Hex.encodeHexString(MessageDigest.getInstance("MD5").digest(componentJson)))
                             }
-                            var counter = 0
                             for ((digest, size) in component.collectLayerDigestToSize()) {
                                 addObject {
-                                    var layerVariantNameAndCounter = layerDigestToVariantNameAndCounter[digest]
-                                    if (layerVariantNameAndCounter == null) {
-                                        layerVariantNameAndCounter = Pair(variantName, counter++)
-                                        layerDigestToVariantNameAndCounter[digest] = layerVariantNameAndCounter
-                                    }
-                                    val (layerVariantName, layerCounter) = layerVariantNameAndCounter
-                                    val layerName = "$fileNamePrefix-${
-                                        createOciLayerClassifier(layerVariantName, layerCounter.toString())
-                                    }"
+                                    val layerVariantName = layerDigestToVariantName.getOrPut(digest) { variantName }
+                                    val algorithm = digest.algorithm.ociPrefix
+                                    val encodedHash = digest.encodedHash
+                                    val classifier = createOciLayerClassifier(
+                                        layerVariantName,
+                                        algorithm + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
+                                    )
+                                    val layerName = "$fileNamePrefix-$classifier"
                                     addString("name", layerName)
                                     addString("url", "$layerVariantName/$digest/$size/$layerName")
                                     addNumber("size", size)
-                                    addString(digest.algorithm.ociPrefix, digest.encodedHash)
+                                    addString(algorithm, encodedHash)
                                 }
                             }
                         }
