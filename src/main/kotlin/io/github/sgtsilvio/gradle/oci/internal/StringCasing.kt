@@ -32,11 +32,12 @@ internal fun String.isKebabCase(): Boolean {
         else -> {
             var prevIsHyphen = false
             for (c in this) {
-                if (c.isSeparatorOrWordStart()) {
-                    return false
-                }
                 val isHyphen = c == '-'
-                if (isHyphen && prevIsHyphen) {
+                if (isHyphen) {
+                    if (prevIsHyphen) {
+                        return false
+                    }
+                } else if (c.isSeparatorOrWordStart()) {
                     return false
                 }
                 prevIsHyphen = isHyphen
