@@ -127,7 +127,7 @@ abstract class OciLayerTask : DefaultTask() {
     }
 }
 
-enum class OciLayerCompression(val extension: String) {
+enum class OciLayerCompression(internal val extension: String) {
     NONE("tar") {
         override fun createOutputStream(out: OutputStream) = out
     },
@@ -135,5 +135,5 @@ enum class OciLayerCompression(val extension: String) {
         override fun createOutputStream(out: OutputStream) = GZIPOutputStream(out)
     };
 
-    abstract fun createOutputStream(out: OutputStream): OutputStream
+    internal abstract fun createOutputStream(out: OutputStream): OutputStream
 }
