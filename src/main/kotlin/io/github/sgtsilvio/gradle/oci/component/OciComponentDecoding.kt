@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.metadata.GZIP_COMPRESSED_LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
@@ -70,7 +70,7 @@ private fun JsonObject.decodeLayer() = OciComponent.Bundle.Layer(
 )
 
 private fun JsonObject.decodeLayerDescriptor() = OciComponent.Bundle.Layer.Descriptor(
-    getStringOrNull("metadata") ?: LAYER_MEDIA_TYPE,
+    getStringOrNull("metadata") ?: GZIP_COMPRESSED_LAYER_MEDIA_TYPE,
     getOciDigest("digest"),
     getLong("size"),
     getOciDigest("diffId"),

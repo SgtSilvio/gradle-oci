@@ -300,7 +300,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
     }
 
     private fun normalizeLayerMediaType(mediaType: String) = when (mediaType) {
-        DOCKER_LAYER_MEDIA_TYPE -> LAYER_MEDIA_TYPE
+        DOCKER_LAYER_MEDIA_TYPE -> GZIP_COMPRESSED_LAYER_MEDIA_TYPE
         else -> mediaType
     }
 

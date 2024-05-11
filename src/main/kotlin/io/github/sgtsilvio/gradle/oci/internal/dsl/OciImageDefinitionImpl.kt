@@ -433,6 +433,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 val task = providerFactory.provider { getTask() }.flatMap { it }
                 return providerFactory.provider { OciComponentBundleLayerDescriptorBuilder() }
                     .zip(metadata.annotations.orElse(emptyMap()), OciComponentBundleLayerDescriptorBuilder::annotations)
+                    .zipAbsentAsNull(task.flatMap { it.mediaType }, OciComponentBundleLayerDescriptorBuilder::mediaType)
                     .zipAbsentAsNull(task.flatMap { it.digest }, OciComponentBundleLayerDescriptorBuilder::digest)
                     .zipAbsentAsNull(task.flatMap { it.size }, OciComponentBundleLayerDescriptorBuilder::size)
                     .zipAbsentAsNull(task.flatMap { it.diffId }, OciComponentBundleLayerDescriptorBuilder::diffId)

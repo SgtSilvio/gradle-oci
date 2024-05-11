@@ -8,7 +8,8 @@ import java.util.*
 internal const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
 internal const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
 internal const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
-internal const val LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
+internal const val UNCOMPRESSED_LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar"
+internal const val GZIP_COMPRESSED_LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
 
 internal fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
     var user: String? = null
@@ -93,12 +94,12 @@ internal fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciCo
     val data = jsonObject {
         // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
         addObjectIfNotEmpty("annotations", lastBundle.manifestAnnotations)
-        addObject("config") { encodeOciDescriptor(CONFIG_MEDIA_TYPE, configDescriptor) }
+        addObject("config") { encodeOciDescriptor(configDescriptor) }
         addArray("layers") {
             for (bundle in bundles) {
                 for (layer in bundle.layers) {
                     layer.descriptor?.let {
-                        addObject { encodeOciDescriptor(LAYER_MEDIA_TYPE, it) }
+                        addObject { encodeOciDescriptor(it) }
                     }
                 }
             }
@@ -127,19 +128,19 @@ internal fun createIndex(
     return OciDataDescriptor(INDEX_MEDIA_TYPE, data, sortedMapOf())
 }
 
-private fun JsonObjectStringBuilder.encodeOciDescriptor(mediaType: String, descriptor: OciDescriptor) {
+private fun JsonObjectStringBuilder.encodeOciDescriptor(descriptor: OciDescriptor) {
     // sorted for canonical json: annotations, digest, mediaType, size
     addObjectIfNotEmpty("annotations", descriptor.annotations)
     addString("digest", descriptor.digest.toString())
-    addString("mediaType", mediaType)
+    addString("mediaType", descriptor.mediaType)
     addNumber("size", descriptor.size)
 }
 
 private fun JsonObjectStringBuilder.encodeOciManifestDescriptor(descriptor: OciDescriptor, platform: Platform) {
-    // sorted for canonical json: annotations, digest, mediaType, size
+    // sorted for canonical json: annotations, digest, mediaType, platform, size
     addObjectIfNotEmpty("annotations", descriptor.annotations)
     addString("digest", descriptor.digest.toString())
-    addString("mediaType", MANIFEST_MEDIA_TYPE)
+    addString("mediaType", descriptor.mediaType)
     addObject("platform") {
         // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
         addString("architecture", platform.architecture)

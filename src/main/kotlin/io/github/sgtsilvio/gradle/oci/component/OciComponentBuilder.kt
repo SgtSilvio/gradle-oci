@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import java.io.Serializable
@@ -110,20 +109,22 @@ internal class OciComponentBundleLayerBuilder : Serializable {
 }
 
 internal class OciComponentBundleLayerDescriptorBuilder : Serializable {
+    private var mediaType: String? = null
     private var digest: OciDigest? = null
     private var size: Long? = null
     private var diffId: OciDigest? = null
     private var annotations: Map<String, String> = emptyMap()
 
+    fun mediaType(v: String?) = apply { mediaType = v }
     fun digest(v: OciDigest?) = apply { digest = v }
     fun size(v: Long?) = apply { size = v }
     fun diffId(v: OciDigest?) = apply { diffId = v }
     fun annotations(v: Map<String, String>) = apply { annotations = v }
 
     fun build() = when {
-        (digest == null) && (size == null) && (diffId == null) && annotations.isEmpty() -> null
+        (mediaType == null) && (digest == null) && (size == null) && (diffId == null) && annotations.isEmpty() -> null
         else -> OciComponent.Bundle.Layer.Descriptor(
-            LAYER_MEDIA_TYPE,
+            mediaType!!,
             digest!!,
             size!!,
             diffId!!,

@@ -1,10 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.*
-import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
-import io.github.sgtsilvio.gradle.oci.metadata.OciDigestAlgorithm
-import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
-import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.*
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
@@ -40,6 +37,9 @@ abstract class OciLayerTask : DefaultTask() {
     @get:Input
     val compression: Property<OciLayerCompression> =
         project.objects.property<OciLayerCompression>().convention(OciLayerCompression.GZIP)
+
+    @get:Internal
+    val mediaType: Provider<String> = compression.map { it.mediaType }
 
     @get:Internal
     val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
@@ -127,11 +127,11 @@ abstract class OciLayerTask : DefaultTask() {
     }
 }
 
-enum class OciLayerCompression(internal val extension: String) {
-    NONE("tar") {
+enum class OciLayerCompression(internal val extension: String, internal val mediaType: String) {
+    NONE("tar", UNCOMPRESSED_LAYER_MEDIA_TYPE) {
         override fun createOutputStream(out: OutputStream) = out
     },
-    GZIP("tgz") {
+    GZIP("tgz", GZIP_COMPRESSED_LAYER_MEDIA_TYPE) {
         override fun createOutputStream(out: OutputStream) = GZIPOutputStream(out)
     };
 

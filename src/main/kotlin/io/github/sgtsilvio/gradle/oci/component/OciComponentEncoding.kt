@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.metadata.LAYER_MEDIA_TYPE
+import io.github.sgtsilvio.gradle.oci.metadata.GZIP_COMPRESSED_LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 internal fun OciComponent.encodeToJsonString() = jsonObject { encodeOciComponent(this@encodeToJsonString) }
@@ -69,7 +69,7 @@ private fun JsonObjectStringBuilder.encodeLayer(layer: OciComponent.Bundle.Layer
 }
 
 private fun JsonObjectStringBuilder.encodeLayerDescriptor(descriptor: OciComponent.Bundle.Layer.Descriptor) {
-    if (descriptor.mediaType != LAYER_MEDIA_TYPE) {
+    if (descriptor.mediaType != GZIP_COMPRESSED_LAYER_MEDIA_TYPE) {
         addString("mediaType", descriptor.mediaType)
     }
     addString("digest", descriptor.digest.toString())
