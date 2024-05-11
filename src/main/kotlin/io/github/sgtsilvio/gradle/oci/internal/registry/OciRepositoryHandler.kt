@@ -108,10 +108,13 @@ internal class OciRepositoryHandler(
             return response.sendBadRequest()
         }
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
-        return if (segments[7].endsWith("oci-component.json")) {
-            getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
-        } else {
-            getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
+        val last = segments[7]
+        return when {
+            last.endsWith("oci-component.json") ->
+                getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
+            last.endsWith("oci-layer") ->
+                getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
+            else -> response.sendNotFound()
         }
     }
 
@@ -170,9 +173,8 @@ internal class OciRepositoryHandler(
                                         layerVariantName,
                                         algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
                                     )
-                                    val extension = mapLayerMediaTypeToExtension(mediaType)
-                                    val layerName = "$fileNamePrefix-$classifier$extension"
-                                    addString("name", layerName)
+                                    val layerName = "$fileNamePrefix-$classifier"
+                                    addString("name", layerName + mapLayerMediaTypeToExtension(mediaType))
                                     addString("url", "$layerVariantName/$digest/$size/$layerName")
                                     addNumber("size", size)
                                     addString(algorithmId, encodedHash)
