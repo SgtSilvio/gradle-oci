@@ -5,9 +5,8 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
-import io.github.sgtsilvio.gradle.oci.component.allLayers
+import io.github.sgtsilvio.gradle.oci.component.allLayerDescriptors
 import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.createOciComponentClassifier
@@ -20,9 +19,7 @@ import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.map
-import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
-import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
-import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpHeaderValues
 import io.netty.handler.codec.http.HttpMethod
@@ -111,13 +108,10 @@ internal class OciRepositoryHandler(
             return response.sendBadRequest()
         }
         val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
-        val last = segments[7]
-        return when {
-            last.endsWith("oci-component.json") ->
-                getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
-            last.endsWith("oci-layer") ->
-                getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
-            else -> response.sendNotFound()
+        return if (segments[7].endsWith("oci-component.json")) {
+            getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
+        } else {
+            getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
         }
     }
 
@@ -167,7 +161,7 @@ internal class OciRepositoryHandler(
                                 addString("sha1", DigestUtils.sha1Hex(componentJson))
                                 addString("md5", DigestUtils.md5Hex(componentJson))
                             }
-                            for ((digest, size) in component.collectLayerDigestToSize()) {
+                            for ((mediaType, digest, size) in component.allLayerDescriptors.distinctBy { it.digest }) {
                                 addObject {
                                     val layerVariantName = layerDigestToVariantName.getOrPut(digest) { variantName }
                                     val algorithmId = digest.algorithm.id
@@ -176,7 +170,8 @@ internal class OciRepositoryHandler(
                                         layerVariantName,
                                         algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
                                     )
-                                    val layerName = "$fileNamePrefix-$classifier"
+                                    val extension = mapLayerMediaTypeToExtension(mediaType)
+                                    val layerName = "$fileNamePrefix-$classifier$extension"
                                     addString("name", layerName)
                                     addString("url", "$layerVariantName/$digest/$size/$layerName")
                                     addNumber("size", size)
@@ -309,14 +304,10 @@ internal class OciRepositoryHandler(
         componentRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
             .flatMap { present -> if (present) response.send() else response.sendNotFound() }
 
-    private fun OciComponent.collectLayerDigestToSize(): LinkedHashMap<OciDigest, Long> {
-        val digests = LinkedHashMap<OciDigest, Long>()
-        for (layer in allLayers) {
-            layer.descriptor?.let {
-                digests[it.digest] = it.size
-            }
-        }
-        return digests
+    private fun mapLayerMediaTypeToExtension(mediaType: String) = when (mediaType) {
+        UNCOMPRESSED_LAYER_MEDIA_TYPE -> ".tar"
+        GZIP_COMPRESSED_LAYER_MEDIA_TYPE -> ".tgz"
+        else -> ""
     }
 
     private fun HttpServerResponse.sendBadRequest(): Mono<Void> = status(400).send()

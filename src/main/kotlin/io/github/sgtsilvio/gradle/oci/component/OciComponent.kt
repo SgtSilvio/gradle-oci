@@ -64,8 +64,8 @@ data class OciComponent(
     }
 }
 
-internal val OciComponent.allLayers: Sequence<OciComponent.Bundle.Layer>
+internal val OciComponent.allLayerDescriptors: Sequence<OciComponent.Bundle.Layer.Descriptor>
     get() = when (val bundleOrPlatformBundles = bundleOrPlatformBundles) {
         is OciComponent.Bundle -> bundleOrPlatformBundles.layers.asSequence()
         is OciComponent.PlatformBundles -> bundleOrPlatformBundles.map.values.asSequence().flatMap { it.layers }
-    }
+    }.mapNotNull { it.descriptor }

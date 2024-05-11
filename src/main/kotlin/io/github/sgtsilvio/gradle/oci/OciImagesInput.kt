@@ -86,7 +86,7 @@ abstract class OciImagesInputTask : DefaultTask() {
             }
             val component = componentFile.readText().decodeAsJsonToOciComponent()
             components += component
-            val layerDescriptorsIterator = component.allLayers.mapNotNull { it.descriptor }.iterator()
+            val layerDescriptorsIterator = component.allLayerDescriptors.iterator()
             while (layerDescriptorsIterator.hasNext()) {
                 val layerDescriptor = layerDescriptorsIterator.next()
                 if (layerDigests.add(layerDescriptor.digest)) { // layer file is required as digest has not been seen yet
