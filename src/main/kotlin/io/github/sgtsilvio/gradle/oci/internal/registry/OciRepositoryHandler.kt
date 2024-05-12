@@ -73,7 +73,7 @@ internal class OciRepositoryHandler(
         segments: List<String>,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val isGET = when (request.method()) {
+        val isGet = when (request.method()) {
             HttpMethod.GET -> true
             HttpMethod.HEAD -> false
             else -> return response.sendNotFound()
@@ -91,7 +91,7 @@ internal class OciRepositoryHandler(
         val componentId = VersionedCoordinates(segments[1], segments[2], segments[3])
         val mappedComponent = imageMappingData.map(componentId)
         if ((segments.size == 5) && segments[4].endsWith(".module")) {
-            return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGET, response)
+            return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGet, response)
         }
         if (segments.size != 8) {
             return response.sendNotFound()
@@ -111,9 +111,9 @@ internal class OciRepositoryHandler(
         val last = segments[7]
         return when {
             last.endsWith("oci-component.json") ->
-                getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGET, response)
+                getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGet, response)
             last.endsWith("oci-layer") ->
-                getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGET, response)
+                getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGet, response)
             else -> response.sendNotFound()
         }
     }
@@ -122,7 +122,7 @@ internal class OciRepositoryHandler(
         registryUri: URI,
         mappedComponent: MappedComponent,
         credentials: Credentials?,
-        isGET: Boolean,
+        isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
         val componentId = mappedComponent.componentId
@@ -195,7 +195,7 @@ internal class OciRepositoryHandler(
             }.toByteArray()
         }
         response.header(HttpHeaderNames.CONTENT_TYPE, "application/vnd.org.gradle.module+json") // TODO constants
-        return response.sendByteArray(moduleJsonMono, isGET)
+        return response.sendByteArray(moduleJsonMono, isGet)
     }
 
     private fun getOrHeadComponent(
@@ -204,14 +204,14 @@ internal class OciRepositoryHandler(
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-        isGET: Boolean,
+        isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
         val componentJsonMono = getComponent(registryUri, variant, digest, size, credentials).map { componentWithDigest ->
             componentWithDigest.component.encodeToJsonString().toByteArray()
         }
         response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
-        return response.sendByteArray(componentJsonMono, isGET)
+        return response.sendByteArray(componentJsonMono, isGet)
     }
 
     private fun getComponent(
@@ -266,12 +266,12 @@ internal class OciRepositoryHandler(
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
-        isGET: Boolean,
+        isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
         response.header(HttpHeaderNames.CONTENT_LENGTH, size.toString())
         response.header(HttpHeaderNames.ETAG, digest.encodedHash)
-        return if (isGET) {
+        return if (isGet) {
             getLayer(registryUri, imageName, digest, size, credentials, response)
         } else {
             headLayer(registryUri, imageName, digest, credentials, response)
@@ -314,13 +314,13 @@ internal class OciRepositoryHandler(
 
     private fun HttpServerResponse.sendBadRequest(): Mono<Void> = status(400).send()
 
-    private fun HttpServerResponse.sendByteArray(data: Mono<ByteArray>, isGETelseHEAD: Boolean): Publisher<Void> {
+    private fun HttpServerResponse.sendByteArray(data: Mono<ByteArray>, isGetElseHead: Boolean): Publisher<Void> {
         val dataAfterHeadersAreSet = data.doOnNext { bytes ->
             header(HttpHeaderNames.CONTENT_LENGTH, bytes.size.toString())
             val sha1 = DigestUtils.sha1Hex(bytes)
             header(HttpHeaderNames.ETAG, sha1)
             header("x-checksum-sha1", sha1)
         }
-        return sendByteArray(if (isGETelseHEAD) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
+        return sendByteArray(if (isGetElseHead) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }
 }
