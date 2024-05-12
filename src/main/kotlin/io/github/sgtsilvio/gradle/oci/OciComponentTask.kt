@@ -25,11 +25,11 @@ abstract class OciComponentTask : DefaultTask() {
     val classifier = project.objects.property<String>()
 
     @get:OutputFile
-    val componentFile: RegularFileProperty =
+    val file: RegularFileProperty =
         project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.json" }))
 
     @TaskAction
     protected fun run() {
-        componentFile.get().asFile.writeText(encodedComponent.get())
+        file.get().asFile.writeText(encodedComponent.get())
     }
 }

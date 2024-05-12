@@ -142,13 +142,13 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             val layerTasks = LinkedHashMap<String, TaskProvider<OciLayerTask>>()
             getBundleOrPlatformBundles().collectLayerTasks(layerTasks)
             listOf(LazyPublishArtifact(objectFactory).apply {
-                file.set(componentTask.flatMap { it.componentFile })
+                file.set(componentTask.flatMap { it.file })
                 name.set(project.name)
                 classifier.set(componentTask.flatMap { it.classifier })
                 extension.set("json")
             }) + layerTasks.map { (_, layerTask) ->
                 LazyPublishArtifact(objectFactory).apply {
-                    file.set(layerTask.flatMap { it.tarFile })
+                    file.set(layerTask.flatMap { it.file })
                     name.set(project.name)
                     classifier.set(layerTask.flatMap { it.classifier })
                     extension.set(layerTask.flatMap { it.extension })

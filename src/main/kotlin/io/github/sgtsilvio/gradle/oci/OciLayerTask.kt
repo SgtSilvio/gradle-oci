@@ -51,7 +51,7 @@ abstract class OciLayerTask : DefaultTask() {
     val extension: Property<String> = project.objects.property<String>().convention(compression.map { it.extension })
 
     @get:OutputFile
-    val tarFile: RegularFileProperty = project.objects.fileProperty()
+    val file: RegularFileProperty = project.objects.fileProperty()
         .convention(destinationDirectory.file(classifier.zip(extension) { classifier, ext -> "$classifier.$ext" }))
 
     @get:OutputFile
@@ -84,11 +84,11 @@ abstract class OciLayerTask : DefaultTask() {
         val copySpecInput = copySpecInput.get()
         val digestAlgorithm = digestAlgorithm.get()
         val compression = compression.get()
-        val tarFile = tarFile.get().asFile
+        val file = file.get().asFile
         val propertiesFile = propertiesFile.get().asFile
 
         val diffId: OciDigest
-        val digest = FileOutputStream(tarFile).calculateOciDigest(digestAlgorithm) { compressedDos ->
+        val digest = FileOutputStream(file).calculateOciDigest(digestAlgorithm) { compressedDos ->
             diffId = compression.createOutputStream(compressedDos).calculateOciDigest(digestAlgorithm) { dos ->
                 TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tos ->
                     tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
@@ -123,7 +123,7 @@ abstract class OciLayerTask : DefaultTask() {
                 }
             }
         }
-        propertiesFile.writeText("digest=$digest\nsize=${tarFile.length()}\ndiffId=$diffId")
+        propertiesFile.writeText("digest=$digest\nsize=${file.length()}\ndiffId=$diffId")
     }
 }
 
