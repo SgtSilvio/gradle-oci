@@ -7,7 +7,7 @@ json = "20240303"
 junit-jupiter = "5.10.2"
 netty = "4.1.109.Final"
 reactor-kotlin = "1.2.2"
-reactor-netty = "1.1.18"
+reactor-netty = "1.1.19"
 
 [libraries]
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
