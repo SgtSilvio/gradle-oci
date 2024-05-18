@@ -52,14 +52,10 @@ dependencies {
 }
 
 gradlePlugin {
-    website = metadata.url
-    vcsUrl = metadata.scm.get().url
     plugins {
         create("oci") {
             id = "$group.$name"
             implementationClass = "$group.$name.OciPlugin"
-            displayName = metadata.readableName.get()
-            description = project.description
             tags = listOf("oci", "oci-image", "docker", "multi-arch")
         }
     }
