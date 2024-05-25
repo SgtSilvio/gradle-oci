@@ -22,13 +22,11 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
+import org.gradle.api.capabilities.Capability
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver
 import org.gradle.api.model.ObjectFactory
@@ -60,7 +58,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         objectFactory.property<String>().convention(providerFactory.provider {
             project.version.toString().concatKebabCase(name.mainToEmpty().kebabCase())
         })
-    final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration)
+    final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration.outgoing, name)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
     private var allPlatformBundleScope: BundleScope? = null
     private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
@@ -104,13 +102,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private fun createComponentCapabilities(): Provider<Set<VersionedCoordinates>> =
         capabilities.set.map { capabilities ->
             capabilities.map { VersionedCoordinates(it.group, it.name, it.version!!) }.toSet().ifEmpty {
-                setOf(
-                    VersionedCoordinates(
-                        project.group.toString(),
-                        project.name.concatKebabCase(name.mainToEmpty().kebabCase()),
-                        project.version.toString(),
-                    )
-                )
+                setOf(VersionedCoordinates(project.group.toString(), project.name, project.version.toString()))
             }
         }
 
@@ -231,15 +223,27 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
 
 
     abstract class Capabilities @Inject constructor(
+        private val configurationPublications: ConfigurationPublications,
+        imageDefName: String,
         providerFactory: ProviderFactory,
-        private val imageConfiguration: Configuration,
+        project: Project,
     ) : OciImageDefinition.Capabilities {
 
-        final override val set: Provider<Set<org.gradle.api.capabilities.Capability>> = providerFactory.provider {
-            imageConfiguration.outgoing.capabilities.toSet()
+        final override val set: Provider<Set<Capability>> = providerFactory.provider {
+            configurationPublications.capabilities.toSet()
         }
 
-        final override fun add(notation: String) = imageConfiguration.outgoing.capability(notation)
+        init {
+            if (!imageDefName.isMain()) {
+                project.afterEvaluate {
+                    if (configurationPublications.capabilities.isEmpty()) {
+                        add("$group:${name.concatKebabCase(imageDefName.kebabCase())}:$version")
+                    }
+                }
+            }
+        }
+
+        final override fun add(notation: String) = configurationPublications.capability(notation)
     }
 
 

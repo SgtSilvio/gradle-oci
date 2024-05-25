@@ -1,6 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
-internal fun String.mainToEmpty() = if (this == "main") "" else this
+internal fun String.isMain() = this == "main"
+
+internal fun String.mainToEmpty() = if (isMain()) "" else this
 
 internal fun createOciVariantName(variantName: String): String =
     variantName.mainToEmpty().camelCase().concatCamelCase("ociImage")
