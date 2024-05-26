@@ -40,7 +40,11 @@ interface OciImageDefinition : Named {
 
         fun add(notation: String)
 
+        fun add(notationProvider: Provider<String>)
+
         operator fun plusAssign(notation: String) = add(notation)
+
+        operator fun plusAssign(notationProvider: Provider<String>) = add(notationProvider)
     }
 
     interface Bundle {

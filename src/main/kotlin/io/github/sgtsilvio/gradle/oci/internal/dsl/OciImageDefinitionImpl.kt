@@ -36,6 +36,7 @@ import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.*
+import org.gradle.util.GradleVersion
 import java.util.*
 import javax.inject.Inject
 
@@ -226,12 +227,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         private val configurationPublications: ConfigurationPublications,
         imageDefName: String,
         providerFactory: ProviderFactory,
-        project: Project,
+        private val project: Project,
     ) : OciImageDefinition.Capabilities {
 
         final override val set: Provider<Set<Capability>> = providerFactory.provider {
             configurationPublications.capabilities.toSet()
         }
+
+        private val lazyNotations = mutableListOf<Provider<String>>()
 
         init {
             if (!imageDefName.isMain()) {
@@ -244,6 +247,25 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
 
         final override fun add(notation: String) = configurationPublications.capability(notation)
+
+        final override fun add(notationProvider: Provider<String>) {
+            if (GradleVersion.current() >= GradleVersion.version("8.6")) {
+                configurationPublications.capability(notationProvider)
+            } else {
+                lazyNotations += notationProvider
+                if (lazyNotations.size == 1) {
+                    project.afterEvaluate {
+                        for (lazyNotation in lazyNotations) {
+                            val notation = lazyNotation.orNull
+                            if (notation != null) {
+                                add(notation)
+                            }
+                        }
+                        lazyNotations.clear()
+                    }
+                }
+            }
+        }
     }
 
 
