@@ -59,7 +59,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         objectFactory.property<String>().convention(providerFactory.provider {
             project.version.toString().concatKebabCase(name.mainToEmpty().kebabCase())
         })
-    final override val capabilities = objectFactory.newInstance<Capabilities>(configuration.outgoing, name)
+    final override val capabilities = objectFactory.newInstance(
+        if (GradleVersion.current() >= GradleVersion.version("8.6")) Capabilities::class.java else Capabilities.Legacy::class.java,
+        configuration.outgoing,
+        name,
+    )
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
     private var allPlatformBundleScope: BundleScope? = null
     private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
@@ -234,8 +238,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             configurationPublications.capabilities.toSet()
         }
 
-        private val lazyNotations = mutableListOf<Provider<String>>()
-
         init {
             if (!imageDefName.isMain()) {
                 project.afterEvaluate {
@@ -244,23 +246,34 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     }
                 }
             }
-            project.afterEvaluate {
-                for (lazyNotation in lazyNotations) {
-                    val notation = lazyNotation.orNull
-                    if (notation != null) {
-                        add(notation)
-                    }
-                }
-                lazyNotations.clear()
-            }
         }
 
         final override fun add(notation: String) = configurationPublications.capability(notation)
 
-        final override fun add(notationProvider: Provider<String>) {
-            if (GradleVersion.current() >= GradleVersion.version("8.6")) {
-                configurationPublications.capability(notationProvider)
-            } else {
+        override fun add(notationProvider: Provider<String>) = configurationPublications.capability(notationProvider)
+
+        abstract class Legacy @Inject constructor(
+            configurationPublications: ConfigurationPublications,
+            imageDefName: String,
+            providerFactory: ProviderFactory,
+            project: Project,
+        ) : Capabilities(configurationPublications, imageDefName, providerFactory, project) {
+
+            private val lazyNotations = mutableListOf<Provider<String>>()
+
+            init {
+                project.afterEvaluate {
+                    for (lazyNotation in lazyNotations) {
+                        val notation = lazyNotation.orNull
+                        if (notation != null) {
+                            add(notation)
+                        }
+                    }
+                    lazyNotations.clear()
+                }
+            }
+
+            final override fun add(notationProvider: Provider<String>) {
                 lazyNotations += notationProvider
             }
         }
