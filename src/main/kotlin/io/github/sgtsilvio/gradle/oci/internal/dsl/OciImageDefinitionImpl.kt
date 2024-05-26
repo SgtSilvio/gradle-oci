@@ -227,7 +227,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         private val configurationPublications: ConfigurationPublications,
         imageDefName: String,
         providerFactory: ProviderFactory,
-        private val project: Project,
+        project: Project,
     ) : OciImageDefinition.Capabilities {
 
         final override val set: Provider<Set<Capability>> = providerFactory.provider {
@@ -244,6 +244,15 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     }
                 }
             }
+            project.afterEvaluate {
+                for (lazyNotation in lazyNotations) {
+                    val notation = lazyNotation.orNull
+                    if (notation != null) {
+                        add(notation)
+                    }
+                }
+                lazyNotations.clear()
+            }
         }
 
         final override fun add(notation: String) = configurationPublications.capability(notation)
@@ -253,17 +262,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 configurationPublications.capability(notationProvider)
             } else {
                 lazyNotations += notationProvider
-                if (lazyNotations.size == 1) {
-                    project.afterEvaluate {
-                        for (lazyNotation in lazyNotations) {
-                            val notation = lazyNotation.orNull
-                            if (notation != null) {
-                                add(notation)
-                            }
-                        }
-                        lazyNotations.clear()
-                    }
-                }
             }
         }
     }
