@@ -131,6 +131,18 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return this
     }
 
+    final override fun with(other: OciCopySpec): OciCopySpec {
+        val child = other as OciCopySpecImpl
+        if ((this == child) || (this in child.allChildren)) {
+            throw IllegalArgumentException("cycle in OCI copy specs not allowed")
+        }
+        children += child
+        return this
+    }
+
+    private val allChildren: Sequence<OciCopySpecImpl>
+        get() = children.asSequence() + children.asSequence().flatMap { it.allChildren }
+
     fun asInput(providerFactory: ProviderFactory): Provider<OciCopySpecInput> {
         val lazy = lazy { OciCopySpecInput(this, PatternSet()) }
         return providerFactory.provider { lazy.value }

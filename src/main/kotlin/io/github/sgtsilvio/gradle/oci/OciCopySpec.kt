@@ -200,4 +200,6 @@ interface OciCopySpec {
      * @return the current copy spec
      */
     fun groupId(pathPattern: String, groupId: Long): OciCopySpec
+
+    fun with(other: OciCopySpec): OciCopySpec
 }
