@@ -1,9 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
+import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
+import io.github.sgtsilvio.gradle.oci.internal.copyspec.OciCopySpecImpl
+import io.github.sgtsilvio.gradle.oci.internal.copyspec.newOciCopySpec
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -65,4 +68,12 @@ internal abstract class OciExtensionImpl @Inject constructor(private val objectF
 
     final override fun PlatformFilter.or(configuration: Action<in OciExtension.PlatformFilterBuilder>) =
         or(platformFilter(configuration))
+
+    final override fun copySpec() = objectFactory.newOciCopySpec()
+
+    final override fun copySpec(configuration: Action<in OciCopySpec>): OciCopySpecImpl {
+        val copySpec = copySpec()
+        configuration.execute(copySpec)
+        return copySpec
+    }
 }

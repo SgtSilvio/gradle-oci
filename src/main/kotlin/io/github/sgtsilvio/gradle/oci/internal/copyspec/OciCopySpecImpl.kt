@@ -148,3 +148,5 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return providerFactory.provider { lazy.value }
     }
 }
+
+internal fun ObjectFactory.newOciCopySpec() = newInstance<OciCopySpecImpl>()

@@ -11,7 +11,6 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
-import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.property
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -25,7 +24,7 @@ import java.util.zip.GZIPOutputStream
  */
 abstract class OciLayerTask : DefaultTask() {
 
-    private val _contents = project.objects.newInstance<OciCopySpecImpl>()
+    private val _contents = project.objects.newOciCopySpec()
 
     @get:Nested
     protected val copySpecInput = _contents.asInput(project.providers)

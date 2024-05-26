@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
+import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.OciPushTask
 import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
@@ -45,4 +46,8 @@ interface OciExtension {
         val variants: SetProperty<String>
         val osVersions: SetProperty<String>
     }
+
+    fun copySpec(): OciCopySpec
+
+    fun copySpec(configuration: Action<in OciCopySpec>): OciCopySpec
 }
