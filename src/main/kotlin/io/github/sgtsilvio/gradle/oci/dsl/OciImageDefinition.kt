@@ -8,6 +8,7 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
 import org.gradle.api.Named
 import org.gradle.api.NamedDomainObjectList
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.*
@@ -19,6 +20,8 @@ interface OciImageDefinition : Named {
     val imageTag: Property<String>
     val capabilities: Capabilities
     val indexAnnotations: MapProperty<String, String>
+
+    val configuration: Configuration
     val component: Provider<OciComponent>
     val dependency: Provider<ProjectDependency>
 

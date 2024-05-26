@@ -49,7 +49,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private val project: Project,
 ) : OciImageDefinition {
 
-    private val imageConfiguration = createConfiguration(configurationContainer, name, objectFactory)
+    final override val configuration = createConfiguration(configurationContainer, name, objectFactory)
     final override val imageName: Property<String> =
         objectFactory.property<String>().convention(providerFactory.provider {
             defaultMappedImageNamespace(project.group.toString()) + project.name
@@ -58,7 +58,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         objectFactory.property<String>().convention(providerFactory.provider {
             project.version.toString().concatKebabCase(name.mainToEmpty().kebabCase())
         })
-    final override val capabilities = objectFactory.newInstance<Capabilities>(imageConfiguration.outgoing, name)
+    final override val capabilities = objectFactory.newInstance<Capabilities>(configuration.outgoing, name)
     private val bundles = objectFactory.domainObjectSet(Bundle::class)
     private var allPlatformBundleScope: BundleScope? = null
     private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
@@ -130,7 +130,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     }
 
     private fun registerArtifacts(objectFactory: ObjectFactory, providerFactory: ProviderFactory) {
-        imageConfiguration.outgoing.addArtifacts(providerFactory.provider {
+        configuration.outgoing.addArtifacts(providerFactory.provider {
             val layerTasks = LinkedHashMap<String, TaskProvider<OciLayerTask>>()
             getBundleOrPlatformBundles().collectLayerTasks(layerTasks)
             listOf(LazyPublishArtifact(objectFactory).apply {
@@ -200,7 +200,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
         var bundle = platformBundles[platform]
         if (bundle == null) {
-            bundle = objectFactory.newInstance<Bundle>(name, imageConfiguration, Optional.of(platform))
+            bundle = objectFactory.newInstance<Bundle>(name, configuration, Optional.of(platform))
             bundles.add(bundle)
             platformBundles[platform] = bundle
         }
@@ -214,7 +214,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
         var universalBundle = universalBundle
         if (universalBundle == null) {
-            universalBundle = objectFactory.newInstance<Bundle>(name, imageConfiguration, Optional.empty<Platform>())
+            universalBundle = objectFactory.newInstance<Bundle>(name, configuration, Optional.empty<Platform>())
             bundles.add(universalBundle)
             this.universalBundle = universalBundle
         }
