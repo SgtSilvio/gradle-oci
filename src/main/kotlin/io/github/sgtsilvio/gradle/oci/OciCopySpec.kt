@@ -201,5 +201,14 @@ interface OciCopySpec {
      */
     fun groupId(pathPattern: String, groupId: Long): OciCopySpec
 
+    /**
+     * Adds the given copy spec as a child to the current copy spec.
+     * This allows reusing copy specs in multiple places.
+     *
+     * @param other the copy spec to add as a child to the current copy spec
+     * @return the current copy spec
+     * @throws IllegalArgumentException if adding the given copy spec as a child to the current copy spec would result in a cycle
+     * (the current copy spec is the same as or a transitive child of the given copy spec)
+     */
     fun with(other: OciCopySpec): OciCopySpec
 }
