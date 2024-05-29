@@ -4,7 +4,7 @@ import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.GZIP_COMPRESSED_LAYER_MEDIA_TYPE
 import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReference
-import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.util.*
 
 internal fun String.decodeAsJsonToOciComponent() = jsonObject(this).decodeOciComponent()
@@ -30,7 +30,7 @@ private fun JsonArray.decodePlatformBundles() = OciComponent.PlatformBundles(toM
     }
 })
 
-private fun JsonObject.decodePlatform() = PlatformImpl(
+private fun JsonObject.decodePlatform() = Platform(
     getString("os"),
     getString("architecture"),
     getStringOrNull("variant") ?: "",

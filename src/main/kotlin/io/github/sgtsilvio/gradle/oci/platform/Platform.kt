@@ -7,7 +7,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-interface Platform : Comparable<Platform>, Serializable {
+sealed interface Platform : Comparable<Platform>, Serializable {
     val os: String
     val architecture: String
     val variant: String
@@ -15,7 +15,15 @@ interface Platform : Comparable<Platform>, Serializable {
     val osFeatures: SortedSet<String>
 }
 
-internal data class PlatformImpl(
+internal fun Platform(
+    os: String,
+    architecture: String,
+    variant: String,
+    osVersion: String,
+    osFeatures: SortedSet<String>,
+): Platform = PlatformImpl(os, architecture, variant.ifEmpty { defaultVariant(architecture) }, osVersion, osFeatures)
+
+private data class PlatformImpl(
     override val os: String,
     override val architecture: String,
     override val variant: String,
@@ -40,4 +48,10 @@ internal data class PlatformImpl(
         osVersion.compareTo(other.osVersion).also { if (it != 0) return it }
         return osFeatures.compareTo(other.osFeatures)
     }
+}
+
+private fun defaultVariant(architecture: String) = when (architecture) {
+    "arm64" -> "v8"
+    "arm" -> "v7"
+    else -> ""
 }

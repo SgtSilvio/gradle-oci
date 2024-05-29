@@ -5,7 +5,6 @@ import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
-import io.github.sgtsilvio.gradle.oci.platform.PlatformImpl
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Instant
@@ -277,7 +276,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
             }
 
             Pair(
-                PlatformImpl(os, architecture, variant, osVersion, osFeatures),
+                Platform(os, architecture, variant, osVersion, osFeatures),
                 OciComponent.Bundle(
                     emptyList(),
                     creationTime,
@@ -322,7 +321,7 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         decodeOciDescriptor(manifestMediaType), // TODO support nested index
     ) // TODO order?
 
-    private fun JsonObject.decodePlatform(): Platform = PlatformImpl(
+    private fun JsonObject.decodePlatform() = Platform(
         getString("os"),
         getString("architecture"),
         getStringOrNull("variant") ?: "",
