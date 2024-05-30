@@ -125,8 +125,13 @@ internal class OciComponentRegistry(val registryApi: OciRegistryApi) {
         }
         indexJsonObject.requireStringOrNull("mediaType", indexMediaType)
         indexJsonObject.requireLong("schemaVersion", 2)
-        return Flux.merge(manifestFutures)
-            .collect({ TreeMap<Platform, OciComponent.Bundle>() }) { map, platformBundle -> map += platformBundle }
+        return Flux.mergeSequential(manifestFutures)
+            .collect({ TreeMap<Platform, OciComponent.Bundle>() }) { map, (platform, bundle) ->
+                // putIfAbsent is used instead of put so the first one is used and duplicate platforms are dropped
+                // the same order as in the manifest is guaranteed by mergeSequential
+                // OCI Image Format Specification: If multiple manifests match a client or runtime's requirements, the first matching entry SHOULD be used.
+                map.putIfAbsent(platform, bundle)
+            }
             .map { platformBundles ->
                 OciComponent(
                     imageReference,
