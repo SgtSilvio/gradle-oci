@@ -160,6 +160,9 @@ private fun OciCopySpecInput.process(
             visitor,
         )
     }
+    if (pendingDestinationPathStates.isNotEmpty() && currentDestinationPath.isNotEmpty()) {
+        pendingDestinationPathStates.removeLast()
+    }
 }
 
 private class DestinationPathState(
