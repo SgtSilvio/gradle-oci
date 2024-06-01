@@ -94,7 +94,7 @@ private fun OciCopySpecInput.process(
     val groupIdPatterns = convertPatterns(parentGroupIdPatterns, groupIdPatterns, destinationPath)
 
     val moveCache = HashMap<String, String>()
-    sources.asFileTree.visit(object : ReproducibleFileVisitor {
+    sources.visit(object : ReproducibleFileVisitor {
         override fun visitDir(dirDetails: FileVisitDetails) {
             visitDirectories(
                 pendingDestinationPathStates,
