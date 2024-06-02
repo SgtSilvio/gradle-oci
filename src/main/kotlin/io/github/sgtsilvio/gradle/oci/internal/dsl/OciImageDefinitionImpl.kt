@@ -454,9 +454,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                         }
                     }
                 }
-                task {
-                    contents(configuration)
-                }
+                task.contents(configuration)
             }
 
             fun contentsFromBundleScope(
@@ -605,9 +603,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     task = taskContainer.createLayerTask(imageDefName, name, platformFilter.toString(), projectLayout)
                     this.task = task
                 }
-                task {
-                    contents(configuration)
-                }
+                task.contents(configuration)
                 bundles.configureEach {
                     layers.layer(name).contentsFromBundleScope(configuration, task)
                 }
@@ -634,3 +630,6 @@ private fun TaskContainer.createLayerTask(
     destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
     classifier.set(createOciLayerClassifier(imageDefName, layerName) + platformString)
 }
+
+private fun TaskProvider<OciLayerTask>.contents(configuration: Action<in OciCopySpec>) =
+    configure { contents(configuration) }
