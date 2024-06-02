@@ -428,6 +428,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             }
 
             private var task: TaskProvider<OciLayerTask>? = null
+            private var bundleScopeTask: TaskProvider<OciLayerTask>? = null
+            private var bundleScopeConfigurations = LinkedList<Action<in OciCopySpec>>()
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
             final override fun getName() = name
@@ -439,14 +441,43 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 if (externalTask != null) {
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
+                var task = task
+                if (task == null) {
+                    task = taskContainer.createLayerTask(imageDefName, name, platform?.toString() ?: "", projectLayout)
+                    this.task = task
+                    if (bundleScopeTask != null) {
+                        bundleScopeTask = null
+                        task {
+                            for (bundleScopeConfiguration in bundleScopeConfigurations) {
+                                contents(bundleScopeConfiguration)
+                            }
+                        }
+                    }
+                }
+                task {
+                    contents(configuration)
+                }
+            }
+
+            fun contentsFromBundleScope(
+                bundleScopeConfiguration: Action<in OciCopySpec>,
+                bundleScopeTask: TaskProvider<OciLayerTask>,
+            ) {
+                if (externalTask != null) {
+                    throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
+                }
                 val task = task
                 if (task == null) {
-                    this.task = taskContainer.createLayerTask(
-                        imageDefName, name, platform?.toString() ?: "", projectLayout, configuration
-                    )
+                    val currentBundleScopeTask = this.bundleScopeTask
+                    if ((currentBundleScopeTask == null) || (currentBundleScopeTask == bundleScopeTask)) {
+                        this.bundleScopeTask = bundleScopeTask
+                        bundleScopeConfigurations += bundleScopeConfiguration
+                    } else {
+                        contents(bundleScopeConfiguration)
+                    }
                 } else {
                     task {
-                        contents(configuration)
+                        contents(bundleScopeConfiguration)
                     }
                 }
             }
@@ -455,7 +486,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 externalTask = if (task == this.task) null else task
             }
 
-            fun getTask() = externalTask ?: task
+            fun getTask() = externalTask ?: task ?: bundleScopeTask
 
             fun createComponentLayer(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer> =
                 providerFactory.provider { OciComponentBundleLayerBuilder() }
@@ -573,17 +604,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 }
                 var task = task
                 if (task == null) {
-                    task = taskContainer.createLayerTask(
-                        imageDefName, name, platformFilter.toString(), projectLayout, configuration
-                    )
+                    task = taskContainer.createLayerTask(imageDefName, name, platformFilter.toString(), projectLayout)
                     this.task = task
-                    bundles.configureEach {
-                        layers.layer(name).contents(task)
-                    }
-                } else {
-                    task {
-                        contents(configuration)
-                    }
+                }
+                task {
+                    contents(configuration)
+                }
+                bundles.configureEach {
+                    layers.layer(name).contentsFromBundleScope(configuration, task)
                 }
             }
 
@@ -602,11 +630,9 @@ private fun TaskContainer.createLayerTask(
     layerName: String,
     platformString: String,
     projectLayout: ProjectLayout,
-    configuration: Action<in OciCopySpec>,
 ) = register<OciLayerTask>(createOciLayerClassifier(imageDefName, layerName).camelCase() + platformString) {
     group = TASK_GROUP_NAME
     description = "Assembles the OCI layer '$layerName' for the $imageDefName image."
     destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
     classifier.set(createOciLayerClassifier(imageDefName, layerName) + platformString)
-    contents(configuration)
 }
