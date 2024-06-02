@@ -428,8 +428,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             }
 
             private var task: TaskProvider<OciLayerTask>? = null
-            private var bundleScopeTask: TaskProvider<OciLayerTask>? = null
-            private var bundleScopeConfigurations = LinkedList<Action<in OciCopySpec>>()
+            private var bundleScopeConfigurations: LinkedList<Action<in OciCopySpec>>? = null
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
             final override fun getName() = name
@@ -442,11 +441,12 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
                 var task = task
-                if (task == null) {
+                val bundleScopeConfigurations = bundleScopeConfigurations
+                if ((task == null) || (bundleScopeConfigurations != null)) {
                     task = taskContainer.createLayerTask(imageDefName, name, platform?.toString() ?: "", projectLayout)
                     this.task = task
-                    if (bundleScopeTask != null) {
-                        bundleScopeTask = null
+                    if (bundleScopeConfigurations != null) {
+                        this.bundleScopeConfigurations = null
                         task {
                             for (bundleScopeConfiguration in bundleScopeConfigurations) {
                                 contents(bundleScopeConfiguration)
@@ -467,18 +467,16 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
                 val task = task
-                if (task == null) {
-                    val currentBundleScopeTask = this.bundleScopeTask
-                    if ((currentBundleScopeTask == null) || (currentBundleScopeTask == bundleScopeTask)) {
-                        this.bundleScopeTask = bundleScopeTask
-                        bundleScopeConfigurations += bundleScopeConfiguration
-                    } else {
-                        contents(bundleScopeConfiguration)
+                if ((task == null) || (task == bundleScopeTask)) {
+                    this.task = bundleScopeTask
+                    var bundleScopeConfigurations = bundleScopeConfigurations
+                    if (bundleScopeConfigurations == null) {
+                        bundleScopeConfigurations = LinkedList()
+                        this.bundleScopeConfigurations = bundleScopeConfigurations
                     }
+                    bundleScopeConfigurations += bundleScopeConfiguration
                 } else {
-                    task {
-                        contents(bundleScopeConfiguration)
-                    }
+                    contents(bundleScopeConfiguration)
                 }
             }
 
@@ -486,7 +484,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 externalTask = if (task == this.task) null else task
             }
 
-            fun getTask() = externalTask ?: task ?: bundleScopeTask
+            fun getTask() = externalTask ?: task
 
             fun createComponentLayer(providerFactory: ProviderFactory): Provider<OciComponent.Bundle.Layer> =
                 providerFactory.provider { OciComponentBundleLayerBuilder() }
