@@ -23,6 +23,8 @@ internal fun jsonValue(string: String) = JsonValue(run {
 
 internal fun jsonObject(string: String): JsonObject = jsonValue(string).asObject()
 
+internal fun jsonArray(string: String): JsonArray = jsonValue(string).asArray()
+
 @DslMarker
 internal annotation class JsonDecodingDsl
 

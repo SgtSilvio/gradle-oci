@@ -5,17 +5,12 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
-import io.github.sgtsilvio.gradle.oci.component.allLayerDescriptors
-import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
+import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.createOciComponentClassifier
 import io.github.sgtsilvio.gradle.oci.internal.createOciLayerClassifier
 import io.github.sgtsilvio.gradle.oci.internal.createOciVariantName
-import io.github.sgtsilvio.gradle.oci.internal.json.addArray
-import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
-import io.github.sgtsilvio.gradle.oci.internal.json.addObject
-import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.map
@@ -38,6 +33,16 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.function.BiFunction
+
+/*
+/v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <...>.module
+/v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-component.json
+/v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-layer
+
+/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <...>.module
+/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / metadata/<base64(imageReference)>/<digest>/<size>/<base64(capabilities)>/<...>
+/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / layer/<base64(imageName)>/<digest>/<size>/<...>
+ */
 
 /**
  * @author Silvio Giebl
@@ -62,8 +67,8 @@ internal class OciRepositoryHandler(
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
         val segments = request.uri().substring(1).split('/')
-        if ((segments[0] == "v2") && (segments[1] == "repository")) {
-            return handleRepository(request, segments.drop(2), response)
+        if (segments[0] == "v0.11") {
+            return handleRepository(request, segments.drop(1), response)
         }
         return response.sendNotFound()
     }
@@ -82,40 +87,81 @@ internal class OciRepositoryHandler(
             response.sendNotFound()
         }
         val registryUri = try {
-            URI(String(Base64.getUrlDecoder().decode(segments[0])))
+            URI(Base64.getUrlDecoder().decode(segments[0]).decodeToString())
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         } catch (e: URISyntaxException) {
             return response.sendBadRequest()
         }
-        val componentId = VersionedCoordinates(segments[1], segments[2], segments[3])
-        val mappedComponent = imageMappingData.map(componentId)
         if ((segments.size == 5) && segments[4].endsWith(".module")) {
+            val componentId = VersionedCoordinates(segments[1], segments[2], segments[3])
+            val mappedComponent = imageMappingData.map(componentId)
             return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGet, response)
         }
-        if (segments.size != 8) {
+        return when (segments[4]) {
+            "metadata" -> handleMetadata(registryUri, segments, isGet, response)
+            "layer" -> handleLayer(registryUri, segments, isGet, response)
+            else -> response.sendNotFound()
+        }
+    }
+
+    private fun handleMetadata(
+        registryUri: URI,
+        segments: List<String>,
+        isGet: Boolean,
+        response: HttpServerResponse,
+    ) : Publisher<Void> {
+        if (segments.size != 10) {
             return response.sendNotFound()
         }
-        val variantName = segments[4]
+        val imageReference = try {
+            Base64.getUrlDecoder().decode(segments[5]).decodeToString().toOciImageReference()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
         val digest = try {
-            segments[5].toOciDigest()
+            segments[6].toOciDigest()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
         val size = try {
-            segments[6].toLong()
+            segments[7].toLong()
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        val variant = mappedComponent.variants[variantName] ?: return response.sendNotFound()
-        val last = segments[7]
-        return when {
-            last.endsWith("oci-component.json") ->
-                getOrHeadComponent(registryUri, variant, digest, size.toInt(), credentials, isGet, response)
-            last.endsWith("oci-layer") ->
-                getOrHeadLayer(registryUri, variant.imageReference.name, digest, size, credentials, isGet, response)
-            else -> response.sendNotFound()
+        val capabilities = try {
+            jsonArray(Base64.getUrlDecoder().decode(segments[8]).decodeToString()).decodeCapabilities()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
         }
+        return getOrHeadComponent(registryUri, imageReference, digest, size.toInt(), capabilities, credentials, isGet, response)
+    }
+
+    private fun handleLayer(
+        registryUri: URI,
+        segments: List<String>,
+        isGet: Boolean,
+        response: HttpServerResponse,
+    ) : Publisher<Void> {
+        if (segments.size != 9) {
+            return response.sendNotFound()
+        }
+        val imageName = try {
+            Base64.getUrlDecoder().decode(segments[5]).decodeToString()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val digest = try {
+            segments[6].toOciDigest()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val size = try {
+            segments[7].toLong()
+        } catch (e: NumberFormatException) {
+            return response.sendBadRequest()
+        }
+        return getOrHeadLayer(registryUri, imageName, digest, size, credentials, isGet, response)
     }
 
     private fun getOrHeadGradleModuleMetadata(
@@ -127,7 +173,9 @@ internal class OciRepositoryHandler(
     ): Publisher<Void> {
         val componentId = mappedComponent.componentId
         val variantNameComponentPairMonoList = mappedComponent.variants.map { (variantName, variant) ->
-            getComponent(registryUri, variant, credentials).map { Pair(variantName, it) }
+            getComponent(registryUri, variant.imageReference, variant.capabilities, credentials).map {
+                Pair(variantName, it)
+            }
         }
         val moduleJsonMono = variantNameComponentPairMonoList.zip { variantNameComponentPairs ->
             jsonObject {
@@ -141,7 +189,6 @@ internal class OciRepositoryHandler(
                     }
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}"
-                val layerDigestToVariantName = HashMap<OciDigest, String>()
                 addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
                     val (component, componentDigest, componentSize) = componentWithDigest
                     addObject {
@@ -156,26 +203,28 @@ internal class OciRepositoryHandler(
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
                                 val componentName = "$fileNamePrefix-${createOciComponentClassifier(variantName)}.json"
+                                val imageReferenceBase64 = Base64.getUrlEncoder().encodeToString(component.imageReference.toString().toByteArray())
+                                val capabilitiesBase64 = Base64.getUrlEncoder().encodeToString(jsonArray { encodeCapabilities(component.capabilities) }.toByteArray())
                                 addString("name", componentName)
-                                addString("url", "$variantName/$componentDigest/$componentSize/$componentName")
+                                addString("url", "metadata/$imageReferenceBase64/$componentDigest/$componentSize/$capabilitiesBase64/$componentName")
                                 addNumber("size", componentJson.size.toLong())
                                 addString("sha512", DigestUtils.sha512Hex(componentJson))
                                 addString("sha256", DigestUtils.sha256Hex(componentJson))
                                 addString("sha1", DigestUtils.sha1Hex(componentJson))
                                 addString("md5", DigestUtils.md5Hex(componentJson))
                             }
+                            val imageNameBase64 = Base64.getUrlEncoder().encodeToString(component.imageReference.name.toByteArray())
                             for ((mediaType, digest, size) in component.allLayerDescriptors.distinctBy { it.digest }) {
                                 addObject {
-                                    val layerVariantName = layerDigestToVariantName.getOrPut(digest) { variantName }
                                     val algorithmId = digest.algorithm.id
                                     val encodedHash = digest.encodedHash
                                     val classifier = createOciLayerClassifier(
-                                        layerVariantName,
+                                        "main",
                                         algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
                                     )
-                                    val layerName = "$fileNamePrefix-$classifier"
-                                    addString("name", layerName + mapLayerMediaTypeToExtension(mediaType))
-                                    addString("url", "$layerVariantName/$digest/$size/$layerName")
+                                    val layerName = "$fileNamePrefix-$classifier" + mapLayerMediaTypeToExtension(mediaType)
+                                    addString("name", layerName)
+                                    addString("url", "layer/$imageNameBase64/$digest/$size/$layerName")
                                     addNumber("size", size)
                                     addString(algorithmId, encodedHash)
                                 }
@@ -200,14 +249,15 @@ internal class OciRepositoryHandler(
 
     private fun getOrHeadComponent(
         registryUri: URI,
-        variant: MappedComponent.Variant,
+        imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
+        capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
         isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        val componentJsonMono = getComponent(registryUri, variant, digest, size, credentials).map { componentWithDigest ->
+        val componentJsonMono = getComponent(registryUri, imageReference, digest, size, capabilities, credentials).map { componentWithDigest ->
             componentWithDigest.component.encodeToJsonString().toByteArray()
         }
         response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
@@ -216,18 +266,12 @@ internal class OciRepositoryHandler(
 
     private fun getComponent(
         registryUri: URI,
-        variant: MappedComponent.Variant,
+        imageReference: OciImageReference,
+        capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
     ): Mono<OciComponentRegistry.ComponentWithDigest> {
         return componentCache.getMono(
-            ComponentCacheKey(
-                registryUri.toString(),
-                variant.imageReference,
-                null,
-                -1,
-                variant.capabilities,
-                credentials?.hashed(),
-            )
+            ComponentCacheKey(registryUri.toString(), imageReference, null, -1, capabilities, credentials?.hashed())
         ) { key ->
             componentRegistry.pullComponent(key.registry, key.imageReference, key.capabilities, credentials)
                 .doOnNext { componentWithDigest ->
@@ -241,20 +285,14 @@ internal class OciRepositoryHandler(
 
     private fun getComponent(
         registryUri: URI,
-        variant: MappedComponent.Variant,
+        imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
+        capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
     ): Mono<OciComponentRegistry.ComponentWithDigest> {
         return componentCache.getMono(
-            ComponentCacheKey(
-                registryUri.toString(),
-                variant.imageReference,
-                digest,
-                size,
-                variant.capabilities,
-                credentials?.hashed(),
-            )
+            ComponentCacheKey(registryUri.toString(), imageReference, digest, size, capabilities, credentials?.hashed())
         ) { (registry, imageReference, _, _, capabilities) ->
             componentRegistry.pullComponent(registry, imageReference, digest, size, capabilities, credentials)
         }
@@ -324,3 +362,11 @@ internal class OciRepositoryHandler(
         return sendByteArray(if (isGetElseHead) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }
 }
+
+internal fun JsonArrayStringBuilder.encodeCapabilities(capabilities: SortedSet<VersionedCoordinates>) {
+    for (capability in capabilities) {
+        addObject { encodeVersionedCoordinates(capability) }
+    }
+}
+
+internal fun JsonArray.decodeCapabilities() = toSet(TreeSet()) { asObject().decodeVersionedCoordinates() }
