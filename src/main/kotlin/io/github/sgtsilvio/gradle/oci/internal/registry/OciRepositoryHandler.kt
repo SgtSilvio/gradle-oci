@@ -40,8 +40,8 @@ import java.util.function.BiFunction
 /v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-layer
 
 /v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <...>.module
-/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / metadata/<base64(imageReference)>/<digest>/<size>/<base64(capabilities)>/<...>
-/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / layer/<base64(imageName)>/<digest>/<size>/<...>
+/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <base64(imageReference)>/<digest>/<size>/<base64(capabilities)>/<...>oci-component.json
+/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <base64(imageName)>/<digest>/<size>/<...>oci-layer
  */
 
 /**
@@ -98,9 +98,10 @@ internal class OciRepositoryHandler(
             val mappedComponent = imageMappingData.map(componentId)
             return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGet, response)
         }
-        return when (segments[4]) {
-            "metadata" -> getOrHeadMetadata(registryUri, segments, isGet, response)
-            "layer" -> getOrHeadLayer(registryUri, segments, isGet, response)
+        val last = segments.last()
+        return when {
+            last.endsWith("oci-component.json") -> getOrHeadMetadata(registryUri, segments, isGet, response)
+            last.endsWith("oci-layer") -> getOrHeadLayer(registryUri, segments, isGet, response)
             else -> response.sendNotFound()
         }
     }
@@ -111,26 +112,26 @@ internal class OciRepositoryHandler(
         isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        if (segments.size != 10) {
+        if (segments.size != 9) {
             return response.sendNotFound()
         }
         val imageReference = try {
-            Base64.getUrlDecoder().decode(segments[5]).decodeToString().toOciImageReference()
+            Base64.getUrlDecoder().decode(segments[4]).decodeToString().toOciImageReference()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
         val digest = try {
-            segments[6].toOciDigest()
+            segments[5].toOciDigest()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
         val size = try {
-            segments[7].toInt()
+            segments[6].toInt()
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
         val capabilities = try {
-            jsonArray(Base64.getUrlDecoder().decode(segments[8]).decodeToString()).decodeCapabilities()
+            jsonArray(Base64.getUrlDecoder().decode(segments[7]).decodeToString()).decodeCapabilities()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
@@ -152,21 +153,21 @@ internal class OciRepositoryHandler(
         isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        if (segments.size != 9) {
+        if (segments.size != 8) {
             return response.sendNotFound()
         }
         val imageName = try {
-            Base64.getUrlDecoder().decode(segments[5]).decodeToString()
+            Base64.getUrlDecoder().decode(segments[4]).decodeToString()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
         val digest = try {
-            segments[6].toOciDigest()
+            segments[5].toOciDigest()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
         val size = try {
-            segments[7].toLong()
+            segments[6].toLong()
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
@@ -221,7 +222,7 @@ internal class OciRepositoryHandler(
                                 val imageReferenceBase64 = Base64.getUrlEncoder().encodeToString(component.imageReference.toString().toByteArray())
                                 val capabilitiesBase64 = Base64.getUrlEncoder().encodeToString(jsonArray { encodeCapabilities(component.capabilities) }.toByteArray())
                                 addString("name", componentName)
-                                addString("url", "metadata/$imageReferenceBase64/$componentDigest/$componentSize/$capabilitiesBase64/$componentName")
+                                addString("url", "$imageReferenceBase64/$componentDigest/$componentSize/$capabilitiesBase64/$componentName")
                                 addNumber("size", componentJson.size.toLong())
                                 addString("sha512", DigestUtils.sha512Hex(componentJson))
                                 addString("sha256", DigestUtils.sha256Hex(componentJson))
@@ -237,9 +238,9 @@ internal class OciRepositoryHandler(
                                         "main",
                                         algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
                                     )
-                                    val layerName = "$fileNamePrefix-$classifier" + mapLayerMediaTypeToExtension(mediaType)
-                                    addString("name", layerName)
-                                    addString("url", "layer/$imageNameBase64/$digest/$size/$layerName")
+                                    val layerName = "$fileNamePrefix-$classifier"
+                                    addString("name", layerName + mapLayerMediaTypeToExtension(mediaType))
+                                    addString("url", "$imageNameBase64/$digest/$size/$layerName")
                                     addNumber("size", size)
                                     addString(algorithmId, encodedHash)
                                 }
