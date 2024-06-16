@@ -99,18 +99,18 @@ internal class OciRepositoryHandler(
             return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGet, response)
         }
         return when (segments[4]) {
-            "metadata" -> handleMetadata(registryUri, segments, isGet, response)
-            "layer" -> handleLayer(registryUri, segments, isGet, response)
+            "metadata" -> getOrHeadMetadata(registryUri, segments, isGet, response)
+            "layer" -> getOrHeadLayer(registryUri, segments, isGet, response)
             else -> response.sendNotFound()
         }
     }
 
-    private fun handleMetadata(
+    private fun getOrHeadMetadata(
         registryUri: URI,
         segments: List<String>,
         isGet: Boolean,
         response: HttpServerResponse,
-    ) : Publisher<Void> {
+    ): Publisher<Void> {
         if (segments.size != 10) {
             return response.sendNotFound()
         }
@@ -125,7 +125,7 @@ internal class OciRepositoryHandler(
             return response.sendBadRequest()
         }
         val size = try {
-            segments[7].toLong()
+            segments[7].toInt()
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
@@ -134,15 +134,24 @@ internal class OciRepositoryHandler(
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
-        return getOrHeadComponent(registryUri, imageReference, digest, size.toInt(), capabilities, credentials, isGet, response)
+        val componentJsonMono = getComponent(
+            registryUri,
+            imageReference,
+            digest,
+            size,
+            capabilities,
+            credentials
+        ).map { (component) -> component.encodeToJsonString().toByteArray() }
+        response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+        return response.sendByteArray(componentJsonMono, isGet)
     }
 
-    private fun handleLayer(
+    private fun getOrHeadLayer(
         registryUri: URI,
         segments: List<String>,
         isGet: Boolean,
         response: HttpServerResponse,
-    ) : Publisher<Void> {
+    ): Publisher<Void> {
         if (segments.size != 9) {
             return response.sendNotFound()
         }
@@ -161,7 +170,13 @@ internal class OciRepositoryHandler(
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        return getOrHeadLayer(registryUri, imageName, digest, size, credentials, isGet, response)
+        response.header(HttpHeaderNames.CONTENT_LENGTH, size.toString())
+        response.header(HttpHeaderNames.ETAG, digest.encodedHash)
+        return if (isGet) {
+            getLayer(registryUri, imageName, digest, size, credentials, response)
+        } else {
+            headLayer(registryUri, imageName, digest, credentials, response)
+        }
     }
 
     private fun getOrHeadGradleModuleMetadata(
@@ -247,23 +262,6 @@ internal class OciRepositoryHandler(
         return response.sendByteArray(moduleJsonMono, isGet)
     }
 
-    private fun getOrHeadComponent(
-        registryUri: URI,
-        imageReference: OciImageReference,
-        digest: OciDigest,
-        size: Int,
-        capabilities: SortedSet<VersionedCoordinates>,
-        credentials: Credentials?,
-        isGet: Boolean,
-        response: HttpServerResponse,
-    ): Publisher<Void> {
-        val componentJsonMono = getComponent(registryUri, imageReference, digest, size, capabilities, credentials).map { componentWithDigest ->
-            componentWithDigest.component.encodeToJsonString().toByteArray()
-        }
-        response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
-        return response.sendByteArray(componentJsonMono, isGet)
-    }
-
     private fun getComponent(
         registryUri: URI,
         imageReference: OciImageReference,
@@ -295,24 +293,6 @@ internal class OciRepositoryHandler(
             ComponentCacheKey(registryUri.toString(), imageReference, digest, size, capabilities, credentials?.hashed())
         ) { (registry, imageReference, _, _, capabilities) ->
             componentRegistry.pullComponent(registry, imageReference, digest, size, capabilities, credentials)
-        }
-    }
-
-    private fun getOrHeadLayer(
-        registryUri: URI,
-        imageName: String,
-        digest: OciDigest,
-        size: Long,
-        credentials: Credentials?,
-        isGet: Boolean,
-        response: HttpServerResponse,
-    ): Publisher<Void> {
-        response.header(HttpHeaderNames.CONTENT_LENGTH, size.toString())
-        response.header(HttpHeaderNames.ETAG, digest.encodedHash)
-        return if (isGet) {
-            getLayer(registryUri, imageName, digest, size, credentials, response)
-        } else {
-            headLayer(registryUri, imageName, digest, credentials, response)
         }
     }
 
