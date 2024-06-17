@@ -8,10 +8,7 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.optionalPasswordCredential
 import io.github.sgtsilvio.gradle.oci.internal.gradle.passwordCredentials
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
-import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
-import io.github.sgtsilvio.gradle.oci.internal.registry.OciComponentRegistry
-import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
-import io.github.sgtsilvio.gradle.oci.internal.registry.OciRepositoryHandler
+import io.github.sgtsilvio.gradle.oci.internal.registry.*
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.netty.buffer.UnpooledByteBufAllocator
@@ -22,6 +19,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
+import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
@@ -41,7 +39,6 @@ import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
 import java.net.InetSocketAddress
 import java.net.URI
-import java.util.*
 import java.util.function.BiFunction
 import javax.inject.Inject
 
@@ -124,11 +121,11 @@ internal abstract class OciRegistryImpl @Inject constructor(
     final override val finalUrl: Provider<URI> =
         providerFactory.gradleProperty(url.map(URI::toString)).map(::URI).orElse(url)
     final override val credentials = objectFactory.property<PasswordCredentials>()
-    final override val repository = repositoryHandler.ivy {
+    final override val repository: IvyArtifactRepository = repositoryHandler.ivy {
         name = this@OciRegistryImpl.name + "OciRegistry"
         setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
-            val urlBase64 = Base64.getUrlEncoder().encodeToString(url.toString().toByteArray())
-            URI("http://localhost:$repositoryPort/v0.11/$urlBase64")
+            val escapedUrl = url.toString().escapePathSegment()
+            URI("http://localhost:$repositoryPort/v0.11/$escapedUrl")
         })
         isAllowInsecureProtocol = true
         layout("gradle")

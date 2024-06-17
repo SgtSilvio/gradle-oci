@@ -40,8 +40,8 @@ import java.util.function.BiFunction
 /v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-layer
 
 /v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <...>.module
-/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <base64(imageReference)>/<digest>/<size>/<base64(capabilities)>/<...>oci-component.json
-/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <base64(imageName)>/<digest>/<size>/<...>oci-layer
+/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageReference)>/<digest>/<size>/<base64(capabilities)>/<...>oci-component.json
+/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageName)>/<digest>/<size>/<...>oci-layer
  */
 
 /**
@@ -87,7 +87,7 @@ internal class OciRepositoryHandler(
             response.sendNotFound()
         }
         val registryUri = try {
-            URI(Base64.getUrlDecoder().decode(segments[0]).decodeToString())
+            URI(segments[0].unescapePathSegment())
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         } catch (e: URISyntaxException) {
@@ -116,7 +116,7 @@ internal class OciRepositoryHandler(
             return response.sendNotFound()
         }
         val imageReference = try {
-            Base64.getUrlDecoder().decode(segments[4]).decodeToString().toOciImageReference()
+            segments[4].unescapePathSegment().toOciImageReference()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
@@ -157,7 +157,7 @@ internal class OciRepositoryHandler(
             return response.sendNotFound()
         }
         val imageName = try {
-            Base64.getUrlDecoder().decode(segments[4]).decodeToString()
+            segments[4].unescapePathSegment()
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
@@ -219,17 +219,17 @@ internal class OciRepositoryHandler(
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
                                 val componentName = "$fileNamePrefix-${createOciComponentClassifier(variantName)}.json"
-                                val imageReferenceBase64 = Base64.getUrlEncoder().encodeToString(component.imageReference.toString().toByteArray())
+                                val escapedImageReference = component.imageReference.toString().escapePathSegment()
                                 val capabilitiesBase64 = Base64.getUrlEncoder().encodeToString(jsonArray { encodeCapabilities(component.capabilities) }.toByteArray())
                                 addString("name", componentName)
-                                addString("url", "$imageReferenceBase64/$componentDigest/$componentSize/$capabilitiesBase64/$componentName")
+                                addString("url", "$escapedImageReference/$componentDigest/$componentSize/$capabilitiesBase64/$componentName")
                                 addNumber("size", componentJson.size.toLong())
                                 addString("sha512", DigestUtils.sha512Hex(componentJson))
                                 addString("sha256", DigestUtils.sha256Hex(componentJson))
                                 addString("sha1", DigestUtils.sha1Hex(componentJson))
                                 addString("md5", DigestUtils.md5Hex(componentJson))
                             }
-                            val imageNameBase64 = Base64.getUrlEncoder().encodeToString(component.imageReference.name.toByteArray())
+                            val escapedImageName = component.imageReference.name.escapePathSegment()
                             for ((mediaType, digest, size) in component.allLayerDescriptors.distinctBy { it.digest }) {
                                 addObject {
                                     val algorithmId = digest.algorithm.id
@@ -240,7 +240,7 @@ internal class OciRepositoryHandler(
                                     )
                                     val layerName = "$fileNamePrefix-$classifier"
                                     addString("name", layerName + mapLayerMediaTypeToExtension(mediaType))
-                                    addString("url", "$imageNameBase64/$digest/$size/$layerName")
+                                    addString("url", "$escapedImageName/$digest/$size/$layerName")
                                     addNumber("size", size)
                                     addString(algorithmId, encodedHash)
                                 }
@@ -351,3 +351,7 @@ internal fun JsonArrayStringBuilder.encodeCapabilities(capabilities: SortedSet<V
 }
 
 internal fun JsonArray.decodeCapabilities() = toSet(TreeSet()) { asObject().decodeVersionedCoordinates() }
+
+internal fun String.escapePathSegment() = replace("$", "$0").replace("/", "$1")
+
+internal fun String.unescapePathSegment() = replace("$1", "/").replace("$0", "$")
