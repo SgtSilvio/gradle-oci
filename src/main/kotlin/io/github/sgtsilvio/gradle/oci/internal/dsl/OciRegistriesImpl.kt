@@ -19,7 +19,6 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
-import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
@@ -121,7 +120,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
     final override val finalUrl: Provider<URI> =
         providerFactory.gradleProperty(url.map(URI::toString)).map(::URI).orElse(url)
     final override val credentials = objectFactory.property<PasswordCredentials>()
-    final override val repository: IvyArtifactRepository = repositoryHandler.ivy {
+    final override val repository = repositoryHandler.ivy {
         name = this@OciRegistryImpl.name + "OciRegistry"
         setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
             val escapedUrl = url.toString().escapePathSegment()
