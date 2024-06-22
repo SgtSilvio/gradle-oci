@@ -7,8 +7,8 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
-import io.github.sgtsilvio.gradle.oci.internal.createOciComponentClassifier
 import io.github.sgtsilvio.gradle.oci.internal.createOciLayerClassifier
+import io.github.sgtsilvio.gradle.oci.internal.createOciMetadataClassifier
 import io.github.sgtsilvio.gradle.oci.internal.createOciVariantName
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
@@ -218,7 +218,7 @@ internal class OciRepositoryHandler(
                         addArray("files") {
                             addObject {
                                 val componentJson = component.encodeToJsonString().toByteArray()
-                                val componentName = "$fileNamePrefix-${createOciComponentClassifier(variantName)}.json"
+                                val componentName = "$fileNamePrefix-${createOciMetadataClassifier(variantName)}.json"
                                 val escapedImageReference = component.imageReference.toString().escapePathSegment()
                                 val capabilitiesBase64 = Base64.getUrlEncoder().encodeToString(jsonArray { encodeCapabilities(component.capabilities) }.toByteArray())
                                 addString("name", componentName)
