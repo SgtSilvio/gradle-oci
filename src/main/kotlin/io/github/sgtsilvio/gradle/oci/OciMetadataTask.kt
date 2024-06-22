@@ -13,10 +13,10 @@ import org.gradle.kotlin.dsl.property
 /**
  * @author Silvio Giebl
  */
-abstract class OciComponentTask : DefaultTask() {
+abstract class OciMetadataTask : DefaultTask() {
 
     @get:Input
-    val encodedComponent: Property<String> = project.objects.property<String>()
+    val encodedMetadata: Property<String> = project.objects.property<String>()
 
     @get:Internal
     val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
@@ -30,6 +30,6 @@ abstract class OciComponentTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        file.get().asFile.writeText(encodedComponent.get())
+        file.get().asFile.writeText(encodedMetadata.get())
     }
 }
