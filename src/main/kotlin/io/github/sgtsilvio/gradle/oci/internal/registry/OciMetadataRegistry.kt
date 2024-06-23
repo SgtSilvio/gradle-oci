@@ -55,6 +55,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             INDEX_MEDIA_TYPE,
             MANIFEST_MEDIA_TYPE,
             CONFIG_MEDIA_TYPE,
+            LAYER_MEDIA_TYPE_PREFIX,
         )
         MANIFEST_MEDIA_TYPE -> transformManifestToMetadataList(
             registry,
@@ -64,6 +65,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             credentials,
             MANIFEST_MEDIA_TYPE,
             CONFIG_MEDIA_TYPE,
+            LAYER_MEDIA_TYPE_PREFIX,
         )
         DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToMetadataList(
             registry,
@@ -73,6 +75,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             DOCKER_MANIFEST_LIST_MEDIA_TYPE,
             DOCKER_MANIFEST_MEDIA_TYPE,
             DOCKER_CONFIG_MEDIA_TYPE,
+            DOCKER_LAYER_MEDIA_TYPE,
         )
         DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToMetadataList(
             registry,
@@ -82,6 +85,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             credentials,
             DOCKER_MANIFEST_MEDIA_TYPE,
             DOCKER_CONFIG_MEDIA_TYPE,
+            DOCKER_LAYER_MEDIA_TYPE,
         )
         else -> throw IllegalStateException("unsupported manifest media type '${manifest.mediaType}'")
     }
@@ -94,13 +98,14 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         indexMediaType: String,
         manifestMediaType: String,
         configMediaType: String,
+        layerMediaTypePrefix: String,
     ): Mono<List<Metadata>> {
         val indexJsonObject = jsonObject(String(index))
         val indexAnnotations = indexJsonObject.getStringMapOrEmpty("annotations")
         val metadataMonoList = indexJsonObject.get("manifests") {
             asArray().toList {
-                val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType) // TODO support other media types, for example nested index
-                if (platform == UNKNOWN_PLATFORM) {
+                val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor()
+                if (manifestDescriptor.mediaType != manifestMediaType) { // TODO support nested index
                     Mono.empty()
                 } else {
                     registryApi.pullManifest(
@@ -123,6 +128,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
                             credentials,
                             manifestMediaType,
                             configMediaType,
+                            layerMediaTypePrefix,
                         )
                     }.map { metadata ->
                         if ((platform != null) && (metadata.platform != platform)) {
@@ -147,6 +153,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         credentials: Credentials?,
         manifestMediaType: String,
         configMediaType: String,
+        layerMediaTypePrefix: String,
     ): Mono<List<Metadata>> = transformManifestToMetadata(
         registry,
         imageReference,
@@ -157,6 +164,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         credentials,
         manifestMediaType,
         configMediaType,
+        layerMediaTypePrefix,
     ).map { listOf(it) }
 
     private fun transformManifestToMetadata(
@@ -169,15 +177,19 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         credentials: Credentials?,
         manifestMediaType: String,
         configMediaType: String,
+        layerMediaTypePrefix: String,
     ): Mono<Metadata> {
         val manifestJsonObject = jsonObject(String(manifest))
         val manifestAnnotations = manifestJsonObject.getStringMapOrEmpty("annotations")
-        val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor(configMediaType) }
+        val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor() }
         val layerDescriptors =
             manifestJsonObject.getOrNull("layers") { asArray().toList { asObject().decodeOciDescriptor() } }
                 ?: emptyList()
         manifestJsonObject.requireStringOrNull("mediaType", manifestMediaType)
         manifestJsonObject.requireLong("schemaVersion", 2)
+        if ((configDescriptor.mediaType != configMediaType) || layerDescriptors.any { !it.mediaType.startsWith(layerMediaTypePrefix) }) {
+            return Mono.empty()
+        }
         return registryApi.pullBlobAsString(registry, imageReference.name, configDescriptor.digest, configDescriptor.size, credentials).map { config ->
             val configJsonObject = jsonObject(config)
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
@@ -303,11 +315,6 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         else -> mediaType
     }
 
-    private fun JsonObject.decodeOciDescriptor(mediaType: String): OciDescriptor {
-        requireString("mediaType", mediaType)
-        return decodeOciDescriptor()
-    }
-
     private fun JsonObject.decodeOciDescriptor() = OciDescriptorImpl(
         getString("mediaType"),
         getOciDigest("digest"),
@@ -316,9 +323,9 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
     ) // TODO order?
     // TODO support data
 
-    private fun JsonObject.decodeOciManifestDescriptor(manifestMediaType: String) = Pair(
+    private fun JsonObject.decodeOciManifestDescriptor() = Pair(
         getOrNull("platform") { asObject().decodePlatform() },
-        decodeOciDescriptor(manifestMediaType), // TODO support nested index
+        decodeOciDescriptor(),
     ) // TODO order?
 
     private fun JsonObject.decodePlatform() = Platform(
@@ -369,5 +376,3 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         }
     }
 }
-
-private val UNKNOWN_PLATFORM = Platform("unknown", "unknown", "", "", TreeSet())
