@@ -12,7 +12,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-internal class OciComponentRegistry(val registryApi: OciRegistryApi) { // TODO rename
+internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
 
     data class Metadata(val metadata: OciMetadata, val platform: Platform, val digest: OciDigest, val size: Int) // TODO rename
 
