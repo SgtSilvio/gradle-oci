@@ -97,36 +97,46 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
     ): Mono<List<Metadata>> {
         val indexJsonObject = jsonObject(String(index))
         val indexAnnotations = indexJsonObject.getStringMapOrEmpty("annotations")
-        val manifestFutures = indexJsonObject.get("manifests") {
+        val metadataMonoList = indexJsonObject.get("manifests") {
             asArray().toList {
-                val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType)
-                registryApi.pullManifest(registry, imageReference.name, manifestDescriptor.digest, manifestDescriptor.size.toInt(), credentials).flatMap { manifest ->
-                    if (manifest.mediaType != manifestMediaType) { // TODO support nested index
-                        throw IllegalArgumentException("expected \"$manifestMediaType\" as manifest media type, but is \"${manifest.mediaType}\"")
-                    }
-                    transformManifestToMetadata(
+                val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor(manifestMediaType) // TODO support other media types, for example nested index
+                if (platform == UNKNOWN_PLATFORM) {
+                    Mono.empty()
+                } else {
+                    registryApi.pullManifest(
                         registry,
-                        imageReference,
-                        manifest.data,
-                        manifest.digest,
-                        manifestDescriptor.annotations,
-                        indexAnnotations,
+                        imageReference.name,
+                        manifestDescriptor.digest,
+                        manifestDescriptor.size.toInt(),
                         credentials,
-                        manifestMediaType,
-                        configMediaType,
-                    )
-                }.map { metadata ->
-                    if ((platform != null) && (metadata.platform != platform)) {
-                        throw IllegalArgumentException("platform in manifest descriptor ($platform) and config (${metadata.platform}) do not match")
+                    ).flatMap { manifest ->
+                        if (manifest.mediaType != manifestMediaType) {
+                            throw IllegalArgumentException("media type in manifest descriptor ($manifestMediaType) and manifest (${manifest.mediaType}) do not match")
+                        }
+                        transformManifestToMetadata(
+                            registry,
+                            imageReference,
+                            manifest.data,
+                            manifest.digest,
+                            manifestDescriptor.annotations,
+                            indexAnnotations,
+                            credentials,
+                            manifestMediaType,
+                            configMediaType,
+                        )
+                    }.map { metadata ->
+                        if ((platform != null) && (metadata.platform != platform)) {
+                            throw IllegalArgumentException("platform in manifest descriptor ($platform) and config (${metadata.platform}) do not match")
+                        }
+                        metadata
                     }
-                    metadata
                 }
             }
         }
         indexJsonObject.requireStringOrNull("mediaType", indexMediaType)
         indexJsonObject.requireLong("schemaVersion", 2)
         // the same order as in the manifest is guaranteed by mergeSequential
-        return Flux.mergeSequential(manifestFutures).collectSortedList(Comparator.comparing { it.platform })
+        return Flux.mergeSequential(metadataMonoList).collectSortedList(Comparator.comparing { it.platform })
     }
 
     private fun transformManifestToMetadataList(
@@ -359,3 +369,5 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         }
     }
 }
+
+private val UNKNOWN_PLATFORM = Platform("unknown", "unknown", "", "", TreeSet())
