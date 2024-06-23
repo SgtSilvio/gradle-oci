@@ -2,15 +2,18 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 
 import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
-import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
-import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
-import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.*
+import io.github.sgtsilvio.gradle.oci.attributes.*
+import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.component.encodeToJsonString
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.createOciLayerClassifier
 import io.github.sgtsilvio.gradle.oci.internal.createOciMetadataClassifier
+import io.github.sgtsilvio.gradle.oci.internal.createOciVariantInternalName
 import io.github.sgtsilvio.gradle.oci.internal.createOciVariantName
-import io.github.sgtsilvio.gradle.oci.internal.json.*
+import io.github.sgtsilvio.gradle.oci.internal.json.addArray
+import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
+import io.github.sgtsilvio.gradle.oci.internal.json.addObject
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.map
@@ -29,7 +32,6 @@ import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
 import java.net.URI
 import java.net.URISyntaxException
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.function.BiFunction
@@ -39,8 +41,8 @@ import java.util.function.BiFunction
 /v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-component.json
 /v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-layer
 
-/v0.11/<base64(registryUrl)> / <group>/<name>/<version> / <...>.module
-/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageReference)>/<digest>/<size>/<base64(capabilities)>/<...>oci-component.json
+/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <...>.module
+/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageReference)>/<digest>/<size>/<...>.json
 /v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageName)>/<digest>/<size>/<...>oci-layer
  */
 
@@ -53,7 +55,7 @@ internal class OciRepositoryHandler(
     private val credentials: Credentials?,
 ) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private val componentCache: AsyncCache<ComponentCacheKey, OciComponentRegistry.ComponentWithDigest> =
+    private val metadataCache: AsyncCache<ComponentCacheKey, List<OciComponentRegistry.Metadata>> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     private data class ComponentCacheKey(
@@ -61,7 +63,6 @@ internal class OciRepositoryHandler(
         val imageReference: OciImageReference,
         val digest: OciDigest?,
         val size: Int,
-        val capabilities: SortedSet<VersionedCoordinates>,
         val credentials: HashedCredentials?,
     )
 
@@ -100,7 +101,7 @@ internal class OciRepositoryHandler(
         }
         val last = segments.last()
         return when {
-            last.endsWith("oci-component.json") -> getOrHeadMetadata(registryUri, segments, isGet, response)
+            last.endsWith(".json") -> getOrHeadMetadata(registryUri, segments, isGet, response)
             last.endsWith("oci-layer") -> getOrHeadLayer(registryUri, segments, isGet, response)
             else -> response.sendNotFound()
         }
@@ -112,7 +113,7 @@ internal class OciRepositoryHandler(
         isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        if (segments.size != 9) {
+        if (segments.size != 8) {
             return response.sendNotFound()
         }
         val imageReference = try {
@@ -130,21 +131,11 @@ internal class OciRepositoryHandler(
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        val capabilities = try {
-            jsonArray(Base64.getUrlDecoder().decode(segments[7]).decodeToString()).decodeCapabilities()
-        } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
+        val metadataJsonMono = getMetadata(registryUri, imageReference, digest, size, credentials).map { (metadata) ->
+            metadata.encodeToJsonString().toByteArray()
         }
-        val componentJsonMono = getComponent(
-            registryUri,
-            imageReference,
-            digest,
-            size,
-            capabilities,
-            credentials
-        ).map { (component) -> component.encodeToJsonString().toByteArray() }
         response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
-        return response.sendByteArray(componentJsonMono, isGet)
+        return response.sendByteArray(metadataJsonMono, isGet)
     }
 
     private fun getOrHeadLayer(
@@ -188,12 +179,12 @@ internal class OciRepositoryHandler(
         response: HttpServerResponse,
     ): Publisher<Void> {
         val componentId = mappedComponent.componentId
-        val variantNameComponentPairMonoList = mappedComponent.variants.map { (variantName, variant) ->
-            getComponent(registryUri, variant.imageReference, variant.capabilities, credentials).map {
-                Pair(variantName, it)
+        val variantMetadataMonoList = mappedComponent.variants.map { (variantName, variant) ->
+            getMetadataList(registryUri, variant.imageReference, credentials).map { metadataList ->
+                Triple(variantName, variant.capabilities, metadataList)
             }
         }
-        val moduleJsonMono = variantNameComponentPairMonoList.zip { variantNameComponentPairs ->
+        val moduleJsonMono = variantMetadataMonoList.zip { variantMetadataList ->
             jsonObject {
                 addString("formatVersion", "1.1")
                 addObject("component") {
@@ -205,53 +196,125 @@ internal class OciRepositoryHandler(
                     }
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}"
-                addArray("variants", variantNameComponentPairs) { (variantName, componentWithDigest) ->
-                    val (component, componentDigest, componentSize) = componentWithDigest
-                    addObject {
-                        addString("name", createOciVariantName(variantName))
-                        addObject("attributes") {
-                            addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
-                            addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
-                            addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
-//                            addString(Usage.USAGE_ATTRIBUTE.name, "release")
-                        }
-                        addArray("files") {
-                            addObject {
-                                val componentJson = component.encodeToJsonString().toByteArray()
-                                val componentName = "$fileNamePrefix-${createOciMetadataClassifier(variantName)}.json"
-                                val escapedImageReference = component.imageReference.toString().escapePathSegment()
-                                val capabilitiesBase64 = Base64.getUrlEncoder().encodeToString(jsonArray { encodeCapabilities(component.capabilities) }.toByteArray())
-                                addString("name", componentName)
-                                addString("url", "$escapedImageReference/$componentDigest/$componentSize/$capabilitiesBase64/$componentName")
-                                addNumber("size", componentJson.size.toLong())
-                                addString("sha512", DigestUtils.sha512Hex(componentJson))
-                                addString("sha256", DigestUtils.sha256Hex(componentJson))
-                                addString("sha1", DigestUtils.sha1Hex(componentJson))
-                                addString("md5", DigestUtils.md5Hex(componentJson))
+                addArray("variants") {
+                    for ((variantName, capabilities, metadataList) in variantMetadataList) {
+                        addObject {
+                            addString("name", createOciVariantName(variantName))
+                            addObject("attributes") {
+                                addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
+                                addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
+                                addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
+                                addString(PLATFORM_ATTRIBUTE.name, MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
+//                                addString(Usage.USAGE_ATTRIBUTE.name, "release")
                             }
-                            val escapedImageName = component.imageReference.name.escapePathSegment()
-                            for ((mediaType, digest, size) in component.allLayerDescriptors.distinctBy { it.digest }) {
-                                addObject {
-                                    val algorithmId = digest.algorithm.id
-                                    val encodedHash = digest.encodedHash
-                                    val classifier = createOciLayerClassifier(
-                                        "main",
-                                        algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
-                                    )
-                                    val layerName = "$fileNamePrefix-$classifier"
-                                    addString("name", layerName + mapLayerMediaTypeToExtension(mediaType))
-                                    addString("url", "$escapedImageName/$digest/$size/$layerName")
-                                    addNumber("size", size)
-                                    addString(algorithmId, encodedHash)
+                            if (capabilities != setOf(componentId)) {
+                                addArrayIfNotEmpty("capabilities", capabilities) { capability ->
+                                    addObject {
+                                        addString("group", capability.group)
+                                        addString("name", capability.name)
+                                        addString("version", capability.version)
+                                    }
+                                }
+                            }
+                            addArray("dependencies") {
+                                for ((_, platform) in metadataList) {
+                                    addObject {
+                                        addString("group", componentId.group)
+                                        addString("module", componentId.name)
+                                        addObject("version") {
+                                            addString("requires", componentId.version)
+                                        }
+                                        addArray("requestedCapabilities", capabilities) { capability ->
+                                            addObject {
+                                                addString("group", capability.group)
+                                                addString("name", capability.name + platform)
+                                                addString("version", capability.version)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
-                        if (component.capabilities != setOf(componentId)) {
-                            addArrayIfNotEmpty("capabilities", component.capabilities) { capability ->
-                                addObject {
-                                    addString("group", capability.group)
-                                    addString("name", capability.name)
-                                    addString("version", capability.version)
+                        for ((metadata, platform, digest, size) in metadataList) {
+                            addObject {
+                                addString("name", createOciVariantName(variantName, platform))
+                                addObject("attributes") {
+                                    addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
+                                    addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
+                                    addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
+                                    addString(PLATFORM_ATTRIBUTE.name, platform.toString())
+//                                    addString(Usage.USAGE_ATTRIBUTE.name, "release")
+                                }
+                                if (capabilities != setOf(componentId)) {
+                                    addArrayIfNotEmpty("capabilities", capabilities) { capability ->
+                                        addObject {
+                                            addString("group", capability.group)
+                                            addString("name", capability.name)
+                                            addString("version", capability.version)
+                                        }
+                                    }
+                                }
+                                addArray("dependencies") {
+                                    addObject {
+                                        addString("group", componentId.group)
+                                        addString("module", componentId.name)
+                                        addObject("version") {
+                                            addString("requires", componentId.version)
+                                        }
+                                        addArray("requestedCapabilities", capabilities) { capability ->
+                                            addObject {
+                                                addString("group", capability.group)
+                                                addString("name", capability.name + platform)
+                                                addString("version", capability.version)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            addObject {
+                                addString("name", createOciVariantInternalName(variantName, platform))
+                                addObject("attributes") {
+                                    addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
+                                    addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
+                                    addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
+//                                    addString(Usage.USAGE_ATTRIBUTE.name, "release")
+                                }
+                                addArray("capabilities", capabilities) { capability ->
+                                    addObject {
+                                        addString("group", capability.group)
+                                        addString("name", capability.name + platform)
+                                        addString("version", capability.version)
+                                    }
+                                }
+                                addArray("files") {
+                                    addObject {
+                                        val metadataJson = metadata.encodeToJsonString().toByteArray()
+                                        val metadataName = "$fileNamePrefix-${createOciMetadataClassifier(variantName)}$platform.json"
+                                        val escapedImageReference = metadata.imageReference.toString().escapePathSegment()
+                                        addString("name", metadataName)
+                                        addString("url", "$escapedImageReference/$digest/$size/$metadataName")
+                                        addNumber("size", metadataJson.size.toLong())
+                                        addString("sha512", DigestUtils.sha512Hex(metadataJson))
+                                        addString("sha256", DigestUtils.sha256Hex(metadataJson))
+                                        addString("sha1", DigestUtils.sha1Hex(metadataJson))
+                                        addString("md5", DigestUtils.md5Hex(metadataJson))
+                                    }
+                                    val escapedImageName = metadata.imageReference.name.escapePathSegment()
+                                    for ((mediaType, layerDigest, layerSize) in metadata.layers.mapNotNull { it.descriptor }.distinctBy { it.digest }) {
+                                        addObject {
+                                            val algorithmId = layerDigest.algorithm.id
+                                            val encodedHash = layerDigest.encodedHash
+                                            val classifier = createOciLayerClassifier(
+                                                "main",
+                                                algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
+                                            )
+                                            val layerName = "$fileNamePrefix-$classifier"
+                                            addString("name", layerName + mapLayerMediaTypeToExtension(mediaType))
+                                            addString("url", "$escapedImageName/$layerDigest/$layerSize/$layerName")
+                                            addNumber("size", layerSize)
+                                            addString(algorithmId, encodedHash)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -263,37 +326,41 @@ internal class OciRepositoryHandler(
         return response.sendByteArray(moduleJsonMono, isGet)
     }
 
-    private fun getComponent(
+    private fun getMetadataList(
         registryUri: URI,
         imageReference: OciImageReference,
-        capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
-    ): Mono<OciComponentRegistry.ComponentWithDigest> {
-        return componentCache.getMono(
-            ComponentCacheKey(registryUri.toString(), imageReference, null, -1, capabilities, credentials?.hashed())
+    ): Mono<List<OciComponentRegistry.Metadata>> {
+        return metadataCache.getMono(
+            ComponentCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
         ) { key ->
-            componentRegistry.pullComponent(key.registry, key.imageReference, key.capabilities, credentials)
-                .doOnNext { componentWithDigest ->
-                    componentCache.asMap().putIfAbsent(
-                        key.copy(digest = componentWithDigest.digest, size = componentWithDigest.size),
-                        CompletableFuture.completedFuture(componentWithDigest),
+            componentRegistry.pullMetadataList(key.registry, key.imageReference, credentials).doOnNext { metadataList ->
+                for (metadata in metadataList) {
+                    metadataCache.asMap().putIfAbsent(
+                        key.copy(digest = metadata.digest, size = metadata.size),
+                        CompletableFuture.completedFuture(listOf(metadata)),
                     )
                 }
+            }
         }
     }
 
-    private fun getComponent(
+    private fun getMetadata(
         registryUri: URI,
         imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
-        capabilities: SortedSet<VersionedCoordinates>,
         credentials: Credentials?,
-    ): Mono<OciComponentRegistry.ComponentWithDigest> {
-        return componentCache.getMono(
-            ComponentCacheKey(registryUri.toString(), imageReference, digest, size, capabilities, credentials?.hashed())
-        ) { (registry, imageReference, _, _, capabilities) ->
-            componentRegistry.pullComponent(registry, imageReference, digest, size, capabilities, credentials)
+    ): Mono<OciComponentRegistry.Metadata> {
+        return metadataCache.getMono(
+            ComponentCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
+        ) { (registry, imageReference) ->
+            componentRegistry.pullMetadataList(registry, imageReference, digest, size, credentials)
+        }.map { metadataList ->
+            if (metadataList.size != 1) {
+                throw IllegalStateException() // TODO message
+            }
+            metadataList[0]
         }
     }
 
@@ -343,14 +410,6 @@ internal class OciRepositoryHandler(
         return sendByteArray(if (isGetElseHead) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }
 }
-
-internal fun JsonArrayStringBuilder.encodeCapabilities(capabilities: SortedSet<VersionedCoordinates>) {
-    for (capability in capabilities) {
-        addObject { encodeVersionedCoordinates(capability) }
-    }
-}
-
-internal fun JsonArray.decodeCapabilities() = toSet(TreeSet()) { asObject().decodeVersionedCoordinates() }
 
 internal fun String.escapePathSegment() = replace("$", "$0").replace("/", "$1")
 
