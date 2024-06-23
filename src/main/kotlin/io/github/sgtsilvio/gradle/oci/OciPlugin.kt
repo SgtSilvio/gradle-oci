@@ -1,6 +1,8 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.attributes.PlatformAttributeCompatibilityRule
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesExtension
 import io.github.sgtsilvio.gradle.oci.internal.concatCamelCase
@@ -9,6 +11,7 @@ import io.github.sgtsilvio.gradle.oci.internal.dsl.OciImageDependenciesExtension
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.add
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.register
@@ -20,6 +23,10 @@ class OciPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         project.dependencies.attributesSchema.attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
+        project.dependencies.attributesSchema.attribute(PLATFORM_ATTRIBUTE)
+        project.dependencies.attributesSchema.getMatchingStrategy(PLATFORM_ATTRIBUTE).compatibilityRules.add(
+            PlatformAttributeCompatibilityRule::class
+        )
         val extension = project.extensions.create(OciExtension::class, EXTENSION_NAME, OciExtensionImpl::class)
         registerPushTasks(project, extension)
         project.extensions.create(
