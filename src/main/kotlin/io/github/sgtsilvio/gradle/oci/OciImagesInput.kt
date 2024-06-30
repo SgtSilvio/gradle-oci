@@ -25,7 +25,7 @@ interface OciImagesInput {
     val files: ConfigurableFileCollection
 
     @get:Input
-    val rootCapabilities: MapProperty<Coordinates, Set<ResolvableOciImageDependencies.Reference>>
+    val rootCapabilities: MapProperty<Coordinates, Set<ResolvableOciImageDependencies.ReferenceSpec>>
 
     fun from(dependencies: ResolvableOciImageDependencies) {
         files.setFrom(dependencies.configuration)
@@ -58,11 +58,12 @@ abstract class OciImagesInputTask : DefaultTask() {
                     checkDuplicateLayer(layerDescriptor, prevLayer, layer)
                 }
             }
-            for ((rootCapability, references) in imagesInput.rootCapabilities.get()) {
+            for ((rootCapability, referenceSpecs) in imagesInput.rootCapabilities.get()) {
                 val resolvedComponent = componentResolver.resolve(rootCapability)
                 val imageReference = resolvedComponent.component.imageReference
-                val imageReferences =
-                    references.map { OciImageReference(it.name ?: imageReference.name, it.tag ?: imageReference.tag) }
+                val imageReferences = referenceSpecs.map {
+                    OciImageReference(it.name ?: imageReference.name, it.tag ?: imageReference.tag)
+                }
                 resolvedComponentToImageReferences.getOrPut(resolvedComponent) { HashSet() }.addAll(imageReferences)
             }
         }

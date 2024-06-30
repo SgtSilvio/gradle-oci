@@ -10,9 +10,9 @@ import java.io.Serializable
  */
 interface ResolvableOciImageDependencies : OciImageDependencies<ResolvableOciImageDependencies.Nameable>, Named {
 
-    val rootCapabilities: Provider<Map<Coordinates, Set<Reference>>>
+    val rootCapabilities: Provider<Map<Coordinates, Set<ReferenceSpec>>>
 
-    data class Reference(val name: String?, val tag: String?) : Serializable
+    data class ReferenceSpec(val name: String?, val tag: String?) : Serializable
 
     interface Taggable {
         fun tag(vararg tags: String): Taggable
