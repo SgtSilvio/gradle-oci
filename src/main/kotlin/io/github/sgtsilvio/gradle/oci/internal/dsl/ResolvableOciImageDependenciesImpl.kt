@@ -5,7 +5,7 @@ import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.*
-import io.github.sgtsilvio.gradle.oci.internal.gradle.optional
+import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ExternalDependency
 import org.gradle.api.artifacts.ModuleDependency
@@ -48,83 +48,82 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     dependencyHandler,
 ), ResolvableOciImageDependencies {
 
-    private val dependencyReferencesPairs = objectFactory.listProperty<Pair<ModuleDependency, List<Reference>>>()
+    private val dependencyReferenceSpecsPairs = objectFactory.listProperty<Pair<ModuleDependency, List<ReferenceSpec>>>()
 
-    final override val rootCapabilities: Provider<Map<Coordinates, Set<Reference>>> =
-        configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferencesPairs) { rootComponent, dependencyReferencesPairs ->
-            val descriptorToReferences = HashMap<ModuleDependencyDescriptor, List<Reference>>()
-            for ((dependency, references) in dependencyReferencesPairs) {
-                descriptorToReferences.merge(dependency.toDescriptor(), references) { a, b -> a + b }
+    final override val rootCapabilities: Provider<Map<Coordinates, Set<ReferenceSpec>>> =
+        configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferenceSpecsPairs) { rootComponent, dependencyReferenceSpecsPairs ->
+            val descriptorToReferenceSpecs = HashMap<ModuleDependencyDescriptor, List<ReferenceSpec>>()
+            for ((dependency, referenceSpecs) in dependencyReferenceSpecsPairs) {
+                descriptorToReferenceSpecs.merge(dependency.toDescriptor(), referenceSpecs) { a, b -> a + b }
             }
-            val coordinatesToReferences = HashMap<Coordinates, HashSet<Reference>>()
+            val coordinatesToReferenceSpecs = HashMap<Coordinates, HashSet<ReferenceSpec>>()
             val rootVariant = rootComponent.variants.first()
             for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
                 if (dependency.isConstraint) continue
                 if (dependency !is ResolvedDependencyResult) continue
-                val references = descriptorToReferences[dependency.requested.toDescriptor()]
-                if (references != null) {
+                val referenceSpecs = descriptorToReferenceSpecs[dependency.requested.toDescriptor()]
+                if (referenceSpecs != null) {
                     val capability = dependency.resolvedVariant.capabilities.first()
-                    coordinatesToReferences.getOrPut(Coordinates(capability.group, capability.name)) { HashSet() }
-                        .addAll(references)
+                    coordinatesToReferenceSpecs.getOrPut(Coordinates(capability.group, capability.name)) { HashSet() }
+                        .addAll(referenceSpecs)
                 }
             }
-            coordinatesToReferences
+            coordinatesToReferenceSpecs
         }
 
     final override fun getName() = name
 
-    final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
-        val referenceSpec = ReferenceSpec(objectFactory)
-        dependencyReferencesPairs.add(referenceSpec.references.map { Pair(dependency, it) })
-        return referenceSpec
+    final override fun returnType(dependency: ModuleDependency): ReferenceSpecBuilder {
+        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
+        dependencyReferenceSpecsPairs.add(referenceSpecBuilder.referenceSpecs.map { Pair(dependency, it) })
+        return referenceSpecBuilder
     }
 
-    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpec {
-        val referenceSpec = ReferenceSpec(objectFactory)
-        dependencyReferencesPairs.add(dependencyProvider.zip(referenceSpec.references, ::Pair))
-        return referenceSpec
+    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecBuilder {
+        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
+        dependencyReferenceSpecsPairs.add(dependencyProvider.zip(referenceSpecBuilder.referenceSpecs, ::Pair))
+        return referenceSpecBuilder
     }
 
-    class ReferenceSpec(objectFactory: ObjectFactory) : Nameable, Taggable {
+    class ReferenceSpecBuilder(objectFactory: ObjectFactory) : Nameable, Taggable {
         private val nameProperty = objectFactory.property<String>()
         private val tagsProperty = objectFactory.setProperty<String>()
-        val references: Provider<List<Reference>> = nameProperty.optional().zip(tagsProperty) { optionalName, tags ->
-            val name = optionalName.orElse(null)
+        val referenceSpecs: Provider<List<ReferenceSpec>> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
             if (tags.isEmpty()) {
-                listOf(Reference(name, null))
+                listOf(ReferenceSpec(name, null))
             } else {
-                tags.map { tag -> Reference(name, if (tag == ".") null else tag) }
+                tags.map { tag -> ReferenceSpec(name, if (tag == ".") null else tag) }
             }
         }
 
-        override fun name(name: String): ReferenceSpec {
+        override fun name(name: String): ReferenceSpecBuilder {
             nameProperty.set(name)
             return this
         }
 
-        override fun name(nameProvider: Provider<String>): ReferenceSpec {
+        override fun name(nameProvider: Provider<String>): ReferenceSpecBuilder {
             nameProperty.set(nameProvider)
             return this
         }
 
-        override fun tag(vararg tags: String): ReferenceSpec {
+        override fun tag(vararg tags: String): ReferenceSpecBuilder {
             tagsProperty.addAll(*tags)
             return this
         }
 
-        override fun tag(tags: Iterable<String>): ReferenceSpec {
+        override fun tag(tags: Iterable<String>): ReferenceSpecBuilder {
             tagsProperty.addAll(tags)
             return this
         }
 
-        override fun tag(tagProvider: Provider<String>): ReferenceSpec {
+        override fun tag(tagProvider: Provider<String>): ReferenceSpecBuilder {
             tagsProperty.addAll(tagProvider.map { listOf(it) }.orElse(emptyList()))
             return this
         }
 
         @Suppress("INAPPLICABLE_JVM_NAME")
         @JvmName("tagMultiple")
-        override fun tag(tagsProvider: Provider<out Iterable<String>>): ReferenceSpec {
+        override fun tag(tagsProvider: Provider<out Iterable<String>>): ReferenceSpecBuilder {
             tagsProperty.addAll(tagsProvider.map { it }.orElse(emptyList()))
             return this
         }
