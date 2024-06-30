@@ -10,10 +10,10 @@ internal fun createOciVariantName(variantName: String): String =
     variantName.mainToEmpty().camelCase().concatCamelCase("ociImage")
 
 internal fun createOciVariantName(variantName: String, platform: Platform): String =
-    variantName.mainToEmpty().camelCase().concatCamelCase("ociImage") + platform
+    variantName.mainToEmpty().camelCase().concatCamelCase("ociImage") + '@' + platform
 
 internal fun createOciVariantInternalName(variantName: String, platform: Platform): String =
-    variantName.mainToEmpty().camelCase().concatCamelCase("ociImageInternal") + platform
+    variantName.mainToEmpty().camelCase().concatCamelCase("ociImageInternal") + '@' + platform
 
 internal fun createOciMetadataClassifier(variantName: String): String =
     variantName.mainToEmpty().kebabCase().concatKebabCase("oci-metadata")

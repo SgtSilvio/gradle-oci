@@ -227,7 +227,7 @@ internal class OciRepositoryHandler(
                                         addArray("requestedCapabilities", capabilities) { capability ->
                                             addObject {
                                                 addString("group", capability.group)
-                                                addString("name", capability.name + platform)
+                                                addString("name", capability.name + '@' + platform)
                                                 addString("version", capability.version)
                                             }
                                         }
@@ -264,7 +264,7 @@ internal class OciRepositoryHandler(
                                         addArray("requestedCapabilities", capabilities) { capability ->
                                             addObject {
                                                 addString("group", capability.group)
-                                                addString("name", capability.name + platform)
+                                                addString("name", capability.name + '@' + platform)
                                                 addString("version", capability.version)
                                             }
                                         }
@@ -282,14 +282,14 @@ internal class OciRepositoryHandler(
                                 addArray("capabilities", capabilities) { capability ->
                                     addObject {
                                         addString("group", capability.group)
-                                        addString("name", capability.name + platform)
+                                        addString("name", capability.name + '@' + platform)
                                         addString("version", capability.version)
                                     }
                                 }
                                 addArray("files") {
                                     addObject {
                                         val metadataJson = metadata.encodeToJsonString().toByteArray()
-                                        val metadataName = "$fileNamePrefix-${createOciMetadataClassifier(variantName)}$platform.json"
+                                        val metadataName = "$fileNamePrefix-${createOciMetadataClassifier(variantName)}@$platform.json"
                                         val escapedImageReference = metadata.imageReference.toString().escapePathSegment()
                                         addString("name", metadataName)
                                         addString("url", "$escapedImageReference/$digest/$size/$metadataName")

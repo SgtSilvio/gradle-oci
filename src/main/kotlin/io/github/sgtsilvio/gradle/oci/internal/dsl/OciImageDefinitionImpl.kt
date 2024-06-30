@@ -263,12 +263,12 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
 
         private fun createMetadataTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
-            taskContainer.register<OciMetadataTask>(createOciMetadataClassifier(imageDefName).camelCase() + (platform ?: "")) {
+            taskContainer.register<OciMetadataTask>(createOciMetadataClassifier(imageDefName).camelCase() + if (platform == null) "" else "@$platform") {
                 group = TASK_GROUP_NAME
                 description = "Assembles the metadata json file of the '$imageDefName' OCI image" + if (platform == null) "." else " for the platform $platform"
                 encodedMetadata.set(metadata.map { it.encodeToJsonString() })
                 destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
-                classifier.set(createOciMetadataClassifier(imageDefName) + (platform ?: ""))
+                classifier.set(createOciMetadataClassifier(imageDefName) + if (platform == null) "" else "@$platform")
             }
 
         final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
@@ -387,7 +387,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 var task = task
                 val bundleScopeConfigurations = bundleScopeConfigurations
                 if ((task == null) || (bundleScopeConfigurations != null)) {
-                    task = taskContainer.createLayerTask(imageDefName, name, platform?.toString() ?: "", projectLayout)
+                    task = taskContainer.createLayerTask(imageDefName, name, if (platform == null) "" else "@$platform", projectLayout)
                     this.task = task
                     if (bundleScopeConfigurations != null) {
                         this.bundleScopeConfigurations = null
@@ -517,11 +517,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         fun onAfterEvaluate() {
             val capabilities = imageDefinition.configuration.outgoing.capabilities
             if (capabilities.isEmpty()) {
-                configuration.outgoing.capability("${project.group}:${project.name}$platform:${project.version}")
+                configuration.outgoing.capability("${project.group}:${project.name}@$platform:${project.version}")
             } else {
                 for (capability in capabilities) {
                     externalConfiguration.outgoing.capability(capability)
-                    configuration.outgoing.capability("${capability.group}:${capability.name}$platform:${capability.version}")
+                    configuration.outgoing.capability("${capability.group}:${capability.name}@$platform:${capability.version}")
                 }
             }
         }

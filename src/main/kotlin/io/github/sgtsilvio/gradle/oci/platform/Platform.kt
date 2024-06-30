@@ -32,7 +32,7 @@ private data class PlatformImpl(
 ) : Platform {
 
     override fun toString(): String {
-        val s = "@$os,$architecture"
+        val s = "$os,$architecture"
         return when {
             osFeatures.isNotEmpty() -> "$s,$variant,$osVersion," + osFeatures.joinToString(",")
             osVersion.isNotEmpty() -> "$s,$variant,$osVersion"
