@@ -55,3 +55,17 @@ private fun defaultVariant(architecture: String) = when (architecture) {
     "arm" -> "v7"
     else -> ""
 }
+
+internal fun String.toPlatform(): Platform {
+    val parts = split(',')
+    if (parts.size < 2) {
+        throw IllegalArgumentException("'$this' is not a platform string")
+    }
+    return Platform(
+        parts[0],
+        parts[1],
+        if (parts.size > 2) parts[2] else "",
+        if (parts.size > 3) parts[3] else "",
+        if (parts.size > 4) parts.subList(4, parts.size).toSortedSet() else TreeSet(),
+    )
+}
