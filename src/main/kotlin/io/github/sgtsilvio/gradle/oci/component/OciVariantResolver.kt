@@ -17,10 +17,7 @@ class OciVariantResolver {
 
     fun resolve(rootComponentResult: ResolvedComponentResult) =
         rootComponentResult.getDependenciesForVariant(rootComponentResult.variants.first()).mapNotNull { dependencyResult ->
-            if (dependencyResult !is ResolvedDependencyResult) {
-                throw IllegalStateException("unresolved dependency $dependencyResult")
-            }
-            if (dependencyResult.isConstraint) {
+            if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
                 null
             } else {
                 resolve(dependencyResult.selected, dependencyResult.resolvedVariant)
@@ -36,10 +33,7 @@ class OciVariantResolver {
         }
         states[variantResult] = null
         val dependencies = componentResult.getDependenciesForVariant(variantResult).mapNotNull { dependencyResult ->
-            if (dependencyResult !is ResolvedDependencyResult) {
-                throw IllegalStateException("unresolved dependency $dependencyResult")
-            }
-            if (dependencyResult.isConstraint) {
+            if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
                 null
             } else {
                 resolve(dependencyResult.selected, dependencyResult.resolvedVariant)
@@ -103,10 +97,7 @@ class OciVariantResolver {
 //                throw IllegalStateException() // TODO
 //            }
 //            val dependencies = componentResult.getDependenciesForVariant(variantResult).mapNotNull { dependencyResult ->
-//                if (dependencyResult !is ResolvedDependencyResult) {
-//                    throw IllegalStateException("unresolved dependency $dependencyResult")
-//                }
-//                if (dependencyResult.isConstraint) {
+//                if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
 //                    null
 //                } else {
 //                    resolve(dependencyResult.selected, dependencyResult.resolvedVariant, platform)
