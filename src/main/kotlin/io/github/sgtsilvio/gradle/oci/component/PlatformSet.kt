@@ -15,6 +15,11 @@ class PlatformSet : Iterable<Platform> {
         set.add(platform)
     }
 
+    constructor(platforms: Collection<Platform>) {
+        isInfinite = false
+        set.addAll(platforms)
+    }
+
     fun intersect(other: PlatformSet) {
         if (other.isInfinite) {
             return
