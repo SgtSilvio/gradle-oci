@@ -39,39 +39,30 @@ class OciVariantResolver {
                 resolve(dependencyResult.selected, dependencyResult.resolvedVariant)
             }
         }
-        val state = when (val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple) {
-            MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE -> {
-                val platformToDependency = HashMap<Platform, OciVariantState.SinglePlatform>()
-                for (dependency in dependencies) {
-                    if (dependency !is OciVariantState.SinglePlatform) {
-                        throw IllegalStateException() // TODO
+        val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple
+        val state = if (platformOrUniversalOrMultiple == MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE) {
+            val platformToDependency = HashMap<Platform, OciVariantState.SinglePlatformOrUniversal>()
+            for (dependency in dependencies) {
+                if ((dependency !is OciVariantState.SinglePlatformOrUniversal) || dependency.isUniversal) {
+                    throw IllegalStateException("dependencies of multiple platforms variant must be single platform variants")
+                }
+                val platform = dependency.platformSet.singleOrNull()
+                if (platform != null) {
+                    if (platform in platformToDependency) {
+                        throw IllegalStateException("dependencies of multiple platforms variant must be unique single platform variants")
                     }
-                    val platform = dependency.platformSet.singleOrNull()
-                    if (platform != null) {
-                        if (platform in platformToDependency) {
-                            throw IllegalStateException() // TODO
-                        }
-                        platformToDependency[platform] = dependency
-                    }
+                    platformToDependency[platform] = dependency
                 }
-                OciVariantState.MultiplePlatforms(variantResult, platformToDependency)
             }
-
-            UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE -> {
-                val platformSet = PlatformSet(true)
-                for (dependency in dependencies) {
-                    platformSet.intersect(dependency.platformSet)
-                }
-                OciVariantState.Universal(variantResult, platformSet, dependencies)
+            OciVariantState.MultiplePlatforms(variantResult, platformToDependency)
+        } else {
+            val isUniversal = platformOrUniversalOrMultiple == UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
+            val platformSet =
+                if (isUniversal) PlatformSet(true) else PlatformSet(platformOrUniversalOrMultiple.toPlatform())
+            for (dependency in dependencies) {
+                platformSet.intersect(dependency.platformSet)
             }
-
-            else -> {
-                val platformSet = PlatformSet(platformOrUniversalOrMultiple.toPlatform())
-                for (dependency in dependencies) {
-                    platformSet.intersect(dependency.platformSet)
-                }
-                OciVariantState.SinglePlatform(variantResult, platformSet, dependencies)
-            }
+            OciVariantState.SinglePlatformOrUniversal(variantResult, platformSet, dependencies, isUniversal)
         }
         states[variantResult] = state
         return state
@@ -123,26 +114,15 @@ sealed class OciVariantState(
 
     class MultiplePlatforms(
         variantResult: ResolvedVariantResult,
-        val platformToDependency: Map<Platform, SinglePlatform>,
+        val platformToDependency: Map<Platform, SinglePlatformOrUniversal>,
     ) : OciVariantState(variantResult, PlatformSet(platformToDependency.keys))
 
-    sealed class SinglePlatformOrUniversal(
+    class SinglePlatformOrUniversal(
         variantResult: ResolvedVariantResult,
         platformSet: PlatformSet,
         val dependencies: List<OciVariantState>,
+        val isUniversal: Boolean,
     ) : OciVariantState(variantResult, platformSet)
-
-    class SinglePlatform(
-        variantResult: ResolvedVariantResult,
-        platformSet: PlatformSet,
-        dependencies: List<OciVariantState>,
-    ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
-
-    class Universal(
-        variantResult: ResolvedVariantResult,
-        platformSet: PlatformSet,
-        dependencies: List<OciVariantState>,
-    ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
 }
 
 val ResolvedVariantResult.platformOrUniversalOrMultiple: String
