@@ -39,30 +39,38 @@ class OciVariantResolver {
                 resolve(dependencyResult.selected, dependencyResult.resolvedVariant)
             }
         }
-        val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple
-        val state = if (platformOrUniversalOrMultiple == MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE) {
-            val platformToDependency = HashMap<Platform, OciVariantState.SinglePlatformOrUniversal>()
-            for (dependency in dependencies) {
-                if ((dependency !is OciVariantState.SinglePlatformOrUniversal) || dependency.isUniversal) {
-                    throw IllegalStateException("dependencies of multiple platforms variant must be single platform variants")
-                }
-                val platform = dependency.platformSet.singleOrNull()
-                if (platform != null) {
-                    if (platform in platformToDependency) {
+        val state = when (val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple) {
+            MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE -> {
+                val platformToDependency = HashMap<Platform, OciVariantState.SinglePlatform>()
+                val platformSet = PlatformSet(false)
+                for (dependency in dependencies) {
+                    if (dependency !is OciVariantState.SinglePlatform) {
+                        throw IllegalStateException("dependencies of multiple platforms variant must be single platform variants")
+                    }
+                    if (platformToDependency.putIfAbsent(dependency.platform, dependency) != null) {
                         throw IllegalStateException("dependencies of multiple platforms variant must be unique single platform variants")
                     }
-                    platformToDependency[platform] = dependency
+                    platformSet.union(dependency.platformSet)
                 }
+                OciVariantState.MultiplePlatforms(variantResult, platformSet, platformToDependency)
             }
-            OciVariantState.MultiplePlatforms(variantResult, platformToDependency)
-        } else {
-            val isUniversal = platformOrUniversalOrMultiple == UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
-            val platformSet =
-                if (isUniversal) PlatformSet(true) else PlatformSet(platformOrUniversalOrMultiple.toPlatform())
-            for (dependency in dependencies) {
-                platformSet.intersect(dependency.platformSet)
+
+            UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE -> {
+                val platformSet = PlatformSet(true)
+                for (dependency in dependencies) {
+                    platformSet.intersect(dependency.platformSet)
+                }
+                OciVariantState.Universal(variantResult, platformSet, dependencies)
             }
-            OciVariantState.SinglePlatformOrUniversal(variantResult, platformSet, dependencies, isUniversal)
+
+            else -> {
+                val platform = platformOrUniversalOrMultiple.toPlatform()
+                val platformSet = PlatformSet(platform)
+                for (dependency in dependencies) {
+                    platformSet.intersect(dependency.platformSet)
+                }
+                OciVariantState.SinglePlatform(variantResult, platform, platformSet, dependencies)
+            }
         }
         states[variantResult] = state
         return state
@@ -114,15 +122,28 @@ sealed class OciVariantState(
 
     class MultiplePlatforms(
         variantResult: ResolvedVariantResult,
-        val platformToDependency: Map<Platform, SinglePlatformOrUniversal>,
-    ) : OciVariantState(variantResult, PlatformSet(platformToDependency.keys))
+        platformSet: PlatformSet,
+        val platformToDependency: Map<Platform, SinglePlatform>,
+    ) : OciVariantState(variantResult, platformSet)
 
-    class SinglePlatformOrUniversal(
+    sealed class SinglePlatformOrUniversal(
         variantResult: ResolvedVariantResult,
         platformSet: PlatformSet,
         val dependencies: List<OciVariantState>,
-        val isUniversal: Boolean,
     ) : OciVariantState(variantResult, platformSet)
+
+    class SinglePlatform(
+        variantResult: ResolvedVariantResult,
+        val platform: Platform,
+        platformSet: PlatformSet,
+        dependencies: List<OciVariantState>,
+    ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
+
+    class Universal(
+        variantResult: ResolvedVariantResult,
+        platformSet: PlatformSet,
+        dependencies: List<OciVariantState>,
+    ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
 }
 
 val ResolvedVariantResult.platformOrUniversalOrMultiple: String
@@ -133,62 +154,3 @@ val ResolvedVariantResult.platformOrUniversalOrMultiple: String
         }
         return capabilities.first().name.substringAfterLast('@')
     }
-
-
-
-
-
-//@JvmInline
-//value class Union private constructor(val value: Any) {
-//    constructor(i: Int) : this(i as Any)
-//    constructor(s: String) : this(s as Any)
-//
-//    inline fun <R> match(
-//        isInt: (Int) -> R,
-//        isString: (String) -> R,
-//    ) = when (value) {
-//        is Int -> isInt(value)
-//        is String -> isString(value)
-//        else -> throw IllegalStateException()
-//    }
-//}
-//
-//fun main() {
-////    val union = Union("aso")
-//    val union = Union(123)
-//
-//    union.match(
-//        isInt = { println("int $it") },
-//        isString = { println("String $it") },
-//    )
-//}
-
-
-
-
-
-/*
-request multiple platforms
-  uni          -> uni
-               -> multi (meta)
-  single       -> uni
-               -> multi (meta)
-  multi (meta) -> single       => unique platforms
-
-request single platform
-  uni           -> uni
-                -> single (meta)
-  single        -> uni
-                -> single (meta)
-  single (meta) -> single        => platforms need to be the same
-
-
-node types:
-- single  platform?                     list<dependency>
-- uni     set<platform> (can be empty)  list<dependency>
-- multi   map<platform, dependency> (can be empty)
-
-first round:
-node types:
-- OciVariantState  set<platform>  list<dependency>
- */
