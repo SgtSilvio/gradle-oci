@@ -12,69 +12,69 @@ import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.specs.Spec
 
-class OciVariantResolver {
-    private val states = HashMap<ResolvedVariantResult, OciVariantState?>()
-
-    fun resolve(rootComponentResult: ResolvedComponentResult) =
-        rootComponentResult.getDependenciesForVariant(rootComponentResult.variants.first()).mapNotNull { dependencyResult ->
+fun resolveOciVariantGraph(rootComponentResult: ResolvedComponentResult): List<OciVariantNode> {
+    val states = HashMap<ResolvedVariantResult, OciVariantNode?>()
+    return rootComponentResult.getDependenciesForVariant(rootComponentResult.variants.first())
+        .mapNotNull { dependencyResult ->
             if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
                 null
             } else {
-                resolve(dependencyResult.selected, dependencyResult.resolvedVariant)
+                resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, states)
             }
         }
+}
 
-    private fun resolve(
-        componentResult: ResolvedComponentResult,
-        variantResult: ResolvedVariantResult,
-    ): OciVariantState {
-        if (variantResult in states) {
-            return states[variantResult] ?: throw IllegalStateException("cycle in dependencies graph")
-        }
-        states[variantResult] = null
-        val dependencies = componentResult.getDependenciesForVariant(variantResult).mapNotNull { dependencyResult ->
-            if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
-                null
-            } else {
-                resolve(dependencyResult.selected, dependencyResult.resolvedVariant)
-            }
-        }
-        val state = when (val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple) {
-            MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE -> {
-                val platformToDependency = HashMap<Platform, OciVariantState.SinglePlatform>()
-                val platformSet = PlatformSet(false)
-                for (dependency in dependencies) {
-                    if (dependency !is OciVariantState.SinglePlatform) {
-                        throw IllegalStateException("dependencies of multiple platforms variant must be single platform variants")
-                    }
-                    if (platformToDependency.putIfAbsent(dependency.platform, dependency) != null) {
-                        throw IllegalStateException("dependencies of multiple platforms variant must be unique single platform variants")
-                    }
-                    platformSet.union(dependency.platformSet)
-                }
-                OciVariantState.MultiplePlatforms(variantResult, platformSet, platformToDependency)
-            }
-
-            UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE -> {
-                val platformSet = PlatformSet(true)
-                for (dependency in dependencies) {
-                    platformSet.intersect(dependency.platformSet)
-                }
-                OciVariantState.Universal(variantResult, platformSet, dependencies)
-            }
-
-            else -> {
-                val platform = platformOrUniversalOrMultiple.toPlatform()
-                val platformSet = PlatformSet(platform)
-                for (dependency in dependencies) {
-                    platformSet.intersect(dependency.platformSet)
-                }
-                OciVariantState.SinglePlatform(variantResult, platform, platformSet, dependencies)
-            }
-        }
-        states[variantResult] = state
-        return state
+private fun resolveOciVariantNode(
+    componentResult: ResolvedComponentResult,
+    variantResult: ResolvedVariantResult,
+    states: HashMap<ResolvedVariantResult, OciVariantNode?>,
+): OciVariantNode {
+    if (variantResult in states) {
+        return states[variantResult] ?: throw IllegalStateException("cycle in dependencies graph")
     }
+    states[variantResult] = null
+    val dependencies = componentResult.getDependenciesForVariant(variantResult).mapNotNull { dependencyResult ->
+        if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
+            null
+        } else {
+            resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, states)
+        }
+    }
+    val state = when (val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple) {
+        MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE -> {
+            val platformToDependency = HashMap<Platform, OciVariantNode.SinglePlatform>()
+            val platformSet = PlatformSet(false)
+            for (dependency in dependencies) {
+                if (dependency !is OciVariantNode.SinglePlatform) {
+                    throw IllegalStateException("dependencies of multiple platforms variant must be single platform variants")
+                }
+                if (platformToDependency.putIfAbsent(dependency.platform, dependency) != null) {
+                    throw IllegalStateException("dependencies of multiple platforms variant must be unique single platform variants")
+                }
+                platformSet.union(dependency.platformSet)
+            }
+            OciVariantNode.MultiplePlatforms(variantResult, platformSet, platformToDependency)
+        }
+
+        UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE -> {
+            val platformSet = PlatformSet(true)
+            for (dependency in dependencies) {
+                platformSet.intersect(dependency.platformSet)
+            }
+            OciVariantNode.Universal(variantResult, platformSet, dependencies)
+        }
+
+        else -> {
+            val platform = platformOrUniversalOrMultiple.toPlatform()
+            val platformSet = PlatformSet(platform)
+            for (dependency in dependencies) {
+                platformSet.intersect(dependency.platformSet)
+            }
+            OciVariantNode.SinglePlatform(variantResult, platform, platformSet, dependencies)
+        }
+    }
+    states[variantResult] = state
+    return state
 }
 
 fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
@@ -83,7 +83,7 @@ fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
     }
 }
 
-fun createImagesInput(rootVariantStates: List<OciVariantState>): OciImagesInput2 {
+fun createImagesInput(rootVariantStates: List<OciVariantNode>): OciImagesInput2 {
     val x = rootVariantStates.map { rootVariantState ->
         rootVariantState.platformSet.associateWith { platform ->
             rootVariantState.collectVariantResultsForPlatform(platform)
@@ -92,20 +92,20 @@ fun createImagesInput(rootVariantStates: List<OciVariantState>): OciImagesInput2
     TODO()
 }
 
-fun OciVariantState.collectVariantResultsForPlatform(platform: Platform): LinkedHashSet<ResolvedVariantResult> {
+fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform): LinkedHashSet<ResolvedVariantResult> {
     val result = LinkedHashSet<ResolvedVariantResult>()
     collectVariantResultsForPlatform(platform, result)
     return result
 }
 
-fun OciVariantState.collectVariantResultsForPlatform(platform: Platform, result: LinkedHashSet<ResolvedVariantResult>) {
+fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform, result: LinkedHashSet<ResolvedVariantResult>) {
     if (variantResult !in result) {
         when (this) {
-            is OciVariantState.MultiplePlatforms -> {
+            is OciVariantNode.MultiplePlatforms -> {
                 platformToDependency[platform]?.collectVariantResultsForPlatform(platform, result)
                     ?: throw IllegalStateException("unresolved dependency for platform $platform") // TODO message
             }
-            is OciVariantState.SinglePlatformOrUniversal -> {
+            is OciVariantNode.SinglePlatformOrUniversal -> {
                 for (dependency in dependencies) {
                     dependency.collectVariantResultsForPlatform(platform, result)
                 }
@@ -115,7 +115,7 @@ fun OciVariantState.collectVariantResultsForPlatform(platform: Platform, result:
     }
 }
 
-sealed class OciVariantState(
+sealed class OciVariantNode(
     val variantResult: ResolvedVariantResult,
     val platformSet: PlatformSet,
 ) {
@@ -124,25 +124,25 @@ sealed class OciVariantState(
         variantResult: ResolvedVariantResult,
         platformSet: PlatformSet,
         val platformToDependency: Map<Platform, SinglePlatform>,
-    ) : OciVariantState(variantResult, platformSet)
+    ) : OciVariantNode(variantResult, platformSet)
 
     sealed class SinglePlatformOrUniversal(
         variantResult: ResolvedVariantResult,
         platformSet: PlatformSet,
-        val dependencies: List<OciVariantState>,
-    ) : OciVariantState(variantResult, platformSet)
+        val dependencies: List<OciVariantNode>,
+    ) : OciVariantNode(variantResult, platformSet)
 
     class SinglePlatform(
         variantResult: ResolvedVariantResult,
         val platform: Platform,
         platformSet: PlatformSet,
-        dependencies: List<OciVariantState>,
+        dependencies: List<OciVariantNode>,
     ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
 
     class Universal(
         variantResult: ResolvedVariantResult,
         platformSet: PlatformSet,
-        dependencies: List<OciVariantState>,
+        dependencies: List<OciVariantNode>,
     ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
 }
 
