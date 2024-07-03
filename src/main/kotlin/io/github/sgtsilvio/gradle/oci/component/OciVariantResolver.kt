@@ -137,6 +137,7 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
                 platformToDependency[platform]?.collectVariantResultsForPlatform(platform, result)
                     ?: throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platforms are ${platformToDependency.keys})")
             }
+
             is OciVariantNode.SinglePlatform -> {
                 if (platform != this.platform) {
                     throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platform is ${this.platform})")
@@ -145,6 +146,7 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
                     dependency.collectVariantResultsForPlatform(platform, result)
                 }
             }
+
             is OciVariantNode.Universal -> {
                 for (dependency in dependencies) {
                     dependency.collectVariantResultsForPlatform(platform, result)
