@@ -13,13 +13,13 @@ import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.specs.Spec
 
 fun resolveOciVariantGraph(rootComponentResult: ResolvedComponentResult): List<OciVariantNode> {
-    val states = HashMap<ResolvedVariantResult, OciVariantNode?>()
+    val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
     return rootComponentResult.getDependenciesForVariant(rootComponentResult.variants.first())
         .mapNotNull { dependencyResult ->
             if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
                 null
             } else {
-                resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, states)
+                resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
             }
         }
 }
@@ -27,20 +27,20 @@ fun resolveOciVariantGraph(rootComponentResult: ResolvedComponentResult): List<O
 private fun resolveOciVariantNode(
     componentResult: ResolvedComponentResult,
     variantResult: ResolvedVariantResult,
-    states: HashMap<ResolvedVariantResult, OciVariantNode?>,
+    nodes: HashMap<ResolvedVariantResult, OciVariantNode?>,
 ): OciVariantNode {
-    if (variantResult in states) {
-        return states[variantResult] ?: throw IllegalStateException("cycle in dependencies graph")
+    if (variantResult in nodes) {
+        return nodes[variantResult] ?: throw IllegalStateException("cycle in dependencies graph")
     }
-    states[variantResult] = null
+    nodes[variantResult] = null
     val dependencies = componentResult.getDependenciesForVariant(variantResult).mapNotNull { dependencyResult ->
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             null
         } else {
-            resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, states)
+            resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
         }
     }
-    val state = when (val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple) {
+    val node = when (val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple) {
         MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE -> {
             val platformToDependency = HashMap<Platform, OciVariantNode.SinglePlatform>()
             val platformSet = PlatformSet(false)
@@ -73,8 +73,8 @@ private fun resolveOciVariantNode(
             OciVariantNode.SinglePlatform(variantResult, platform, dependencies, platformSet)
         }
     }
-    states[variantResult] = state
-    return state
+    nodes[variantResult] = node
+    return node
 }
 
 sealed class OciVariantNode(
@@ -111,13 +111,23 @@ val ResolvedVariantResult.platformOrUniversalOrMultiple: String
         return capabilities.first().name.substringAfterLast('@')
     }
 
-fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform): LinkedHashSet<ResolvedVariantResult> {
+fun resolveOciVariantImages(rootVariantNodes: List<OciVariantNode>): List<Map<Platform, List<ResolvedVariantResult>>> =
+    rootVariantNodes.map { rootVariantNode ->
+        rootVariantNode.platformSet.associateWith { platform ->
+            rootVariantNode.collectVariantResultsForPlatform(platform).toList()
+        }
+    }
+
+private fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform): LinkedHashSet<ResolvedVariantResult> {
     val result = LinkedHashSet<ResolvedVariantResult>()
     collectVariantResultsForPlatform(platform, result)
     return result
 }
 
-fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform, result: LinkedHashSet<ResolvedVariantResult>) {
+private fun OciVariantNode.collectVariantResultsForPlatform(
+    platform: Platform,
+    result: LinkedHashSet<ResolvedVariantResult>,
+) {
     if (variantResult !in result) {
         when (this) {
             is OciVariantNode.MultiplePlatforms -> {
@@ -148,11 +158,6 @@ fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
     }
 }
 
-fun createImagesInput(rootVariantStates: List<OciVariantNode>): OciImagesInput2 {
-    val x = rootVariantStates.map { rootVariantState ->
-        rootVariantState.platformSet.associateWith { platform ->
-            rootVariantState.collectVariantResultsForPlatform(platform)
-        }
-    }
+fun createImagesInput(rootVariantNodes: List<OciVariantNode>): OciImagesInput2 {
     TODO()
 }
