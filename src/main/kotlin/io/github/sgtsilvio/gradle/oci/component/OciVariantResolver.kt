@@ -165,7 +165,7 @@ class ArtifactViewComponentFilter(
 ) : Spec<ComponentIdentifier> {
 
     private class State(
-        val componentIdToVariantResults: Map<ComponentIdentifier, CyclicIterator<ResolvedVariantResult>>,
+        val componentIdToVariantResults: Map<ComponentIdentifier, Iterator<ResolvedVariantResult>>,
         val selectedVariantResults: Set<ResolvedVariantResult?>,
     )
 
@@ -176,8 +176,8 @@ class ArtifactViewComponentFilter(
             val rootComponentResult = rootComponentResultProvider.get()
             val variantImages = variantImagesProvider.get()
             val componentIdToVariantResults =
-                rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { CyclicIterator(it.variants) }
-            componentIdToVariantResults[rootComponentResult.id] = CyclicIterator(rootComponentResult.variants.drop(1))
+                rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { it.variants.iterator() }
+            componentIdToVariantResults[rootComponentResult.id]!!.next()
             val selectedVariantResults =
                 variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.values.flatten() }
             val newState = State(componentIdToVariantResults, selectedVariantResults)
@@ -209,20 +209,6 @@ val ResolvedComponentResult.allComponents: HashSet<ResolvedComponentResult>
         }
         return visitedComponentResults
     }
-
-private class CyclicIterator<out E>(private val list: List<E>) { // TODO only use iterator and instead of returning a component filter spec directly return ArtifactCollection getArtifacts
-    private var index = 0
-
-    fun next(): E? {
-        if (list.isEmpty()) {
-            return null
-        }
-        if (index > list.lastIndex) {
-            index = 0
-        }
-        return list[index++]
-    }
-}
 
 fun createImagesInput(rootVariantNodes: List<OciVariantNode>): OciImagesInput2 {
     TODO()
