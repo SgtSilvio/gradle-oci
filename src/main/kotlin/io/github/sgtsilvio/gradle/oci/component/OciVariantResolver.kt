@@ -111,21 +111,6 @@ val ResolvedVariantResult.platformOrUniversalOrMultiple: String
         return capabilities.first().name.substringAfterLast('@')
     }
 
-fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
-    return Spec { componentIdentifier ->
-        TODO()
-    }
-}
-
-fun createImagesInput(rootVariantStates: List<OciVariantNode>): OciImagesInput2 {
-    val x = rootVariantStates.map { rootVariantState ->
-        rootVariantState.platformSet.associateWith { platform ->
-            rootVariantState.collectVariantResultsForPlatform(platform)
-        }
-    }
-    TODO()
-}
-
 fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform): LinkedHashSet<ResolvedVariantResult> {
     val result = LinkedHashSet<ResolvedVariantResult>()
     collectVariantResultsForPlatform(platform, result)
@@ -155,4 +140,19 @@ fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform, result: 
         }
         result += variantResult
     }
+}
+
+fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
+    return Spec { componentIdentifier ->
+        TODO()
+    }
+}
+
+fun createImagesInput(rootVariantStates: List<OciVariantNode>): OciImagesInput2 {
+    val x = rootVariantStates.map { rootVariantState ->
+        rootVariantState.platformSet.associateWith { platform ->
+            rootVariantState.collectVariantResultsForPlatform(platform)
+        }
+    }
+    TODO()
 }
