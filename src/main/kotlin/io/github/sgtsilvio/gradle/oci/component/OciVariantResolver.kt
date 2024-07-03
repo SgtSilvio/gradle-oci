@@ -11,6 +11,12 @@ import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.specs.Spec
+import java.util.*
+
+fun resolveOciVariantImages(rootComponentResult: ResolvedComponentResult): List<Map<Platform, List<ResolvedVariantResult>>> {
+    val rootVariantNodes = resolveOciVariantGraph(rootComponentResult)
+    return resolveOciVariantImages(rootVariantNodes)
+}
 
 fun resolveOciVariantGraph(rootComponentResult: ResolvedComponentResult): List<OciVariantNode> {
     val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
@@ -152,9 +158,46 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
     }
 }
 
-fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
-    return Spec { componentIdentifier ->
-        TODO()
+fun createArtifactViewComponentFilter(
+    rootComponentResult: ResolvedComponentResult,
+    variantImages: List<Map<Platform, List<ResolvedVariantResult>>>,
+): Spec<ComponentIdentifier> {
+    val componentIdToVariantResults =
+        rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { CyclicIterator(it.variants) }
+    componentIdToVariantResults[rootComponentResult.id] = CyclicIterator(rootComponentResult.variants.drop(1))
+    val selectedVariantResults = variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.values.flatten() }
+    return Spec { componentId -> componentIdToVariantResults[componentId]?.next() in selectedVariantResults }
+}
+
+val ResolvedComponentResult.allComponents: HashSet<ResolvedComponentResult>
+    get() {
+        val visitedComponentResults = HashSet<ResolvedComponentResult>()
+        val componentResultsToVisit = LinkedList<ResolvedComponentResult>()
+        visitedComponentResults += this
+        componentResultsToVisit += this
+        while (true) {
+            val componentResult = componentResultsToVisit.poll() ?: break
+            for (dependency in componentResult.dependencies) {
+                if (dependency !is ResolvedDependencyResult) continue
+                if (visitedComponentResults.add(dependency.selected)) {
+                    componentResultsToVisit += dependency.selected
+                }
+            }
+        }
+        return visitedComponentResults
+    }
+
+private class CyclicIterator<out E>(private val list: List<E>) { // TODO only use iterator and instead of returning a component filter spec directly return ArtifactCollection getArtifacts
+    private var index = 0
+
+    fun next(): E? {
+        if (list.isEmpty()) {
+            return null
+        }
+        if (index > list.lastIndex) {
+            index = 0
+        }
+        return list[index++]
     }
 }
 
