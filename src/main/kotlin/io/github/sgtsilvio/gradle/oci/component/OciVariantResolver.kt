@@ -77,44 +77,6 @@ private fun resolveOciVariantNode(
     return state
 }
 
-fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
-    return Spec { componentIdentifier ->
-        TODO()
-    }
-}
-
-fun createImagesInput(rootVariantStates: List<OciVariantNode>): OciImagesInput2 {
-    val x = rootVariantStates.map { rootVariantState ->
-        rootVariantState.platformSet.associateWith { platform ->
-            rootVariantState.collectVariantResultsForPlatform(platform)
-        }
-    }
-    TODO()
-}
-
-fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform): LinkedHashSet<ResolvedVariantResult> {
-    val result = LinkedHashSet<ResolvedVariantResult>()
-    collectVariantResultsForPlatform(platform, result)
-    return result
-}
-
-fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform, result: LinkedHashSet<ResolvedVariantResult>) {
-    if (variantResult !in result) {
-        when (this) {
-            is OciVariantNode.MultiplePlatforms -> {
-                platformToDependency[platform]?.collectVariantResultsForPlatform(platform, result)
-                    ?: throw IllegalStateException("unresolved dependency for platform $platform") // TODO message
-            }
-            is OciVariantNode.SinglePlatformOrUniversal -> {
-                for (dependency in dependencies) {
-                    dependency.collectVariantResultsForPlatform(platform, result)
-                }
-            }
-        }
-        result += variantResult
-    }
-}
-
 sealed class OciVariantNode(
     val variantResult: ResolvedVariantResult,
     val platformSet: PlatformSet,
@@ -154,3 +116,41 @@ val ResolvedVariantResult.platformOrUniversalOrMultiple: String
         }
         return capabilities.first().name.substringAfterLast('@')
     }
+
+fun createArtifactViewFilter(): Spec<ComponentIdentifier> {
+    return Spec { componentIdentifier ->
+        TODO()
+    }
+}
+
+fun createImagesInput(rootVariantStates: List<OciVariantNode>): OciImagesInput2 {
+    val x = rootVariantStates.map { rootVariantState ->
+        rootVariantState.platformSet.associateWith { platform ->
+            rootVariantState.collectVariantResultsForPlatform(platform)
+        }
+    }
+    TODO()
+}
+
+fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform): LinkedHashSet<ResolvedVariantResult> {
+    val result = LinkedHashSet<ResolvedVariantResult>()
+    collectVariantResultsForPlatform(platform, result)
+    return result
+}
+
+fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform, result: LinkedHashSet<ResolvedVariantResult>) {
+    if (variantResult !in result) {
+        when (this) {
+            is OciVariantNode.MultiplePlatforms -> {
+                platformToDependency[platform]?.collectVariantResultsForPlatform(platform, result)
+                    ?: throw IllegalStateException("unresolved dependency for platform $platform") // TODO message
+            }
+            is OciVariantNode.SinglePlatformOrUniversal -> {
+                for (dependency in dependencies) {
+                    dependency.collectVariantResultsForPlatform(platform, result)
+                }
+            }
+        }
+        result += variantResult
+    }
+}
