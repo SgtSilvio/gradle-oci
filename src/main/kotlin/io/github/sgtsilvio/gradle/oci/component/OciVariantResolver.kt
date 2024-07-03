@@ -53,7 +53,7 @@ private fun resolveOciVariantNode(
                 }
                 platformSet.union(dependency.platformSet)
             }
-            OciVariantNode.MultiplePlatforms(variantResult, platformSet, platformToDependency)
+            OciVariantNode.MultiplePlatforms(variantResult, platformToDependency, platformSet)
         }
 
         UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE -> {
@@ -61,7 +61,7 @@ private fun resolveOciVariantNode(
             for (dependency in dependencies) {
                 platformSet.intersect(dependency.platformSet)
             }
-            OciVariantNode.Universal(variantResult, platformSet, dependencies)
+            OciVariantNode.Universal(variantResult, dependencies, platformSet)
         }
 
         else -> {
@@ -70,7 +70,7 @@ private fun resolveOciVariantNode(
             for (dependency in dependencies) {
                 platformSet.intersect(dependency.platformSet)
             }
-            OciVariantNode.SinglePlatform(variantResult, platform, platformSet, dependencies)
+            OciVariantNode.SinglePlatform(variantResult, platform, dependencies, platformSet)
         }
     }
     states[variantResult] = state
@@ -84,28 +84,22 @@ sealed class OciVariantNode(
 
     class MultiplePlatforms(
         variantResult: ResolvedVariantResult,
-        platformSet: PlatformSet,
         val platformToDependency: Map<Platform, SinglePlatform>,
-    ) : OciVariantNode(variantResult, platformSet)
-
-    sealed class SinglePlatformOrUniversal(
-        variantResult: ResolvedVariantResult,
         platformSet: PlatformSet,
-        val dependencies: List<OciVariantNode>,
     ) : OciVariantNode(variantResult, platformSet)
 
     class SinglePlatform(
         variantResult: ResolvedVariantResult,
         val platform: Platform,
+        val dependencies: List<OciVariantNode>,
         platformSet: PlatformSet,
-        dependencies: List<OciVariantNode>,
-    ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
+    ) : OciVariantNode(variantResult, platformSet)
 
     class Universal(
         variantResult: ResolvedVariantResult,
+        val dependencies: List<OciVariantNode>,
         platformSet: PlatformSet,
-        dependencies: List<OciVariantNode>,
-    ) : SinglePlatformOrUniversal(variantResult, platformSet, dependencies)
+    ) : OciVariantNode(variantResult, platformSet)
 }
 
 val ResolvedVariantResult.platformOrUniversalOrMultiple: String
@@ -143,9 +137,17 @@ fun OciVariantNode.collectVariantResultsForPlatform(platform: Platform, result: 
         when (this) {
             is OciVariantNode.MultiplePlatforms -> {
                 platformToDependency[platform]?.collectVariantResultsForPlatform(platform, result)
-                    ?: throw IllegalStateException("unresolved dependency for platform $platform") // TODO message
+                    ?: throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platforms are ${platformToDependency.keys})")
             }
-            is OciVariantNode.SinglePlatformOrUniversal -> {
+            is OciVariantNode.SinglePlatform -> {
+                if (platform != this.platform) {
+                    throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platform is ${this.platform})")
+                }
+                for (dependency in dependencies) {
+                    dependency.collectVariantResultsForPlatform(platform, result)
+                }
+            }
+            is OciVariantNode.Universal -> {
                 for (dependency in dependencies) {
                     dependency.collectVariantResultsForPlatform(platform, result)
                 }
