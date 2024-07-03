@@ -10,6 +10,7 @@ import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
+import org.gradle.api.provider.Provider
 import org.gradle.api.specs.Spec
 import java.util.*
 
@@ -158,15 +159,37 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
     }
 }
 
-fun createArtifactViewComponentFilter(
-    rootComponentResult: ResolvedComponentResult,
-    variantImages: List<Map<Platform, List<ResolvedVariantResult>>>,
-): Spec<ComponentIdentifier> {
-    val componentIdToVariantResults =
-        rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { CyclicIterator(it.variants) }
-    componentIdToVariantResults[rootComponentResult.id] = CyclicIterator(rootComponentResult.variants.drop(1))
-    val selectedVariantResults = variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.values.flatten() }
-    return Spec { componentId -> componentIdToVariantResults[componentId]?.next() in selectedVariantResults }
+class ArtifactViewComponentFilter(
+    private val rootComponentResultProvider: Provider<ResolvedComponentResult>,
+    private val variantImagesProvider: Provider<List<Map<Platform, List<ResolvedVariantResult>>>>,
+) : Spec<ComponentIdentifier> {
+
+    private class State(
+        val componentIdToVariantResults: Map<ComponentIdentifier, CyclicIterator<ResolvedVariantResult>>,
+        val selectedVariantResults: Set<ResolvedVariantResult?>,
+    )
+
+    private var state: State? = null
+
+    private fun getState(): State {
+        return state ?: run {
+            val rootComponentResult = rootComponentResultProvider.get()
+            val variantImages = variantImagesProvider.get()
+            val componentIdToVariantResults =
+                rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { CyclicIterator(it.variants) }
+            componentIdToVariantResults[rootComponentResult.id] = CyclicIterator(rootComponentResult.variants.drop(1))
+            val selectedVariantResults =
+                variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.values.flatten() }
+            val newState = State(componentIdToVariantResults, selectedVariantResults)
+            state = newState
+            newState
+        }
+    }
+
+    override fun isSatisfiedBy(componentId: ComponentIdentifier?): Boolean {
+        val state = getState()
+        return state.componentIdToVariantResults[componentId]?.next() in state.selectedVariantResults
+    }
 }
 
 val ResolvedComponentResult.allComponents: HashSet<ResolvedComponentResult>
