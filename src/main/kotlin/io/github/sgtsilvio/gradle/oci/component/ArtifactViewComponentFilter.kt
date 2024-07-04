@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
@@ -14,7 +13,7 @@ import java.util.*
  */
 class ArtifactViewComponentFilter(
     private val rootComponentResultProvider: Provider<ResolvedComponentResult>,
-    private val variantImagesProvider: Provider<List<Map<Platform, List<ResolvedVariantResult>>>>,
+    private val variantImagesProvider: Provider<List<OciImageSpec>>,
 ) : Spec<ComponentIdentifier> {
 
     private class State(
@@ -31,8 +30,7 @@ class ArtifactViewComponentFilter(
             val componentIdToVariantResults =
                 rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { it.variants.iterator() }
             componentIdToVariantResults[rootComponentResult.id]!!.next()
-            val selectedVariantResults =
-                variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.values.flatten() }
+            val selectedVariantResults = variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.variants }
             val newState = State(componentIdToVariantResults, selectedVariantResults)
             state = newState
             newState
