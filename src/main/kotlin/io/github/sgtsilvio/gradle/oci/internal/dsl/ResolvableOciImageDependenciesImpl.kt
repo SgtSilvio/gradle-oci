@@ -18,6 +18,7 @@ import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
+import org.gradle.api.capabilities.Capability
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.listProperty
@@ -135,40 +136,25 @@ private interface ModuleDependencyDescriptor
 
 private data class ProjectDependencyDescriptor(
     val projectPath: String,
-    val requestedCapabilities: List<Coordinates>,
+    val requestedCapabilities: List<Capability>,
     val attributes: AttributeContainer,
 ) : ModuleDependencyDescriptor
 
 private data class ExternalDependencyDescriptor(
-    val coordinates: Coordinates,
-    val requestedCapabilities: List<Coordinates>,
+    val group: String,
+    val name: String,
+    val requestedCapabilities: List<Capability>,
     val attributes: AttributeContainer,
 ) : ModuleDependencyDescriptor
 
-private fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
-    val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
-    return when (this) {
-        is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities, attributes)
-        is ExternalDependency -> ExternalDependencyDescriptor(
-            Coordinates(group, name),
-            requestedCapabilities,
-            attributes,
-        )
-
-        else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
-    }
+private fun ModuleDependency.toDescriptor() = when (this) {
+    is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities, attributes)
+    is ExternalDependency -> ExternalDependencyDescriptor(group, name, requestedCapabilities, attributes)
+    else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
 }
 
-private fun ComponentSelector.toDescriptor(): ModuleDependencyDescriptor {
-    val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
-    return when (this) {
-        is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes)
-        is ModuleComponentSelector -> ExternalDependencyDescriptor(
-            Coordinates(group, module),
-            requestedCapabilities,
-            attributes,
-        )
-
-        else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
-    }
+private fun ComponentSelector.toDescriptor() = when (this) {
+    is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes)
+    is ModuleComponentSelector -> ExternalDependencyDescriptor(group, module, requestedCapabilities, attributes)
+    else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
 }
