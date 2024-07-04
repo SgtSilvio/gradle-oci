@@ -15,6 +15,7 @@ import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
@@ -135,20 +136,23 @@ private interface ModuleDependencyDescriptor
 private data class ProjectDependencyDescriptor(
     val projectPath: String,
     val requestedCapabilities: List<Coordinates>,
+    val attributes: AttributeContainer,
 ) : ModuleDependencyDescriptor
 
 private data class ExternalDependencyDescriptor(
-    val coordinates: VersionedCoordinates,
+    val coordinates: Coordinates,
     val requestedCapabilities: List<Coordinates>,
+    val attributes: AttributeContainer,
 ) : ModuleDependencyDescriptor
 
 private fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
     val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
     return when (this) {
-        is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities)
+        is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities, attributes)
         is ExternalDependency -> ExternalDependencyDescriptor(
-            VersionedCoordinates(group, name, version ?: ""),
+            Coordinates(group, name),
             requestedCapabilities,
+            attributes,
         )
 
         else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
@@ -158,10 +162,11 @@ private fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
 private fun ComponentSelector.toDescriptor(): ModuleDependencyDescriptor {
     val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
     return when (this) {
-        is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities)
+        is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes)
         is ModuleComponentSelector -> ExternalDependencyDescriptor(
-            VersionedCoordinates(group, module, version),
+            Coordinates(group, module),
             requestedCapabilities,
+            attributes,
         )
 
         else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
