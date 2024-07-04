@@ -42,7 +42,7 @@ fun resolveOciVariantGraph( // TODO private
     descriptorToReferenceSpecs: Map<ModuleDependencyDescriptor, List<ReferenceSpec>>,
 ): Map<OciVariantNode, Set<ReferenceSpec>> {
     val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
-    val rootNodesToReferenceSpecs = HashMap<OciVariantNode, HashSet<ReferenceSpec>>()
+    val rootNodesToReferenceSpecs = LinkedHashMap<OciVariantNode, HashSet<ReferenceSpec>>()
     for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootComponentResult.variants.first())) {
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             continue
