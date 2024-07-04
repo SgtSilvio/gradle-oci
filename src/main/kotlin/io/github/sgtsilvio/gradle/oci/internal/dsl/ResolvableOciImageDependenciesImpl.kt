@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciImageInput
+import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.OciImagesInput2
 import io.github.sgtsilvio.gradle.oci.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.attributes.*
@@ -8,7 +9,8 @@ import io.github.sgtsilvio.gradle.oci.component.ArtifactViewComponentFilter
 import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.resolveOciVariantImages
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.*
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameable
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ExternalDependency
@@ -56,15 +58,16 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     dependencyHandler,
 ), ResolvableOciImageDependencies {
 
-    private val dependencyReferenceSpecsPairs = objectFactory.listProperty<Pair<ModuleDependency, List<ReferenceSpec>>>()
+    private val dependencyReferenceSpecsPairs =
+        objectFactory.listProperty<Pair<ModuleDependency, List<OciImageReferenceSpec>>>()
 
-    final override val rootCapabilities: Provider<Map<Coordinates, Set<ReferenceSpec>>> =
+    final override val rootCapabilities: Provider<Map<Coordinates, Set<OciImageReferenceSpec>>> =
         configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferenceSpecsPairs) { rootComponent, dependencyReferenceSpecsPairs ->
-            val descriptorToReferenceSpecs = HashMap<ModuleDependencyDescriptor, List<ReferenceSpec>>()
+            val descriptorToReferenceSpecs = HashMap<ModuleDependencyDescriptor, List<OciImageReferenceSpec>>()
             for ((dependency, referenceSpecs) in dependencyReferenceSpecsPairs) {
                 descriptorToReferenceSpecs.merge(dependency.toDescriptor(), referenceSpecs) { a, b -> a + b }
             }
-            val coordinatesToReferenceSpecs = HashMap<Coordinates, HashSet<ReferenceSpec>>()
+            val coordinatesToReferenceSpecs = HashMap<Coordinates, HashSet<OciImageReferenceSpec>>()
             val rootVariant = rootComponent.variants.first()
             for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
                 if (dependency.isConstraint) continue
@@ -129,11 +132,11 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     class ReferenceSpecBuilder(objectFactory: ObjectFactory) : Nameable, Taggable {
         private val nameProperty = objectFactory.property<String>()
         private val tagsProperty = objectFactory.setProperty<String>()
-        val referenceSpecs: Provider<List<ReferenceSpec>> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
+        val referenceSpecs: Provider<List<OciImageReferenceSpec>> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
             if (tags.isEmpty()) {
-                listOf(ReferenceSpec(name, null))
+                listOf(OciImageReferenceSpec(name, null))
             } else {
-                tags.map { tag -> ReferenceSpec(name, if (tag == ".") null else tag) }
+                tags.map { tag -> OciImageReferenceSpec(name, if (tag == ".") null else tag) }
             }
             // TODO if both null/empty -> emptyList?
         }

@@ -13,6 +13,7 @@ import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.newInstance
 import java.io.File
+import java.io.Serializable
 import java.util.*
 
 /**
@@ -26,7 +27,7 @@ interface OciImagesInput {
     val files: ConfigurableFileCollection
 
     @get:Input
-    val rootCapabilities: MapProperty<Coordinates, Set<ResolvableOciImageDependencies.ReferenceSpec>>
+    val rootCapabilities: MapProperty<Coordinates, Set<OciImageReferenceSpec>>
 
     fun from(dependencies: ResolvableOciImageDependencies) {
         files.setFrom(dependencies.configuration)
@@ -46,8 +47,10 @@ class OciVariantInput(
 class OciImageInput(
     @get:Input val platform: Platform,
     @get:Input val variantIndices: List<Int>,
-    @get:Input val referenceSpecs: Set<ResolvableOciImageDependencies.ReferenceSpec>, // TODO rename to OciReferenceSpec?
+    @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
 )
+
+data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializable
 
 abstract class OciImagesInputTask : DefaultTask() {
 

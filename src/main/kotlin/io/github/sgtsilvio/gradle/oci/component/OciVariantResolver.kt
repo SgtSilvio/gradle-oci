@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.attributes.MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.ReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import org.gradle.api.artifacts.ExternalDependency
@@ -21,14 +21,14 @@ import org.gradle.api.capabilities.Capability
 class OciImageSpec(
     val platform: Platform,
     val variants: List<ResolvedVariantResult>,
-    val referenceSpecs: Set<ReferenceSpec>,
+    val referenceSpecs: Set<OciImageReferenceSpec>,
 )
 
 fun resolveOciVariantImages(
     rootComponentResult: ResolvedComponentResult,
-    dependencyReferenceSpecsPairs: List<Pair<ModuleDependency, List<ReferenceSpec>>>,
+    dependencyReferenceSpecsPairs: List<Pair<ModuleDependency, List<OciImageReferenceSpec>>>,
 ): List<OciImageSpec> {
-    val descriptorToReferenceSpecs = HashMap<ModuleDependencyDescriptor, List<ReferenceSpec>>()
+    val descriptorToReferenceSpecs = HashMap<ModuleDependencyDescriptor, List<OciImageReferenceSpec>>()
     for ((dependency, referenceSpecs) in dependencyReferenceSpecsPairs) {
         descriptorToReferenceSpecs.merge(dependency.toDescriptor(), referenceSpecs) { a, b -> a + b }
     }
@@ -38,10 +38,10 @@ fun resolveOciVariantImages(
 
 fun resolveOciVariantGraph( // TODO private
     rootComponentResult: ResolvedComponentResult,
-    descriptorToReferenceSpecs: Map<ModuleDependencyDescriptor, List<ReferenceSpec>>,
-): Map<OciVariantNode, Set<ReferenceSpec>> {
+    descriptorToReferenceSpecs: Map<ModuleDependencyDescriptor, List<OciImageReferenceSpec>>,
+): Map<OciVariantNode, Set<OciImageReferenceSpec>> {
     val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
-    val rootNodesToReferenceSpecs = LinkedHashMap<OciVariantNode, HashSet<ReferenceSpec>>()
+    val rootNodesToReferenceSpecs = LinkedHashMap<OciVariantNode, HashSet<OciImageReferenceSpec>>()
     for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootComponentResult.variants.first())) {
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             continue
@@ -140,7 +140,7 @@ val ResolvedVariantResult.platformOrUniversalOrMultiple: String // TODO private
         return capabilities.first().name.substringAfterLast('@')
     }
 
-fun resolveOciVariantImages(rootNodesToReferenceSpecs: Map<OciVariantNode, Set<ReferenceSpec>>): List<OciImageSpec> { // TODO private
+fun resolveOciVariantImages(rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciImageReferenceSpec>>): List<OciImageSpec> { // TODO private
     val imageSpecs = ArrayList<OciImageSpec>()
     for ((rootNode, referenceSpecs) in rootNodesToReferenceSpecs) {
         for (platform in rootNode.platformSet) {
