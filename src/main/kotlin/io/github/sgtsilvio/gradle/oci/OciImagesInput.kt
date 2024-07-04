@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.metadata.*
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.NonExtensible
@@ -32,6 +33,21 @@ interface OciImagesInput {
         rootCapabilities.set(dependencies.rootCapabilities)
     }
 }
+
+class OciImagesInput2(
+    @get:Nested val variantInputs: List<OciVariantInput>,
+    @get:Nested val imageInputs: List<OciImageInput>,
+)
+
+class OciVariantInput(
+    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val files: List<File>,
+)
+
+class OciImageInput(
+    @get:Input val platform: Platform,
+    @get:Input val variantIndices: List<Int>,
+    @get:Input val referenceSpecs: Set<ResolvableOciImageDependencies.ReferenceSpec>, // TODO rename to OciReferenceSpec?
+)
 
 abstract class OciImagesInputTask : DefaultTask() {
 

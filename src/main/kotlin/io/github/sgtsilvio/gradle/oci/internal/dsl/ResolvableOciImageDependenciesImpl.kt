@@ -1,8 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
+import io.github.sgtsilvio.gradle.oci.OciImageInput
+import io.github.sgtsilvio.gradle.oci.OciImagesInput2
+import io.github.sgtsilvio.gradle.oci.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.attributes.*
+import io.github.sgtsilvio.gradle.oci.component.ArtifactViewComponentFilter
 import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.component.resolveOciVariantImages
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.*
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
@@ -10,11 +14,13 @@ import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ExternalDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.component.ComponentSelector
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
@@ -73,6 +79,39 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
             coordinatesToReferenceSpecs
         }
 
+    final override fun asInput(): Provider<OciImagesInput2> {
+        val rootComponentProvider = configuration.incoming.resolutionResult.rootComponent
+        val variantImagesProvider = rootComponentProvider.zip(dependencyReferenceSpecsPairs, ::resolveOciVariantImages)
+        val artifactsResultsProvider = configuration.incoming.artifactView {
+            componentFilter(ArtifactViewComponentFilter(rootComponentProvider, variantImagesProvider))
+        }.artifacts.resolvedArtifacts
+        // zip or map is not used here because their mapper function is executed after the file contents are available
+        //  this mapper function does not read the file contents, so can already be called once the value is available
+        //  this allows this mapper function to be run before storing the configuration cache
+        //  apart from performance benefits this also avoids a bug where the artifactsResultsProvider value is different when using the configuration cache
+        return artifactsResultsProvider.flatMap { artifactsResults ->
+            val variantImages = variantImagesProvider.get()
+            val variantDescriptorToArtifacts = artifactsResults.groupBy({ it.variant.toDescriptor() }) { it.file }
+            val variantInputs = ArrayList<OciVariantInput>(variantDescriptorToArtifacts.size)
+            val variantDescriptorToIndex = HashMap<VariantDescriptor, Int>()
+            var variantIndex = 0
+            for ((variantDescriptor, artifacts) in variantDescriptorToArtifacts) {
+                variantInputs += OciVariantInput(artifacts)
+                variantDescriptorToIndex[variantDescriptor] = variantIndex++
+            }
+            val imageInputs = variantImages.map { variantImage ->
+                OciImageInput(
+                    variantImage.platform,
+                    variantImage.variants.mapNotNull { variant -> variantDescriptorToIndex[variant.toDescriptor()] },
+                    variantImage.referenceSpecs,
+                )
+            }
+            val imagesInputs = OciImagesInput2(variantInputs, imageInputs)
+            // using map to attach the task dependencies from the artifactsResultsProvider
+            artifactsResultsProvider.map { imagesInputs }
+        }
+    }
+
     final override fun getName() = name
 
     final override fun returnType(dependency: ModuleDependency): ReferenceSpecBuilder {
@@ -96,6 +135,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
             } else {
                 tags.map { tag -> ReferenceSpec(name, if (tag == ".") null else tag) }
             }
+            // TODO if both null/empty -> emptyList?
         }
 
         override fun name(name: String): ReferenceSpecBuilder {
@@ -158,3 +198,14 @@ private fun ComponentSelector.toDescriptor() = when (this) {
     is ModuleComponentSelector -> ExternalDependencyDescriptor(group, module, requestedCapabilities, attributes)
     else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
 }
+
+data class VariantDescriptor( // TODO private
+    val owner: ComponentIdentifier,
+    val capabilities: List<Capability>,
+    val attributes: Map<String, String>,
+)
+
+fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap()) // TODO private
+
+private fun AttributeContainer.toMap(): Map<String, String> =
+    keySet().associateBy({ it.name }) { getAttribute(it).toString() }

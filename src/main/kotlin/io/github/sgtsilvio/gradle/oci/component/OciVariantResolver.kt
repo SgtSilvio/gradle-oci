@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.component
 
-import io.github.sgtsilvio.gradle.oci.OciImagesInput2
 import io.github.sgtsilvio.gradle.oci.attributes.MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
@@ -213,8 +212,4 @@ private fun ComponentSelector.toDescriptor() = when (this) {
     is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes)
     is ModuleComponentSelector -> ExternalDependencyDescriptor(group, module, requestedCapabilities, attributes)
     else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
-}
-
-fun createImagesInput(rootVariantNodes: List<OciVariantNode>): OciImagesInput2 {
-    TODO()
 }

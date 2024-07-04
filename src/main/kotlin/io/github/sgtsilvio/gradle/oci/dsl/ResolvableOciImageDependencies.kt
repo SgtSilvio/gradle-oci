@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
+import io.github.sgtsilvio.gradle.oci.OciImagesInput2
 import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import org.gradle.api.Named
 import org.gradle.api.provider.Provider
@@ -10,7 +11,9 @@ import java.io.Serializable
  */
 interface ResolvableOciImageDependencies : OciImageDependencies<ResolvableOciImageDependencies.Nameable>, Named {
 
-    val rootCapabilities: Provider<Map<Coordinates, Set<ReferenceSpec>>>
+    val rootCapabilities: Provider<Map<Coordinates, Set<ReferenceSpec>>> // TODO remove
+
+    fun asInput(): Provider<OciImagesInput2>
 
     data class ReferenceSpec(val name: String?, val tag: String?) : Serializable
 
