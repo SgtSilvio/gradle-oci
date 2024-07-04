@@ -17,7 +17,7 @@ class ArtifactViewComponentFilter(
 ) : Spec<ComponentIdentifier> {
 
     private class State(
-        val componentIdToVariantResults: Map<ComponentIdentifier, Iterator<ResolvedVariantResult>>,
+        val componentIdToVariantResults: Map<ComponentIdentifier, CyclicIterator<ResolvedVariantResult>>,
         val selectedVariantResults: Set<ResolvedVariantResult?>,
     )
 
@@ -28,8 +28,8 @@ class ArtifactViewComponentFilter(
             val rootComponentResult = rootComponentResultProvider.get()
             val variantImages = variantImagesProvider.get()
             val componentIdToVariantResults =
-                rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { it.variants.iterator() }
-            componentIdToVariantResults[rootComponentResult.id]!!.next()
+                rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { CyclicIterator(it.variants) }
+            componentIdToVariantResults[rootComponentResult.id] = CyclicIterator(rootComponentResult.variants.drop(1))
             val selectedVariantResults = variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.variants }
             val newState = State(componentIdToVariantResults, selectedVariantResults)
             state = newState
@@ -60,3 +60,17 @@ val ResolvedComponentResult.allComponents: HashSet<ResolvedComponentResult>
         }
         return visitedComponentResults
     }
+
+private class CyclicIterator<E>(private val list: List<E>) {
+    private var index = 0
+
+    fun next(): E? {
+        if (list.isEmpty()) {
+            return null
+        }
+        if (index > list.lastIndex) {
+            index = 0
+        }
+        return list[index++]
+    }
+}
