@@ -110,7 +110,7 @@ abstract class OciPushTask @Inject constructor(
             for ((imageName, tags) in imageReferences.groupByTo(HashMap(), { it.name }, { it.tag })) {
 
                 val manifestFutures = mutableListOf<CompletableFuture<Unit>>()
-                for ((_, image) in multiArchImage.platformToImage) {
+                for (image in multiArchImage.platformToImage.values) {
                     val blobFutures = mutableListOf<CompletableFuture<Unit>>()
                     for (variant in image.variants) {
                         for (layer in variant.layers) {

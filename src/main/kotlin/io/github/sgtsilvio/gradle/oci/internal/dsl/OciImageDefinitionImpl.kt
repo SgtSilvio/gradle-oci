@@ -70,7 +70,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         project.afterEvaluate {
             val platformBundles = platformBundles
             if (platformBundles != null) {
-                for ((_, bundle) in platformBundles) {
+                for (bundle in platformBundles.values) {
                     bundle.onAfterEvaluate()
                 }
             } else if (universalBundle == null) {
