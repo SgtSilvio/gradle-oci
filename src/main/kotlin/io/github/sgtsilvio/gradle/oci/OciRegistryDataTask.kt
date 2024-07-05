@@ -40,14 +40,20 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
             for (imageReference in imageReferences) { // TODO group by name
                 val repositoryDirectory = repositoriesDirectory.resolve(imageReference.name).createDirectories()
                 val layersDirectory = repositoryDirectory.resolve("_layers").createDirectories()
-                for (layer in multiArchImage.platformToImage.values.flatMap { it.variants }.flatMap { it.layers }) { // TODO toSet?
-                    layersDirectory.writeDigestLink(layer.descriptor.digest)
-                }
                 val manifestsDirectory = repositoryDirectory.resolve("_manifests").createDirectories()
                 val manifestRevisionsDirectory = manifestsDirectory.resolve("revisions").createDirectories()
-                for ((_, image) in multiArchImage.platformToImage) {
-                    layersDirectory.writeDigestLink(image.config.digest)
+                val blobDigests = LinkedHashSet<OciDigest>()
+                for (image in multiArchImage.platformToImage.values) {
                     manifestRevisionsDirectory.writeDigestLink(image.manifest.digest)
+                    blobDigests += image.config.digest
+                    for (variant in image.variants) {
+                        for (layer in variant.layers) {
+                            blobDigests += layer.descriptor.digest
+                        }
+                    }
+                }
+                for (blobDigest in blobDigests) {
+                    layersDirectory.writeDigestLink(blobDigest)
                 }
                 val indexDigest = multiArchImage.index.digest
                 manifestRevisionsDirectory.writeDigestLink(indexDigest)
