@@ -37,8 +37,8 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
         }
         for ((multiArchImage, imageReferences) in multiArchImageAndReferencesPairs) {
             blobsDirectory.writeDigestData(multiArchImage.index)
-            for (imageReference in imageReferences) { // TODO group by name
-                val repositoryDirectory = repositoriesDirectory.resolve(imageReference.name).createDirectories()
+            for ((name, tags) in imageReferences.groupBy({ it.name }, { it.tag })) {
+                val repositoryDirectory = repositoriesDirectory.resolve(name).createDirectories()
                 val layersDirectory = repositoryDirectory.resolve("_layers").createDirectories()
                 val manifestsDirectory = repositoryDirectory.resolve("_manifests").createDirectories()
                 val manifestRevisionsDirectory = manifestsDirectory.resolve("revisions").createDirectories()
@@ -57,9 +57,11 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
                 }
                 val indexDigest = multiArchImage.index.digest
                 manifestRevisionsDirectory.writeDigestLink(indexDigest)
-                val tagDirectory = manifestsDirectory.resolve("tags").resolve(imageReference.tag).createDirectories()
-                tagDirectory.writeTagLink(indexDigest)
-                tagDirectory.resolve("index").createDirectories().writeDigestLink(indexDigest)
+                for (tag in tags) {
+                    val tagDirectory = manifestsDirectory.resolve("tags").resolve(tag).createDirectories()
+                    tagDirectory.writeTagLink(indexDigest)
+                    tagDirectory.resolve("index").createDirectories().writeDigestLink(indexDigest)
+                }
             }
         }
     }
