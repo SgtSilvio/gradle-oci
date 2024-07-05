@@ -71,7 +71,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
             val variantDescriptorToIndex = HashMap<VariantDescriptor, Int>()
             var variantIndex = 0
             for ((variantDescriptor, artifacts) in variantDescriptorToArtifacts) {
-                variantInputs += OciVariantInput(artifacts)
+                variantInputs += OciVariantInput(artifacts.first(), artifacts.drop(1))
                 variantDescriptorToIndex[variantDescriptor] = variantIndex++
             }
             val imageInputs = variantImages.map { variantImage ->

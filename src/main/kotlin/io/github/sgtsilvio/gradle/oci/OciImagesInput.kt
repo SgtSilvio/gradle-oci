@@ -22,9 +22,8 @@ class OciImagesInput(
 )
 
 class OciVariantInput(
-    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val files: List<File>,
-    // TODO maybe metadataFile: File + layerFiles: List<File>
-    //  avoids case where files is empty, moves the decision which file represents the metadata to resolution (although will keep the first file)
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
+    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
 )
 
 class OciImageInput(
@@ -76,9 +75,8 @@ abstract class OciImagesInputTask : DefaultTask() {
         val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>() // TODO both linked?
         for (imagesInput in imagesInputs) {
             val variants = imagesInput.variantInputs.map { variantInput ->
-                val metadataFile = variantInput.files.first()
-                val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
-                val layerFiles = variantInput.files.drop(1)
+                val metadata = variantInput.metadataFile.readText().decodeAsJsonToOciMetadata()
+                val layerFiles = variantInput.layerFiles
                 val layerFilesIterator = layerFiles.iterator()
                 val layers = ArrayList<OciLayer>(layerFiles.size) // TODO fun associateLayerMetadataAndFiles
                 for (layer in metadata.layers) {
