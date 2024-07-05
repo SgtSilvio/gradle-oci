@@ -2,26 +2,19 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciImageInput
 import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
-import io.github.sgtsilvio.gradle.oci.OciImagesInput2
+import io.github.sgtsilvio.gradle.oci.OciImagesInput
 import io.github.sgtsilvio.gradle.oci.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.component.ArtifactViewComponentFilter
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
 import io.github.sgtsilvio.gradle.oci.component.resolveOciVariantImages
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameable
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.ExternalDependency
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.component.ComponentIdentifier
-import org.gradle.api.artifacts.component.ComponentSelector
-import org.gradle.api.artifacts.component.ModuleComponentSelector
-import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.attributes.Bundling
@@ -61,28 +54,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     private val dependencyReferenceSpecsPairs =
         objectFactory.listProperty<Pair<ModuleDependency, List<OciImageReferenceSpec>>>()
 
-    final override val rootCapabilities: Provider<Map<Coordinates, Set<OciImageReferenceSpec>>> =
-        configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferenceSpecsPairs) { rootComponent, dependencyReferenceSpecsPairs ->
-            val descriptorToReferenceSpecs = HashMap<ModuleDependencyDescriptor, List<OciImageReferenceSpec>>()
-            for ((dependency, referenceSpecs) in dependencyReferenceSpecsPairs) {
-                descriptorToReferenceSpecs.merge(dependency.toDescriptor(), referenceSpecs) { a, b -> a + b }
-            }
-            val coordinatesToReferenceSpecs = HashMap<Coordinates, HashSet<OciImageReferenceSpec>>()
-            val rootVariant = rootComponent.variants.first()
-            for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
-                if (dependency.isConstraint) continue
-                if (dependency !is ResolvedDependencyResult) continue
-                val referenceSpecs = descriptorToReferenceSpecs[dependency.requested.toDescriptor()]
-                if (referenceSpecs != null) {
-                    val capability = dependency.resolvedVariant.capabilities.first()
-                    coordinatesToReferenceSpecs.getOrPut(Coordinates(capability.group, capability.name)) { HashSet() }
-                        .addAll(referenceSpecs)
-                }
-            }
-            coordinatesToReferenceSpecs
-        }
-
-    final override fun asInput(): Provider<OciImagesInput2> {
+    final override fun asInput(): Provider<OciImagesInput> {
         val rootComponentProvider = configuration.incoming.resolutionResult.rootComponent
         val variantImagesProvider = rootComponentProvider.zip(dependencyReferenceSpecsPairs, ::resolveOciVariantImages)
         val artifactsResultsProvider = configuration.incoming.artifactView {
@@ -109,7 +81,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
                     variantImage.referenceSpecs,
                 )
             }
-            val imagesInputs = OciImagesInput2(variantInputs, imageInputs)
+            val imagesInputs = OciImagesInput(variantInputs, imageInputs)
             // using map to attach the task dependencies from the artifactsResultsProvider
             artifactsResultsProvider.map { imagesInputs }
         }
@@ -173,33 +145,6 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
             return this
         }
     }
-}
-
-private interface ModuleDependencyDescriptor
-
-private data class ProjectDependencyDescriptor(
-    val projectPath: String,
-    val requestedCapabilities: List<Capability>,
-    val attributes: AttributeContainer,
-) : ModuleDependencyDescriptor
-
-private data class ExternalDependencyDescriptor(
-    val group: String,
-    val name: String,
-    val requestedCapabilities: List<Capability>,
-    val attributes: AttributeContainer,
-) : ModuleDependencyDescriptor
-
-private fun ModuleDependency.toDescriptor() = when (this) {
-    is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities, attributes)
-    is ExternalDependency -> ExternalDependencyDescriptor(group, name, requestedCapabilities, attributes)
-    else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
-}
-
-private fun ComponentSelector.toDescriptor() = when (this) {
-    is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes)
-    is ModuleComponentSelector -> ExternalDependencyDescriptor(group, module, requestedCapabilities, attributes)
-    else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
 }
 
 data class VariantDescriptor( // TODO private

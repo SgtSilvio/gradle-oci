@@ -12,7 +12,6 @@ import java.util.*
  */
 data class OciMetadata(
     val imageReference: OciImageReference,
-//    val platform: Platform?,
     val creationTime: Instant?,
     val author: String?,
     val user: String?,

@@ -1,8 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
-import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
-import io.github.sgtsilvio.gradle.oci.OciImagesInput2
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
+import io.github.sgtsilvio.gradle.oci.OciImagesInput
 import org.gradle.api.Named
 import org.gradle.api.provider.Provider
 
@@ -11,9 +9,7 @@ import org.gradle.api.provider.Provider
  */
 interface ResolvableOciImageDependencies : OciImageDependencies<ResolvableOciImageDependencies.Nameable>, Named {
 
-    val rootCapabilities: Provider<Map<Coordinates, Set<OciImageReferenceSpec>>> // TODO remove
-
-    fun asInput(): Provider<OciImagesInput2>
+    fun asInput(): Provider<OciImagesInput>
 
     interface Taggable {
         fun tag(vararg tags: String): Taggable
