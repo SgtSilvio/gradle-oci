@@ -34,12 +34,12 @@ internal class GradleVersionsTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":jar")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":jarOciLayer")?.outcome)
-        assertEquals(TaskOutcome.SUCCESS, result.task(":ociComponent")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":ociMetadata")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":testOciRegistryData")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         val isBeforeGradle8 = gradleVersion.startsWith('7')
         testProject.assertJarOciLayer(isBeforeGradle8)
-        testProject.assertOciComponent(isBeforeGradle8)
+        testProject.assertOciMetadata(isBeforeGradle8)
         testProject.assertTestOciRegistryData(isBeforeGradle8)
     }
 }
