@@ -1,13 +1,11 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
 import io.github.sgtsilvio.gradle.oci.internal.gradle.passwordCredentials
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
 import io.github.sgtsilvio.gradle.oci.internal.registry.OciRegistryApi
-import io.github.sgtsilvio.gradle.oci.metadata.OciDataDescriptor
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.netty.buffer.ByteBuf
@@ -108,7 +106,6 @@ abstract class OciPushTask @Inject constructor(
         val blobs = HashMap<OciDigest, Blob>()
         for ((multiArchImage, imageReferences) in multiArchImageAndReferencesPairs) {
             for ((imageName, tags) in imageReferences.groupByTo(HashMap(), { it.name }, { it.tag })) {
-
                 val manifestFutures = mutableListOf<CompletableFuture<Unit>>()
                 for (image in multiArchImage.platformToImage.values) {
                     val blobFutures = mutableListOf<CompletableFuture<Unit>>()
@@ -200,12 +197,6 @@ abstract class OciPushTask @Inject constructor(
             )
         }
     }
-
-    private data class ImageData(
-        val resolvedBundles: List<ResolvedOciComponent.Bundle>,
-        val config: OciDataDescriptor,
-        val manifest: OciDataDescriptor,
-    )
 
     private class Blob(
         val digest: OciDigest,
