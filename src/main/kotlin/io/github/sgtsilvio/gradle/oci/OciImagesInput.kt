@@ -29,7 +29,7 @@ class OciVariantInput(
 class OciImageInput(
     @get:Input val platform: Platform,
     @get:Input val variantIndices: List<Int>, // TODO document must not be empty
-    @get:Input val referenceSpecs: Set<OciImageReferenceSpec>, // TODO empty or default Spec(null, null) -> empty is better, avoids having empty as "error case"
+    @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
 )
 
 data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializable

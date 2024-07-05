@@ -106,11 +106,10 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
         private val tagsProperty = objectFactory.setProperty<String>()
         val referenceSpecs: Provider<List<OciImageReferenceSpec>> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
             if (tags.isEmpty()) {
-                listOf(OciImageReferenceSpec(name, null))
+                if (name == null) emptyList() else listOf(OciImageReferenceSpec(name, null))
             } else {
                 tags.map { tag -> OciImageReferenceSpec(name, if (tag == ".") null else tag) }
             }
-            // TODO if both null/empty -> emptyList?
         }
 
         override fun name(name: String): ReferenceSpecBuilder {
