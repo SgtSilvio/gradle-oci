@@ -94,7 +94,7 @@ internal class PublishMetadataTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":jar")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":jarOciLayer")?.outcome)
-        assertEquals(TaskOutcome.SUCCESS, result.task(":ociComponent")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":ociMetadata")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":generateMetadataFileForMavenPublication")?.outcome)
 
         val moduleMetadata = JSONObject(projectDir.resolve("build/publications/maven/module.json").readText())
@@ -107,6 +107,7 @@ internal class PublishMetadataTest {
               "name": "ociImage",
               "attributes": {
                 "io.github.sgtsilvio.gradle.distributiontype": "oci-image",
+                "io.github.sgtsilvio.gradle.platform": "universal",
                 "org.gradle.category": "distribution",
                 "org.gradle.dependency.bundling": "external"
               },
@@ -119,13 +120,13 @@ internal class PublishMetadataTest {
               ],
               "files": [
                 {
-                  "name": "test-1.0.0-oci-component.json",
-                  "url": "test-1.0.0-oci-component.json",
-                  "size": 492,
-                  "sha512": "913ce805f2573fa3c291a04dc20fe0bbc2fd80b30a274671f3bf4fb20daa9025ec6a3828ddff4b57b2a5e2c4388e2d8779057f542643bf0a288f82551064a37c",
-                  "sha256": "aac0e2ec54b8570aa5319d97e89f43e3bace4b702aeab7553113935489e66c0f",
-                  "sha1": "5237ea4b551f2331dc7a38194cc690014ff0d33e",
-                  "md5": "5ac361c1c364157050ea3d060355bf47"
+                  "name": "test-1.0.0-oci-metadata.json",
+                  "url": "test-1.0.0-oci-metadata.json",
+                  "size": 340,
+                  "sha512": "76039898460aeccf8c3ba2d3a2701cdad4a27cc2b3db3859803ebd4e7d8103fa9be0886f7d50eb062f590ee469e8dbc5904611c064efa62915a46e074e0e87a2",
+                  "sha256": "bebfcc67b3fa76940d09733ae48d6eec6499918ddda139b988a17b06fac0771f",
+                  "sha1": "56f38dc5698b851f1faa992d449943c947eb8128",
+                  "md5": "e6744d0ed13dfbb91bff446b09089c48"
                 },
                 {
                   "name": "test-1.0.0-jar-oci-layer.tgz",
