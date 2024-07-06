@@ -63,7 +63,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private var allPlatformBundleScope: BundleScope? = null
     private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
     private var universalBundle: UniversalBundle? = null
-    private var platformBundles: TreeMap<Platform, PlatformBundle>? = null
+    private var platformBundles: LinkedHashMap<Platform, PlatformBundle>? = null // linked because it will be iterated
     final override val dependency = createDependency()
 
     init {
@@ -154,7 +154,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private fun getOrCreatePlatformBundle(platform: Platform): Bundle {
         var platformBundles = platformBundles
         if (platformBundles == null) {
-            platformBundles = TreeMap()
+            platformBundles = LinkedHashMap()
             this.platformBundles = platformBundles
             configuration.attributes.attribute(PLATFORM_ATTRIBUTE, MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
         }

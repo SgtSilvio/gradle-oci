@@ -142,7 +142,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         indexJsonObject.requireStringOrNull("mediaType", indexMediaType)
         indexJsonObject.requireLong("schemaVersion", 2)
         // the same order as in the manifest is guaranteed by mergeSequential
-        return Flux.mergeSequential(metadataMonoList).collectSortedList(Comparator.comparing { it.platform })
+        return Flux.mergeSequential(metadataMonoList).collectList()
     }
 
     private fun transformManifestToMetadataList(
