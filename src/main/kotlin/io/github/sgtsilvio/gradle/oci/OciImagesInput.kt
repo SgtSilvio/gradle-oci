@@ -101,7 +101,7 @@ abstract class OciImagesInputTask : DefaultTask() {
                 val metadataList = imageVariants.map { it.metadata }
                 val config = createConfig(imageInput.platform, metadataList)
                 val manifest = createManifest(config, metadataList)
-                val image = OciImage(manifest, config, variants)
+                val image = OciImage(manifest, config, imageVariants)
                 images += image
 
                 val defaultImageReference = metadataList.last().imageReference
