@@ -114,17 +114,13 @@ internal fun createManifest(configDescriptor: OciDescriptor, metadataList: List<
 
 internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciDataDescriptor {
     val indexAnnotations = TreeMap<String, String>()
-    val keysToRemove = LinkedList<String>()
-    for (image in platformToImage.values) {
-        for ((key, value) in image.variants.last().metadata.indexAnnotations) {
-            val prevValue = indexAnnotations.putIfAbsent(key, value)
-            if ((prevValue != null) && (prevValue != value)) {
-                keysToRemove += key
+    val images = platformToImage.values
+    if (images.isNotEmpty()) {
+        for (indexAnnotation in images.first().variants.last().metadata.indexAnnotations) {
+            if (images.all { indexAnnotation in it.variants.last().metadata.indexAnnotations.entries }) {
+                indexAnnotations[indexAnnotation.key] = indexAnnotation.value
             }
         }
-    }
-    for (key in keysToRemove) {
-        indexAnnotations.remove(key)
     }
     val data = jsonObject {
         // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
