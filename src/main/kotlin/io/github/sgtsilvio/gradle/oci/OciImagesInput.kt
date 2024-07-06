@@ -121,7 +121,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         for ((reference, platformToImage) in referenceToPlatformToImage) {
             var multiArchImageAndReferencesPair = multiArchImageAndReferencesPairMap[platformToImage]
             if (multiArchImageAndReferencesPair == null) {
-                val index = createIndex(platformToImage.map { Pair(it.key, it.value.manifest) }, TreeMap()) // TODO indexAnnotations
+                val index = createIndex(platformToImage)
                 multiArchImageAndReferencesPair = Pair(OciMultiArchImage(index, platformToImage), ArrayList()) // TODO ArrayList
                 multiArchImageAndReferencesPairMap[platformToImage] = multiArchImageAndReferencesPair
             }

@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.metadata
 
+import io.github.sgtsilvio.gradle.oci.OciImage
 import io.github.sgtsilvio.gradle.oci.component.OciMetadata
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -16,8 +17,8 @@ internal fun createConfig(platform: Platform, metadataList: List<OciMetadata>): 
     var user: String? = null
     val ports = TreeSet<String>()
     val environment = TreeMap<String, String>()
-    var entryPoint = listOf<String>()
-    var arguments = listOf<String>()
+    var entryPoint = emptyList<String>()
+    var arguments = emptyList<String>()
     val volumes = TreeSet<String>()
     var workingDirectory: String? = null
     var stopSignal: String? = null
@@ -111,22 +112,32 @@ internal fun createManifest(configDescriptor: OciDescriptor, metadataList: List<
     return OciDataDescriptor(MANIFEST_MEDIA_TYPE, data, lastMetadata.manifestDescriptorAnnotations) // TODO lastMetadata?
 }
 
-internal fun createIndex(
-    manifestDescriptors: List<Pair<Platform, OciDescriptor>>,
-    indexAnnotations: SortedMap<String, String>, // TODO
-): OciDataDescriptor {
+internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciDataDescriptor {
+    val indexAnnotations = TreeMap<String, String>()
+    val keysToRemove = LinkedList<String>()
+    for (image in platformToImage.values) {
+        for ((key, value) in image.variants.last().metadata.indexAnnotations) {
+            val prevValue = indexAnnotations.putIfAbsent(key, value)
+            if ((prevValue != null) && (prevValue != value)) {
+                keysToRemove += key
+            }
+        }
+    }
+    for (key in keysToRemove) {
+        indexAnnotations.remove(key)
+    }
     val data = jsonObject {
         // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
         addObjectIfNotEmpty("annotations", indexAnnotations)
         addArray("manifests") {
-            for ((platform, descriptor) in manifestDescriptors) {
-                addObject { encodeOciManifestDescriptor(descriptor, platform) }
+            for ((platform, image) in platformToImage) {
+                addObject { encodeOciManifestDescriptor(image.manifest, platform) }
             }
         }
         addString("mediaType", INDEX_MEDIA_TYPE)
         addNumber("schemaVersion", 2)
     }.toByteArray()
-    return OciDataDescriptor(INDEX_MEDIA_TYPE, data, sortedMapOf())
+    return OciDataDescriptor(INDEX_MEDIA_TYPE, data, TreeMap())
 }
 
 private fun JsonObjectStringBuilder.encodeOciDescriptor(descriptor: OciDescriptor) {
