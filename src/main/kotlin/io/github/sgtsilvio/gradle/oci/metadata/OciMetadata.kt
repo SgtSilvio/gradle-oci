@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.metadata
 
 import io.github.sgtsilvio.gradle.oci.OciImage
-import io.github.sgtsilvio.gradle.oci.component.OciMetadata
+import io.github.sgtsilvio.gradle.oci.OciVariant
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.util.*
@@ -13,7 +13,7 @@ internal const val LAYER_MEDIA_TYPE_PREFIX = "application/vnd.oci.image.layer.v1
 internal const val UNCOMPRESSED_LAYER_MEDIA_TYPE = "$LAYER_MEDIA_TYPE_PREFIX.tar"
 internal const val GZIP_COMPRESSED_LAYER_MEDIA_TYPE = "$LAYER_MEDIA_TYPE_PREFIX.tar+gzip"
 
-internal fun createConfig(platform: Platform, metadataList: List<OciMetadata>): OciDataDescriptor {
+internal fun createConfig(platform: Platform, variants: List<OciVariant>): OciDataDescriptor {
     var user: String? = null
     val ports = TreeSet<String>()
     val environment = TreeMap<String, String>()
@@ -23,7 +23,8 @@ internal fun createConfig(platform: Platform, metadataList: List<OciMetadata>): 
     var workingDirectory: String? = null
     var stopSignal: String? = null
     val annotations = TreeMap<String, String>()
-    for (metadata in metadataList) {
+    for (variant in variants) {
+        val metadata = variant.metadata
         metadata.user?.let { user = it }
         ports.addAll(metadata.ports)
         environment += metadata.environment
@@ -36,11 +37,11 @@ internal fun createConfig(platform: Platform, metadataList: List<OciMetadata>): 
         metadata.stopSignal?.let { stopSignal = it }
         annotations += metadata.configAnnotations
     }
-    val lastMetadata = metadataList.last()
+    val lastVariantMetadata = variants.last().metadata
     val data = jsonObject {
         // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
         addString("architecture", platform.architecture)
-        addStringIfNotNull("author", lastMetadata.author)
+        addStringIfNotNull("author", lastVariantMetadata.author)
         addObject("config") {
             // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
             addArrayIfNotEmpty("Cmd", arguments)
@@ -53,10 +54,10 @@ internal fun createConfig(platform: Platform, metadataList: List<OciMetadata>): 
             addObjectIfNotEmpty("Volumes", volumes)
             addStringIfNotNull("WorkingDir", workingDirectory)
         }
-        addStringIfNotNull("created", lastMetadata.creationTime?.toString())
+        addStringIfNotNull("created", lastVariantMetadata.creationTime?.toString())
         addArray("history") {
-            for (metadata in metadataList) {
-                for (layer in metadata.layers) {
+            for (variant in variants) {
+                for (layer in variant.metadata.layers) {
                     addObject {
                         // sorted for canonical json: author, comment, created, created_by, empty_layer
                         addStringIfNotNull("author", layer.author)
@@ -76,11 +77,9 @@ internal fun createConfig(platform: Platform, metadataList: List<OciMetadata>): 
         addObject("rootfs") {
             // sorted for canonical json: diff_ids, type
             addArray("diff_ids") {
-                for (metadata in metadataList) {
-                    for (layer in metadata.layers) {
-                        layer.descriptor?.let {
-                            addString(it.diffId.toString())
-                        }
+                for (variant in variants) {
+                    for (layer in variant.layers) {
+                        addString(layer.descriptor.diffId.toString())
                     }
                 }
             }
@@ -88,28 +87,26 @@ internal fun createConfig(platform: Platform, metadataList: List<OciMetadata>): 
         }
         addStringIfNotEmpty("variant", platform.variant)
     }.toByteArray()
-    return OciDataDescriptor(CONFIG_MEDIA_TYPE, data, lastMetadata.configDescriptorAnnotations) // TODO lastMetadata?
+    return OciDataDescriptor(CONFIG_MEDIA_TYPE, data, lastVariantMetadata.configDescriptorAnnotations) // TODO lastVariantMetadata?
 }
 
-internal fun createManifest(configDescriptor: OciDescriptor, metadataList: List<OciMetadata>): OciDataDescriptor {
-    val lastMetadata = metadataList.last()
+internal fun createManifest(configDescriptor: OciDescriptor, variants: List<OciVariant>): OciDataDescriptor {
+    val lastVariantMetadata = variants.last().metadata
     val data = jsonObject {
         // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-        addObjectIfNotEmpty("annotations", lastMetadata.manifestAnnotations) // TODO lastMetadata?
+        addObjectIfNotEmpty("annotations", lastVariantMetadata.manifestAnnotations) // TODO lastVariantMetadata?
         addObject("config") { encodeOciDescriptor(configDescriptor) }
         addArray("layers") {
-            for (metadata in metadataList) {
-                for (layer in metadata.layers) {
-                    layer.descriptor?.let {
-                        addObject { encodeOciDescriptor(it) }
-                    }
+            for (variant in variants) {
+                for (layer in variant.layers) {
+                    addObject { encodeOciDescriptor(layer.descriptor) }
                 }
             }
         }
         addString("mediaType", MANIFEST_MEDIA_TYPE)
         addNumber("schemaVersion", 2)
     }.toByteArray()
-    return OciDataDescriptor(MANIFEST_MEDIA_TYPE, data, lastMetadata.manifestDescriptorAnnotations) // TODO lastMetadata?
+    return OciDataDescriptor(MANIFEST_MEDIA_TYPE, data, lastVariantMetadata.manifestDescriptorAnnotations) // TODO lastVariantMetadata?
 }
 
 internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciDataDescriptor {

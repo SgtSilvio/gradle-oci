@@ -98,13 +98,12 @@ abstract class OciImagesInputTask : DefaultTask() {
             }
             for (imageInput in imagesInput.imageInputs) {
                 val imageVariants = imageInput.variantIndices.map { index -> variants[index] } // TODO index check -> throw IllegalStateException with a nice message
-                val metadataList = imageVariants.map { it.metadata }
-                val config = createConfig(imageInput.platform, metadataList)
-                val manifest = createManifest(config, metadataList)
+                val config = createConfig(imageInput.platform, imageVariants)
+                val manifest = createManifest(config, imageVariants)
                 val image = OciImage(manifest, config, imageVariants)
                 images += image
 
-                val defaultImageReference = metadataList.last().imageReference
+                val defaultImageReference = imageVariants.last().metadata.imageReference
                 val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) { // linked because it will be iterated
                     OciImageReference(it.name ?: defaultImageReference.name, it.tag ?: defaultImageReference.tag)
                 }.ifEmpty { setOf(defaultImageReference) }
