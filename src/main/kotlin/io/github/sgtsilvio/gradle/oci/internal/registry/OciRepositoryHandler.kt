@@ -407,6 +407,6 @@ internal class OciRepositoryHandler(
     }
 }
 
-internal fun String.escapePathSegment() = replace("$", "$0").replace("/", "$1")
+internal fun String.escapePathSegment() = escapeReplace('/', '$')
 
-internal fun String.unescapePathSegment() = replace("$1", "/").replace("$0", "$")
+internal fun String.unescapePathSegment() = unescapeReplace('/', '$')

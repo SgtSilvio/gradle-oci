@@ -1,5 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.platform
 
+import io.github.sgtsilvio.gradle.oci.internal.escapeReplace
+import io.github.sgtsilvio.gradle.oci.internal.unescapeReplace
 import java.io.Serializable
 import java.util.*
 
@@ -30,13 +32,21 @@ private data class PlatformImpl(
     override val osFeatures: SortedSet<String>,
 ) : Platform {
 
-    override fun toString(): String {
-        val s = "$os,$architecture"
-        return when {
-            osFeatures.isNotEmpty() -> "$s,$variant,$osVersion," + osFeatures.joinToString(",")
-            osVersion.isNotEmpty() -> "$s,$variant,$osVersion"
-            variant.isNotEmpty() -> "$s,$variant"
-            else -> s
+    override fun toString() = buildString {
+        append(os.escapeReplace(',', '$'))
+        append(',')
+        append(architecture.escapeReplace(',', '$'))
+        if (variant.isNotEmpty() || osVersion.isNotEmpty() || osFeatures.isNotEmpty()) {
+            append(',')
+            append(variant.escapeReplace(',', '$'))
+        }
+        if (osVersion.isNotEmpty() || osFeatures.isNotEmpty()) {
+            append(',')
+            append(osVersion.escapeReplace(',', '$'))
+        }
+        for (osFeature in osFeatures) {
+            append(',')
+            append(osFeature.escapeReplace(',', '$'))
         }
     }
 }
@@ -53,10 +63,12 @@ internal fun String.toPlatform(): Platform {
         throw IllegalArgumentException("'$this' is not a platform string")
     }
     return Platform(
-        parts[0],
-        parts[1],
-        if (parts.size > 2) parts[2] else "",
-        if (parts.size > 3) parts[3] else "",
-        if (parts.size > 4) parts.subList(4, parts.size).toSortedSet() else TreeSet(),
+        parts[0].unescapeReplace(',', '$'),
+        parts[1].unescapeReplace(',', '$'),
+        if (parts.size > 2) parts[2].unescapeReplace(',', '$') else "",
+        if (parts.size > 3) parts[3].unescapeReplace(',', '$') else "",
+        if (parts.size > 4) {
+            parts.subList(4, parts.size).mapTo(TreeSet()) { it.unescapeReplace(',', '$') }
+        } else TreeSet(),
     )
 }
