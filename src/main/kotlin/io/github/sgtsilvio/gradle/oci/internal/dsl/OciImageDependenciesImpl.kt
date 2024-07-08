@@ -39,11 +39,8 @@ internal abstract class OciImageDependenciesImpl<T>(
 
     protected abstract fun addInternal(dependencyProvider: Provider<out ModuleDependency>): T
 
-    @Suppress("UNCHECKED_CAST")
-    private fun <D : ModuleDependency> ensureMutable(dependency: D) = dependencyHandler.create(dependency) as D
-
     private fun <D : ModuleDependency> finalizeDependency(dependency: D, action: Action<in D>?): D {
-        val finalizedDependency = ensureMutable(dependency)
+        @Suppress("UNCHECKED_CAST") val finalizedDependency = dependencyHandler.create(dependency) as D
         action?.execute(finalizedDependency)
         return finalizedDependency
     }
