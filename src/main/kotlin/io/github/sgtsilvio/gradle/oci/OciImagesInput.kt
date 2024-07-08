@@ -80,27 +80,32 @@ abstract class OciImagesInputTask : DefaultTask() {
             val variants = imagesInput.variantInputs.map { variantInput ->
                 val metadata = variantInput.metadataFile.readText().decodeAsJsonToOciMetadata()
                 val layerFiles = variantInput.layerFiles
-                val layerFilesIterator = layerFiles.iterator()
                 val layers = ArrayList<OciLayer>(layerFiles.size) // TODO fun associateLayerMetadataAndFiles
+                var layerFileIndex = 0
                 for (layer in metadata.layers) {
                     val layerDescriptor = layer.descriptor ?: continue
-                    if (!layerFilesIterator.hasNext()) {
-                        throw IllegalStateException() // TODO message
+                    if (layerFileIndex >= layerFiles.size) {
+                        throw IllegalStateException("count of layer descriptors (${layerFileIndex + 1}+) and layer files (${layerFiles.size}) do not match")
                     }
-                    val layerFile = layerFilesIterator.next()
+                    val layerFile = layerFiles[layerFileIndex++]
                     layers += OciLayer(layerDescriptor, layerFile)
                     val prevLayerFile = digestToLayerFile.putIfAbsent(layerDescriptor.digest, layerFile)
                     if (prevLayerFile != null) {
                         checkDuplicateLayer(layerDescriptor, prevLayerFile, layerFile)
                     }
                 }
-                if (layerFilesIterator.hasNext()) {
-                    throw IllegalStateException() // TODO message
+                if (layerFileIndex < layerFiles.size) {
+                    throw IllegalStateException("count of layer descriptors ($layerFileIndex) and layer files (${layerFiles.size}) do not match")
                 }
                 OciVariant(metadata, layers)
             }
             for (imageInput in imagesInput.imageInputs) {
-                val imageVariants = imageInput.variantIndices.map { index -> variants[index] } // TODO index check -> throw IllegalStateException with a nice message
+                val imageVariants = imageInput.variantIndices.map { index ->
+                    if (index !in variants.indices) {
+                        throw IllegalStateException("imageInput.variantIndices contains wrong index $index")
+                    }
+                    variants[index]
+                }
                 val config = createConfig(imageInput.platform, imageVariants)
                 val manifest = createManifest(config, imageVariants)
                 val image = OciImage(manifest, config, imageVariants)
@@ -111,12 +116,13 @@ abstract class OciImagesInputTask : DefaultTask() {
                 val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) {
                     OciImageReference(it.name ?: defaultImageReference.name, it.tag ?: defaultImageReference.tag)
                 }.ifEmpty { setOf(defaultImageReference) }
+                val platform = imageInput.platform
                 for (imageReference in imageReferences) {
                     // platformToImage map is linked to preserve the platform order
                     val platformToImage = referenceToPlatformToImage.getOrPut(imageReference) { LinkedHashMap() }
-                    val prevImage = platformToImage.putIfAbsent(imageInput.platform, image)
+                    val prevImage = platformToImage.putIfAbsent(platform, image)
                     if (prevImage != null) {
-                        throw IllegalStateException() // TODO message for: different image for same platform for same image reference
+                        throw IllegalStateException("only one image with platform $platform can be referenced by the same image reference '$imageReference'")
                     }
                 }
             }
