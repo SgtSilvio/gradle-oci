@@ -3,21 +3,15 @@ package io.github.sgtsilvio.gradle.oci.component
 import io.github.sgtsilvio.gradle.oci.DEFAULT_OCI_REFERENCE_SPEC
 import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.attributes.MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE
+import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
-import org.gradle.api.artifacts.ExternalDependency
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.artifacts.component.ComponentSelector
-import org.gradle.api.artifacts.component.ModuleComponentSelector
-import org.gradle.api.artifacts.component.ProjectComponentSelector
+import io.github.sgtsilvio.gradle.oci.toOciImageReferenceSpec
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
-import org.gradle.api.attributes.AttributeContainer
-import org.gradle.api.capabilities.Capability
 
 class OciImageSpec(
     val platform: Platform,
@@ -25,21 +19,13 @@ class OciImageSpec(
     val referenceSpecs: Set<OciImageReferenceSpec>, // normalized setOf(OciImageReferenceSpec(null, null)) -> emptySet()
 )
 
-fun resolveOciImageSpecs(
-    rootComponentResult: ResolvedComponentResult,
-    dependencyReferenceSpecsPairs: List<Pair<ModuleDependency, List<OciImageReferenceSpec>>>,
-): List<OciImageSpec> {
-    val descriptorToReferenceSpecs = HashMap<ModuleDependencyDescriptor, List<OciImageReferenceSpec>>()
-    for ((dependency, referenceSpecs) in dependencyReferenceSpecsPairs) {
-        descriptorToReferenceSpecs.merge(dependency.toDescriptor(), referenceSpecs) { a, b -> a + b }
-    }
-    val rootNodesToReferenceSpecs = resolveOciVariantGraph(rootComponentResult, descriptorToReferenceSpecs)
+fun resolveOciImageSpecs(rootComponentResult: ResolvedComponentResult): List<OciImageSpec> {
+    val rootNodesToReferenceSpecs = resolveOciVariantGraph(rootComponentResult)
     return resolveOciImageSpecs(rootNodesToReferenceSpecs)
 }
 
 fun resolveOciVariantGraph( // TODO private
     rootComponentResult: ResolvedComponentResult,
-    descriptorToReferenceSpecs: Map<ModuleDependencyDescriptor, List<OciImageReferenceSpec>>,
 ): Map<OciVariantNode, Set<OciImageReferenceSpec>> {
     val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
     val rootNodesToReferenceSpecs = LinkedHashMap<OciVariantNode, HashSet<OciImageReferenceSpec>>()
@@ -47,8 +33,10 @@ fun resolveOciVariantGraph( // TODO private
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             continue
         }
-        val referenceSpecs =
-            descriptorToReferenceSpecs[dependencyResult.requested.toDescriptor()] ?: listOf(DEFAULT_OCI_REFERENCE_SPEC)
+        val referenceSpecs = dependencyResult.requested.attributes.getAttribute(OCI_IMAGE_REFERENCE_ATTRIBUTE)
+            ?.split(',')
+            ?.map { it.toOciImageReferenceSpec() }
+            ?: listOf(DEFAULT_OCI_REFERENCE_SPEC)
         val node = resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
         rootNodesToReferenceSpecs.getOrPut(node) { HashSet() }.addAll(referenceSpecs)
     }
@@ -191,30 +179,3 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
 
 private fun Set<OciImageReferenceSpec>.normalize(): Set<OciImageReferenceSpec> =
     if ((size == 1) && (first() == DEFAULT_OCI_REFERENCE_SPEC)) emptySet() else this
-
-interface ModuleDependencyDescriptor  // TODO private
-
-private data class ProjectDependencyDescriptor(
-    val projectPath: String,
-    val requestedCapabilities: List<Capability>,
-    val attributes: AttributeContainer,
-) : ModuleDependencyDescriptor
-
-private data class ExternalDependencyDescriptor(
-    val group: String,
-    val name: String,
-    val requestedCapabilities: List<Capability>,
-    val attributes: AttributeContainer,
-) : ModuleDependencyDescriptor
-
-private fun ModuleDependency.toDescriptor() = when (this) {
-    is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities, attributes)
-    is ExternalDependency -> ExternalDependencyDescriptor(group, name, requestedCapabilities, attributes)
-    else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
-}
-
-private fun ComponentSelector.toDescriptor() = when (this) {
-    is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes)
-    is ModuleComponentSelector -> ExternalDependencyDescriptor(group, module, requestedCapabilities, attributes)
-    else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
-}

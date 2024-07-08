@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PlatformAttributeCompatibilityRule
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
@@ -24,6 +25,7 @@ class OciPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         project.dependencies.attributesSchema.attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
         project.dependencies.attributesSchema.attribute(PLATFORM_ATTRIBUTE)
+        project.dependencies.attributesSchema.attribute(OCI_IMAGE_REFERENCE_ATTRIBUTE)
         project.dependencies.attributesSchema.getMatchingStrategy(PLATFORM_ATTRIBUTE).compatibilityRules.add(
             PlatformAttributeCompatibilityRule::class
         )

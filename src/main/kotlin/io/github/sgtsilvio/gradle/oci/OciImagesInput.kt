@@ -11,7 +11,6 @@ import org.gradle.api.tasks.*
 import org.gradle.kotlin.dsl.listProperty
 import java.io.File
 import java.io.Serializable
-import java.util.*
 
 /**
  * @author Silvio Giebl
@@ -19,20 +18,31 @@ import java.util.*
 class OciImagesInput(
     @get:Nested val variantInputs: List<OciVariantInput>,
     @get:Nested val imageInputs: List<OciImageInput>,
-)
+) : Serializable
 
 class OciVariantInput(
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
     @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
-)
+) : Serializable
 
 class OciImageInput(
     @get:Input val platform: Platform,
     @get:Input val variantIndices: List<Int>, // TODO document must not be empty
     @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
-)
+) : Serializable
 
-data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializable
+data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializable {
+    override fun toString() = (name ?: "") + ":" + (tag ?: "")
+}
+
+fun String.toOciImageReferenceSpec(): OciImageReferenceSpec {
+    val parts = split(':')
+    if (parts.size != 2) {
+        throw IllegalArgumentException("'$this' must contain exactly one ':' character")
+    }
+    return OciImageReferenceSpec(parts[0].takeIf { it.isNotEmpty() }, parts[1].takeIf { it.isNotEmpty() })
+}
+
 // TODO factory method for OciImageReferenceSpec that returns DEFAULT_OCI_REFERENCE_SPEC if both are null
 internal val DEFAULT_OCI_REFERENCE_SPEC = OciImageReferenceSpec(null, null)
 

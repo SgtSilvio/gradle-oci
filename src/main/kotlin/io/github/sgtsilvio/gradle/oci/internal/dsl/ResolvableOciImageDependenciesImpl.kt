@@ -22,7 +22,6 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
@@ -51,15 +50,9 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     dependencyHandler,
 ), ResolvableOciImageDependencies {
 
-    private val dependencyReferenceSpecsPairs =
-        objectFactory.listProperty<Pair<ModuleDependency, List<OciImageReferenceSpec>>>()
-
     final override fun asInput(): Provider<OciImagesInput> {
         val rootComponentProvider = configuration.incoming.resolutionResult.rootComponent
-        // imageSpecsProvider must not have task dependencies because it is queried at configuration time
-        //  rootComponentProvider does not have task dependencies anyhow
-        //  dependencyReferenceSpecsPairs can not have task dependencies
-        val imageSpecsProvider = rootComponentProvider.zip(dependencyReferenceSpecsPairs, ::resolveOciImageSpecs)
+        val imageSpecsProvider = rootComponentProvider.map(::resolveOciImageSpecs)
         val artifactsResultsProvider = configuration.incoming.artifactView {
             componentFilter(ArtifactViewComponentFilter(rootComponentProvider, imageSpecsProvider))
         }.artifacts.resolvedArtifacts
@@ -92,28 +85,25 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
 
     final override fun getName() = name
 
-    final override fun returnType(dependency: ModuleDependency): ReferenceSpecBuilder {
-        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
-        dependencyReferenceSpecsPairs.add(referenceSpecBuilder.referenceSpecs.map { Pair(dependency, it) })
-        return referenceSpecBuilder
-    }
+    override fun newReturnValue() = ReferenceSpecBuilder(objectFactory)
 
-    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecBuilder {
-        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
-        dependencyReferenceSpecsPairs.add(dependencyProvider.zip(referenceSpecBuilder.referenceSpecs, ::Pair))
-        return referenceSpecBuilder
+    override fun associateDependencyAndReturnValue(dependency: ModuleDependency, returnValue: Nameable) {
+        returnValue as ReferenceSpecBuilder
+        dependency.attributes {
+            attributeProvider(OCI_IMAGE_REFERENCE_ATTRIBUTE, returnValue.attribute)
+        }
     }
 
     class ReferenceSpecBuilder(objectFactory: ObjectFactory) : Nameable, Taggable {
         private val nameProperty = objectFactory.property<String>()
         private val tagsProperty = objectFactory.setProperty<String>()
-        val referenceSpecs: Provider<List<OciImageReferenceSpec>> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
+        val attribute: Provider<String> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
             if (tags.isEmpty()) {
                 listOf(OciImageReferenceSpec(name, null))
             } else {
                 tags.map { tag -> OciImageReferenceSpec(name, if (tag == ".") null else tag) }
             }
-        }
+        }.map { it.joinToString(",") }
 
         override fun name(name: String): ReferenceSpecBuilder {
             nameProperty.set(name)

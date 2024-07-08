@@ -22,39 +22,50 @@ internal abstract class OciImageDependenciesImpl<T>(
 
     final override fun add(dependency: ModuleDependency): T {
         val finalizedDependency = finalizeDependency(dependency)
+        val returnValue = newReturnValue()
+        associateDependencyAndReturnValue(finalizedDependency, returnValue)
         configuration.dependencies.add(finalizedDependency)
-        return returnType(finalizedDependency)
+        return returnValue
     }
 
     final override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>): T {
         val finalizedDependency = finalizeDependency(dependency)
         action.execute(finalizedDependency)
+        val returnValue = newReturnValue()
+        associateDependencyAndReturnValue(finalizedDependency, returnValue)
         configuration.dependencies.add(finalizedDependency)
-        return returnType(finalizedDependency)
+        return returnValue
     }
 
     final override fun add(dependencyProvider: Provider<out ModuleDependency>): T {
-        val finalizedDependencyProvider = dependencyProvider.map { finalizeDependency(it) }
-        configuration.dependencies.addLater(finalizedDependencyProvider)
-        return returnType(finalizedDependencyProvider)
-    }
-
-    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>): T {
+        val returnValue = newReturnValue()
         val finalizedDependencyProvider = dependencyProvider.map {
             val finalizedDependency = finalizeDependency(it)
-            action.execute(finalizedDependency)
+            associateDependencyAndReturnValue(finalizedDependency, returnValue)
             finalizedDependency
         }
         configuration.dependencies.addLater(finalizedDependencyProvider)
-        return returnType(finalizedDependencyProvider)
+        return returnValue
+    }
+
+    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>): T {
+        val returnValue = newReturnValue()
+        val finalizedDependencyProvider = dependencyProvider.map {
+            val finalizedDependency = finalizeDependency(it)
+            action.execute(finalizedDependency)
+            associateDependencyAndReturnValue(finalizedDependency, returnValue)
+            finalizedDependency
+        }
+        configuration.dependencies.addLater(finalizedDependencyProvider)
+        return returnValue
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
 
-    abstract fun returnType(dependency: ModuleDependency): T
+    protected abstract fun newReturnValue(): T
 
-    abstract fun returnType(dependencyProvider: Provider<out ModuleDependency>): T
+    protected open fun associateDependencyAndReturnValue(dependency: ModuleDependency, returnValue: T) {}
 
     // add dependency converted from a different notation
 

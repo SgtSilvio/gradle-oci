@@ -329,9 +329,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             dependencyHandler: DependencyHandler,
         ) : OciImageDependenciesImpl<Unit>(configuration, dependencyHandler), OciImageDefinition.Bundle.ParentImages {
 
-            final override fun returnType(dependency: ModuleDependency) = Unit
-
-            final override fun returnType(dependencyProvider: Provider<out ModuleDependency>) = Unit
+            override fun newReturnValue() = Unit
         }
 
         abstract class Layers @Inject constructor(
