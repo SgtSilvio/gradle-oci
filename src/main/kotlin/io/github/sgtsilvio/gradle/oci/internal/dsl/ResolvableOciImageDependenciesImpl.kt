@@ -85,13 +85,24 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
 
     final override fun getName() = name
 
-    override fun newReturnValue() = ReferenceSpecBuilder(objectFactory)
+    final override fun addInternal(dependency: ModuleDependency): ReferenceSpecBuilder {
+        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
+        configuration.dependencies.addLater(referenceSpecBuilder.attribute.map { attribute ->
+            dependency.attributes {
+                attribute(OCI_IMAGE_REFERENCE_ATTRIBUTE, attribute)
+            }
+        })
+        return referenceSpecBuilder
+    }
 
-    override fun associateDependencyAndReturnValue(dependency: ModuleDependency, returnValue: Nameable) {
-        returnValue as ReferenceSpecBuilder
-        dependency.attributes {
-            attributeProvider(OCI_IMAGE_REFERENCE_ATTRIBUTE, returnValue.attribute)
-        }
+    final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecBuilder {
+        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
+        configuration.dependencies.addLater(dependencyProvider.zip(referenceSpecBuilder.attribute) { dependency, attribute ->
+            dependency.attributes {
+                attribute(OCI_IMAGE_REFERENCE_ATTRIBUTE, attribute)
+            }
+        })
+        return referenceSpecBuilder
     }
 
     class ReferenceSpecBuilder(objectFactory: ObjectFactory) : Nameable, Taggable {
