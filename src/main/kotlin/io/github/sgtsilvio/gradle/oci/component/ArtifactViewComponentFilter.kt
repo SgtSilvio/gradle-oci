@@ -13,7 +13,7 @@ import java.util.*
  */
 class ArtifactViewComponentFilter(
     private val rootComponentResultProvider: Provider<ResolvedComponentResult>,
-    private val variantImagesProvider: Provider<List<OciImageSpec>>,
+    private val imageSpecsProvider: Provider<List<OciImageSpec>>,
 ) : Spec<ComponentIdentifier> {
 
     private class State(
@@ -26,11 +26,11 @@ class ArtifactViewComponentFilter(
     private fun getState(): State {
         return state ?: run {
             val rootComponentResult = rootComponentResultProvider.get()
-            val variantImages = variantImagesProvider.get()
+            val imageSpecs = imageSpecsProvider.get()
             val componentIdToVariantResults =
                 rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { CyclicIterator(it.variants) }
             componentIdToVariantResults[rootComponentResult.id] = CyclicIterator(rootComponentResult.variants.drop(1))
-            val selectedVariantResults = variantImages.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.variants }
+            val selectedVariantResults = imageSpecs.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.variants }
             val newState = State(componentIdToVariantResults, selectedVariantResults)
             state = newState
             newState

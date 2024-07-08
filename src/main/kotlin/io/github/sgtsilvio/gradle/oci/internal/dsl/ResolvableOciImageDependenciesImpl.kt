@@ -6,7 +6,7 @@ import io.github.sgtsilvio.gradle.oci.OciImagesInput
 import io.github.sgtsilvio.gradle.oci.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.component.ArtifactViewComponentFilter
-import io.github.sgtsilvio.gradle.oci.component.resolveOciVariantImages
+import io.github.sgtsilvio.gradle.oci.component.resolveOciImageSpecs
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameable
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
@@ -56,16 +56,16 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
 
     final override fun asInput(): Provider<OciImagesInput> {
         val rootComponentProvider = configuration.incoming.resolutionResult.rootComponent
-        val variantImagesProvider = rootComponentProvider.zip(dependencyReferenceSpecsPairs, ::resolveOciVariantImages)
+        val imageSpecsProvider = rootComponentProvider.zip(dependencyReferenceSpecsPairs, ::resolveOciImageSpecs)
         val artifactsResultsProvider = configuration.incoming.artifactView {
-            componentFilter(ArtifactViewComponentFilter(rootComponentProvider, variantImagesProvider))
+            componentFilter(ArtifactViewComponentFilter(rootComponentProvider, imageSpecsProvider))
         }.artifacts.resolvedArtifacts
         // zip or map is not used here because their mapper function is executed after the file contents are available
         //  this mapper function does not read the file contents, so can already be called once the value is available
         //  this allows this mapper function to be run before storing the configuration cache
         //  apart from performance benefits this also avoids a bug where the artifactsResultsProvider value is different when using the configuration cache
         return artifactsResultsProvider.flatMap { artifactsResults ->
-            val variantImages = variantImagesProvider.get()
+            val imageSpecs = imageSpecsProvider.get()
             val variantDescriptorToArtifacts = artifactsResults.groupBy({ it.variant.toDescriptor() }) { it.file }
             val variantInputs = ArrayList<OciVariantInput>(variantDescriptorToArtifacts.size)
             val variantDescriptorToIndex = HashMap<VariantDescriptor, Int>()
@@ -74,11 +74,11 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
                 variantInputs += OciVariantInput(artifacts.first(), artifacts.drop(1))
                 variantDescriptorToIndex[variantDescriptor] = variantIndex++
             }
-            val imageInputs = variantImages.map { variantImage ->
+            val imageInputs = imageSpecs.map { imageSpec ->
                 OciImageInput(
-                    variantImage.platform,
-                    variantImage.variants.mapNotNull { variant -> variantDescriptorToIndex[variant.toDescriptor()] },
-                    variantImage.referenceSpecs,
+                    imageSpec.platform,
+                    imageSpec.variants.mapNotNull { variant -> variantDescriptorToIndex[variant.toDescriptor()] },
+                    imageSpec.referenceSpecs, // TODO if == list(OciImageReferenceSpec(null, null)) -> emptySet
                 )
             }
             val imagesInputs = OciImagesInput(variantInputs, imageInputs)

@@ -24,7 +24,7 @@ class OciImageSpec(
     val referenceSpecs: Set<OciImageReferenceSpec>,
 )
 
-fun resolveOciVariantImages(
+fun resolveOciImageSpecs(
     rootComponentResult: ResolvedComponentResult,
     dependencyReferenceSpecsPairs: List<Pair<ModuleDependency, List<OciImageReferenceSpec>>>,
 ): List<OciImageSpec> {
@@ -33,7 +33,7 @@ fun resolveOciVariantImages(
         descriptorToReferenceSpecs.merge(dependency.toDescriptor(), referenceSpecs) { a, b -> a + b }
     }
     val rootNodesToReferenceSpecs = resolveOciVariantGraph(rootComponentResult, descriptorToReferenceSpecs)
-    return resolveOciVariantImages(rootNodesToReferenceSpecs)
+    return resolveOciImageSpecs(rootNodesToReferenceSpecs)
 }
 
 fun resolveOciVariantGraph( // TODO private
@@ -46,7 +46,7 @@ fun resolveOciVariantGraph( // TODO private
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             continue
         }
-        val referenceSpecs = descriptorToReferenceSpecs[dependencyResult.requested.toDescriptor()] ?: emptyList()
+        val referenceSpecs = descriptorToReferenceSpecs[dependencyResult.requested.toDescriptor()] ?: emptyList() // TODO emptyList or listOf(OciImageReferenceSpec(null, null)?
         val node = resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
         rootNodesToReferenceSpecs.getOrPut(node) { HashSet() }.addAll(referenceSpecs)
     }
@@ -140,7 +140,7 @@ val ResolvedVariantResult.platformOrUniversalOrMultiple: String // TODO private
         return capabilities.first().name.substringAfterLast('@')
     }
 
-fun resolveOciVariantImages(rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciImageReferenceSpec>>): List<OciImageSpec> { // TODO private
+fun resolveOciImageSpecs(rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciImageReferenceSpec>>): List<OciImageSpec> { // TODO private
     val imageSpecs = ArrayList<OciImageSpec>()
     for ((rootNode, referenceSpecs) in rootNodesToReferenceSpecs) {
         for (platform in rootNode.platformSet) {
