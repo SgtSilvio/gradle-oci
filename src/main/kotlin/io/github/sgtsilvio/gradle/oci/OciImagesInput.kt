@@ -70,9 +70,12 @@ abstract class OciImagesInputTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val imagesInputs: List<OciImagesInput> = imagesInputs.get()
-        val digestToLayerFile = LinkedHashMap<OciDigest, File>() // linked because it will be iterated
+        // digestToLayerFile map is linked because it will be iterated
+        val digestToLayerFile = LinkedHashMap<OciDigest, File>()
         val images = ArrayList<OciImage>()
-        val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>() // TODO both linked?
+        // referenceToPlatformToImage map is linked because it will be iterated
+        // platformToImage map is linked to preserve the platform order
+        val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>()
         for (imagesInput in imagesInputs) {
             val variants = imagesInput.variantInputs.map { variantInput ->
                 val metadata = variantInput.metadataFile.readText().decodeAsJsonToOciMetadata()
@@ -104,10 +107,12 @@ abstract class OciImagesInputTask : DefaultTask() {
                 images += image
 
                 val defaultImageReference = imageVariants.last().metadata.imageReference
-                val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) { // linked because it will be iterated
+                // imageReferences set is linked because it will be iterated
+                val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) {
                     OciImageReference(it.name ?: defaultImageReference.name, it.tag ?: defaultImageReference.tag)
                 }.ifEmpty { setOf(defaultImageReference) }
                 for (imageReference in imageReferences) {
+                    // platformToImage map is linked to preserve the platform order
                     val platformToImage = referenceToPlatformToImage.getOrPut(imageReference) { LinkedHashMap() }
                     val prevImage = platformToImage.putIfAbsent(imageInput.platform, image)
                     if (prevImage != null) {
@@ -116,7 +121,9 @@ abstract class OciImagesInputTask : DefaultTask() {
                 }
             }
         }
-        val multiArchImageAndReferencesPairMap = LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiArchImage, ArrayList<OciImageReference>>>() // linked because it will be iterated // TODO reference non multi arch images?
+        // multiArchImageAndReferencesPairMap is linked because it will be iterated
+        val multiArchImageAndReferencesPairMap =
+            LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiArchImage, ArrayList<OciImageReference>>>() // TODO reference non multi arch images?
         for ((reference, platformToImage) in referenceToPlatformToImage) {
             var multiArchImageAndReferencesPair = multiArchImageAndReferencesPairMap[platformToImage]
             if (multiArchImageAndReferencesPair == null) {
