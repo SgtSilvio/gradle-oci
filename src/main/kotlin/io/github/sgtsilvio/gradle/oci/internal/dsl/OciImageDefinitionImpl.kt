@@ -85,11 +85,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         configurationContainer: ConfigurationContainer,
         imageDefName: String,
         objectFactory: ObjectFactory,
-    ): Configuration = configurationContainer.create(createOciVariantName(imageDefName)) {
+    ): Configuration = configurationContainer.create(createOciVariantName(imageDefName)).apply {
         description = "Elements of the '$imageDefName' OCI image."
         isCanBeConsumed = true
         isCanBeResolved = false
-        attributes {
+        attributes.apply {
             attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
             attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
             attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
@@ -486,11 +486,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         private val project: Project,
     ) : Bundle(
         imageDefinition,
-        configurationContainer.create(createOciVariantInternalName(imageDefinition.name, platform)) {
+        configurationContainer.create(createOciVariantInternalName(imageDefinition.name, platform)).apply {
             description = "Elements of the '${imageDefinition.name}' OCI image for the platform $platform."
             isCanBeConsumed = true
             isCanBeResolved = false
-            attributes {
+            attributes.apply {
                 attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
                 attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
                 attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
@@ -504,11 +504,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         projectLayout,
         project,
     ) {
-        private val externalConfiguration: Configuration = configurationContainer.create(createOciVariantName(imageDefinition.name, platform)) {
+        private val externalConfiguration: Configuration = configurationContainer.create(createOciVariantName(imageDefinition.name, platform)).apply {
             description = "Elements of the '${imageDefinition.name}' OCI image for the platform $platform."
             isCanBeConsumed = true
             isCanBeResolved = false
-            attributes {
+            attributes.apply {
                 attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
                 attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
                 attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))

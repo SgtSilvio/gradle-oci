@@ -36,7 +36,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     configurationContainer: ConfigurationContainer,
     dependencyHandler: DependencyHandler,
 ) : OciImageDependenciesImpl<Nameable>(
-    configurationContainer.create(name + "OciImages") {
+    configurationContainer.create(name + "OciImages").apply {
         description = "OCI image dependencies '$name'"
         isCanBeConsumed = false
         isCanBeResolved = true
