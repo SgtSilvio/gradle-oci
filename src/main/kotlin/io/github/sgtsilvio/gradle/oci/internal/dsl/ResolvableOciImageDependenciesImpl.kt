@@ -41,7 +41,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
         description = "OCI image dependencies '$name'"
         isCanBeConsumed = false
         isCanBeResolved = true
-        attributes {
+        attributes.apply {
             attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
             attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
             attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
@@ -107,11 +107,11 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
         private val tagsProperty = objectFactory.setProperty<String>()
         val attribute: Provider<String> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
             if (tags.isEmpty()) {
-                listOf(OciImageReferenceSpec(name, null))
+                OciImageReferenceSpec(name, null).toString()
             } else {
-                tags.map { tag -> OciImageReferenceSpec(name, if (tag == ".") null else tag) }
+                tags.map { tag -> OciImageReferenceSpec(name, if (tag == ".") null else tag) }.joinToString(",")
             }
-        }.map { it.joinToString(",") }
+        }
 
         override fun name(name: String): ReferenceSpecBuilder {
             nameProperty.set(name)
