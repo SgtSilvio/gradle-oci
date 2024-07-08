@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.internal.gradle.createDependency
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
@@ -50,16 +51,15 @@ internal abstract class OciImageDependenciesImpl<T>(
     private fun module(dependencyNotation: CharSequence) =
         dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
 
-    private fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency
-
     final override fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
 
     final override fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
         add(module(dependencyNotation), action)
 
-    final override fun add(project: Project) = add(project(project))
+    final override fun add(project: Project) = add(project.createDependency())
 
-    final override fun add(project: Project, action: Action<in ProjectDependency>) = add(project(project), action)
+    final override fun add(project: Project, action: Action<in ProjectDependency>) =
+        add(project.createDependency(), action)
 
     // add constraint
 

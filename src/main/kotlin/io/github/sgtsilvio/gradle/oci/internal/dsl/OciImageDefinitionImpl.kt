@@ -8,9 +8,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.internal.*
-import io.github.sgtsilvio.gradle.oci.internal.gradle.LazyPublishArtifact
-import io.github.sgtsilvio.gradle.oci.internal.gradle.addArtifacts
-import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.internal.gradle.*
 import io.github.sgtsilvio.gradle.oci.mapping.defaultMappedImageNamespace
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
@@ -99,13 +97,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     }
 
     private fun createDependency(): Provider<ProjectDependency> = capabilities.set.map { capabilities ->
-        val projectDependency = project.dependencies.create(project) as ProjectDependency
-        projectDependency.capabilities {
-            for (capability in capabilities) {
-                requireCapability("${capability.group}:${capability.name}")
-            }
-        }
-        projectDependency
+        project.createDependency().requireCapabilities(capabilities)
     }
 
     final override fun getName() = name
@@ -531,13 +523,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
 
         fun createDependency(): Provider<ProjectDependency> = providerFactory.provider {
-            val projectDependency = project.dependencies.create(project) as ProjectDependency
-            projectDependency.capabilities {
-                for (capability in configuration.outgoing.capabilities) {
-                    requireCapability("${capability.group}:${capability.name}")
-                }
-            }
-            projectDependency
+            project.createDependency().requireCapabilities(configuration.outgoing.capabilities)
         }
     }
 
