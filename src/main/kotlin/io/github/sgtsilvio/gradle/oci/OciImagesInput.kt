@@ -33,6 +33,8 @@ class OciImageInput(
 )
 
 data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializable
+// TODO factory method for OciImageReferenceSpec that returns DEFAULT_OCI_REFERENCE_SPEC if both are null
+internal val DEFAULT_OCI_REFERENCE_SPEC = OciImageReferenceSpec(null, null)
 
 internal class OciLayer( // TODO internal?
     val descriptor: OciMetadata.Layer.Descriptor,

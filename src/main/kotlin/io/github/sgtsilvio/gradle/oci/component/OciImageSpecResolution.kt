@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.component
 
+import io.github.sgtsilvio.gradle.oci.DEFAULT_OCI_REFERENCE_SPEC
 import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.attributes.MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
@@ -21,7 +22,7 @@ import org.gradle.api.capabilities.Capability
 class OciImageSpec(
     val platform: Platform,
     val variants: List<ResolvedVariantResult>,
-    val referenceSpecs: Set<OciImageReferenceSpec>,
+    val referenceSpecs: Set<OciImageReferenceSpec>, // normalized setOf(OciImageReferenceSpec(null, null)) -> emptySet()
 )
 
 fun resolveOciImageSpecs(
@@ -46,7 +47,8 @@ fun resolveOciVariantGraph( // TODO private
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             continue
         }
-        val referenceSpecs = descriptorToReferenceSpecs[dependencyResult.requested.toDescriptor()] ?: emptyList() // TODO emptyList or listOf(OciImageReferenceSpec(null, null)?
+        val referenceSpecs =
+            descriptorToReferenceSpecs[dependencyResult.requested.toDescriptor()] ?: listOf(DEFAULT_OCI_REFERENCE_SPEC)
         val node = resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
         rootNodesToReferenceSpecs.getOrPut(node) { HashSet() }.addAll(referenceSpecs)
     }
@@ -145,7 +147,7 @@ fun resolveOciImageSpecs(rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciI
     for ((rootNode, referenceSpecs) in rootNodesToReferenceSpecs) {
         for (platform in rootNode.platformSet) {
             val variantResults = rootNode.collectVariantResultsForPlatform(platform).toList()
-            imageSpecs += OciImageSpec(platform, variantResults, referenceSpecs)
+            imageSpecs += OciImageSpec(platform, variantResults, referenceSpecs.normalize())
         }
     }
     return imageSpecs
@@ -186,6 +188,9 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
         result += variantResult
     }
 }
+
+private fun Set<OciImageReferenceSpec>.normalize(): Set<OciImageReferenceSpec> =
+    if ((size == 1) && (first() == DEFAULT_OCI_REFERENCE_SPEC)) emptySet() else this
 
 interface ModuleDependencyDescriptor  // TODO private
 

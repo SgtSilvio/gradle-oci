@@ -56,6 +56,9 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
 
     final override fun asInput(): Provider<OciImagesInput> {
         val rootComponentProvider = configuration.incoming.resolutionResult.rootComponent
+        // imageSpecsProvider must not have task dependencies because it is queried at configuration time
+        //  rootComponentProvider does not have task dependencies anyhow
+        //  dependencyReferenceSpecsPairs can not have task dependencies
         val imageSpecsProvider = rootComponentProvider.zip(dependencyReferenceSpecsPairs, ::resolveOciImageSpecs)
         val artifactsResultsProvider = configuration.incoming.artifactView {
             componentFilter(ArtifactViewComponentFilter(rootComponentProvider, imageSpecsProvider))
@@ -78,7 +81,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
                 OciImageInput(
                     imageSpec.platform,
                     imageSpec.variants.mapNotNull { variant -> variantDescriptorToIndex[variant.toDescriptor()] },
-                    imageSpec.referenceSpecs, // TODO if == list(OciImageReferenceSpec(null, null)) -> emptySet
+                    imageSpec.referenceSpecs,
                 )
             }
             val imagesInputs = OciImagesInput(variantInputs, imageInputs)
