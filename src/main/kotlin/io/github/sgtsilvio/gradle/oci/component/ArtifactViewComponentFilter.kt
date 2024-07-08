@@ -11,7 +11,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-class ArtifactViewComponentFilter(
+internal class ArtifactViewComponentFilter(
     private val rootComponentResultProvider: Provider<ResolvedComponentResult>,
     private val imageSpecsProvider: Provider<List<OciImageSpec>>,
 ) : Spec<ComponentIdentifier> {
@@ -43,7 +43,7 @@ class ArtifactViewComponentFilter(
     }
 }
 
-val ResolvedComponentResult.allComponents: HashSet<ResolvedComponentResult>
+private val ResolvedComponentResult.allComponents: HashSet<ResolvedComponentResult>
     get() {
         val visitedComponentResults = HashSet<ResolvedComponentResult>()
         val componentResultsToVisit = LinkedList<ResolvedComponentResult>()

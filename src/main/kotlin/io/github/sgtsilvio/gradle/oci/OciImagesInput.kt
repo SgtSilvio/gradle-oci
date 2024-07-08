@@ -35,7 +35,7 @@ data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializ
     override fun toString() = (name ?: "") + ":" + (tag ?: "")
 }
 
-fun String.toOciImageReferenceSpec(): OciImageReferenceSpec {
+internal fun String.toOciImageReferenceSpec(): OciImageReferenceSpec {
     val parts = split(':')
     if (parts.size != 2) {
         throw IllegalArgumentException("'$this' must contain exactly one ':' character")

@@ -147,13 +147,13 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     }
 }
 
-data class VariantDescriptor( // TODO private
+private data class VariantDescriptor(
     val owner: ComponentIdentifier,
     val capabilities: List<Capability>,
     val attributes: Map<String, String>,
 )
 
-fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap()) // TODO private
+private fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap())
 
 private fun AttributeContainer.toMap(): Map<String, String> =
     keySet().associateBy({ it.name }) { getAttribute(it).toString() }

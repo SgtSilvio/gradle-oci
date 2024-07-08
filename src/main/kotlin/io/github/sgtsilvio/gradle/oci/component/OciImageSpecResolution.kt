@@ -13,18 +13,18 @@ import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
 
-class OciImageSpec(
+internal class OciImageSpec(
     val platform: Platform,
     val variants: List<ResolvedVariantResult>,
     val referenceSpecs: Set<OciImageReferenceSpec>, // normalized setOf(OciImageReferenceSpec(null, null)) -> emptySet()
 )
 
-fun resolveOciImageSpecs(rootComponentResult: ResolvedComponentResult): List<OciImageSpec> {
+internal fun resolveOciImageSpecs(rootComponentResult: ResolvedComponentResult): List<OciImageSpec> {
     val rootNodesToReferenceSpecs = resolveOciVariantGraph(rootComponentResult)
     return resolveOciImageSpecs(rootNodesToReferenceSpecs)
 }
 
-fun resolveOciVariantGraph( // TODO private
+private fun resolveOciVariantGraph(
     rootComponentResult: ResolvedComponentResult,
 ): Map<OciVariantNode, Set<OciImageReferenceSpec>> {
     val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
@@ -96,7 +96,7 @@ private fun resolveOciVariantNode(
     return node
 }
 
-sealed class OciVariantNode( // TODO private
+private sealed class OciVariantNode(
     val variantResult: ResolvedVariantResult,
     val platformSet: PlatformSet,
 ) {
@@ -121,7 +121,7 @@ sealed class OciVariantNode( // TODO private
     ) : OciVariantNode(variantResult, platformSet)
 }
 
-val ResolvedVariantResult.platformOrUniversalOrMultiple: String // TODO private
+private val ResolvedVariantResult.platformOrUniversalOrMultiple: String
     get() {
         val platformAttribute = attributes.getAttribute(PLATFORM_ATTRIBUTE)
         if (platformAttribute != null) {
@@ -130,7 +130,9 @@ val ResolvedVariantResult.platformOrUniversalOrMultiple: String // TODO private
         return capabilities.first().name.substringAfterLast('@')
     }
 
-fun resolveOciImageSpecs(rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciImageReferenceSpec>>): List<OciImageSpec> { // TODO private
+private fun resolveOciImageSpecs(
+    rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciImageReferenceSpec>>,
+): List<OciImageSpec> {
     val imageSpecs = ArrayList<OciImageSpec>()
     for ((rootNode, referenceSpecs) in rootNodesToReferenceSpecs) {
         for (platform in rootNode.platformSet) {
