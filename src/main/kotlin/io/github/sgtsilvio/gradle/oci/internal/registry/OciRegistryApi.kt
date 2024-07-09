@@ -740,10 +740,6 @@ internal class InsufficientScopesException(
 
 private fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
 
-internal const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
-internal const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
-internal const val DOCKER_CONFIG_MEDIA_TYPE = "application/vnd.docker.container.image.v1+json"
-internal const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.tar.gzip"
 private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
 private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
 private val RESOURCE_SCOPE_PUSH_ACTIONS = setOf("pull", "push")
