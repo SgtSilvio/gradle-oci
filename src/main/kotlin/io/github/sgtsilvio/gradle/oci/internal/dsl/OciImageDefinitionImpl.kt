@@ -89,7 +89,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         isCanBeResolved = false
         attributes.apply {
             attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
             attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
             attribute(PLATFORM_ATTRIBUTE, UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE)
 //            attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
@@ -484,7 +484,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             isCanBeResolved = false
             attributes.apply {
                 attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
                 attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
 //                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
             }
@@ -502,7 +502,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             isCanBeResolved = false
             attributes.apply {
                 attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
                 attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
                 attribute(PLATFORM_ATTRIBUTE, platform.toString())
 //                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))

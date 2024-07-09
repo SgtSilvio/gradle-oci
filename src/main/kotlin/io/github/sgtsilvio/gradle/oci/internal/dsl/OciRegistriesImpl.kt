@@ -94,7 +94,7 @@ internal abstract class OciRegistriesImpl @Inject constructor(
     }
 
     private fun ResolvableDependencies.resolvesOciImages() =
-        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE
+        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) == OCI_IMAGE_DISTRIBUTION_TYPE
 
     private fun beforeResolve() {
         if (list.isNotEmpty()) {
@@ -133,7 +133,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
             artifact()
         }
         content {
-            onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+            onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
         }
     }
 

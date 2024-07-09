@@ -199,9 +199,9 @@ internal class OciRepositoryHandler(
                             addString("name", createOciVariantName(variantName))
                             addObject("attributes") {
                                 addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
+                                addString(PLATFORM_ATTRIBUTE.name, MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
                                 addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
                                 addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
-                                addString(PLATFORM_ATTRIBUTE.name, MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
 //                                addString(Usage.USAGE_ATTRIBUTE.name, "release")
                             }
                             if (capabilities != setOf(componentId)) {
@@ -237,9 +237,9 @@ internal class OciRepositoryHandler(
                                 addString("name", createOciVariantName(variantName, platform))
                                 addObject("attributes") {
                                     addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
+                                    addString(PLATFORM_ATTRIBUTE.name, platform.toString())
                                     addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
                                     addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
-                                    addString(PLATFORM_ATTRIBUTE.name, platform.toString())
 //                                    addString(Usage.USAGE_ATTRIBUTE.name, "release")
                                 }
                                 if (capabilities != setOf(componentId)) {
