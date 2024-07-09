@@ -39,14 +39,14 @@ private data class PlatformImpl(
         if (variant.isNotEmpty() || osVersion.isNotEmpty() || osFeatures.isNotEmpty()) {
             append(',')
             append(variant.escapeReplace(',', '$'))
-        }
-        if (osVersion.isNotEmpty() || osFeatures.isNotEmpty()) {
-            append(',')
-            append(osVersion.escapeReplace(',', '$'))
-        }
-        for (osFeature in osFeatures) {
-            append(',')
-            append(osFeature.escapeReplace(',', '$'))
+            if (osVersion.isNotEmpty() || osFeatures.isNotEmpty()) {
+                append(',')
+                append(osVersion.escapeReplace(',', '$'))
+                for (osFeature in osFeatures) {
+                    append(',')
+                    append(osFeature.escapeReplace(',', '$'))
+                }
+            }
         }
     }
 }
