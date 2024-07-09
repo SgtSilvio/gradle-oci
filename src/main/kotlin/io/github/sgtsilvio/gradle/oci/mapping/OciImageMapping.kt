@@ -83,9 +83,9 @@ internal abstract class OciImageMappingImpl @Inject constructor(
     }
 
     fun getData() = OciImageMappingData(
-        groupMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
-        moduleMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
-        componentMappings.get().mapValuesTo(TreeMap()) { it.value.getData() },
+        groupMappings.get().mapValues { it.value.getData() },
+        moduleMappings.get().mapValues { it.value.getData() },
+        componentMappings.get().mapValues { it.value.getData() },
     )
 
     abstract class VariantSpec : OciImageMapping.VariantSpec, OciImageMapping.VariantSpec.CapabilitySpecs,
@@ -135,7 +135,7 @@ internal abstract class OciImageMappingImpl @Inject constructor(
 
         fun getData() = OciImageMappingData.ComponentSpec(
             OciImageMappingData.VariantSpec(capabilities, imageName, imageTag),
-            featureVariants.mapValuesTo(TreeMap()) { it.value.getData() },
+            featureVariants.mapValues { it.value.getData() },
         )
     }
 
