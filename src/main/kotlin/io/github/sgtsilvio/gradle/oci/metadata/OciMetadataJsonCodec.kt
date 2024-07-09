@@ -1,9 +1,6 @@
-package io.github.sgtsilvio.gradle.oci.component
+package io.github.sgtsilvio.gradle.oci.metadata
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.metadata.GZIP_COMPRESSED_LAYER_MEDIA_TYPE
-import io.github.sgtsilvio.gradle.oci.metadata.getOciDigest
-import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReference
 
 internal fun OciMetadata.encodeToJsonString() = jsonObject { encodeOciMetadata(this@encodeToJsonString) }
 

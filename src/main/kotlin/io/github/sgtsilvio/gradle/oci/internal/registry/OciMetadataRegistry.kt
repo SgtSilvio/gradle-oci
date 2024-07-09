@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
-import io.github.sgtsilvio.gradle.oci.component.OciMetadata
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform

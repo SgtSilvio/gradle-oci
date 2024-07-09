@@ -4,14 +4,50 @@ import io.github.sgtsilvio.gradle.oci.OciImage
 import io.github.sgtsilvio.gradle.oci.OciVariant
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import java.io.Serializable
+import java.time.Instant
 import java.util.*
 
-internal const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
-internal const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
-internal const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
-internal const val LAYER_MEDIA_TYPE_PREFIX = "application/vnd.oci.image.layer.v1"
-internal const val UNCOMPRESSED_LAYER_MEDIA_TYPE = "$LAYER_MEDIA_TYPE_PREFIX.tar"
-internal const val GZIP_COMPRESSED_LAYER_MEDIA_TYPE = "$LAYER_MEDIA_TYPE_PREFIX.tar+gzip"
+/**
+ * @author Silvio Giebl
+ */
+data class OciMetadata(
+    val imageReference: OciImageReference,
+    val creationTime: Instant?,
+    val author: String?,
+    val user: String?,
+    val ports: SortedSet<String>,
+    val environment: SortedMap<String, String>,
+    val entryPoint: List<String>?, // empty (no args) is different from null (not set, inherit)
+    val arguments: List<String>?, // empty (no args) is different from null (not set, inherit)
+    val volumes: SortedSet<String>,
+    val workingDirectory: String?,
+    val stopSignal: String?,
+    val configAnnotations: SortedMap<String, String>,
+    val configDescriptorAnnotations: SortedMap<String, String>,
+    val manifestAnnotations: SortedMap<String, String>,
+    val manifestDescriptorAnnotations: SortedMap<String, String>,
+    val indexAnnotations: SortedMap<String, String>,
+    val layers: List<Layer>,
+) : Serializable {
+
+    data class Layer(
+        val descriptor: Descriptor?,
+        val creationTime: Instant?,
+        val author: String?,
+        val createdBy: String?,
+        val comment: String?,
+    ) : Serializable {
+
+        data class Descriptor(
+            override val mediaType: String,
+            override val digest: OciDigest,
+            override val size: Long,
+            val diffId: OciDigest,
+            override val annotations: SortedMap<String, String>,
+        ) : OciDescriptor, Serializable
+    }
+}
 
 internal fun createConfig(platform: Platform, variants: List<OciVariant>): OciDataDescriptor {
     var user: String? = null

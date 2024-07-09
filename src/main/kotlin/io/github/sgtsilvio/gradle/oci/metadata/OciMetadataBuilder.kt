@@ -1,7 +1,5 @@
-package io.github.sgtsilvio.gradle.oci.component
+package io.github.sgtsilvio.gradle.oci.metadata
 
-import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
-import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import java.io.Serializable
 import java.time.Instant
 
