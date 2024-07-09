@@ -2,7 +2,7 @@ package io.github.sgtsilvio.gradle.oci.component
 
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
-class PlatformSet : Iterable<Platform> {
+internal class PlatformSet : Iterable<Platform> {
     var isInfinite: Boolean private set
     private val set = LinkedHashSet<Platform>() // linked to preserve the platform order
 
