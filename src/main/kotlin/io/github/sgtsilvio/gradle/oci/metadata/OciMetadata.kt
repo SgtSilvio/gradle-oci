@@ -28,10 +28,11 @@ internal fun createConfig(platform: Platform, variants: List<OciVariant>): OciDa
         metadata.user?.let { user = it }
         ports.addAll(metadata.ports)
         environment += metadata.environment
-        metadata.command?.let { command ->
-            command.entryPoint?.let { entryPoint = it }
-            arguments = command.arguments
+        metadata.entryPoint?.let {
+            entryPoint = it
+            arguments = emptyList()
         }
+        metadata.arguments?.let { arguments = it }
         volumes.addAll(metadata.volumes)
         metadata.workingDirectory?.let { workingDirectory = it }
         metadata.stopSignal?.let { stopSignal = it }

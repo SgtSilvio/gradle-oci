@@ -14,9 +14,8 @@ private fun JsonObjectStringBuilder.encodeOciMetadata(metadata: OciMetadata) {
     addStringIfNotNull("user", metadata.user)
     addArrayIfNotEmpty("ports", metadata.ports)
     addObjectIfNotEmpty("environment", metadata.environment)
-    metadata.command?.let { command ->
-        addObject("command") { encodeCommand(command) }
-    }
+    addArrayIfNotNull("entryPoint", metadata.entryPoint)
+    addArrayIfNotNull("arguments", metadata.arguments)
     addArrayIfNotEmpty("volumes", metadata.volumes)
     addStringIfNotNull("workingDirectory", metadata.workingDirectory)
     addStringIfNotNull("stopSignal", metadata.stopSignal)
@@ -26,11 +25,6 @@ private fun JsonObjectStringBuilder.encodeOciMetadata(metadata: OciMetadata) {
     addObjectIfNotEmpty("manifestDescriptorAnnotations", metadata.manifestDescriptorAnnotations)
     addObjectIfNotEmpty("indexAnnotations", metadata.indexAnnotations)
     addArrayIfNotEmpty("layers", metadata.layers) { addObject { encodeLayer(it) } }
-}
-
-private fun JsonObjectStringBuilder.encodeCommand(command: OciMetadata.Command) {
-    addArrayIfNotNull("entryPoint", command.entryPoint)
-    addArray("arguments", command.arguments)
 }
 
 private fun JsonObjectStringBuilder.encodeLayer(layer: OciMetadata.Layer) {
@@ -62,7 +56,8 @@ private fun JsonObject.decodeOciMetadata() = OciMetadata(
     getStringOrNull("user"),
     getStringSetOrEmpty("ports"),
     getStringMapOrEmpty("environment"),
-    getOrNull("command") { asObject().decodeCommand() },
+    getStringListOrNull("entryPoint"),
+    getStringListOrNull("arguments"),
     getStringSetOrEmpty("volumes"),
     getStringOrNull("workingDirectory"),
     getStringOrNull("stopSignal"),
@@ -72,11 +67,6 @@ private fun JsonObject.decodeOciMetadata() = OciMetadata(
     getStringMapOrEmpty("manifestDescriptorAnnotations"),
     getStringMapOrEmpty("indexAnnotations"),
     getOrNull("layers") { asArray().toList { asObject().decodeLayer() } } ?: emptyList(),
-)
-
-private fun JsonObject.decodeCommand() = OciMetadata.Command(
-    getStringListOrNull("entryPoint"),
-    getStringList("arguments"),
 )
 
 private fun JsonObject.decodeLayer() = OciMetadata.Layer(

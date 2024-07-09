@@ -15,7 +15,8 @@ internal class OciMetadataBuilder : Serializable {
     private var user: String? = null
     private var ports: Set<String> = emptySet()
     private var environment: Map<String, String> = emptyMap()
-    private var command: OciMetadata.Command? = null
+    private var entryPoint: List<String>? = null
+    private var arguments: List<String>? = null
     private var volumes: Set<String> = emptySet()
     private var workingDirectory: String? = null
     private var stopSignal: String? = null
@@ -32,7 +33,8 @@ internal class OciMetadataBuilder : Serializable {
     fun user(v: String?) = apply { user = v }
     fun ports(v: Set<String>) = apply { ports = v }
     fun environment(v: Map<String, String>) = apply { environment = v }
-    fun command(v: OciMetadata.Command?) = apply { command = v }
+    fun entryPoint(v: List<String>?) = apply { entryPoint = v }
+    fun arguments(v: List<String>?) = apply { arguments = v }
     fun volumes(v: Set<String>) = apply { volumes = v }
     fun workingDirectory(v: String?) = apply { workingDirectory = v }
     fun stopSignal(v: String?) = apply { stopSignal = v }
@@ -50,7 +52,8 @@ internal class OciMetadataBuilder : Serializable {
         user,
         ports.toSortedSet(),
         environment.toSortedMap(),
-        command,
+        entryPoint,
+        arguments,
         volumes.toSortedSet(),
         workingDirectory,
         stopSignal,
@@ -61,19 +64,6 @@ internal class OciMetadataBuilder : Serializable {
         indexAnnotations.toSortedMap(),
         layers,
     )
-}
-
-internal class OciMetadataCommandBuilder : Serializable {
-    private var entryPoint: List<String>? = null
-    private var arguments: List<String>? = null
-
-    fun entryPoint(v: List<String>?) = apply { entryPoint = v }
-    fun arguments(v: List<String>?) = apply { arguments = v }
-
-    fun build() = when {
-        (entryPoint == null) && (arguments == null) -> null
-        else -> OciMetadata.Command(entryPoint, arguments ?: emptyList())
-    }
 }
 
 internal class OciMetadataLayerBuilder : Serializable {

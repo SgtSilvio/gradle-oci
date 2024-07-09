@@ -280,7 +280,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 .zipAbsentAsNull(config.user, OciMetadataBuilder::user)
                 .zip(config.ports.orElse(emptySet()), OciMetadataBuilder::ports)
                 .zip(config.environment.orElse(emptyMap()), OciMetadataBuilder::environment)
-                .zipAbsentAsNull(createMetadataCommand(providerFactory), OciMetadataBuilder::command)
+                .zipAbsentAsNull(config.entryPoint, OciMetadataBuilder::entryPoint)
+                .zipAbsentAsNull(config.arguments, OciMetadataBuilder::arguments)
                 .zip(config.volumes.orElse(emptySet()), OciMetadataBuilder::volumes)
                 .zipAbsentAsNull(config.workingDirectory, OciMetadataBuilder::workingDirectory)
                 .zipAbsentAsNull(config.stopSignal, OciMetadataBuilder::stopSignal)
@@ -296,12 +297,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 )
                 .zip(imageDefinition.indexAnnotations.orElse(emptyMap()), OciMetadataBuilder::indexAnnotations)
                 .zip(createMetadataLayers(providerFactory), OciMetadataBuilder::layers)
-                .map { it.build() }
-
-        private fun createMetadataCommand(providerFactory: ProviderFactory): Provider<OciMetadata.Command> =
-            providerFactory.provider { OciMetadataCommandBuilder() }
-                .zipAbsentAsNull(config.entryPoint, OciMetadataCommandBuilder::entryPoint)
-                .zipAbsentAsNull(config.arguments, OciMetadataCommandBuilder::arguments)
                 .map { it.build() }
 
         private fun createMetadataLayers(providerFactory: ProviderFactory): Provider<List<OciMetadata.Layer>> =

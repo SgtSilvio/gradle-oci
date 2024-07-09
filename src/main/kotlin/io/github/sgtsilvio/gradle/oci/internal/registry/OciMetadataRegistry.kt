@@ -195,7 +195,8 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
             val architecture = configJsonObject.getString("architecture")
             val author = configJsonObject.getStringOrNull("author")
-            var command: OciMetadata.Command? = null
+            var arguments: List<String>? = null
+            var entryPoint: List<String>? = null
             var environment: SortedMap<String, String> = TreeMap()
             var ports: SortedSet<String> = TreeSet()
             var configAnnotations: SortedMap<String, String> = TreeMap()
@@ -206,9 +207,8 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             configJsonObject.getOrNull("config") {
                 asObject().run {
                     // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
-                    val arguments = getStringListOrNull("Cmd")
-                    val entryPoint = getStringListOrNull("Entrypoint")
-                    command = if ((entryPoint == null) && (arguments == null)) null else OciMetadata.Command(entryPoint, arguments ?: emptyList())
+                    arguments = getStringListOrNull("Cmd")
+                    entryPoint = getStringListOrNull("Entrypoint")
                     environment = getOrNull("Env") {
                         asArray().toMap(TreeMap()) {
                             val environmentString = asString()
@@ -292,7 +292,8 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
                     user,
                     ports,
                     environment,
-                    command,
+                    entryPoint,
+                    arguments,
                     volumes,
                     workingDirectory,
                     stopSignal,

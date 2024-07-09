@@ -17,7 +17,8 @@ data class OciMetadata(
     val user: String?,
     val ports: SortedSet<String>,
     val environment: SortedMap<String, String>,
-    val command: Command?,
+    val entryPoint: List<String>?, // empty (no args) is different from null (not set, inherit)
+    val arguments: List<String>?, // empty (no args) is different from null (not set, inherit)
     val volumes: SortedSet<String>,
     val workingDirectory: String?,
     val stopSignal: String?,
@@ -28,11 +29,6 @@ data class OciMetadata(
     val indexAnnotations: SortedMap<String, String>,
     val layers: List<Layer>,
 ) : Serializable {
-
-    data class Command(
-        val entryPoint: List<String>?, // empty (no args) is different from null (not set, inherit)
-        val arguments: List<String>, // default empty
-    ) : Serializable
 
     data class Layer(
         val descriptor: Descriptor?,
