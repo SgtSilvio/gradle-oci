@@ -1,5 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.internal
 
+import io.github.sgtsilvio.gradle.oci.internal.string.camelCase
+import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
+import io.github.sgtsilvio.gradle.oci.internal.string.concatKebabCase
+import io.github.sgtsilvio.gradle.oci.internal.string.kebabCase
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
 internal fun String.isMain() = this == "main"

@@ -9,6 +9,8 @@ import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.string.escapeReplace
+import io.github.sgtsilvio.gradle.oci.internal.string.unescapeReplace
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.VersionedCoordinates

@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.string
 
 internal fun String.isCamelCase(): Boolean {
     when {

@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.platform
 
-import io.github.sgtsilvio.gradle.oci.internal.escapeReplace
-import io.github.sgtsilvio.gradle.oci.internal.unescapeReplace
+import io.github.sgtsilvio.gradle.oci.internal.string.escapeReplace
+import io.github.sgtsilvio.gradle.oci.internal.string.unescapeReplace
 import java.io.Serializable
 import java.util.*
 

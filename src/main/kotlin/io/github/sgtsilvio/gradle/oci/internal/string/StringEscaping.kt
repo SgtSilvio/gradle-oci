@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.internal
+package io.github.sgtsilvio.gradle.oci.internal.string
 
 internal fun String.escapeReplace(toReplace: Char, escapeChar: Char) =
     replace(escapeChar.toString(), "${escapeChar}0").replace(toReplace.toString(), "${escapeChar}1")

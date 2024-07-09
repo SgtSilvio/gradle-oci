@@ -5,10 +5,12 @@ import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.OciMetadataTask
 import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.attributes.*
-import io.github.sgtsilvio.gradle.oci.component.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.gradle.*
+import io.github.sgtsilvio.gradle.oci.internal.string.camelCase
+import io.github.sgtsilvio.gradle.oci.internal.string.concatKebabCase
+import io.github.sgtsilvio.gradle.oci.internal.string.kebabCase
 import io.github.sgtsilvio.gradle.oci.mapping.defaultMappedImageNamespace
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.AllPlatformFilter
