@@ -1,8 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
-
 /**
  * @author Silvio Giebl
  */

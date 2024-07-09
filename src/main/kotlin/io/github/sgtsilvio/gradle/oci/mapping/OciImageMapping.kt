@@ -1,12 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
 import org.gradle.kotlin.dsl.mapProperty
 import org.gradle.kotlin.dsl.newInstance
-import java.util.*
 import javax.inject.Inject
 
 /**

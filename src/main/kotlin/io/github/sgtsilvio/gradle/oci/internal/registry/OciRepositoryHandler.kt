@@ -3,7 +3,6 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.*
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.json.addArray
@@ -12,6 +11,7 @@ import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
+import io.github.sgtsilvio.gradle.oci.mapping.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.mapping.map
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.netty.handler.codec.http.HttpHeaderNames
