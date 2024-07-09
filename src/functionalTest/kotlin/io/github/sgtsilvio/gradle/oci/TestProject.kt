@@ -130,9 +130,9 @@ internal class TestProject(projectDir: File) {
         assertTrue(metadataJsonFile.exists())
         // https://docs.gradle.org/current/userguide/upgrading_version_7.html#reproducible_archives_can_change_compared_to_past_versions
         val expectedComponentJson = if (isBeforeGradle8) {
-            """{"imageReference":"example/test:1.0.0","command":{"entryPoint":["java","-jar","app.jar"],"arguments":[]},"layers":[{"descriptor":{"digest":"sha256:9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c","size":704,"diffId":"sha256:f8363558d917871ea6722c762b6d4e67b0f2ac3be010ca94e4a74aead327212c"},"createdBy":"gradle-oci: jar"}]}"""
+            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c","size":704,"diffId":"sha256:f8363558d917871ea6722c762b6d4e67b0f2ac3be010ca94e4a74aead327212c"},"createdBy":"gradle-oci: jar"}]}"""
         } else {
-            """{"imageReference":"example/test:1.0.0","command":{"entryPoint":["java","-jar","app.jar"],"arguments":[]},"layers":[{"descriptor":{"digest":"sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0","size":704,"diffId":"sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"},"createdBy":"gradle-oci: jar"}]}"""
+            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0","size":704,"diffId":"sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"},"createdBy":"gradle-oci: jar"}]}"""
         }
         assertEquals(expectedComponentJson, metadataJsonFile.readText())
     }

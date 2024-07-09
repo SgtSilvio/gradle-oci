@@ -122,11 +122,11 @@ internal class PublishMetadataTest {
                 {
                   "name": "test-1.0.0-oci-metadata.json",
                   "url": "test-1.0.0-oci-metadata.json",
-                  "size": 340,
-                  "sha512": "76039898460aeccf8c3ba2d3a2701cdad4a27cc2b3db3859803ebd4e7d8103fa9be0886f7d50eb062f590ee469e8dbc5904611c064efa62915a46e074e0e87a2",
-                  "sha256": "bebfcc67b3fa76940d09733ae48d6eec6499918ddda139b988a17b06fac0771f",
-                  "sha1": "56f38dc5698b851f1faa992d449943c947eb8128",
-                  "md5": "e6744d0ed13dfbb91bff446b09089c48"
+                  "size": 313,
+                  "sha512": "746de5c093ac73f3b6b693f0d2e03c608d54d341eeaa57176b6b5f24653dc277b2f65cdb2912b9abdeaec49092265c0faf4aba44b9c152e7015a8a7719fd9ac9",
+                  "sha256": "3ad109eb16bdf9819d61d2e6a279041de00f063689726491d1325a58249efa90",
+                  "sha1": "21ed0e46e81711a45f1788274e1da164a42d9e94",
+                  "md5": "e6e8f26fe56934656689bc03eef083e1"
                 },
                 {
                   "name": "test-1.0.0-jar-oci-layer.tgz",
