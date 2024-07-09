@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.component
+package io.github.sgtsilvio.gradle.oci.internal.resolution
 
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 

@@ -5,13 +5,13 @@ import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.OciImagesInput
 import io.github.sgtsilvio.gradle.oci.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.attributes.*
-import io.github.sgtsilvio.gradle.oci.component.ArtifactViewComponentFilter
-import io.github.sgtsilvio.gradle.oci.component.resolveOciImageSpecs
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameable
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.internal.resolution.ArtifactViewComponentFilter
+import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImageSpecs
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.component.ComponentIdentifier

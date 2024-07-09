@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.component
+package io.github.sgtsilvio.gradle.oci.internal.resolution
 
 import io.github.sgtsilvio.gradle.oci.DEFAULT_OCI_REFERENCE_SPEC
 import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec

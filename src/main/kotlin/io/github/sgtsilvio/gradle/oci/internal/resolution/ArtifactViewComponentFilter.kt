@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci.component
+package io.github.sgtsilvio.gradle.oci.internal.resolution
 
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedComponentResult
