@@ -23,12 +23,12 @@ import org.gradle.kotlin.dsl.register
 class OciPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        project.dependencies.attributesSchema.attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
-        project.dependencies.attributesSchema.attribute(PLATFORM_ATTRIBUTE)
-        project.dependencies.attributesSchema.attribute(OCI_IMAGE_REFERENCE_ATTRIBUTE)
-        project.dependencies.attributesSchema.getMatchingStrategy(PLATFORM_ATTRIBUTE).compatibilityRules.add(
-            PlatformAttributeCompatibilityRule::class
-        )
+        project.dependencies.attributesSchema.apply {
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
+            attribute(PLATFORM_ATTRIBUTE)
+            getMatchingStrategy(PLATFORM_ATTRIBUTE).compatibilityRules.add(PlatformAttributeCompatibilityRule::class)
+            attribute(OCI_IMAGE_REFERENCE_ATTRIBUTE)
+        }
         val extension = project.extensions.create(OciExtension::class, EXTENSION_NAME, OciExtensionImpl::class)
         registerPushTasks(project, extension)
         project.extensions.create(
