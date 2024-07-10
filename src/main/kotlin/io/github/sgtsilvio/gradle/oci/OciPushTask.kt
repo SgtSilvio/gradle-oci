@@ -136,14 +136,15 @@ abstract class OciPushTask @Inject constructor(
                             }
                         }
                     }
-                    val config = image.config
+                    val config = image.config.data
                     val configDigest = config.digest
                     val sourceBlob = blobs[configDigest]
                     blobFutures += if (sourceBlob == null) {
-                        val bytes = config.data.bytes
+                        val bytes = config.bytes
                         val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(bytes.toMono()) }
                         val future = CompletableFuture<Unit>()
-                        blobs[configDigest] = Blob(configDigest, config.size, sender, imageName, imageName, future)
+                        blobs[configDigest] =
+                            Blob(configDigest, bytes.size.toLong(), sender, imageName, imageName, future)
                         future
                     } else if (sourceBlob.imageName == imageName) {
                         sourceBlob.future
@@ -158,19 +159,16 @@ abstract class OciPushTask @Inject constructor(
                         }
                         future
                     }
-                    val manifest = image.manifest
-                    val manifestDigest = manifest.digest
-                    val manifestMediaType = manifest.mediaType
-                    val manifestBytes = manifest.data.bytes
+                    val manifest = image.manifest.data
                     val manifestFuture = CompletableFuture<Unit>()
                     manifestFutures += manifestFuture
                     CompletableFuture.allOf(*blobFutures.toTypedArray()).thenRun {
                         context.pushService.get().pushManifest(
                             context,
                             imageName,
-                            manifestDigest.toString(),
-                            manifestMediaType,
-                            manifestBytes,
+                            manifest.digest.toString(),
+                            manifest.mediaType,
+                            manifest.bytes,
                             manifestFuture,
                         )
                     }
