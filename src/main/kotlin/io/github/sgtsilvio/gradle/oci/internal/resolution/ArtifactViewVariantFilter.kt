@@ -11,26 +11,25 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-internal class ArtifactViewComponentFilter(
-    private val rootComponentResultProvider: Provider<ResolvedComponentResult>,
-    private val imageSpecsProvider: Provider<List<OciImageSpec>>,
+internal class ArtifactViewVariantFilter(
+    private val rootComponentResult: Provider<ResolvedComponentResult>,
+    private val selectedVariantResults: Provider<Set<ResolvedVariantResult>>,
 ) : Spec<ComponentIdentifier> {
 
     private class State(
         val componentIdToVariantResults: Map<ComponentIdentifier, CyclicIterator<ResolvedVariantResult>>,
-        val selectedVariantResults: Set<ResolvedVariantResult?>,
+        val selectedVariantResults: Set<ResolvedVariantResult>,
     )
 
     private var state: State? = null
 
     private fun getState(): State {
         return state ?: run {
-            val rootComponentResult = rootComponentResultProvider.get()
-            val imageSpecs = imageSpecsProvider.get()
+            val rootComponentResult = rootComponentResult.get()
+            val selectedVariantResults = selectedVariantResults.get()
             val componentIdToVariantResults =
                 rootComponentResult.allComponents.associateByTo(HashMap(), { it.id }) { CyclicIterator(it.variants) }
             componentIdToVariantResults[rootComponentResult.id] = CyclicIterator(rootComponentResult.variants.drop(1))
-            val selectedVariantResults = imageSpecs.flatMapTo(HashSet<ResolvedVariantResult?>()) { it.variants }
             val newState = State(componentIdToVariantResults, selectedVariantResults)
             state = newState
             newState

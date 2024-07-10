@@ -10,7 +10,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameabl
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
-import io.github.sgtsilvio.gradle.oci.internal.resolution.ArtifactViewComponentFilter
+import io.github.sgtsilvio.gradle.oci.internal.resolution.ArtifactViewVariantFilter
 import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImageSpecs
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
@@ -26,6 +26,7 @@ import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
+import java.util.HashSet
 import javax.inject.Inject
 
 /**
@@ -55,7 +56,12 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
         val rootComponentProvider = configuration.incoming.resolutionResult.rootComponent
         val imageSpecsProvider = rootComponentProvider.map(::resolveOciImageSpecs)
         val artifactsResultsProvider = configuration.incoming.artifactView {
-            componentFilter(ArtifactViewComponentFilter(rootComponentProvider, imageSpecsProvider))
+            componentFilter(
+                ArtifactViewVariantFilter(
+                    rootComponentProvider,
+                    imageSpecsProvider.map { imageSpecs -> imageSpecs.flatMapTo(HashSet()) { it.variants } },
+                )
+            )
         }.artifacts.resolvedArtifacts
         // zip or map is not used here because their mapper function is executed after the file contents are available
         //  this mapper function does not read the file contents, so can already be called once the value is available
