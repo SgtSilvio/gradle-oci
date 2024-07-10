@@ -22,8 +22,9 @@ internal data class OciDescriptorImpl(
 internal class OciDataDescriptor(
     override val mediaType: String,
     val data: ByteArray,
+    digestAlgorithm: OciDigestAlgorithm,
     override val annotations: SortedMap<String, String>,
 ) : OciDescriptor {
-    override val digest = data.calculateOciDigest(OciDigestAlgorithm.SHA_256)
+    override val digest = data.calculateOciDigest(digestAlgorithm)
     override val size get() = data.size.toLong()
 }
