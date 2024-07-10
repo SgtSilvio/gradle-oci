@@ -281,29 +281,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 .map { it.build() }
 
         private fun createMetadataLayers(providerFactory: ProviderFactory): Provider<List<OciMetadata.Layer>> =
-            providerFactory.provider {
+            providerFactory.provider { layers.list }.flatMap { layers ->
                 var listProvider = providerFactory.provider { listOf<OciMetadata.Layer>() }
-                for (layer in layers.list) {
+                for (layer in layers) {
                     layer as Layer
                     listProvider = listProvider.zip(layer.createMetadataLayer(providerFactory)) { list, e -> list + e }
                 }
                 listProvider
-            }.flatMap { it }
-
-        private fun TaskContainer.createMetadataTask(
-            imageDefName: String,
-            platform: Platform?,
-            metadata: Provider<OciMetadata>,
-            projectLayout: ProjectLayout,
-        ) = register<OciMetadataTask>(
-            createOciMetadataClassifier(imageDefName).camelCase() + createPlatformPostfix(platform)
-        ) {
-            group = TASK_GROUP_NAME
-            description = "Assembles the metadata json file of the '$imageDefName' OCI image" + if (platform == null) "." else " for the platform $platform"
-            encodedMetadata.set(metadata.map { it.encodeToJsonString() })
-            destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
-            classifier.set(createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform))
-        }
+            }
 
         final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
             configuration.execute(parentImages)
@@ -609,6 +594,19 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             }
         }
     }
+}
+
+private fun TaskContainer.createMetadataTask(
+    imageDefName: String,
+    platform: Platform?,
+    metadata: Provider<OciMetadata>,
+    projectLayout: ProjectLayout,
+) = register<OciMetadataTask>(createOciMetadataClassifier(imageDefName).camelCase() + createPlatformPostfix(platform)) {
+    group = TASK_GROUP_NAME
+    description = "Assembles the metadata json file of the '$imageDefName' OCI image" + if (platform == null) "." else " for the platform $platform"
+    encodedMetadata.set(metadata.map { it.encodeToJsonString() })
+    destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
+    classifier.set(createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform))
 }
 
 private fun TaskContainer.createLayerTask(
