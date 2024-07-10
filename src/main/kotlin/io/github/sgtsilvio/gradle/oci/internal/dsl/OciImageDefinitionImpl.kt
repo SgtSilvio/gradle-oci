@@ -41,7 +41,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     providerFactory: ProviderFactory,
     configurationContainer: ConfigurationContainer,
-    private val project: Project,
+    project: Project,
 ) : OciImageDefinition {
 
     final override val imageName: Property<String> =
@@ -64,7 +64,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
     private var universalBundle: UniversalBundle? = null
     private var platformBundles: LinkedHashMap<Platform, PlatformBundle>? = null // linked because it will be iterated
-    final override val dependency = createDependency()
+    final override val dependency = project.createDependency().requireCapabilities(capabilities.set)
 
     init {
         project.afterEvaluate {
@@ -96,10 +96,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             attribute(PLATFORM_ATTRIBUTE, UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE)
 //            attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
         }
-    }
-
-    private fun createDependency(): Provider<ProjectDependency> = capabilities.set.map { capabilities ->
-        project.createDependency().requireCapabilities(capabilities)
     }
 
     final override fun getName() = name
@@ -157,7 +153,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             bundle = objectFactory.newInstance<PlatformBundle>(this, platform)
             bundles.add(bundle)
             platformBundles[platform] = bundle
-            configuration.dependencies.addLater(bundle.createDependency())
+            configuration.dependencies.addLater(bundle.dependency)
         }
         return bundle
     }
@@ -232,11 +228,12 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             entryPoint.convention(null)
             arguments.convention(null)
         }
-        final override val layers = objectFactory.newInstance<Layers>(imageDefinition.name, Optional.ofNullable(platform))
-        private val metadata = createMetadata(providerFactory) // TODO move metadata(Task) to init, remove fields
-        private val metadataTask = createMetadataTask(imageDefinition.name, taskContainer, projectLayout)
+        final override val layers =
+            objectFactory.newInstance<Layers>(imageDefinition.name, Optional.ofNullable(platform))
 
         init {
+            val metadata = createMetadata(providerFactory)
+            val metadataTask = taskContainer.createMetadataTask(imageDefinition.name, platform, metadata, projectLayout)
             configuration.outgoing.addArtifacts(providerFactory.provider {
                 listOf(LazyPublishArtifact(objectFactory).apply {
                     file.set(metadataTask.flatMap { it.file })
@@ -255,24 +252,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 }
             })
         }
-
-        private fun createMetadataTask(imageDefName: String, taskContainer: TaskContainer, projectLayout: ProjectLayout) =
-            taskContainer.register<OciMetadataTask>(createOciMetadataClassifier(imageDefName).camelCase() + createPlatformPostfix(platform)) {
-                group = TASK_GROUP_NAME
-                description = "Assembles the metadata json file of the '$imageDefName' OCI image" + if (platform == null) "." else " for the platform $platform"
-                encodedMetadata.set(metadata.map { it.encodeToJsonString() })
-                destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
-                classifier.set(createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform))
-            }
-
-        final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
-            configuration.execute(parentImages)
-
-        final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
-            configuration.execute(config)
-
-        final override fun layers(configuration: Action<in OciImageDefinition.Bundle.Layers>) =
-            configuration.execute(layers)
 
         private fun createMetadata(providerFactory: ProviderFactory): Provider<OciMetadata> =
             providerFactory.provider { OciMetadataBuilder() }
@@ -306,12 +285,34 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 var listProvider = providerFactory.provider { listOf<OciMetadata.Layer>() }
                 for (layer in layers.list) {
                     layer as Layer
-                    listProvider = listProvider.zip(layer.createMetadataLayer(providerFactory)) { layers, cLayer ->
-                        layers + cLayer
-                    }
+                    listProvider = listProvider.zip(layer.createMetadataLayer(providerFactory)) { list, e -> list + e }
                 }
                 listProvider
             }.flatMap { it }
+
+        private fun TaskContainer.createMetadataTask(
+            imageDefName: String,
+            platform: Platform?,
+            metadata: Provider<OciMetadata>,
+            projectLayout: ProjectLayout,
+        ) = register<OciMetadataTask>(
+            createOciMetadataClassifier(imageDefName).camelCase() + createPlatformPostfix(platform)
+        ) {
+            group = TASK_GROUP_NAME
+            description = "Assembles the metadata json file of the '$imageDefName' OCI image" + if (platform == null) "." else " for the platform $platform"
+            encodedMetadata.set(metadata.map { it.encodeToJsonString() })
+            destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
+            classifier.set(createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform))
+        }
+
+        final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
+            configuration.execute(parentImages)
+
+        final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
+            configuration.execute(config)
+
+        final override fun layers(configuration: Action<in OciImageDefinition.Bundle.Layers>) =
+            configuration.execute(layers)
 
         abstract class ParentImages @Inject constructor(
             configuration: Configuration,
@@ -468,7 +469,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         imageDefinition: OciImageDefinitionImpl,
         platform: Platform,
         objectFactory: ObjectFactory,
-        private val providerFactory: ProviderFactory,
+        providerFactory: ProviderFactory,
         configurationContainer: ConfigurationContainer,
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
@@ -493,6 +494,9 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         projectLayout,
         project,
     ) {
+        val dependency: Provider<ProjectDependency> = project.createDependency()
+            .requireCapabilities(providerFactory.provider { configuration.outgoing.capabilities })
+
         private val externalConfiguration: Configuration = configurationContainer.create(createOciVariantName(imageDefinition.name, platform)).apply {
             description = "Elements of the '${imageDefinition.name}' OCI image for the platform $platform."
             isCanBeConsumed = true
@@ -504,7 +508,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 attribute(PLATFORM_ATTRIBUTE, platform.toString())
 //                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
             }
-            dependencies.addLater(createDependency())
+            dependencies.addLater(dependency)
         }
 
         fun onAfterEvaluate() {
@@ -517,10 +521,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     configuration.outgoing.capability("${capability.group}:${capability.name}${createPlatformPostfix(platform)}:${capability.version}")
                 }
             }
-        }
-
-        fun createDependency(): Provider<ProjectDependency> = providerFactory.provider {
-            project.createDependency().requireCapabilities(configuration.outgoing.capabilities)
         }
     }
 
