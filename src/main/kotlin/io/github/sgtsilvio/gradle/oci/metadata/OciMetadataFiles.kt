@@ -82,9 +82,7 @@ internal fun createConfig(platform: Platform, variants: List<OciVariant>): OciDa
         addStringIfNotEmpty("variant", platform.variant)
     }.toByteArray()
     return OciDataDescriptor(
-        CONFIG_MEDIA_TYPE,
-        data,
-        OciDigestAlgorithm.SHA_256,
+        OciData(CONFIG_MEDIA_TYPE, data, OciDigestAlgorithm.SHA_256),
         lastVariantMetadata.configDescriptorAnnotations, // TODO lastVariantMetadata?
     )
 }
@@ -106,14 +104,12 @@ internal fun createManifest(configDescriptor: OciDescriptor, variants: List<OciV
         addNumber("schemaVersion", 2)
     }.toByteArray()
     return OciDataDescriptor(
-        MANIFEST_MEDIA_TYPE,
-        data,
-        OciDigestAlgorithm.SHA_256,
+        OciData(MANIFEST_MEDIA_TYPE, data, OciDigestAlgorithm.SHA_256),
         lastVariantMetadata.manifestDescriptorAnnotations, // TODO lastVariantMetadata?
     )
 }
 
-internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciDataDescriptor {
+internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciData {
     val indexAnnotations = TreeMap<String, String>()
     val images = platformToImage.values
     if (images.isNotEmpty()) {
@@ -134,7 +130,7 @@ internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciDataDescr
         addString("mediaType", INDEX_MEDIA_TYPE)
         addNumber("schemaVersion", 2)
     }.toByteArray()
-    return OciDataDescriptor(INDEX_MEDIA_TYPE, data, OciDigestAlgorithm.SHA_256, TreeMap())
+    return OciData(INDEX_MEDIA_TYPE, data, OciDigestAlgorithm.SHA_256)
 }
 
 private fun JsonObjectStringBuilder.encodeOciDescriptor(descriptor: OciDescriptor) {

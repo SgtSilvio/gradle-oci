@@ -32,7 +32,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
     ): Mono<List<Metadata>> = registryApi.pullManifest(registry, imageReference.name, digest, size, credentials)
         .transformToMetadataList(registry, imageReference, credentials)
 
-    private fun Mono<OciRegistryApi.Manifest>.transformToMetadataList(
+    private fun Mono<OciData>.transformToMetadataList(
         registry: String,
         imageReference: OciImageReference,
         credentials: Credentials?,
@@ -43,7 +43,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
     private fun transformToMetadataList(
         registry: String,
         imageReference: OciImageReference,
-        manifest: OciRegistryApi.Manifest,
+        manifest: OciData,
         credentials: Credentials?,
     ): Mono<List<Metadata>> = when (manifest.mediaType) {
         INDEX_MEDIA_TYPE -> transformIndexToMetadataList(
@@ -90,13 +90,13 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
     private fun transformIndexToMetadataList(
         registry: String,
         imageReference: OciImageReference,
-        index: OciRegistryApi.Manifest,
+        index: OciData,
         credentials: Credentials?,
         manifestMediaType: String,
         configMediaType: String,
         layerMediaTypePrefix: String,
     ): Mono<List<Metadata>> {
-        val indexJsonObject = jsonObject(String(index.data))
+        val indexJsonObject = jsonObject(String(index.bytes))
         val indexAnnotations = indexJsonObject.getStringMapOrEmpty("annotations")
         val metadataMonoList = indexJsonObject.get("manifests") {
             asArray().toList {
@@ -142,7 +142,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
     private fun transformManifestToMetadataList(
         registry: String,
         imageReference: OciImageReference,
-        manifest: OciRegistryApi.Manifest,
+        manifest: OciData,
         credentials: Credentials?,
         configMediaType: String,
         layerMediaTypePrefix: String,
@@ -160,14 +160,14 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
     private fun transformManifestToMetadata(
         registry: String,
         imageReference: OciImageReference,
-        manifest: OciRegistryApi.Manifest,
+        manifest: OciData,
         manifestDescriptorAnnotations: SortedMap<String, String>,
         indexAnnotations: SortedMap<String, String>,
         credentials: Credentials?,
         configMediaType: String,
         layerMediaTypePrefix: String,
     ): Mono<Metadata> {
-        val manifestJsonObject = jsonObject(String(manifest.data))
+        val manifestJsonObject = jsonObject(String(manifest.bytes))
         val manifestAnnotations = manifestJsonObject.getStringMapOrEmpty("annotations")
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor() }
         val layerDescriptors =
@@ -294,7 +294,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
                 ),
                 Platform(os, architecture, variant, osVersion, osFeatures),
                 manifest.digest,
-                manifest.data.size,
+                manifest.bytes.size,
             )
         }
     }

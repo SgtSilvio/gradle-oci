@@ -140,10 +140,10 @@ abstract class OciPushTask @Inject constructor(
                     val configDigest = config.digest
                     val sourceBlob = blobs[configDigest]
                     blobFutures += if (sourceBlob == null) {
-                        val size = config.data.size.toLong()
-                        val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(config.data.toMono()) }
+                        val bytes = config.data.bytes
+                        val sender: NettyOutbound.() -> Publisher<Void> = { sendByteArray(bytes.toMono()) }
                         val future = CompletableFuture<Unit>()
-                        blobs[configDigest] = Blob(configDigest, size, sender, imageName, imageName, future)
+                        blobs[configDigest] = Blob(configDigest, config.size, sender, imageName, imageName, future)
                         future
                     } else if (sourceBlob.imageName == imageName) {
                         sourceBlob.future
@@ -161,7 +161,7 @@ abstract class OciPushTask @Inject constructor(
                     val manifest = image.manifest
                     val manifestDigest = manifest.digest
                     val manifestMediaType = manifest.mediaType
-                    val manifestData = manifest.data
+                    val manifestBytes = manifest.data.bytes
                     val manifestFuture = CompletableFuture<Unit>()
                     manifestFutures += manifestFuture
                     CompletableFuture.allOf(*blobFutures.toTypedArray()).thenRun {
@@ -170,7 +170,7 @@ abstract class OciPushTask @Inject constructor(
                             imageName,
                             manifestDigest.toString(),
                             manifestMediaType,
-                            manifestData,
+                            manifestBytes,
                             manifestFuture,
                         )
                     }
@@ -178,9 +178,10 @@ abstract class OciPushTask @Inject constructor(
                 val index = multiArchImage.index
                 for (tag in tags) {
                     val indexMediaType = index.mediaType
-                    val indexData = index.data
+                    val indexBytes = index.bytes
                     CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenRun {
-                        context.pushService.get().pushManifest(context, imageName, tag, indexMediaType, indexData, null)
+                        context.pushService.get()
+                            .pushManifest(context, imageName, tag, indexMediaType, indexBytes, null)
                     }
                 }
             }

@@ -46,7 +46,7 @@ internal val DEFAULT_OCI_REFERENCE_SPEC = OciImageReferenceSpec(null, null)
 
 internal class OciLayer( // TODO internal?
     val descriptor: OciMetadata.Layer.Descriptor,
-    val file: File
+    val file: File,
 )
 
 internal class OciVariant(
@@ -61,7 +61,7 @@ internal class OciImage(
 )
 
 internal class OciMultiArchImage(
-    val index: OciDataDescriptor,
+    val index: OciData,
     val platformToImage: Map<Platform, OciImage>,
 )
 

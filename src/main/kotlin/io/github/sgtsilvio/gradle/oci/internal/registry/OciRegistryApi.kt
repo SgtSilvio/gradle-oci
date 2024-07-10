@@ -98,14 +98,12 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         ) = currentDuration
     }
 
-    class Manifest(val mediaType: String, val data: ByteArray, val digest: OciDigest)
-
     private fun pullManifestInternal(
         registry: String,
         imageName: String,
         reference: String,
         credentials: Credentials?,
-    ): Mono<Manifest> {
+    ): Mono<OciData> {
         return send(
             registry,
             imageName,
@@ -125,7 +123,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                         val digestAlgorithm =
                             response.responseHeaders()["docker-content-digest"]?.toOciDigest()?.algorithm
                                 ?: OciDigestAlgorithm.SHA_256
-                        Manifest(contentType, data, data.calculateOciDigest(digestAlgorithm))
+                        OciData(contentType, data, digestAlgorithm)
                     }
                 } ?: createError(response, body.aggregate())
 
@@ -139,7 +137,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         imageName: String,
         reference: String,
         credentials: Credentials?,
-    ): Mono<Manifest> = when {
+    ): Mono<OciData> = when {
         ':' in reference -> pullManifest(registry, imageName, reference.toOciDigest(), -1, credentials)
         else -> pullManifestInternal(registry, imageName, reference, credentials)
     }
@@ -150,8 +148,8 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<Manifest> = pullManifestInternal(registry, imageName, digest.toString(), credentials).map { manifest ->
-        val manifestBytes = manifest.data
+    ): Mono<OciData> = pullManifestInternal(registry, imageName, digest.toString(), credentials).map { manifest ->
+        val manifestBytes = manifest.bytes
         if ((size != -1) && (size != manifestBytes.size)) {
             throw sizeMismatchException(size.toLong(), manifestBytes.size.toLong())
         }

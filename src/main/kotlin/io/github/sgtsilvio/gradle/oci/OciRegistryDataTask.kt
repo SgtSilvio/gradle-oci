@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.metadata.OciDataDescriptor
+import io.github.sgtsilvio.gradle.oci.metadata.OciData
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import org.gradle.api.file.DirectoryProperty
@@ -32,8 +32,8 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
             blobsDirectory.resolveDigestDataFile(digest).createLinkPointingTo(layerFile.toPath())
         }
         for (image in images) {
-            blobsDirectory.writeDigestData(image.config)
-            blobsDirectory.writeDigestData(image.manifest)
+            blobsDirectory.writeDigestData(image.config.data)
+            blobsDirectory.writeDigestData(image.manifest.data)
         }
         for ((multiArchImage, imageReferences) in multiArchImageAndReferencesPairs) {
             blobsDirectory.writeDigestData(multiArchImage.index)
@@ -74,13 +74,13 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
             .resolve("data")
     }
 
-    private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
-        val digestDataFile = resolveDigestDataFile(dataDescriptor.digest)
+    private fun Path.writeDigestData(data: OciData) {
+        val digestDataFile = resolveDigestDataFile(data.digest)
         try {
-            digestDataFile.writeBytes(dataDescriptor.data, StandardOpenOption.CREATE_NEW)
+            digestDataFile.writeBytes(data.bytes, StandardOpenOption.CREATE_NEW)
         } catch (e: FileAlreadyExistsException) {
-            if (!dataDescriptor.data.contentEquals(digestDataFile.readBytes())) {
-                throw IllegalStateException("hash collision for digest ${dataDescriptor.digest}: expected file content of $digestDataFile to be the same as ${dataDescriptor.data.contentToString()}")
+            if (!data.bytes.contentEquals(digestDataFile.readBytes())) {
+                throw IllegalStateException("hash collision for digest ${data.digest}: expected file content of $digestDataFile to be the same as ${data.bytes.contentToString()}")
             }
         }
     }
