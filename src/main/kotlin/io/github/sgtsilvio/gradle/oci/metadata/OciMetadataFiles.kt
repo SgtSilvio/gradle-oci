@@ -3,10 +3,6 @@ package io.github.sgtsilvio.gradle.oci.metadata
 import io.github.sgtsilvio.gradle.oci.OciImage
 import io.github.sgtsilvio.gradle.oci.OciVariant
 import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.internal.json.JsonObjectStringBuilder
-import io.github.sgtsilvio.gradle.oci.internal.json.addObject
-import io.github.sgtsilvio.gradle.oci.internal.json.addStringIfNotNull
-import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.util.*
 
