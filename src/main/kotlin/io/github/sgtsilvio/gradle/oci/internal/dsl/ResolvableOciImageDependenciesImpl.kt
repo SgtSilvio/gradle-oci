@@ -8,9 +8,9 @@ import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameable
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
+import io.github.sgtsilvio.gradle.oci.internal.gradle.ArtifactViewVariantFilter
 import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
-import io.github.sgtsilvio.gradle.oci.internal.resolution.ArtifactViewVariantFilter
 import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImageSpecs
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
@@ -26,7 +26,6 @@ import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
-import java.util.HashSet
 import javax.inject.Inject
 
 /**
