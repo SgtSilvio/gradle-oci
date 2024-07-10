@@ -175,11 +175,9 @@ abstract class OciPushTask @Inject constructor(
                 }
                 val index = multiArchImage.index
                 for (tag in tags) {
-                    val indexMediaType = index.mediaType
-                    val indexBytes = index.bytes
                     CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenRun {
                         context.pushService.get()
-                            .pushManifest(context, imageName, tag, indexMediaType, indexBytes, null)
+                            .pushManifest(context, imageName, tag, index.mediaType, index.bytes, null)
                     }
                 }
             }
