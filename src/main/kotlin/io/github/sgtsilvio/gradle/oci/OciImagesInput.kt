@@ -77,9 +77,6 @@ abstract class OciImagesInputTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val imageInputs: Set<OciImageInput> = imageInputs.get()
-        // digestToLayerFile map is linked because it will be iterated
-        val digestToLayerFile = LinkedHashMap<OciDigest, File>()
-        val duplicateLayerFiles = HashSet<File>()
         val variantInputToVariant = HashMap<OciVariantInput, OciVariant>()
         val images = ArrayList<OciImage>()
         // referenceToPlatformToImage map is linked because it will be iterated
@@ -87,30 +84,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>()
         for (imageInput in imageInputs) {
             val variants = imageInput.variants.map { variantInput ->
-                variantInputToVariant.getOrPut(variantInput) {
-                    val metadata = variantInput.metadataFile.readText().decodeAsJsonToOciMetadata()
-                    val layerFiles = variantInput.layerFiles
-                    val layers = ArrayList<OciLayer>(layerFiles.size) // TODO fun associateLayerMetadataAndFiles
-                    var layerFileIndex = 0
-                    for (layer in metadata.layers) {
-                        val layerDescriptor = layer.descriptor ?: continue
-                        if (layerFileIndex >= layerFiles.size) {
-                            throw IllegalStateException("count of layer descriptors (${layerFileIndex + 1}+) and layer files (${layerFiles.size}) do not match")
-                        }
-                        val layerFile = layerFiles[layerFileIndex++]
-                        layers += OciLayer(layerDescriptor, layerFile)
-                    }
-                    if (layerFileIndex < layerFiles.size) {
-                        throw IllegalStateException("count of layer descriptors ($layerFileIndex) and layer files (${layerFiles.size}) do not match")
-                    }
-                    for (layer in layers) {
-                        val prevLayerFile = digestToLayerFile.putIfAbsent(layer.descriptor.digest, layer.file)
-                        if ((prevLayerFile != null) && (prevLayerFile != layer.file) && duplicateLayerFiles.add(layer.file)) {
-                            checkDuplicateLayer(layer.descriptor, prevLayerFile, layer.file)
-                        }
-                    }
-                    OciVariant(metadata, layers)
-                }
+                variantInputToVariant.getOrPut(variantInput) { variantInput.toVariant() }
             }
             val config = createConfig(imageInput.platform, variants)
             val manifest = createManifest(config, variants)
@@ -144,7 +118,44 @@ abstract class OciImagesInputTask : DefaultTask() {
             }
             multiArchImageAndReferencesPair.second += reference
         }
+        val digestToLayerFile = collectDigestToLayerFile(images)
         run(digestToLayerFile, images, multiArchImageAndReferencesPairMap.values.toList())
+    }
+
+    private fun OciVariantInput.toVariant(): OciVariant {
+        val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
+        val layerFiles = layerFiles
+        val layers = ArrayList<OciLayer>(layerFiles.size)
+        var layerFileIndex = 0
+        for (layer in metadata.layers) {
+            val layerDescriptor = layer.descriptor ?: continue
+            if (layerFileIndex >= layerFiles.size) {
+                throw IllegalStateException("count of layer descriptors (${layerFileIndex + 1}+) and layer files (${layerFiles.size}) do not match")
+            }
+            val layerFile = layerFiles[layerFileIndex++]
+            layers += OciLayer(layerDescriptor, layerFile)
+        }
+        if (layerFileIndex < layerFiles.size) {
+            throw IllegalStateException("count of layer descriptors ($layerFileIndex) and layer files (${layerFiles.size}) do not match")
+        }
+        return OciVariant(metadata, layers)
+    }
+
+    private fun collectDigestToLayerFile(images: ArrayList<OciImage>): Map<OciDigest, File> {
+        // digestToLayerFile map is linked because it will be iterated
+        val digestToLayerFile = LinkedHashMap<OciDigest, File>()
+        val duplicateLayerFiles = HashSet<File>()
+        for (image in images) {
+            for (variant in image.variants) {
+                for (layer in variant.layers) {
+                    val prevLayerFile = digestToLayerFile.putIfAbsent(layer.descriptor.digest, layer.file)
+                    if ((prevLayerFile != null) && (prevLayerFile != layer.file) && duplicateLayerFiles.add(layer.file)) {
+                        checkDuplicateLayer(layer.descriptor, prevLayerFile, layer.file)
+                    }
+                }
+            }
+        }
+        return digestToLayerFile
     }
 
     internal abstract fun run( // TODO internal? protected?
