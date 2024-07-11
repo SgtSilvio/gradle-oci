@@ -6,26 +6,21 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
-import org.gradle.kotlin.dsl.listProperty
+import org.gradle.kotlin.dsl.setProperty
 import java.io.File
 import java.io.Serializable
 
 /**
  * @author Silvio Giebl
  */
-class OciImagesInput(
-    @get:Nested val variantInputs: List<OciVariantInput>,
-    @get:Nested val imageInputs: List<OciImageInput>,
-)
-
-class OciVariantInput(
+data class OciVariantInput(
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
     @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
 )
 
-class OciImageInput(
+data class OciImageInput(
     @get:Input val platform: Platform,
-    @get:Input val variantIndices: List<Int>, // TODO document must not be empty
+    @get:Nested val variants: List<OciVariantInput>, // TODO document must not be empty
     @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
 )
 
@@ -68,26 +63,28 @@ internal class OciMultiArchImage(
 abstract class OciImagesInputTask : DefaultTask() {
 
     @get:Nested
-    val imagesInputs = project.objects.listProperty<OciImagesInput>()
+    val imageInputs = project.objects.setProperty<OciImageInput>()
 
     init {
         @Suppress("LeakingThis")
-        dependsOn(imagesInputs) // TODO is it intended that nested does not track dependencies?
+        dependsOn(imageInputs)
     }
 
-    fun from(dependencies: ResolvableOciImageDependencies) = imagesInputs.add(dependencies.asInput())
+    fun from(dependencies: ResolvableOciImageDependencies) = imageInputs.addAll(dependencies.asInput())
 
     @TaskAction
     protected fun run() {
-        val imagesInputs: List<OciImagesInput> = imagesInputs.get()
+        val imageInputs: Set<OciImageInput> = imageInputs.get()
         // digestToLayerFile map is linked because it will be iterated
         val digestToLayerFile = LinkedHashMap<OciDigest, File>()
+        val duplicateLayerFiles = HashSet<File>()
         val images = ArrayList<OciImage>()
         // referenceToPlatformToImage map is linked because it will be iterated
         // platformToImage map is linked to preserve the platform order
         val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>()
-        for (imagesInput in imagesInputs) {
-            val variants = imagesInput.variantInputs.map { variantInput ->
+        for (imageInput in imageInputs) {
+            val variants = imageInput.variants.map { variantInput ->
+                // TODO deduplicate variant processing
                 val metadata = variantInput.metadataFile.readText().decodeAsJsonToOciMetadata()
                 val layerFiles = variantInput.layerFiles
                 val layers = ArrayList<OciLayer>(layerFiles.size) // TODO fun associateLayerMetadataAndFiles
@@ -99,41 +96,35 @@ abstract class OciImagesInputTask : DefaultTask() {
                     }
                     val layerFile = layerFiles[layerFileIndex++]
                     layers += OciLayer(layerDescriptor, layerFile)
-                    val prevLayerFile = digestToLayerFile.putIfAbsent(layerDescriptor.digest, layerFile)
-                    if (prevLayerFile != null) {
-                        checkDuplicateLayer(layerDescriptor, prevLayerFile, layerFile)
-                    }
                 }
                 if (layerFileIndex < layerFiles.size) {
                     throw IllegalStateException("count of layer descriptors ($layerFileIndex) and layer files (${layerFiles.size}) do not match")
                 }
+                for (layer in layers) {
+                    val prevLayerFile = digestToLayerFile.putIfAbsent(layer.descriptor.digest, layer.file)
+                    if ((prevLayerFile != null) && (prevLayerFile != layer.file) && duplicateLayerFiles.add(layer.file)) {
+                        checkDuplicateLayer(layer.descriptor, prevLayerFile, layer.file)
+                    }
+                }
                 OciVariant(metadata, layers)
             }
-            for (imageInput in imagesInput.imageInputs) {
-                val imageVariants = imageInput.variantIndices.map { index ->
-                    if (index !in variants.indices) {
-                        throw IllegalStateException("imageInput.variantIndices contains wrong index $index")
-                    }
-                    variants[index]
-                }
-                val config = createConfig(imageInput.platform, imageVariants)
-                val manifest = createManifest(config, imageVariants)
-                val image = OciImage(manifest, config, imageVariants)
-                images += image
+            val config = createConfig(imageInput.platform, variants)
+            val manifest = createManifest(config, variants)
+            val image = OciImage(manifest, config, variants)
+            images += image
 
-                val defaultImageReference = imageVariants.last().metadata.imageReference
-                // imageReferences set is linked because it will be iterated
-                val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) {
-                    OciImageReference(it.name ?: defaultImageReference.name, it.tag ?: defaultImageReference.tag)
-                }.ifEmpty { setOf(defaultImageReference) }
-                val platform = imageInput.platform
-                for (imageReference in imageReferences) {
-                    // platformToImage map is linked to preserve the platform order
-                    val platformToImage = referenceToPlatformToImage.getOrPut(imageReference) { LinkedHashMap() }
-                    val prevImage = platformToImage.putIfAbsent(platform, image)
-                    if (prevImage != null) {
-                        throw IllegalStateException("only one image with platform $platform can be referenced by the same image reference '$imageReference'")
-                    }
+            val defaultImageReference = variants.last().metadata.imageReference
+            // imageReferences set is linked because it will be iterated
+            val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) {
+                OciImageReference(it.name ?: defaultImageReference.name, it.tag ?: defaultImageReference.tag)
+            }.ifEmpty { setOf(defaultImageReference) }
+            val platform = imageInput.platform
+            for (imageReference in imageReferences) {
+                // platformToImage map is linked to preserve the platform order
+                val platformToImage = referenceToPlatformToImage.getOrPut(imageReference) { LinkedHashMap() }
+                val prevImage = platformToImage.putIfAbsent(platform, image)
+                if (prevImage != null) {
+                    throw IllegalStateException("only one image with platform $platform can be referenced by the same image reference '$imageReference'")
                 }
             }
         }
@@ -159,13 +150,11 @@ abstract class OciImagesInputTask : DefaultTask() {
     )
 
     private fun checkDuplicateLayer(layerDescriptor: OciMetadata.Layer.Descriptor, file1: File, file2: File) {
-        if (file1 != file2) {
-            if (!FileUtils.contentEquals(file1, file2)) {
-                throw IllegalStateException("hash collision for digest ${layerDescriptor.digest}: expected file contents of $file1 and $file2 to be the same")
-            }
-            if (layerDescriptor.diffId !in EMPTY_LAYER_DIFF_IDS) {
-                logger.warn("the same layer (${layerDescriptor.digest}) should not be provided by multiple artifacts ($file1, $file2)")
-            }
+        if (!FileUtils.contentEquals(file1, file2)) {
+            throw IllegalStateException("hash collision for digest ${layerDescriptor.digest}: expected file contents of $file1 and $file2 to be the same")
+        }
+        if (layerDescriptor.diffId !in EMPTY_LAYER_DIFF_IDS) {
+            logger.warn("the same layer (${layerDescriptor.digest}) should not be provided by multiple artifacts ($file1, $file2)")
         }
     }
 }
