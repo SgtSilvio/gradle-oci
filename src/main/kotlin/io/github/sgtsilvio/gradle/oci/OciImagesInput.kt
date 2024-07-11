@@ -16,18 +16,18 @@ import java.io.Serializable
 class OciImagesInput(
     @get:Nested val variantInputs: List<OciVariantInput>,
     @get:Nested val imageInputs: List<OciImageInput>,
-) : Serializable
+)
 
 class OciVariantInput(
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
     @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
-) : Serializable
+)
 
 class OciImageInput(
     @get:Input val platform: Platform,
     @get:Input val variantIndices: List<Int>, // TODO document must not be empty
     @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
-) : Serializable
+)
 
 data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializable {
     override fun toString() = (name ?: "") + ":" + (tag ?: "")
