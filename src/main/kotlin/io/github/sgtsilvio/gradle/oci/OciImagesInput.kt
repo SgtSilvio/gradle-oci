@@ -16,9 +16,13 @@ import java.io.Serializable
  */
 data class OciImageInput(
     @get:Input val platform: Platform,
-    @get:Nested val variants: List<OciVariantInput>, // TODO document must not be empty
+    @get:Nested val variants: List<OciVariantInput>,
     @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
-)
+) {
+    init {
+        require(variants.isNotEmpty()) { "variants must not be empty" }
+    }
+}
 
 data class OciVariantInput(
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
@@ -86,7 +90,8 @@ abstract class OciImagesInputTask : DefaultTask() {
             val variants = imageInput.variants.map { variantInput ->
                 variantInputToVariant.getOrPut(variantInput) { variantInput.toVariant() }
             }
-            val config = createConfig(imageInput.platform, variants)
+            val platform = imageInput.platform
+            val config = createConfig(platform, variants)
             val manifest = createManifest(config, variants)
             val image = OciImage(manifest, config, variants)
             images += image
@@ -96,7 +101,6 @@ abstract class OciImagesInputTask : DefaultTask() {
             val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) {
                 OciImageReference(it.name ?: defaultImageReference.name, it.tag ?: defaultImageReference.tag)
             }.ifEmpty { setOf(defaultImageReference) }
-            val platform = imageInput.platform
             for (imageReference in imageReferences) {
                 // platformToImage map is linked to preserve the platform order
                 val platformToImage = referenceToPlatformToImage.getOrPut(imageReference) { LinkedHashMap() }
