@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
-import io.github.sgtsilvio.gradle.oci.OciImageInput
 import org.gradle.api.Named
 import org.gradle.api.provider.Provider
 
@@ -8,8 +7,6 @@ import org.gradle.api.provider.Provider
  * @author Silvio Giebl
  */
 interface ResolvableOciImageDependencies : OciImageDependencies<ResolvableOciImageDependencies.Nameable>, Named {
-
-    fun asInput(): Provider<List<OciImageInput>>
 
     interface Taggable {
         fun tag(vararg tags: String): Taggable
