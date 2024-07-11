@@ -24,7 +24,7 @@ internal fun ResolvableDependencies.resolveOciImageInputs(): Provider<List<OciIm
     // zip or map is not used here because their mapper function is executed after the file contents are available
     //  this mapper function does not read the file contents, so can already be called once the value is available
     //  this allows this mapper function to be run before storing the configuration cache
-    //  apart from performance benefits this also avoids a bug where the artifactsResultsProvider value is different when using the configuration cache
+    //  apart from performance benefits this also avoids a bug where the artifactResultsProvider value is different when using the configuration cache
     return artifactResultsProvider.flatMap { artifactResults ->
         val imageSpecs = imageSpecsProvider.get()
         val variantDescriptorToInput = artifactResults.groupBy({ it.variant.toDescriptor() }) { it.file }
@@ -36,7 +36,7 @@ internal fun ResolvableDependencies.resolveOciImageInputs(): Provider<List<OciIm
                 imageSpec.referenceSpecs,
             )
         }
-        // using map to attach the task dependencies from the artifactsResultsProvider
+        // using map to attach the task dependencies from the artifactResultsProvider
         artifactResultsProvider.map { imageInputs }
     }
 }
