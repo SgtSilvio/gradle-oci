@@ -220,7 +220,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         providerFactory: ProviderFactory,
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
-        project: Project,
+        projectName: String,
     ) : OciImageDefinition.Bundle {
 
         final override val parentImages = objectFactory.newInstance<ParentImages>(configuration)
@@ -237,14 +237,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             configuration.outgoing.addArtifacts(providerFactory.provider {
                 listOf(LazyPublishArtifact(objectFactory).apply {
                     file.set(metadataTask.flatMap { it.file })
-                    name.set(project.name)
+                    name.set(projectName)
                     classifier.set(metadataTask.flatMap { it.classifier })
                     extension.set("json")
                 }) + layers.list.mapNotNull { layer ->
                     (layer as Layer).getTask()?.let { layerTask ->
                         LazyPublishArtifact(objectFactory).apply {
                             file.set(layerTask.flatMap { it.file })
-                            name.set(project.name)
+                            name.set(projectName)
                             classifier.set(layerTask.flatMap { it.classifier })
                             extension.set(layerTask.flatMap { it.extension })
                         }
@@ -447,7 +447,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         providerFactory,
         taskContainer,
         projectLayout,
-        project,
+        project.name,
     )
 
     abstract class PlatformBundle @Inject constructor(
@@ -477,7 +477,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         providerFactory,
         taskContainer,
         projectLayout,
-        project,
+        project.name,
     ) {
         val dependency: Provider<ProjectDependency> = project.createDependency()
             .requireCapabilities(providerFactory.provider { configuration.outgoing.capabilities })
