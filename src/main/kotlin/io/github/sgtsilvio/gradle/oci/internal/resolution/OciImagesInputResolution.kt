@@ -10,7 +10,7 @@ import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.Provider
 
-internal fun ResolvableDependencies.resolveOciImagesInput(): Provider<List<OciImageInput>> {
+internal fun ResolvableDependencies.resolveOciImageInputs(): Provider<List<OciImageInput>> {
     val rootComponentProvider = resolutionResult.rootComponent
     val imageSpecsProvider = rootComponentProvider.map(::resolveOciImageSpecs)
     val artifactResultsProvider = artifactView {
@@ -29,66 +29,6 @@ internal fun ResolvableDependencies.resolveOciImagesInput(): Provider<List<OciIm
         val imageSpecs = imageSpecsProvider.get()
         val variantDescriptorToInput = artifactResults.groupBy({ it.variant.toDescriptor() }) { it.file }
             .mapValues { (_, files) -> OciVariantInput(files.first(), files.drop(1)) }
-
-//        val variantDescriptorToInput = HashMap<VariantDescriptor, OciVariantInput>()
-//        val artifactResultsIterator = artifactResults.iterator()
-//        if (artifactResultsIterator.hasNext()) {
-//            var artifactResult = artifactResultsIterator.next()
-//            outer@ while (true) {
-//                val variantResult = artifactResult.variant
-//                val metadataFile = artifactResult.file
-//                val layerFiles = ArrayList<File>()
-//                while (true) {
-//                    if (!artifactResultsIterator.hasNext()) {
-//                        break@outer
-//                    }
-//                    artifactResult = artifactResultsIterator.next()
-//                    if (artifactResult.variant != variantResult) {
-//                        break
-//                    }
-//                    layerFiles += artifactResult.file
-//                }
-//                variantDescriptorToInput[variantResult.toDescriptor()] = OciVariantInput(metadataFile, layerFiles)
-//            }
-//        }
-
-//        val variantDescriptorToInput = HashMap<VariantDescriptor, OciVariantInput>()
-//        val artifactResultsIterator = artifactResults.iterator()
-//        if (artifactResultsIterator.hasNext()) {
-//            val metadataArtifactResult = artifactResultsIterator.next()
-//            var variantResult = metadataArtifactResult.variant
-//            var metadataFile = metadataArtifactResult.file
-//            var layerFiles = ArrayList<File>()
-//            while (artifactResultsIterator.hasNext()) {
-//                val artifactResult = artifactResultsIterator.next()
-//                if (artifactResult.variant == variantResult) {
-//                    layerFiles += artifactResult.file
-//                } else {
-//                    variantDescriptorToInput[variantResult.toDescriptor()] = OciVariantInput(metadataFile, layerFiles)
-//                    variantResult = artifactResult.variant
-//                    metadataFile = artifactResult.file
-//                    layerFiles = ArrayList()
-//                }
-//            }
-//            variantDescriptorToInput[variantResult.toDescriptor()] = OciVariantInput(metadataFile, layerFiles)
-//        }
-
-//        val variantDescriptorToInput = HashMap<VariantDescriptor, OciVariantInput>()
-//        var metadataArtifactResult: ResolvedArtifactResult? = null
-//        val layerFiles = ArrayList<File>()
-//        for (artifactResult in artifactResults) {
-//            if (artifactResult.variant == metadataArtifactResult?.variant) {
-//                layerFiles += artifactResult.file
-//            } else {
-//                if (metadataArtifactResult != null) {
-//                    variantDescriptorToInput[metadataArtifactResult.variant.toDescriptor()] =
-//                        OciVariantInput(metadataArtifactResult.file, layerFiles.toList())
-//                }
-//                metadataArtifactResult = artifactResult
-//                layerFiles.clear()
-//            }
-//        }
-
         val imageInputs = imageSpecs.map { imageSpec ->
             OciImageInput(
                 imageSpec.platform,

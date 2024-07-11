@@ -13,15 +13,15 @@ import java.io.Serializable
 /**
  * @author Silvio Giebl
  */
-data class OciVariantInput(
-    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
-    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
-)
-
 data class OciImageInput(
     @get:Input val platform: Platform,
     @get:Nested val variants: List<OciVariantInput>, // TODO document must not be empty
     @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
+)
+
+data class OciVariantInput(
+    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
+    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
 )
 
 data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializable {
@@ -39,14 +39,9 @@ internal fun String.toOciImageReferenceSpec(): OciImageReferenceSpec {
 // TODO factory method for OciImageReferenceSpec that returns DEFAULT_OCI_REFERENCE_SPEC if both are null
 internal val DEFAULT_OCI_REFERENCE_SPEC = OciImageReferenceSpec(null, null)
 
-internal class OciLayer( // TODO internal?
-    val descriptor: OciMetadata.Layer.Descriptor,
-    val file: File,
-)
-
-internal class OciVariant(
-    val metadata: OciMetadata,
-    val layers: List<OciLayer>,
+internal class OciMultiArchImage(
+    val index: OciData,
+    val platformToImage: Map<Platform, OciImage>,
 )
 
 internal class OciImage(
@@ -55,9 +50,14 @@ internal class OciImage(
     val variants: List<OciVariant>,
 )
 
-internal class OciMultiArchImage(
-    val index: OciData,
-    val platformToImage: Map<Platform, OciImage>,
+internal class OciVariant(
+    val metadata: OciMetadata,
+    val layers: List<OciLayer>,
+)
+
+internal class OciLayer( // TODO internal?
+    val descriptor: OciMetadata.Layer.Descriptor,
+    val file: File,
 )
 
 abstract class OciImagesInputTask : DefaultTask() {

@@ -7,7 +7,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameabl
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
-import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImagesInput
+import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImageInputs
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
@@ -43,7 +43,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     dependencyHandler,
 ), ResolvableOciImageDependencies {
 
-    final override fun asInput() = configuration.incoming.resolveOciImagesInput()
+    final override fun asInput() = configuration.incoming.resolveOciImageInputs()
 
     final override fun getName() = name
 
