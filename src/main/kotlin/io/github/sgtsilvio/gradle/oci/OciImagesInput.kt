@@ -52,6 +52,7 @@ internal class OciMultiArchImage(
 internal class OciImage(
     val manifest: OciDataDescriptor,
     val config: OciDataDescriptor,
+    val platform: Platform,
     val variants: List<OciVariant>,
 )
 
@@ -81,49 +82,39 @@ abstract class OciImagesInputTask : DefaultTask() {
     @TaskAction
     protected fun run() {
         val imageInputs: Set<OciImageInput> = imageInputs.get()
+        val imageAndReferencesPairs = createImageAndReferencesPairs(imageInputs)
+        val multiArchImageAndReferencesPairs = createMultiArchImageAndReferencesPairs(imageAndReferencesPairs)
+        val images = imageAndReferencesPairs.map { it.first }
+        val digestToLayerFile = collectDigestToLayerFile(images)
+        run(digestToLayerFile, images, multiArchImageAndReferencesPairs)
+    }
+
+    internal abstract fun run( // TODO internal? protected?
+        digestToLayerFile: Map<OciDigest, File>,
+        images: List<OciImage>,
+        multiArchImageAndReferencesPairs: List<Pair<OciMultiArchImage, List<OciImageReference>>>,
+    )
+
+    private fun createImageAndReferencesPairs(
+        imageInputs: Iterable<OciImageInput>,
+    ): List<Pair<OciImage, Set<OciImageReference>>> {
         val variantInputToVariant = HashMap<OciVariantInput, OciVariant>()
-        val images = ArrayList<OciImage>()
-        // referenceToPlatformToImage map is linked because it will be iterated
-        // platformToImage map is linked to preserve the platform order
-        val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>()
-        for (imageInput in imageInputs) {
+        return imageInputs.map { imageInput ->
             val variants = imageInput.variants.map { variantInput ->
                 variantInputToVariant.getOrPut(variantInput) { variantInput.toVariant() }
             }
             val platform = imageInput.platform
             val config = createConfig(platform, variants)
             val manifest = createManifest(config, variants)
-            val image = OciImage(manifest, config, variants)
-            images += image
+            val image = OciImage(manifest, config, platform, variants)
 
             val defaultImageReference = variants.last().metadata.imageReference
             // imageReferences set is linked because it will be iterated
             val imageReferences = imageInput.referenceSpecs.mapTo(LinkedHashSet()) {
                 OciImageReference(it.name ?: defaultImageReference.name, it.tag ?: defaultImageReference.tag)
             }.ifEmpty { setOf(defaultImageReference) }
-            for (imageReference in imageReferences) {
-                // platformToImage map is linked to preserve the platform order
-                val platformToImage = referenceToPlatformToImage.getOrPut(imageReference) { LinkedHashMap() }
-                val prevImage = platformToImage.putIfAbsent(platform, image)
-                if (prevImage != null) {
-                    throw IllegalStateException("only one image with platform $platform can be referenced by the same image reference '$imageReference'")
-                }
-            }
+            Pair(image, imageReferences)
         }
-        // multiArchImageAndReferencesPairMap is linked because it will be iterated
-        val multiArchImageAndReferencesPairMap =
-            LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiArchImage, ArrayList<OciImageReference>>>() // TODO reference non multi arch images?
-        for ((reference, platformToImage) in referenceToPlatformToImage) {
-            var multiArchImageAndReferencesPair = multiArchImageAndReferencesPairMap[platformToImage]
-            if (multiArchImageAndReferencesPair == null) {
-                val index = createIndex(platformToImage)
-                multiArchImageAndReferencesPair = Pair(OciMultiArchImage(index, platformToImage), ArrayList()) // TODO ArrayList
-                multiArchImageAndReferencesPairMap[platformToImage] = multiArchImageAndReferencesPair
-            }
-            multiArchImageAndReferencesPair.second += reference
-        }
-        val digestToLayerFile = collectDigestToLayerFile(images)
-        run(digestToLayerFile, images, multiArchImageAndReferencesPairMap.values.toList())
     }
 
     private fun OciVariantInput.toVariant(): OciVariant {
@@ -145,7 +136,38 @@ abstract class OciImagesInputTask : DefaultTask() {
         return OciVariant(metadata, layers)
     }
 
-    private fun collectDigestToLayerFile(images: ArrayList<OciImage>): Map<OciDigest, File> {
+    private fun createMultiArchImageAndReferencesPairs(
+        imageAndReferencesPairs: Iterable<Pair<OciImage, Set<OciImageReference>>>,
+    ): List<Pair<OciMultiArchImage, List<OciImageReference>>> {
+        // referenceToPlatformToImage map is linked because it will be iterated
+        // platformToImage map is linked to preserve the platform order
+        val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>()
+        for ((image, imageReferences) in imageAndReferencesPairs) {
+            for (imageReference in imageReferences) {
+                // platformToImage map is linked to preserve the platform order
+                val platformToImage = referenceToPlatformToImage.getOrPut(imageReference) { LinkedHashMap() }
+                val prevImage = platformToImage.putIfAbsent(image.platform, image)
+                if (prevImage != null) {
+                    throw IllegalStateException("only one image with platform ${image.platform} can be referenced by the same image reference '$imageReference'")
+                }
+            }
+        }
+        // multiArchImageAndReferencesPairMap is linked because it will be iterated
+        val multiArchImageAndReferencesPairMap =
+            LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiArchImage, ArrayList<OciImageReference>>>() // TODO reference non multi arch images?
+        for ((reference, platformToImage) in referenceToPlatformToImage) {
+            var multiArchImageAndReferencesPair = multiArchImageAndReferencesPairMap[platformToImage]
+            if (multiArchImageAndReferencesPair == null) {
+                val index = createIndex(platformToImage)
+                multiArchImageAndReferencesPair = Pair(OciMultiArchImage(index, platformToImage), ArrayList()) // TODO ArrayList
+                multiArchImageAndReferencesPairMap[platformToImage] = multiArchImageAndReferencesPair
+            }
+            multiArchImageAndReferencesPair.second += reference
+        }
+        return multiArchImageAndReferencesPairMap.values.toList()
+    }
+
+    private fun collectDigestToLayerFile(images: List<OciImage>): Map<OciDigest, File> {
         // digestToLayerFile map is linked because it will be iterated
         val digestToLayerFile = LinkedHashMap<OciDigest, File>()
         val duplicateLayerFiles = HashSet<File>()
@@ -161,12 +183,6 @@ abstract class OciImagesInputTask : DefaultTask() {
         }
         return digestToLayerFile
     }
-
-    internal abstract fun run( // TODO internal? protected?
-        digestToLayerFile: Map<OciDigest, File>,
-        images: List<OciImage>,
-        multiArchImageAndReferencesPairs: List<Pair<OciMultiArchImage, List<OciImageReference>>>,
-    )
 
     private fun checkDuplicateLayer(layerDescriptor: OciMetadata.Layer.Descriptor, file1: File, file2: File) {
         if (!FileUtils.contentEquals(file1, file2)) {
