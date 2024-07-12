@@ -1,14 +1,14 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
-import io.github.sgtsilvio.gradle.oci.DEFAULT_OCI_REFERENCE_SPEC
-import io.github.sgtsilvio.gradle.oci.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.attributes.MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
+import io.github.sgtsilvio.gradle.oci.metadata.DEFAULT_OCI_REFERENCE_SPEC
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
+import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
-import io.github.sgtsilvio.gradle.oci.toOciImageReferenceSpec
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
@@ -180,4 +180,4 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
 }
 
 private fun Set<OciImageReferenceSpec>.normalize(): Set<OciImageReferenceSpec> =
-    if ((size == 1) && (first() == DEFAULT_OCI_REFERENCE_SPEC)) emptySet() else this
+    if ((size == 1) && contains(DEFAULT_OCI_REFERENCE_SPEC)) emptySet() else this
