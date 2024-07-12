@@ -5,10 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
-import io.github.sgtsilvio.gradle.oci.internal.json.addArray
-import io.github.sgtsilvio.gradle.oci.internal.json.addArrayIfNotEmpty
-import io.github.sgtsilvio.gradle.oci.internal.json.addObject
-import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.internal.string.escapeReplace
 import io.github.sgtsilvio.gradle.oci.internal.string.unescapeReplace
 import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
@@ -16,6 +13,7 @@ import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.mapping.map
 import io.github.sgtsilvio.gradle.oci.metadata.*
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpHeaderValues
 import io.netty.handler.codec.http.HttpMethod
@@ -198,92 +196,27 @@ internal class OciRepositoryHandler(
                     for ((variantName, capabilities, metadataList) in variantMetadataList) {
                         addObject {
                             addString("name", createOciVariantName(variantName))
-                            addObject("attributes") {
-                                addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
-                                addString(PLATFORM_ATTRIBUTE.name, MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
-                                addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
-                                addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
-//                                addString(Usage.USAGE_ATTRIBUTE.name, "release")
-                            }
-                            if (capabilities != setOf(componentId)) {
-                                addArrayIfNotEmpty("capabilities", capabilities) { capability ->
-                                    addObject {
-                                        addString("group", capability.group)
-                                        addString("name", capability.name)
-                                        addString("version", capability.version)
-                                    }
-                                }
-                            }
+                            addOciVariantAttributes(MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
+                            addCapabilities("capabilities", capabilities, componentId)
                             addArray("dependencies") {
                                 for ((_, platform) in metadataList) {
-                                    addObject {
-                                        addString("group", componentId.group)
-                                        addString("module", componentId.name)
-                                        addObject("version") {
-                                            addString("requires", componentId.version)
-                                        }
-                                        addArray("requestedCapabilities", capabilities) { capability ->
-                                            addObject {
-                                                addString("group", capability.group)
-                                                addString("name", capability.name + createPlatformPostfix(platform))
-                                                addString("version", capability.version)
-                                            }
-                                        }
-                                    }
+                                    addDependency(componentId, capabilities, platform)
                                 }
                             }
                         }
                         for ((metadata, platform, digest, size) in metadataList) {
                             addObject {
                                 addString("name", createOciVariantName(variantName, platform))
-                                addObject("attributes") {
-                                    addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
-                                    addString(PLATFORM_ATTRIBUTE.name, platform.toString())
-                                    addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
-                                    addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
-//                                    addString(Usage.USAGE_ATTRIBUTE.name, "release")
-                                }
-                                if (capabilities != setOf(componentId)) {
-                                    addArrayIfNotEmpty("capabilities", capabilities) { capability ->
-                                        addObject {
-                                            addString("group", capability.group)
-                                            addString("name", capability.name)
-                                            addString("version", capability.version)
-                                        }
-                                    }
-                                }
+                                addOciVariantAttributes(platform.toString())
+                                addCapabilities("capabilities", capabilities, componentId)
                                 addArray("dependencies") {
-                                    addObject {
-                                        addString("group", componentId.group)
-                                        addString("module", componentId.name)
-                                        addObject("version") {
-                                            addString("requires", componentId.version)
-                                        }
-                                        addArray("requestedCapabilities", capabilities) { capability ->
-                                            addObject {
-                                                addString("group", capability.group)
-                                                addString("name", capability.name + createPlatformPostfix(platform))
-                                                addString("version", capability.version)
-                                            }
-                                        }
-                                    }
+                                    addDependency(componentId, capabilities, platform)
                                 }
                             }
                             addObject {
                                 addString("name", createOciVariantInternalName(variantName, platform))
-                                addObject("attributes") {
-                                    addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
-                                    addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
-                                    addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
-//                                    addString(Usage.USAGE_ATTRIBUTE.name, "release")
-                                }
-                                addArray("capabilities", capabilities) { capability ->
-                                    addObject {
-                                        addString("group", capability.group)
-                                        addString("name", capability.name + createPlatformPostfix(platform))
-                                        addString("version", capability.version)
-                                    }
-                                }
+                                addOciVariantAttributes(null)
+                                addCapabilities("capabilities", capabilities, platform)
                                 addArray("files") {
                                     addObject {
                                         val metadataJson = metadata.encodeToJsonString().toByteArray()
@@ -406,6 +339,55 @@ internal class OciRepositoryHandler(
         }
         return sendByteArray(if (isGetElseHead) dataAfterHeadersAreSet else dataAfterHeadersAreSet.ignoreElement())
     }
+}
+
+private fun JsonObjectStringBuilder.addOciVariantAttributes(platformAttributeValue: String?) = addObject("attributes") {
+    addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
+    addStringIfNotNull(PLATFORM_ATTRIBUTE.name, platformAttributeValue)
+    addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
+    addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
+//    addString(Usage.USAGE_ATTRIBUTE.name, "release")
+}
+
+private fun JsonObjectStringBuilder.addCapabilities(
+    key: String,
+    capabilities: Set<VersionedCoordinates>,
+    componentId: VersionedCoordinates,
+) {
+    if (capabilities != setOf(componentId)) {
+        addCapabilities(key, capabilities, "")
+    }
+}
+
+private fun JsonObjectStringBuilder.addCapabilities(
+    key: String,
+    capabilities: Set<VersionedCoordinates>,
+    platform: Platform,
+) = addCapabilities(key, capabilities, createPlatformPostfix(platform))
+
+private fun JsonObjectStringBuilder.addCapabilities(
+    key: String,
+    capabilities: Set<VersionedCoordinates>,
+    featureName: String,
+) = addArray(key, capabilities) { capability ->
+    addObject {
+        addString("group", capability.group)
+        addString("name", capability.name + featureName)
+        addString("version", capability.version)
+    }
+}
+
+private fun JsonArrayStringBuilder.addDependency(
+    componentId: VersionedCoordinates,
+    capabilities: Set<VersionedCoordinates>,
+    platform: Platform,
+) = addObject {
+    addString("group", componentId.group)
+    addString("module", componentId.name)
+    addObject("version") {
+        addString("requires", componentId.version)
+    }
+    addCapabilities("requestedCapabilities", capabilities, platform)
 }
 
 internal fun String.escapePathSegment() = escapeReplace('/', '$')
