@@ -42,7 +42,7 @@ class OciPlugin : Plugin<Project> {
     private fun registerPushTasks(project: Project, extension: OciExtension) {
         extension.imageDefinitions.all {
             val imageDefName = name
-            val pushName = "push".concatCamelCase(name.mainToEmpty())
+            val pushName = "push".concatCamelCase(imageDefName.mainToEmpty())
             val pushTask = project.tasks.register<OciPushSingleTask>(pushName.concatCamelCase("ociImage"))
             val pushImageDependencies = extension.imageDependencies.create(pushName).apply {
                 add(dependency).name(pushTask.flatMap { it.imageName }).tag(pushTask.flatMap { it.imageTags })

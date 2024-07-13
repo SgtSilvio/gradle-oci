@@ -205,9 +205,9 @@ internal class OciRepositoryHandler(
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}-"
                 addArray("variants") {
-                    for ((variantName, capabilities, imageMetadata) in variantMetadataList) {
+                    for ((imageDefName, capabilities, imageMetadata) in variantMetadataList) {
                         addObject {
-                            addString("name", createOciVariantName(variantName))
+                            addString("name", createOciVariantName(imageDefName))
                             addOciVariantAttributes(MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
                             addCapabilities("capabilities", capabilities, componentId)
                             addArray("dependencies") {
@@ -218,7 +218,7 @@ internal class OciRepositoryHandler(
                         }
                         for ((platform, metadata) in imageMetadata.platformToMetadata) {
                             addObject {
-                                addString("name", createOciVariantName(variantName, platform))
+                                addString("name", createOciVariantName(imageDefName, platform))
                                 addOciVariantAttributes(platform.toString())
                                 addCapabilities("capabilities", capabilities, componentId)
                                 addArray("dependencies") {
@@ -226,13 +226,13 @@ internal class OciRepositoryHandler(
                                 }
                             }
                             addObject {
-                                addString("name", createOciVariantInternalName(variantName, platform))
+                                addString("name", createOciVariantInternalName(imageDefName, platform))
                                 addOciVariantAttributes(null)
                                 addCapabilities("capabilities", capabilities, platform)
                                 addArray("files") {
                                     addObject {
                                         val metadataJson = metadata.encodeToJsonString().toByteArray()
-                                        val metadataName = fileNamePrefix + createOciMetadataClassifier(variantName) + createPlatformPostfix(platform) + ".json"
+                                        val metadataName = fileNamePrefix + createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform) + ".json"
                                         val escapedImageReference = metadata.imageReference.toString().escapePathSegment()
                                         addString("name", metadataName)
                                         addString("url", "$escapedImageReference/${imageMetadata.digest}/${imageMetadata.size}/$platform/$metadataName")

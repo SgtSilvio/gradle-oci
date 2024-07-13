@@ -10,19 +10,19 @@ internal fun String.isMain() = this == "main"
 
 internal fun String.mainToEmpty() = if (isMain()) "" else this
 
-internal fun createOciVariantName(variantName: String): String =
-    variantName.mainToEmpty().camelCase().concatCamelCase("ociImage")
+internal fun createOciVariantName(imageDefName: String): String =
+    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImage")
 
-internal fun createOciVariantName(variantName: String, platform: Platform): String =
-    variantName.mainToEmpty().camelCase().concatCamelCase("ociImage") + createPlatformPostfix(platform)
+internal fun createOciVariantName(imageDefName: String, platform: Platform): String =
+    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImage") + createPlatformPostfix(platform)
 
-internal fun createOciVariantInternalName(variantName: String, platform: Platform): String =
-    variantName.mainToEmpty().camelCase().concatCamelCase("ociImageInternal") + createPlatformPostfix(platform)
+internal fun createOciVariantInternalName(imageDefName: String, platform: Platform): String =
+    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImageInternal") + createPlatformPostfix(platform)
 
-internal fun createOciMetadataClassifier(variantName: String): String =
-    variantName.mainToEmpty().kebabCase().concatKebabCase("oci-metadata")
+internal fun createOciMetadataClassifier(imageDefName: String): String =
+    imageDefName.mainToEmpty().kebabCase().concatKebabCase("oci-metadata")
 
-internal fun createOciLayerClassifier(variantName: String, layerName: String): String =
-    variantName.mainToEmpty().kebabCase().concatKebabCase(layerName.kebabCase()).concatKebabCase("oci-layer")
+internal fun createOciLayerClassifier(imageDefName: String, layerName: String): String =
+    imageDefName.mainToEmpty().kebabCase().concatKebabCase(layerName.kebabCase()).concatKebabCase("oci-layer")
 
 internal fun createPlatformPostfix(platform: Platform?) = if (platform == null) "" else "@$platform"
