@@ -149,7 +149,7 @@ private const val PORT_HTTP_HEADER_NAME = "port"
 internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
     private val httpServers = mutableListOf<DisposableServer>()
     private val loopResources = OciLoopResources.acquire()
-    private val ociMetadataRegistry = OciMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
+    private val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
 
     fun init(port: Int) {
         try {
@@ -163,7 +163,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
 
     fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
         val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
-        val port = addHttpServer(0, OciRepositoryHandler(ociMetadataRegistry, imageMappingData, credentials)).port()
+        val port = addHttpServer(0, OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials)).port()
         registry.repository.credentials(HttpHeaderCredentials::class) {
             name = PORT_HTTP_HEADER_NAME
             value = port.toString()

@@ -47,12 +47,12 @@ import java.util.function.BiFunction
  * @author Silvio Giebl
  */
 internal class OciRepositoryHandler(
-    private val metadataRegistry: OciMetadataRegistry,
+    private val imageMetadataRegistry: OciImageMetadataRegistry,
     private val imageMappingData: OciImageMappingData,
     private val credentials: Credentials?,
 ) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciMetadataRegistry.OciImageMetadata> =
+    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciImageMetadataRegistry.OciImageMetadata> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     private data class ImageMetadataCacheKey(
@@ -272,11 +272,11 @@ internal class OciRepositoryHandler(
         registryUri: URI,
         imageReference: OciImageReference,
         credentials: Credentials?,
-    ): Mono<OciMetadataRegistry.OciImageMetadata> {
+    ): Mono<OciImageMetadataRegistry.OciImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
         ) { key ->
-            metadataRegistry.pullImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
+            imageMetadataRegistry.pullImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
                 imageMetadataCache.asMap().putIfAbsent(
                     key.copy(digest = it.digest, size = it.size),
                     CompletableFuture.completedFuture(it),
@@ -291,11 +291,11 @@ internal class OciRepositoryHandler(
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<OciMetadataRegistry.OciImageMetadata> {
+    ): Mono<OciImageMetadataRegistry.OciImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
         ) { (registry, imageReference) ->
-            metadataRegistry.pullImageMetadata(registry, imageReference, digest, size, credentials)
+            imageMetadataRegistry.pullImageMetadata(registry, imageReference, digest, size, credentials)
         }
     }
 
@@ -307,7 +307,7 @@ internal class OciRepositoryHandler(
         credentials: Credentials?,
         response: HttpServerResponse,
     ): Publisher<Void> = response.send(
-        metadataRegistry.registryApi.pullBlob(
+        imageMetadataRegistry.registryApi.pullBlob(
             registryUri.toString(),
             imageName,
             digest,
@@ -324,7 +324,7 @@ internal class OciRepositoryHandler(
         credentials: Credentials?,
         response: HttpServerResponse,
     ): Publisher<Void> =
-        metadataRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
+        imageMetadataRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
             .flatMap { present -> if (present) response.send() else response.sendNotFound() }
 
     private fun mapLayerMediaTypeToExtension(mediaType: String) = when (mediaType) {

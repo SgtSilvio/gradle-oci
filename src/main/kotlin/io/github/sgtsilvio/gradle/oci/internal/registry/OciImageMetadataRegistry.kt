@@ -11,7 +11,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
+internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
 
     class OciImageMetadata(val platformToMetadata: Map<Platform, OciMetadata>, val digest: OciDigest, val size: Int)
 
