@@ -13,40 +13,40 @@ import java.util.*
  */
 internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
 
-    data class Metadata(val metadata: OciMetadata, val platform: Platform, val digest: OciDigest, val size: Int)
+    class OciImageMetadata(val platformToMetadata: Map<Platform, OciMetadata>, val digest: OciDigest, val size: Int)
 
-    fun pullMetadataList(
+    fun pullImageMetadata(
         registry: String,
         imageReference: OciImageReference,
         credentials: Credentials?,
-    ): Mono<List<Metadata>> =
+    ): Mono<OciImageMetadata> =
         registryApi.pullManifest(registry, imageReference.name, imageReference.tag.replaceFirst('!', ':'), credentials)
-            .transformToMetadataList(registry, imageReference, credentials)
+            .transformToImageMetadata(registry, imageReference, credentials)
 
-    fun pullMetadataList(
+    fun pullImageMetadata(
         registry: String,
         imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<List<Metadata>> = registryApi.pullManifest(registry, imageReference.name, digest, size, credentials)
-        .transformToMetadataList(registry, imageReference, credentials)
+    ): Mono<OciImageMetadata> = registryApi.pullManifest(registry, imageReference.name, digest, size, credentials)
+        .transformToImageMetadata(registry, imageReference, credentials)
 
-    private fun Mono<OciData>.transformToMetadataList(
+    private fun Mono<OciData>.transformToImageMetadata(
         registry: String,
         imageReference: OciImageReference,
         credentials: Credentials?,
-    ): Mono<List<Metadata>> = flatMap { manifest ->
-        transformToMetadataList(registry, imageReference, manifest, credentials)
+    ): Mono<OciImageMetadata> = flatMap { manifest ->
+        transformToImageMetadata(registry, imageReference, manifest, credentials)
     }
 
-    private fun transformToMetadataList(
+    private fun transformToImageMetadata(
         registry: String,
         imageReference: OciImageReference,
         manifest: OciData,
         credentials: Credentials?,
-    ): Mono<List<Metadata>> = when (manifest.mediaType) {
-        INDEX_MEDIA_TYPE -> transformIndexToMetadataList(
+    ): Mono<OciImageMetadata> = when (manifest.mediaType) {
+        INDEX_MEDIA_TYPE -> transformIndexToImageMetadata(
             registry,
             imageReference,
             manifest,
@@ -56,7 +56,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             LAYER_MEDIA_TYPE_PREFIX,
         )
 
-        MANIFEST_MEDIA_TYPE -> transformManifestToMetadataList(
+        MANIFEST_MEDIA_TYPE -> transformManifestToImageMetadata(
             registry,
             imageReference,
             manifest,
@@ -65,7 +65,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             LAYER_MEDIA_TYPE_PREFIX,
         )
 
-        DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToMetadataList(
+        DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToImageMetadata(
             registry,
             imageReference,
             manifest,
@@ -75,7 +75,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
             DOCKER_LAYER_MEDIA_TYPE,
         )
 
-        DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToMetadataList(
+        DOCKER_MANIFEST_MEDIA_TYPE -> transformManifestToImageMetadata(
             registry,
             imageReference,
             manifest,
@@ -87,7 +87,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         else -> throw IllegalStateException("unsupported manifest media type '${manifest.mediaType}'")
     }
 
-    private fun transformIndexToMetadataList(
+    private fun transformIndexToImageMetadata(
         registry: String,
         imageReference: OciImageReference,
         index: OciData,
@@ -95,12 +95,12 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         manifestMediaType: String,
         configMediaType: String,
         layerMediaTypePrefix: String,
-    ): Mono<List<Metadata>> {
+    ): Mono<OciImageMetadata> {
         val indexJsonObject = jsonObject(String(index.bytes))
         val indexAnnotations = indexJsonObject.getStringMapOrEmpty("annotations")
         val metadataMonoList = indexJsonObject.get("manifests") {
             asArray().toList {
-                val (platform, manifestDescriptor) = asObject().decodeOciManifestDescriptor()
+                val (manifestDescriptorPlatform, manifestDescriptor) = asObject().decodeOciManifestDescriptor()
                 if (manifestDescriptor.mediaType != manifestMediaType) { // TODO support nested index
                     Mono.empty()
                 } else {
@@ -112,7 +112,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
                         credentials,
                     ).flatMap { manifest ->
                         if (manifest.mediaType != manifestMediaType) {
-                            throw IllegalArgumentException("media type in manifest descriptor ($manifestMediaType) and manifest (${manifest.mediaType}) do not match")
+                            throw IllegalStateException("media type in manifest descriptor ($manifestMediaType) and manifest (${manifest.mediaType}) do not match")
                         }
                         transformManifestToMetadata(
                             registry,
@@ -124,11 +124,10 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
                             configMediaType,
                             layerMediaTypePrefix,
                         )
-                    }.map { metadata ->
-                        if ((platform != null) && (metadata.platform != platform)) {
-                            throw IllegalArgumentException("platform in manifest descriptor ($platform) and config (${metadata.platform}) do not match")
+                    }.doOnNext { (platform) ->
+                        if ((manifestDescriptorPlatform != null) && (platform != manifestDescriptorPlatform)) {
+                            throw IllegalStateException("platform in manifest descriptor ($manifestDescriptorPlatform) and config ($platform) do not match")
                         }
-                        metadata
                     }
                 }
             }
@@ -136,17 +135,24 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         indexJsonObject.requireStringOrNull("mediaType", index.mediaType)
         indexJsonObject.requireLong("schemaVersion", 2)
         // the same order as in the manifest is guaranteed by mergeSequential
-        return Flux.mergeSequential(metadataMonoList).collectList()
+        return Flux.mergeSequential(metadataMonoList)
+            // linked to preserve the platform order
+            .collect({ LinkedHashMap<Platform, OciMetadata>() }) { map, (platform, metadata) ->
+                if (map.putIfAbsent(platform, metadata) != null) {
+                    throw IllegalStateException("duplicate platform in image index: $platform")
+                }
+            }
+            .map { OciImageMetadata(it, index.digest, index.bytes.size) }
     }
 
-    private fun transformManifestToMetadataList(
+    private fun transformManifestToImageMetadata(
         registry: String,
         imageReference: OciImageReference,
         manifest: OciData,
         credentials: Credentials?,
         configMediaType: String,
         layerMediaTypePrefix: String,
-    ): Mono<List<Metadata>> = transformManifestToMetadata(
+    ): Mono<OciImageMetadata> = transformManifestToMetadata(
         registry,
         imageReference,
         manifest,
@@ -155,7 +161,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         credentials,
         configMediaType,
         layerMediaTypePrefix,
-    ).map { listOf(it) }
+    ).map { OciImageMetadata(mapOf(it), manifest.digest, manifest.bytes.size) }
 
     private fun transformManifestToMetadata(
         registry: String,
@@ -166,7 +172,7 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
         credentials: Credentials?,
         configMediaType: String,
         layerMediaTypePrefix: String,
-    ): Mono<Metadata> {
+    ): Mono<Pair<Platform, OciMetadata>> {
         val manifestJsonObject = jsonObject(String(manifest.bytes))
         val manifestAnnotations = manifestJsonObject.getStringMapOrEmpty("annotations")
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor() }
@@ -272,7 +278,8 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
                 )
             }
 
-            Metadata(
+            Pair(
+                Platform(os, architecture, variant, osVersion, osFeatures),
                 OciMetadata(
                     imageReference,
                     creationTime,
@@ -292,9 +299,6 @@ internal class OciMetadataRegistry(val registryApi: OciRegistryApi) {
                     indexAnnotations,
                     layers,
                 ),
-                Platform(os, architecture, variant, osVersion, osFeatures),
-                manifest.digest,
-                manifest.bytes.size,
             )
         }
     }

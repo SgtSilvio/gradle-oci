@@ -14,6 +14,7 @@ import io.github.sgtsilvio.gradle.oci.mapping.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.mapping.map
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import io.netty.handler.codec.http.HttpHeaderNames
 import io.netty.handler.codec.http.HttpHeaderValues
 import io.netty.handler.codec.http.HttpMethod
@@ -38,7 +39,7 @@ import java.util.function.BiFunction
 /v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-layer
 
 /v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <...>.module
-/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageReference)>/<digest>/<size>/<...>.json
+/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageReference)>/<digest>/<size>/<platform>/<...>.json
 /v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageName)>/<digest>/<size>/<...>oci-layer
  */
 
@@ -51,10 +52,10 @@ internal class OciRepositoryHandler(
     private val credentials: Credentials?,
 ) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private val metadataCache: AsyncCache<ComponentCacheKey, List<OciMetadataRegistry.Metadata>> =
+    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciMetadataRegistry.OciImageMetadata> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
-    private data class ComponentCacheKey(
+    private data class ImageMetadataCacheKey(
         val registry: String,
         val imageReference: OciImageReference,
         val digest: OciDigest?,
@@ -109,7 +110,7 @@ internal class OciRepositoryHandler(
         isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        if (segments.size != 8) {
+        if (segments.size != 9) {
             return response.sendNotFound()
         }
         val imageReference = try {
@@ -127,9 +128,20 @@ internal class OciRepositoryHandler(
         } catch (e: NumberFormatException) {
             return response.sendBadRequest()
         }
-        val metadataJsonMono = getMetadata(registryUri, imageReference, digest, size, credentials).map { (metadata) ->
-            metadata.encodeToJsonString().toByteArray()
+        val platform = try {
+            segments[7].toPlatform()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
         }
+        val metadataJsonMono =
+            getImageMetadata(registryUri, imageReference, digest, size, credentials).handle { imageMetadata, sink ->
+                val metadata = imageMetadata.platformToMetadata[platform]
+                if (metadata == null) {
+                    response.status(400)
+                } else {
+                    sink.next(metadata.encodeToJsonString().toByteArray())
+                }
+            }
         response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
         return response.sendByteArray(metadataJsonMono, isGet)
     }
@@ -176,8 +188,8 @@ internal class OciRepositoryHandler(
     ): Publisher<Void> {
         val componentId = mappedComponent.componentId
         val variantMetadataMonoList = mappedComponent.variants.map { (variantName, variant) ->
-            getMetadataList(registryUri, variant.imageReference, credentials).map { metadataList ->
-                Triple(variantName, variant.capabilities, metadataList)
+            getImageMetadata(registryUri, variant.imageReference, credentials).map { imageMetadata ->
+                Triple(variantName, variant.capabilities, imageMetadata)
             }
         }
         val moduleJsonMono = variantMetadataMonoList.zip { variantMetadataList ->
@@ -193,18 +205,18 @@ internal class OciRepositoryHandler(
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}-"
                 addArray("variants") {
-                    for ((variantName, capabilities, metadataList) in variantMetadataList) {
+                    for ((variantName, capabilities, imageMetadata) in variantMetadataList) {
                         addObject {
                             addString("name", createOciVariantName(variantName))
                             addOciVariantAttributes(MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
                             addCapabilities("capabilities", capabilities, componentId)
                             addArray("dependencies") {
-                                for ((_, platform) in metadataList) {
+                                for (platform in imageMetadata.platformToMetadata.keys) {
                                     addDependency(componentId, capabilities, platform)
                                 }
                             }
                         }
-                        for ((metadata, platform, digest, size) in metadataList) {
+                        for ((platform, metadata) in imageMetadata.platformToMetadata) {
                             addObject {
                                 addString("name", createOciVariantName(variantName, platform))
                                 addOciVariantAttributes(platform.toString())
@@ -223,7 +235,7 @@ internal class OciRepositoryHandler(
                                         val metadataName = fileNamePrefix + createOciMetadataClassifier(variantName) + createPlatformPostfix(platform) + ".json"
                                         val escapedImageReference = metadata.imageReference.toString().escapePathSegment()
                                         addString("name", metadataName)
-                                        addString("url", "$escapedImageReference/$digest/$size/$metadataName")
+                                        addString("url", "$escapedImageReference/${imageMetadata.digest}/${imageMetadata.size}/$platform/$metadataName")
                                         addNumber("size", metadataJson.size.toLong())
                                         addString("sha512", DigestUtils.sha512Hex(metadataJson))
                                         addString("sha256", DigestUtils.sha256Hex(metadataJson))
@@ -256,41 +268,34 @@ internal class OciRepositoryHandler(
         return response.sendByteArray(moduleJsonMono, isGet)
     }
 
-    private fun getMetadataList(
+    private fun getImageMetadata(
         registryUri: URI,
         imageReference: OciImageReference,
         credentials: Credentials?,
-    ): Mono<List<OciMetadataRegistry.Metadata>> {
-        return metadataCache.getMono(
-            ComponentCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
+    ): Mono<OciMetadataRegistry.OciImageMetadata> {
+        return imageMetadataCache.getMono(
+            ImageMetadataCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
         ) { key ->
-            metadataRegistry.pullMetadataList(key.registry, key.imageReference, credentials).doOnNext { metadataList ->
-                for (metadata in metadataList) {
-                    metadataCache.asMap().putIfAbsent(
-                        key.copy(digest = metadata.digest, size = metadata.size),
-                        CompletableFuture.completedFuture(listOf(metadata)),
-                    )
-                }
+            metadataRegistry.pullImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
+                imageMetadataCache.asMap().putIfAbsent(
+                    key.copy(digest = it.digest, size = it.size),
+                    CompletableFuture.completedFuture(it),
+                )
             }
         }
     }
 
-    private fun getMetadata(
+    private fun getImageMetadata(
         registryUri: URI,
         imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<OciMetadataRegistry.Metadata> {
-        return metadataCache.getMono(
-            ComponentCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
+    ): Mono<OciMetadataRegistry.OciImageMetadata> {
+        return imageMetadataCache.getMono(
+            ImageMetadataCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
         ) { (registry, imageReference) ->
-            metadataRegistry.pullMetadataList(registry, imageReference, digest, size, credentials)
-        }.map { metadataList ->
-            if (metadataList.size != 1) {
-                throw IllegalStateException() // TODO message
-            }
-            metadataList[0]
+            metadataRegistry.pullImageMetadata(registry, imageReference, digest, size, credentials)
         }
     }
 
