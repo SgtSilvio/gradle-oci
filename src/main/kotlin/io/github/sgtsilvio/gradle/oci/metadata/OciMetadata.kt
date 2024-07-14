@@ -7,7 +7,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-data class OciMetadata(
+class OciMetadata(
     val imageReference: OciImageReference,
     val creationTime: Instant?,
     val author: String?,
@@ -27,7 +27,7 @@ data class OciMetadata(
     val layers: List<OciLayerMetadata>,
 ) : Serializable
 
-data class OciLayerMetadata(
+class OciLayerMetadata(
     val descriptor: OciLayerDescriptor?,
     val creationTime: Instant?,
     val author: String?,
@@ -35,7 +35,7 @@ data class OciLayerMetadata(
     val comment: String?,
 ) : Serializable
 
-data class OciLayerDescriptor(
+class OciLayerDescriptor(
     override val mediaType: String,
     override val digest: OciDigest,
     override val size: Long,
