@@ -238,46 +238,35 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
             val variant = configJsonObject.getStringOrNull("variant") ?: ""
 
             if (layerDescriptors.size != diffIds.size) {
-                throw IllegalStateException("manifest layers size (${layerDescriptors.size}) does not match config diff_ids size (${diffIds.size})")
+                throw IllegalStateException("count of layers in manifest (${layerDescriptors.size}) and diff_ids in config (${diffIds.size}) do not match")
             }
-            var i = 0
-            val layers = history?.map { historyEntry ->
-                OciLayerMetadata(
-                    if (historyEntry.emptyLayer) null else run {
-                        // TODO index check
-                        val descriptor = layerDescriptors[i]
-                        val diffId = diffIds[i]
-                        i++
-                        OciLayerDescriptor(
-                            normalizeLayerMediaType(descriptor.mediaType),
-                            descriptor.digest,
-                            descriptor.size,
-                            diffId,
-                            descriptor.annotations,
-                        )
-                    },
-                    historyEntry.creationTime,
-                    historyEntry.author,
-                    historyEntry.createdBy,
-                    historyEntry.comment,
-                )
-                // TODO check i == layerDescriptors.size
-            } ?: layerDescriptors.zip(diffIds) { descriptor, diffId ->
-                OciLayerMetadata(
-                    OciLayerDescriptor(
-                        normalizeLayerMediaType(descriptor.mediaType),
-                        descriptor.digest,
-                        descriptor.size,
-                        diffId,
-                        descriptor.annotations,
-                    ),
-                    null,
-                    null,
-                    null,
-                    null,
+            val layerDescriptorsWithDiffIds = layerDescriptors.zip(diffIds) { descriptor, diffId ->
+                OciLayerDescriptor(
+                    normalizeLayerMediaType(descriptor.mediaType),
+                    descriptor.digest,
+                    descriptor.size,
+                    diffId,
+                    descriptor.annotations,
                 )
             }
-
+            val layers = if (history == null) {
+                layerDescriptorsWithDiffIds.map { OciLayerMetadata(it, null, null, null, null) }
+            } else {
+                var i = 0
+                val layers = history.map {
+                    val descriptor = if (it.emptyLayer) null else {
+                        if (i >= layerDescriptorsWithDiffIds.size) {
+                            throw IllegalStateException("count of history entries with empty_layer=true (${i + 1}+) and layer descriptors (${layerDescriptorsWithDiffIds.size}) do not match")
+                        }
+                        layerDescriptorsWithDiffIds[i++]
+                    }
+                    OciLayerMetadata(descriptor, it.creationTime, it.author, it.createdBy, it.comment)
+                }
+                if (i < layerDescriptorsWithDiffIds.size) {
+                    throw IllegalStateException("count of history entries with empty_layer=true ($i) and layer descriptors (${layerDescriptorsWithDiffIds.size}) do not match")
+                }
+                layers
+            }
             Pair(
                 Platform(os, architecture, variant, osVersion, osFeatures),
                 OciMetadata(
