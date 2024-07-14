@@ -3,7 +3,6 @@ package io.github.sgtsilvio.gradle.oci.metadata
 import io.github.sgtsilvio.gradle.oci.internal.json.JsonObject
 import org.apache.commons.codec.binary.Hex
 import java.io.OutputStream
-import java.io.Serializable
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 import kotlin.contracts.ExperimentalContracts
@@ -33,7 +32,7 @@ enum class OciDigestAlgorithm(val id: String, val standardName: String, private 
     internal fun createMessageDigest(): MessageDigest = MessageDigest.getInstance(standardName)
 }
 
-data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) : Serializable {
+data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) {
     val encodedHash get() = algorithm.encode(hash)
 
     init {

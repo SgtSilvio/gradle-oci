@@ -1,12 +1,11 @@
 package io.github.sgtsilvio.gradle.oci.metadata
 
-import java.io.Serializable
 import java.time.Instant
 
 /**
  * @author Silvio Giebl
  */
-internal class OciMetadataBuilder : Serializable {
+internal class OciMetadataBuilder {
     private var imageReference: OciImageReference? = null
     private var creationTime: SerializableInstant? = null
     private var author: String? = null
@@ -64,7 +63,7 @@ internal class OciMetadataBuilder : Serializable {
     )
 }
 
-internal class OciLayerMetadataBuilder : Serializable {
+internal class OciLayerMetadataBuilder {
     private var descriptor: OciLayerDescriptor? = null
     private var creationTime: SerializableInstant? = null
     private var author: String? = null
@@ -80,7 +79,7 @@ internal class OciLayerMetadataBuilder : Serializable {
     fun build() = OciLayerMetadata(descriptor, creationTime?.toInstant(), author, createdBy, comment)
 }
 
-internal class OciLayerDescriptorBuilder : Serializable {
+internal class OciLayerDescriptorBuilder {
     private var mediaType: String? = null
     private var digest: OciDigest? = null
     private var size: Long? = null
@@ -105,7 +104,7 @@ internal class OciLayerDescriptorBuilder : Serializable {
     }
 }
 
-private class SerializableInstant(val epochSecond: Long, val nano: Int) : Serializable
+private class SerializableInstant(val epochSecond: Long, val nano: Int)
 
 private fun Instant.toSerializableInstant() = SerializableInstant(epochSecond, nano)
 

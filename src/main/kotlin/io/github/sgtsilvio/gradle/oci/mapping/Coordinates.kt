@@ -1,11 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import java.io.Serializable
-
 /**
  * @author Silvio Giebl
  */
-internal data class Coordinates(val group: String, val name: String) : Comparable<Coordinates>, Serializable {
+internal data class Coordinates(val group: String, val name: String) : Comparable<Coordinates> {
     override fun compareTo(other: Coordinates): Int {
         group.compareTo(other.group).also { if (it != 0) return it }
         return name.compareTo(other.name)
@@ -17,7 +15,7 @@ internal data class Coordinates(val group: String, val name: String) : Comparabl
 internal data class VersionedCoordinates(
     val coordinates: Coordinates,
     val version: String,
-) : Comparable<VersionedCoordinates>, Serializable {
+) : Comparable<VersionedCoordinates> {
     val group get() = coordinates.group
     val name get() = coordinates.name
 

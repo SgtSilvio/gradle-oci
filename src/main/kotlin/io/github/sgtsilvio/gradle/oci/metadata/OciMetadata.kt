@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.metadata
 
-import java.io.Serializable
 import java.time.Instant
 import java.util.*
 
@@ -25,7 +24,7 @@ class OciMetadata(
     val manifestDescriptorAnnotations: SortedMap<String, String>,
     val indexAnnotations: SortedMap<String, String>,
     val layers: List<OciLayerMetadata>,
-) : Serializable
+)
 
 class OciLayerMetadata(
     val descriptor: OciLayerDescriptor?,
@@ -33,7 +32,7 @@ class OciLayerMetadata(
     val author: String?,
     val createdBy: String?,
     val comment: String?,
-) : Serializable
+)
 
 class OciLayerDescriptor(
     override val mediaType: String,
@@ -41,4 +40,4 @@ class OciLayerDescriptor(
     override val size: Long,
     val diffId: OciDigest,
     override val annotations: SortedMap<String, String>,
-) : OciDescriptor, Serializable
+) : OciDescriptor
