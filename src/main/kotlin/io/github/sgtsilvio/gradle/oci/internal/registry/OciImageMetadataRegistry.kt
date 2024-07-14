@@ -13,7 +13,11 @@ import java.util.*
  */
 internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
 
-    class OciImageMetadata(val platformToMetadata: Map<Platform, OciMetadata>, val digest: OciDigest, val size: Int)
+    class OciImageMetadata(
+        val platformToVariantMetadata: Map<Platform, OciVariantMetadata>,
+        val digest: OciDigest,
+        val size: Int,
+    )
 
     fun pullImageMetadata(
         registry: String,
@@ -98,7 +102,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
     ): Mono<OciImageMetadata> {
         val indexJsonObject = jsonObject(String(index.bytes))
         val indexAnnotations = indexJsonObject.getStringMapOrEmpty("annotations")
-        val metadataMonoList = indexJsonObject.get("manifests") {
+        val platformVariantMetadataMonoList = indexJsonObject.get("manifests") {
             asArray().toList {
                 val (manifestDescriptorPlatform, manifestDescriptor) = asObject().decodeOciManifestDescriptor()
                 if (manifestDescriptor.mediaType != manifestMediaType) { // TODO support nested index
@@ -114,7 +118,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
                         if (manifest.mediaType != manifestMediaType) {
                             throw IllegalStateException("media type in manifest descriptor ($manifestMediaType) and manifest (${manifest.mediaType}) do not match")
                         }
-                        transformManifestToMetadata(
+                        transformManifestToPlatformVariantMetadata(
                             registry,
                             imageReference,
                             manifest,
@@ -135,10 +139,10 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
         indexJsonObject.requireStringOrNull("mediaType", index.mediaType)
         indexJsonObject.requireLong("schemaVersion", 2)
         // the same order as in the manifest is guaranteed by mergeSequential
-        return Flux.mergeSequential(metadataMonoList)
+        return Flux.mergeSequential(platformVariantMetadataMonoList)
             // linked to preserve the platform order
-            .collect({ LinkedHashMap<Platform, OciMetadata>() }) { map, (platform, metadata) ->
-                if (map.putIfAbsent(platform, metadata) != null) {
+            .collect({ LinkedHashMap<Platform, OciVariantMetadata>() }) { map, (platform, variantMetadata) ->
+                if (map.putIfAbsent(platform, variantMetadata) != null) {
                     throw IllegalStateException("duplicate platform in image index: $platform")
                 }
             }
@@ -152,7 +156,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
         credentials: Credentials?,
         configMediaType: String,
         layerMediaTypePrefix: String,
-    ): Mono<OciImageMetadata> = transformManifestToMetadata(
+    ): Mono<OciImageMetadata> = transformManifestToPlatformVariantMetadata(
         registry,
         imageReference,
         manifest,
@@ -163,7 +167,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
         layerMediaTypePrefix,
     ).map { OciImageMetadata(mapOf(it), manifest.digest, manifest.bytes.size) }
 
-    private fun transformManifestToMetadata(
+    private fun transformManifestToPlatformVariantMetadata(
         registry: String,
         imageReference: OciImageReference,
         manifest: OciData,
@@ -172,7 +176,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
         credentials: Credentials?,
         configMediaType: String,
         layerMediaTypePrefix: String,
-    ): Mono<Pair<Platform, OciMetadata>> {
+    ): Mono<Pair<Platform, OciVariantMetadata>> {
         val manifestJsonObject = jsonObject(String(manifest.bytes))
         val manifestAnnotations = manifestJsonObject.getStringMapOrEmpty("annotations")
         val configDescriptor = manifestJsonObject.get("config") { asObject().decodeOciDescriptor() }
@@ -269,7 +273,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
             }
             Pair(
                 Platform(os, architecture, variant, osVersion, osFeatures),
-                OciMetadata(
+                OciVariantMetadata(
                     imageReference,
                     creationTime,
                     author,

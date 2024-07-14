@@ -6,7 +6,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-class OciMetadata(
+class OciVariantMetadata(
     val imageReference: OciImageReference,
     val creationTime: Instant?,
     val author: String?,

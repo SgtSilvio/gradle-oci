@@ -98,13 +98,13 @@ internal class OciRepositoryHandler(
         }
         val last = segments.last()
         return when {
-            last.endsWith(".json") -> getOrHeadMetadata(registryUri, segments, isGet, response)
+            last.endsWith(".json") -> getOrHeadVariantMetadata(registryUri, segments, isGet, response)
             last.endsWith("oci-layer") -> getOrHeadLayer(registryUri, segments, isGet, response)
             else -> response.sendNotFound()
         }
     }
 
-    private fun getOrHeadMetadata(
+    private fun getOrHeadVariantMetadata(
         registryUri: URI,
         segments: List<String>,
         isGet: Boolean,
@@ -133,17 +133,17 @@ internal class OciRepositoryHandler(
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         }
-        val metadataJsonMono =
+        val variantMetadataJsonMono =
             getImageMetadata(registryUri, imageReference, digest, size, credentials).handle { imageMetadata, sink ->
-                val metadata = imageMetadata.platformToMetadata[platform]
-                if (metadata == null) {
+                val variantMetadata = imageMetadata.platformToVariantMetadata[platform]
+                if (variantMetadata == null) {
                     response.status(400)
                 } else {
-                    sink.next(metadata.encodeToJsonString().toByteArray())
+                    sink.next(variantMetadata.encodeToJsonString().toByteArray())
                 }
             }
         response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
-        return response.sendByteArray(metadataJsonMono, isGet)
+        return response.sendByteArray(variantMetadataJsonMono, isGet)
     }
 
     private fun getOrHeadLayer(
@@ -189,7 +189,7 @@ internal class OciRepositoryHandler(
         data class OciImageVariantsMetadata(
             val imageDefName: String,
             val capabilities: Set<VersionedCoordinates>,
-            val platformToMetadata: Map<Platform, OciMetadata>,
+            val platformToVariantMetadata: Map<Platform, OciVariantMetadata>,
             val digest: OciDigest,
             val size: Int,
         )
@@ -199,7 +199,7 @@ internal class OciRepositoryHandler(
                 OciImageVariantsMetadata(
                     imageDefName,
                     variant.capabilities,
-                    imageMetadata.platformToMetadata,
+                    imageMetadata.platformToVariantMetadata,
                     imageMetadata.digest,
                     imageMetadata.size,
                 )
@@ -218,18 +218,18 @@ internal class OciRepositoryHandler(
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}-"
                 addArray("variants") {
-                    for ((imageDefName, capabilities, platformToMetadata, digest, size) in imageVariantsMetadataList) {
+                    for ((imageDefName, capabilities, platformToVariantMetadata, digest, size) in imageVariantsMetadataList) {
                         addObject {
                             addString("name", createOciVariantName(imageDefName))
                             addOciVariantAttributes(MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
                             addCapabilities("capabilities", capabilities, componentId)
                             addArray("dependencies") {
-                                for (platform in platformToMetadata.keys) {
+                                for (platform in platformToVariantMetadata.keys) {
                                     addDependency(componentId, capabilities, platform)
                                 }
                             }
                         }
-                        for ((platform, metadata) in platformToMetadata) {
+                        for ((platform, variantMetadata) in platformToVariantMetadata) {
                             addObject {
                                 addString("name", createOciVariantName(imageDefName, platform))
                                 addOciVariantAttributes(platform.toString())
@@ -244,19 +244,19 @@ internal class OciRepositoryHandler(
                                 addCapabilities("capabilities", capabilities, platform)
                                 addArray("files") {
                                     addObject {
-                                        val metadataJson = metadata.encodeToJsonString().toByteArray()
-                                        val metadataName = fileNamePrefix + createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform) + ".json"
-                                        val escapedImageReference = metadata.imageReference.toString().escapePathSegment()
-                                        addString("name", metadataName)
-                                        addString("url", "$escapedImageReference/$digest/$size/$platform/$metadataName")
-                                        addNumber("size", metadataJson.size.toLong())
-                                        addString("sha512", DigestUtils.sha512Hex(metadataJson))
-                                        addString("sha256", DigestUtils.sha256Hex(metadataJson))
-                                        addString("sha1", DigestUtils.sha1Hex(metadataJson))
-                                        addString("md5", DigestUtils.md5Hex(metadataJson))
+                                        val variantMetadataJson = variantMetadata.encodeToJsonString().toByteArray()
+                                        val variantMetadataName = fileNamePrefix + createOciVariantMetadataClassifier(imageDefName) + createPlatformPostfix(platform) + ".json"
+                                        val escapedImageReference = variantMetadata.imageReference.toString().escapePathSegment()
+                                        addString("name", variantMetadataName)
+                                        addString("url", "$escapedImageReference/$digest/$size/$platform/$variantMetadataName")
+                                        addNumber("size", variantMetadataJson.size.toLong())
+                                        addString("sha512", DigestUtils.sha512Hex(variantMetadataJson))
+                                        addString("sha256", DigestUtils.sha256Hex(variantMetadataJson))
+                                        addString("sha1", DigestUtils.sha1Hex(variantMetadataJson))
+                                        addString("md5", DigestUtils.md5Hex(variantMetadataJson))
                                     }
-                                    val escapedImageName = metadata.imageReference.name.escapePathSegment()
-                                    for (layerMetadata in metadata.layers) {
+                                    val escapedImageName = variantMetadata.imageReference.name.escapePathSegment()
+                                    for (layerMetadata in variantMetadata.layers) {
                                         layerMetadata.descriptor?.let { layerDescriptor ->
                                             addObject {
                                                 val layerDigest = layerDescriptor.digest
