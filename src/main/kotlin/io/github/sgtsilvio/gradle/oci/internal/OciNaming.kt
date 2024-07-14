@@ -14,10 +14,10 @@ internal fun createOciVariantName(imageDefName: String): String =
     imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImage")
 
 internal fun createOciVariantName(imageDefName: String, platform: Platform): String =
-    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImage") + createPlatformPostfix(platform)
+    createOciVariantName(imageDefName) + createPlatformPostfix(platform)
 
 internal fun createOciVariantInternalName(imageDefName: String, platform: Platform): String =
-    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImageInternal") + createPlatformPostfix(platform)
+    createOciVariantName(imageDefName).concatCamelCase("internal") + createPlatformPostfix(platform)
 
 internal fun createOciVariantMetadataClassifier(imageDefName: String): String =
     imageDefName.mainToEmpty().kebabCase().concatKebabCase("oci-metadata")
