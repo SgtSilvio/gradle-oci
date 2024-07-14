@@ -7,9 +7,9 @@ import java.util.*
  * @author Silvio Giebl
  */
 class OciVariantMetadata(
-    val imageReference: OciImageReference,
-    val creationTime: Instant?,
-    val author: String?,
+    val imageReference: OciImageReference, // not inherited
+    val creationTime: Instant?, // not inherited
+    val author: String?, // not inherited
     val user: String?,
     val ports: SortedSet<String>,
     val environment: SortedMap<String, String>,
@@ -19,10 +19,10 @@ class OciVariantMetadata(
     val workingDirectory: String?,
     val stopSignal: String?,
     val configAnnotations: SortedMap<String, String>,
-    val configDescriptorAnnotations: SortedMap<String, String>,
-    val manifestAnnotations: SortedMap<String, String>,
-    val manifestDescriptorAnnotations: SortedMap<String, String>,
-    val indexAnnotations: SortedMap<String, String>,
+    val configDescriptorAnnotations: SortedMap<String, String>, // not inherited
+    val manifestAnnotations: SortedMap<String, String>, // not inherited
+    val manifestDescriptorAnnotations: SortedMap<String, String>, // not inherited
+    val indexAnnotations: SortedMap<String, String>, // not inherited
     val layers: List<OciLayerMetadata>,
 )
 
