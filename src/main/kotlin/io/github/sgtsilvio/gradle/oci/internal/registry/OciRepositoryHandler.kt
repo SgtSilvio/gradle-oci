@@ -256,20 +256,22 @@ internal class OciRepositoryHandler(
                                         addString("md5", DigestUtils.md5Hex(metadataJson))
                                     }
                                     val escapedImageName = metadata.imageReference.name.escapePathSegment()
-                                    for (layerDescriptor in metadata.layers.mapNotNull { it.descriptor }.distinctBy { it.digest }) {
-                                        addObject {
-                                            val layerDigest = layerDescriptor.digest
-                                            val algorithmId = layerDigest.algorithm.id
-                                            val encodedHash = layerDigest.encodedHash
-                                            val layerSize = layerDescriptor.size
-                                            val layerName = fileNamePrefix + createOciLayerClassifier(
-                                                "main",
-                                                algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
-                                            )
-                                            addString("name", layerName + mapLayerMediaTypeToExtension(layerDescriptor.mediaType))
-                                            addString("url", "$escapedImageName/$layerDigest/$layerSize/$layerName")
-                                            addNumber("size", layerSize)
-                                            addString(algorithmId, encodedHash)
+                                    for (layerMetadata in metadata.layers) {
+                                        layerMetadata.descriptor?.let { layerDescriptor ->
+                                            addObject {
+                                                val layerDigest = layerDescriptor.digest
+                                                val algorithmId = layerDigest.algorithm.id
+                                                val encodedHash = layerDigest.encodedHash
+                                                val layerSize = layerDescriptor.size
+                                                val layerName = fileNamePrefix + createOciLayerClassifier(
+                                                    "main",
+                                                    algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
+                                                )
+                                                addString("name", layerName + mapLayerMediaTypeToExtension(layerDescriptor.mediaType))
+                                                addString("url", "$escapedImageName/$layerDigest/$layerSize/$layerName")
+                                                addNumber("size", layerSize)
+                                                addString(algorithmId, encodedHash)
+                                            }
                                         }
                                     }
                                 }
