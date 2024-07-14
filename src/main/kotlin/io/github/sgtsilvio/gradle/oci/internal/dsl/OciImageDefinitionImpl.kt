@@ -277,15 +277,15 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     OciMetadataBuilder::manifestDescriptorAnnotations,
                 )
                 .zip(imageDefinition.indexAnnotations.orElse(emptyMap()), OciMetadataBuilder::indexAnnotations)
-                .zip(createMetadataLayers(providerFactory), OciMetadataBuilder::layers)
+                .zip(createLayerMetadataList(providerFactory), OciMetadataBuilder::layers)
                 .map { it.build() }
 
-        private fun createMetadataLayers(providerFactory: ProviderFactory): Provider<List<OciMetadata.Layer>> =
+        private fun createLayerMetadataList(providerFactory: ProviderFactory): Provider<List<OciLayerMetadata>> =
             providerFactory.provider { layers.list }.flatMap { layers ->
-                var listProvider = providerFactory.provider { listOf<OciMetadata.Layer>() }
+                var listProvider = providerFactory.provider { listOf<OciLayerMetadata>() }
                 for (layer in layers) {
                     layer as Layer
-                    listProvider = listProvider.zip(layer.createMetadataLayer(providerFactory)) { list, e -> list + e }
+                    listProvider = listProvider.zip(layer.createLayerMetadata(providerFactory)) { list, e -> list + e }
                 }
                 listProvider
             }
@@ -407,26 +407,23 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
 
             fun getTask() = externalTask ?: task
 
-            fun createMetadataLayer(providerFactory: ProviderFactory): Provider<OciMetadata.Layer> =
-                providerFactory.provider { OciMetadataLayerBuilder() }
-                    .zipAbsentAsNull(metadata.creationTime, OciMetadataLayerBuilder::creationTime)
-                    .zipAbsentAsNull(metadata.author, OciMetadataLayerBuilder::author)
-                    .zipAbsentAsNull(metadata.createdBy, OciMetadataLayerBuilder::createdBy)
-                    .zipAbsentAsNull(metadata.comment, OciMetadataLayerBuilder::comment)
-                    .zipAbsentAsNull(
-                        createMetadataLayerDescriptor(providerFactory),
-                        OciMetadataLayerBuilder::descriptor,
-                    )
+            fun createLayerMetadata(providerFactory: ProviderFactory): Provider<OciLayerMetadata> =
+                providerFactory.provider { OciLayerMetadataBuilder() }
+                    .zipAbsentAsNull(metadata.creationTime, OciLayerMetadataBuilder::creationTime)
+                    .zipAbsentAsNull(metadata.author, OciLayerMetadataBuilder::author)
+                    .zipAbsentAsNull(metadata.createdBy, OciLayerMetadataBuilder::createdBy)
+                    .zipAbsentAsNull(metadata.comment, OciLayerMetadataBuilder::comment)
+                    .zipAbsentAsNull(createLayerDescriptor(providerFactory), OciLayerMetadataBuilder::descriptor)
                     .map { it.build() }
 
-            private fun createMetadataLayerDescriptor(providerFactory: ProviderFactory): Provider<OciMetadata.Layer.Descriptor> {
+            private fun createLayerDescriptor(providerFactory: ProviderFactory): Provider<OciLayerDescriptor> {
                 val task = providerFactory.provider { getTask() }.flatMap { it }
-                return providerFactory.provider { OciMetadataLayerDescriptorBuilder() }
-                    .zip(metadata.annotations.orElse(emptyMap()), OciMetadataLayerDescriptorBuilder::annotations)
-                    .zipAbsentAsNull(task.flatMap { it.mediaType }, OciMetadataLayerDescriptorBuilder::mediaType)
-                    .zipAbsentAsNull(task.flatMap { it.digest }, OciMetadataLayerDescriptorBuilder::digest)
-                    .zipAbsentAsNull(task.flatMap { it.size }, OciMetadataLayerDescriptorBuilder::size)
-                    .zipAbsentAsNull(task.flatMap { it.diffId }, OciMetadataLayerDescriptorBuilder::diffId)
+                return providerFactory.provider { OciLayerDescriptorBuilder() }
+                    .zip(metadata.annotations.orElse(emptyMap()), OciLayerDescriptorBuilder::annotations)
+                    .zipAbsentAsNull(task.flatMap { it.mediaType }, OciLayerDescriptorBuilder::mediaType)
+                    .zipAbsentAsNull(task.flatMap { it.digest }, OciLayerDescriptorBuilder::digest)
+                    .zipAbsentAsNull(task.flatMap { it.size }, OciLayerDescriptorBuilder::size)
+                    .zipAbsentAsNull(task.flatMap { it.diffId }, OciLayerDescriptorBuilder::diffId)
                     .map { it.build() }
             }
         }

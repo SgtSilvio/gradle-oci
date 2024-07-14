@@ -242,13 +242,13 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
             }
             var i = 0
             val layers = history?.map { historyEntry ->
-                OciMetadata.Layer(
+                OciLayerMetadata(
                     if (historyEntry.emptyLayer) null else run {
                         // TODO index check
                         val descriptor = layerDescriptors[i]
                         val diffId = diffIds[i]
                         i++
-                        OciMetadata.Layer.Descriptor(
+                        OciLayerDescriptor(
                             normalizeLayerMediaType(descriptor.mediaType),
                             descriptor.digest,
                             descriptor.size,
@@ -263,8 +263,8 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
                 )
                 // TODO check i == layerDescriptors.size
             } ?: layerDescriptors.zip(diffIds) { descriptor, diffId ->
-                OciMetadata.Layer(
-                    OciMetadata.Layer.Descriptor(
+                OciLayerMetadata(
+                    OciLayerDescriptor(
                         normalizeLayerMediaType(descriptor.mediaType),
                         descriptor.digest,
                         descriptor.size,

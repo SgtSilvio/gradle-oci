@@ -24,23 +24,21 @@ data class OciMetadata(
     val manifestAnnotations: SortedMap<String, String>,
     val manifestDescriptorAnnotations: SortedMap<String, String>,
     val indexAnnotations: SortedMap<String, String>,
-    val layers: List<Layer>,
-) : Serializable {
+    val layers: List<OciLayerMetadata>,
+) : Serializable
 
-    data class Layer(
-        val descriptor: Descriptor?,
-        val creationTime: Instant?,
-        val author: String?,
-        val createdBy: String?,
-        val comment: String?,
-    ) : Serializable {
+data class OciLayerMetadata(
+    val descriptor: OciLayerDescriptor?,
+    val creationTime: Instant?,
+    val author: String?,
+    val createdBy: String?,
+    val comment: String?,
+) : Serializable
 
-        data class Descriptor(
-            override val mediaType: String,
-            override val digest: OciDigest,
-            override val size: Long,
-            val diffId: OciDigest,
-            override val annotations: SortedMap<String, String>,
-        ) : OciDescriptor, Serializable
-    }
-}
+data class OciLayerDescriptor(
+    override val mediaType: String,
+    override val digest: OciDigest,
+    override val size: Long,
+    val diffId: OciDigest,
+    override val annotations: SortedMap<String, String>,
+) : OciDescriptor, Serializable

@@ -21,12 +21,12 @@ private fun JsonObjectStringBuilder.encodeOciMetadata(metadata: OciMetadata) {
     addObjectIfNotEmpty("manifestAnnotations", metadata.manifestAnnotations)
     addObjectIfNotEmpty("manifestDescriptorAnnotations", metadata.manifestDescriptorAnnotations)
     addObjectIfNotEmpty("indexAnnotations", metadata.indexAnnotations)
-    addArrayIfNotEmpty("layers", metadata.layers) { addObject { encodeLayer(it) } }
+    addArrayIfNotEmpty("layers", metadata.layers) { addObject { encodeOciLayerMetadata(it) } }
 }
 
-private fun JsonObjectStringBuilder.encodeLayer(layer: OciMetadata.Layer) {
+private fun JsonObjectStringBuilder.encodeOciLayerMetadata(layer: OciLayerMetadata) {
     layer.descriptor?.let { descriptor ->
-        addObject("descriptor") { encodeLayerDescriptor(descriptor) }
+        addObject("descriptor") { encodeOciLayerDescriptor(descriptor) }
     }
     addStringIfNotNull("creationTime", layer.creationTime?.toString())
     addStringIfNotNull("author", layer.author)
@@ -34,7 +34,7 @@ private fun JsonObjectStringBuilder.encodeLayer(layer: OciMetadata.Layer) {
     addStringIfNotNull("comment", layer.comment)
 }
 
-private fun JsonObjectStringBuilder.encodeLayerDescriptor(descriptor: OciMetadata.Layer.Descriptor) {
+private fun JsonObjectStringBuilder.encodeOciLayerDescriptor(descriptor: OciLayerDescriptor) {
     if (descriptor.mediaType != GZIP_COMPRESSED_LAYER_MEDIA_TYPE) {
         addString("mediaType", descriptor.mediaType)
     }
@@ -63,18 +63,18 @@ private fun JsonObject.decodeOciMetadata() = OciMetadata(
     getStringMapOrEmpty("manifestAnnotations"),
     getStringMapOrEmpty("manifestDescriptorAnnotations"),
     getStringMapOrEmpty("indexAnnotations"),
-    getOrNull("layers") { asArray().toList { asObject().decodeLayer() } } ?: emptyList(),
+    getOrNull("layers") { asArray().toList { asObject().decodeOciLayerMetadata() } } ?: emptyList(),
 )
 
-private fun JsonObject.decodeLayer() = OciMetadata.Layer(
-    getOrNull("descriptor") { asObject().decodeLayerDescriptor() },
+private fun JsonObject.decodeOciLayerMetadata() = OciLayerMetadata(
+    getOrNull("descriptor") { asObject().decodeOciLayerDescriptor() },
     getInstantOrNull("creationTime"),
     getStringOrNull("author"),
     getStringOrNull("createdBy"),
     getStringOrNull("comment"),
 )
 
-private fun JsonObject.decodeLayerDescriptor() = OciMetadata.Layer.Descriptor(
+private fun JsonObject.decodeOciLayerDescriptor() = OciLayerDescriptor(
     getStringOrNull("metadata") ?: GZIP_COMPRESSED_LAYER_MEDIA_TYPE,
     getOciDigest("digest"),
     getLong("size"),

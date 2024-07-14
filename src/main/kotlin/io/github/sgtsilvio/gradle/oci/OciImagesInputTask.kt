@@ -46,7 +46,7 @@ internal class OciVariant(
 )
 
 internal class OciLayer( // TODO internal?
-    val descriptor: OciMetadata.Layer.Descriptor,
+    val descriptor: OciLayerDescriptor,
     val file: File,
 )
 
@@ -168,7 +168,7 @@ abstract class OciImagesInputTask : DefaultTask() {
         return digestToLayerFile
     }
 
-    private fun checkDuplicateLayer(layerDescriptor: OciMetadata.Layer.Descriptor, file1: File, file2: File) {
+    private fun checkDuplicateLayer(layerDescriptor: OciLayerDescriptor, file1: File, file2: File) {
         if (!FileUtils.contentEquals(file1, file2)) {
             throw IllegalStateException("hash collision for digest ${layerDescriptor.digest}: expected file contents of $file1 and $file2 to be the same")
         }

@@ -23,7 +23,7 @@ internal class OciMetadataBuilder : Serializable {
     private var manifestAnnotations: Map<String, String> = emptyMap()
     private var manifestDescriptorAnnotations: Map<String, String> = emptyMap()
     private var indexAnnotations: Map<String, String> = emptyMap()
-    private var layers: List<OciMetadata.Layer> = emptyList()
+    private var layers: List<OciLayerMetadata> = emptyList()
 
     fun imageReference(v: OciImageReference) = apply { imageReference = v }
     fun creationTime(v: Instant?) = apply { creationTime = v?.toSerializableInstant() }
@@ -41,7 +41,7 @@ internal class OciMetadataBuilder : Serializable {
     fun manifestAnnotations(v: Map<String, String>) = apply { manifestAnnotations = v }
     fun manifestDescriptorAnnotations(v: Map<String, String>) = apply { manifestDescriptorAnnotations = v }
     fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
-    fun layers(v: List<OciMetadata.Layer>) = apply { layers = v }
+    fun layers(v: List<OciLayerMetadata>) = apply { layers = v }
 
     fun build() = OciMetadata(
         imageReference!!,
@@ -64,23 +64,23 @@ internal class OciMetadataBuilder : Serializable {
     )
 }
 
-internal class OciMetadataLayerBuilder : Serializable {
-    private var descriptor: OciMetadata.Layer.Descriptor? = null
+internal class OciLayerMetadataBuilder : Serializable {
+    private var descriptor: OciLayerDescriptor? = null
     private var creationTime: SerializableInstant? = null
     private var author: String? = null
     private var createdBy: String? = null
     private var comment: String? = null
 
-    fun descriptor(v: OciMetadata.Layer.Descriptor?) = apply { descriptor = v }
+    fun descriptor(v: OciLayerDescriptor?) = apply { descriptor = v }
     fun creationTime(v: Instant?) = apply { creationTime = v?.toSerializableInstant() }
     fun author(v: String?) = apply { author = v }
     fun createdBy(v: String?) = apply { createdBy = v }
     fun comment(v: String?) = apply { comment = v }
 
-    fun build() = OciMetadata.Layer(descriptor, creationTime?.toInstant(), author, createdBy, comment)
+    fun build() = OciLayerMetadata(descriptor, creationTime?.toInstant(), author, createdBy, comment)
 }
 
-internal class OciMetadataLayerDescriptorBuilder : Serializable {
+internal class OciLayerDescriptorBuilder : Serializable {
     private var mediaType: String? = null
     private var digest: OciDigest? = null
     private var size: Long? = null
@@ -95,7 +95,7 @@ internal class OciMetadataLayerDescriptorBuilder : Serializable {
 
     fun build() = when {
         (mediaType == null) && (digest == null) && (size == null) && (diffId == null) && annotations.isEmpty() -> null
-        else -> OciMetadata.Layer.Descriptor(
+        else -> OciLayerDescriptor(
             mediaType!!,
             digest!!,
             size!!,
