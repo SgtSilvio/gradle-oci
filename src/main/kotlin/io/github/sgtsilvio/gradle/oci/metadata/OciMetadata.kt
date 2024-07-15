@@ -6,7 +6,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-class OciVariantMetadata(
+class OciMetadata(
     val imageReference: OciImageReference, // not inherited
     val creationTime: Instant?, // not inherited
     val author: String?, // not inherited

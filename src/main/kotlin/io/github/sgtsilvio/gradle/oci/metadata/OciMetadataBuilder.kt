@@ -5,7 +5,7 @@ import java.time.Instant
 /**
  * @author Silvio Giebl
  */
-internal class OciVariantMetadataBuilder {
+internal class OciMetadataBuilder {
     private var imageReference: OciImageReference? = null
     private var creationTime: SerializableInstant? = null
     private var author: String? = null
@@ -42,7 +42,7 @@ internal class OciVariantMetadataBuilder {
     fun indexAnnotations(v: Map<String, String>) = apply { indexAnnotations = v }
     fun layers(v: List<OciLayerMetadata>) = apply { layers = v }
 
-    fun build() = OciVariantMetadata(
+    fun build() = OciMetadata(
         imageReference!!,
         creationTime?.toInstant(),
         author,

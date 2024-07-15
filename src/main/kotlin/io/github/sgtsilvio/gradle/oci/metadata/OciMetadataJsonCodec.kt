@@ -2,9 +2,9 @@ package io.github.sgtsilvio.gradle.oci.metadata
 
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 
-internal fun OciVariantMetadata.encodeToJsonString() = jsonObject { encodeOciVariantMetadata(this@encodeToJsonString) }
+internal fun OciMetadata.encodeToJsonString() = jsonObject { encodeOciMetadata(this@encodeToJsonString) }
 
-private fun JsonObjectStringBuilder.encodeOciVariantMetadata(metadata: OciVariantMetadata) {
+private fun JsonObjectStringBuilder.encodeOciMetadata(metadata: OciMetadata) {
     addString("imageReference", metadata.imageReference.toString())
     addStringIfNotNull("creationTime", metadata.creationTime?.toString())
     addStringIfNotNull("author", metadata.author)
@@ -44,9 +44,9 @@ private fun JsonObjectStringBuilder.encodeOciLayerDescriptor(descriptor: OciLaye
     addObjectIfNotEmpty("annotations", descriptor.annotations)
 }
 
-internal fun String.decodeAsJsonToOciVariantMetadata() = jsonObject(this).decodeOciVariantMetadata()
+internal fun String.decodeAsJsonToOciMetadata() = jsonObject(this).decodeOciMetadata()
 
-private fun JsonObject.decodeOciVariantMetadata() = OciVariantMetadata(
+private fun JsonObject.decodeOciMetadata() = OciMetadata(
     get("imageReference") { asString().toOciImageReference() },
     getInstantOrNull("creationTime"),
     getStringOrNull("author"),

@@ -2,7 +2,7 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
-import io.github.sgtsilvio.gradle.oci.OciVariantMetadataTask
+import io.github.sgtsilvio.gradle.oci.OciMetadataTask
 import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
@@ -232,9 +232,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             objectFactory.newInstance<Layers>(imageDefinition.name, Optional.ofNullable(platform))
 
         init {
-            val metadata = createVariantMetadata(providerFactory)
-            val metadataTask =
-                taskContainer.createVariantMetadataTask(imageDefinition.name, platform, metadata, projectLayout)
+            val metadata = createMetadata(providerFactory)
+            val metadataTask = taskContainer.createMetadataTask(imageDefinition.name, platform, metadata, projectLayout)
             configuration.outgoing.addArtifacts(providerFactory.provider {
                 listOf(LazyPublishArtifact(objectFactory).apply {
                     file.set(metadataTask.flatMap { it.file })
@@ -254,31 +253,31 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             })
         }
 
-        private fun createVariantMetadata(providerFactory: ProviderFactory): Provider<OciVariantMetadata> =
-            providerFactory.provider { OciVariantMetadataBuilder() }
-                .zip(imageDefinition.imageReference, OciVariantMetadataBuilder::imageReference)
-                .zipAbsentAsNull(config.creationTime, OciVariantMetadataBuilder::creationTime)
-                .zipAbsentAsNull(config.author, OciVariantMetadataBuilder::author)
-                .zipAbsentAsNull(config.user, OciVariantMetadataBuilder::user)
-                .zip(config.ports.orElse(emptySet()), OciVariantMetadataBuilder::ports)
-                .zip(config.environment.orElse(emptyMap()), OciVariantMetadataBuilder::environment)
-                .zipAbsentAsNull(config.entryPoint, OciVariantMetadataBuilder::entryPoint)
-                .zipAbsentAsNull(config.arguments, OciVariantMetadataBuilder::arguments)
-                .zip(config.volumes.orElse(emptySet()), OciVariantMetadataBuilder::volumes)
-                .zipAbsentAsNull(config.workingDirectory, OciVariantMetadataBuilder::workingDirectory)
-                .zipAbsentAsNull(config.stopSignal, OciVariantMetadataBuilder::stopSignal)
-                .zip(config.configAnnotations.orElse(emptyMap()), OciVariantMetadataBuilder::configAnnotations)
+        private fun createMetadata(providerFactory: ProviderFactory): Provider<OciMetadata> =
+            providerFactory.provider { OciMetadataBuilder() }
+                .zip(imageDefinition.imageReference, OciMetadataBuilder::imageReference)
+                .zipAbsentAsNull(config.creationTime, OciMetadataBuilder::creationTime)
+                .zipAbsentAsNull(config.author, OciMetadataBuilder::author)
+                .zipAbsentAsNull(config.user, OciMetadataBuilder::user)
+                .zip(config.ports.orElse(emptySet()), OciMetadataBuilder::ports)
+                .zip(config.environment.orElse(emptyMap()), OciMetadataBuilder::environment)
+                .zipAbsentAsNull(config.entryPoint, OciMetadataBuilder::entryPoint)
+                .zipAbsentAsNull(config.arguments, OciMetadataBuilder::arguments)
+                .zip(config.volumes.orElse(emptySet()), OciMetadataBuilder::volumes)
+                .zipAbsentAsNull(config.workingDirectory, OciMetadataBuilder::workingDirectory)
+                .zipAbsentAsNull(config.stopSignal, OciMetadataBuilder::stopSignal)
+                .zip(config.configAnnotations.orElse(emptyMap()), OciMetadataBuilder::configAnnotations)
                 .zip(
                     config.configDescriptorAnnotations.orElse(emptyMap()),
-                    OciVariantMetadataBuilder::configDescriptorAnnotations,
+                    OciMetadataBuilder::configDescriptorAnnotations,
                 )
-                .zip(config.manifestAnnotations.orElse(emptyMap()), OciVariantMetadataBuilder::manifestAnnotations)
+                .zip(config.manifestAnnotations.orElse(emptyMap()), OciMetadataBuilder::manifestAnnotations)
                 .zip(
                     config.manifestDescriptorAnnotations.orElse(emptyMap()),
-                    OciVariantMetadataBuilder::manifestDescriptorAnnotations,
+                    OciMetadataBuilder::manifestDescriptorAnnotations,
                 )
-                .zip(imageDefinition.indexAnnotations.orElse(emptyMap()), OciVariantMetadataBuilder::indexAnnotations)
-                .zip(createLayerMetadataList(providerFactory), OciVariantMetadataBuilder::layers)
+                .zip(imageDefinition.indexAnnotations.orElse(emptyMap()), OciMetadataBuilder::indexAnnotations)
+                .zip(createLayerMetadataList(providerFactory), OciMetadataBuilder::layers)
                 .map { it.build() }
 
         private fun createLayerMetadataList(providerFactory: ProviderFactory): Provider<List<OciLayerMetadata>> =
@@ -594,19 +593,17 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     }
 }
 
-private fun TaskContainer.createVariantMetadataTask(
+private fun TaskContainer.createMetadataTask(
     imageDefName: String,
     platform: Platform?,
-    variantMetadata: Provider<OciVariantMetadata>,
+    metadata: Provider<OciMetadata>,
     projectLayout: ProjectLayout,
-) = register<OciVariantMetadataTask>(
-    createOciVariantMetadataClassifier(imageDefName).camelCase() + createPlatformPostfix(platform)
-) {
+) = register<OciMetadataTask>(createOciMetadataClassifier(imageDefName).camelCase() + createPlatformPostfix(platform)) {
     group = TASK_GROUP_NAME
     description = "Assembles the metadata json file of the '$imageDefName' OCI image" + if (platform == null) "." else " for the platform $platform"
-    encodedMetadata.set(variantMetadata.map { it.encodeToJsonString() })
+    encodedMetadata.set(metadata.map { it.encodeToJsonString() })
     destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
-    classifier.set(createOciVariantMetadataClassifier(imageDefName) + createPlatformPostfix(platform))
+    classifier.set(createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform))
 }
 
 private fun TaskContainer.createLayerTask(

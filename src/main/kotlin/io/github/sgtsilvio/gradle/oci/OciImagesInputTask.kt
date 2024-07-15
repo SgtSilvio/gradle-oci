@@ -41,7 +41,7 @@ internal class OciImage(
 )
 
 internal class OciVariant(
-    val metadata: OciVariantMetadata,
+    val metadata: OciMetadata,
     val layers: List<OciLayer>,
 )
 
@@ -102,7 +102,7 @@ abstract class OciImagesInputTask : DefaultTask() {
     }
 
     private fun OciVariantInput.toVariant(): OciVariant {
-        val metadata = metadataFile.readText().decodeAsJsonToOciVariantMetadata()
+        val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
         val layerFiles = layerFiles
         val layers = ArrayList<OciLayer>(layerFiles.size)
         var layerFileIndex = 0

@@ -13,7 +13,7 @@ import org.gradle.kotlin.dsl.property
 /**
  * @author Silvio Giebl
  */
-abstract class OciVariantMetadataTask : DefaultTask() {
+abstract class OciMetadataTask : DefaultTask() {
 
     @get:Input
     val encodedMetadata: Property<String> = project.objects.property<String>()
