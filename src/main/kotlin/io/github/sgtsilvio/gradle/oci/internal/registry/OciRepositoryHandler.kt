@@ -52,7 +52,7 @@ internal class OciRepositoryHandler(
     private val credentials: Credentials?,
 ) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciImageMetadataRegistry.OciImageMetadata> =
+    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciImageMetadataRegistry.OciMultiArchImageMetadata> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     private data class ImageMetadataCacheKey(
@@ -134,8 +134,8 @@ internal class OciRepositoryHandler(
             return response.sendBadRequest()
         }
         val metadataJsonMono =
-            getImageMetadata(registryUri, imageReference, digest, size, credentials).handle { imageMetadata, sink ->
-                val metadata = imageMetadata.platformToMetadata[platform]
+            getMultiArchImageMetadata(registryUri, imageReference, digest, size, credentials).handle { it, sink ->
+                val metadata = it.platformToMetadata[platform]
                 if (metadata == null) {
                     response.status(400)
                 } else {
@@ -186,7 +186,7 @@ internal class OciRepositoryHandler(
         isGet: Boolean,
         response: HttpServerResponse,
     ): Publisher<Void> {
-        data class OciImageVariantsMetadata(
+        data class OciVariantsMetadata(
             val imageDefName: String,
             val capabilities: Set<VersionedCoordinates>,
             val platformToMetadata: Map<Platform, OciMetadata>,
@@ -195,14 +195,8 @@ internal class OciRepositoryHandler(
         )
         val componentId = mappedComponent.componentId
         val imageVariantsMetadataMonoList = mappedComponent.variants.map { (imageDefName, variant) ->
-            getImageMetadata(registryUri, variant.imageReference, credentials).map { imageMetadata ->
-                OciImageVariantsMetadata(
-                    imageDefName,
-                    variant.capabilities,
-                    imageMetadata.platformToMetadata,
-                    imageMetadata.digest,
-                    imageMetadata.size,
-                )
+            getMultiArchImageMetadata(registryUri, variant.imageReference, credentials).map {
+                OciVariantsMetadata(imageDefName, variant.capabilities, it.platformToMetadata, it.digest, it.size)
             }
         }
         val moduleJsonMono = imageVariantsMetadataMonoList.zip { imageVariantsMetadataList ->
@@ -285,15 +279,15 @@ internal class OciRepositoryHandler(
         return response.sendByteArray(moduleJsonMono, isGet)
     }
 
-    private fun getImageMetadata(
+    private fun getMultiArchImageMetadata(
         registryUri: URI,
         imageReference: OciImageReference,
         credentials: Credentials?,
-    ): Mono<OciImageMetadataRegistry.OciImageMetadata> {
+    ): Mono<OciImageMetadataRegistry.OciMultiArchImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
         ) { key ->
-            imageMetadataRegistry.pullImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
+            imageMetadataRegistry.pullMultiArchImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
                 imageMetadataCache.asMap().putIfAbsent(
                     key.copy(digest = it.digest, size = it.size),
                     CompletableFuture.completedFuture(it),
@@ -302,17 +296,17 @@ internal class OciRepositoryHandler(
         }
     }
 
-    private fun getImageMetadata(
+    private fun getMultiArchImageMetadata(
         registryUri: URI,
         imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<OciImageMetadataRegistry.OciImageMetadata> {
+    ): Mono<OciImageMetadataRegistry.OciMultiArchImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
         ) { (registry, imageReference) ->
-            imageMetadataRegistry.pullImageMetadata(registry, imageReference, digest, size, credentials)
+            imageMetadataRegistry.pullMultiArchImageMetadata(registry, imageReference, digest, size, credentials)
         }
     }
 
