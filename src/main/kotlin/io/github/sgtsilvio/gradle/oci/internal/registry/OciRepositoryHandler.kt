@@ -407,6 +407,6 @@ private fun JsonArrayStringBuilder.addDependency(
     addCapabilities("requestedCapabilities", capabilities, platform)
 }
 
-internal fun String.escapePathSegment() = escapeReplace('/', '$')
+internal fun String.escapePathSegment() = escapeReplace('*', '$').replace('/', '*')
 
-internal fun String.unescapePathSegment() = unescapeReplace('/', '$')
+internal fun String.unescapePathSegment() = replace('*', '/').unescapeReplace('*', '$')
