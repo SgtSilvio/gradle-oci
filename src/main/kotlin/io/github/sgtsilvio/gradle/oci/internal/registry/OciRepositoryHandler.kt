@@ -104,81 +104,6 @@ internal class OciRepositoryHandler(
         }
     }
 
-    private fun getOrHeadMetadata(
-        registryUri: URI,
-        segments: List<String>,
-        isGet: Boolean,
-        response: HttpServerResponse,
-    ): Publisher<Void> {
-        if (segments.size != 9) {
-            return response.sendNotFound()
-        }
-        val imageReference = try {
-            segments[4].unescapePathSegment().toOciImageReference()
-        } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
-        }
-        val digest = try {
-            segments[5].toOciDigest()
-        } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
-        }
-        val size = try {
-            segments[6].toInt()
-        } catch (e: NumberFormatException) {
-            return response.sendBadRequest()
-        }
-        val platform = try {
-            segments[7].toPlatform()
-        } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
-        }
-        val metadataJsonMono =
-            getMultiArchImageMetadata(registryUri, imageReference, digest, size, credentials).handle { it, sink ->
-                val metadata = it.platformToMetadata[platform]
-                if (metadata == null) {
-                    response.status(400)
-                } else {
-                    sink.next(metadata.encodeToJsonString().toByteArray())
-                }
-            }
-        response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
-        return response.sendByteArray(metadataJsonMono, isGet)
-    }
-
-    private fun getOrHeadLayer(
-        registryUri: URI,
-        segments: List<String>,
-        isGet: Boolean,
-        response: HttpServerResponse,
-    ): Publisher<Void> {
-        if (segments.size != 8) {
-            return response.sendNotFound()
-        }
-        val imageName = try {
-            segments[4].unescapePathSegment()
-        } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
-        }
-        val digest = try {
-            segments[5].toOciDigest()
-        } catch (e: IllegalArgumentException) {
-            return response.sendBadRequest()
-        }
-        val size = try {
-            segments[6].toLong()
-        } catch (e: NumberFormatException) {
-            return response.sendBadRequest()
-        }
-        response.header(HttpHeaderNames.CONTENT_LENGTH, size.toString())
-        response.header(HttpHeaderNames.ETAG, digest.encodedHash)
-        return if (isGet) {
-            getLayer(registryUri, imageName, digest, size, credentials, response)
-        } else {
-            headLayer(registryUri, imageName, digest, credentials, response)
-        }
-    }
-
     private fun getOrHeadGradleModuleMetadata(
         registryUri: URI,
         mappedComponent: MappedComponent,
@@ -278,6 +203,81 @@ internal class OciRepositoryHandler(
         }
         response.header(HttpHeaderNames.CONTENT_TYPE, "application/vnd.org.gradle.module+json") // TODO constants
         return response.sendByteArray(moduleJsonMono, isGet)
+    }
+
+    private fun getOrHeadMetadata(
+        registryUri: URI,
+        segments: List<String>,
+        isGet: Boolean,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
+        if (segments.size != 9) {
+            return response.sendNotFound()
+        }
+        val imageReference = try {
+            segments[4].unescapePathSegment().toOciImageReference()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val digest = try {
+            segments[5].toOciDigest()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val size = try {
+            segments[6].toInt()
+        } catch (e: NumberFormatException) {
+            return response.sendBadRequest()
+        }
+        val platform = try {
+            segments[7].toPlatform()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val metadataJsonMono =
+            getMultiArchImageMetadata(registryUri, imageReference, digest, size, credentials).handle { it, sink ->
+                val metadata = it.platformToMetadata[platform]
+                if (metadata == null) {
+                    response.status(400)
+                } else {
+                    sink.next(metadata.encodeToJsonString().toByteArray())
+                }
+            }
+        response.header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_JSON)
+        return response.sendByteArray(metadataJsonMono, isGet)
+    }
+
+    private fun getOrHeadLayer(
+        registryUri: URI,
+        segments: List<String>,
+        isGet: Boolean,
+        response: HttpServerResponse,
+    ): Publisher<Void> {
+        if (segments.size != 8) {
+            return response.sendNotFound()
+        }
+        val imageName = try {
+            segments[4].unescapePathSegment()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val digest = try {
+            segments[5].toOciDigest()
+        } catch (e: IllegalArgumentException) {
+            return response.sendBadRequest()
+        }
+        val size = try {
+            segments[6].toLong()
+        } catch (e: NumberFormatException) {
+            return response.sendBadRequest()
+        }
+        response.header(HttpHeaderNames.CONTENT_LENGTH, size.toString())
+        response.header(HttpHeaderNames.ETAG, digest.encodedHash)
+        return if (isGet) {
+            getLayer(registryUri, imageName, digest, size, credentials, response)
+        } else {
+            headLayer(registryUri, imageName, digest, credentials, response)
+        }
     }
 
     private fun getMultiArchImageMetadata(
