@@ -28,12 +28,12 @@ data class OciVariantInput(
     @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
 )
 
-internal class OciMultiPlatformImage(
+class OciMultiPlatformImage(
     val index: OciData,
     val platformToImage: Map<Platform, OciImage>,
 )
 
-internal class OciImage(
+class OciImage(
     val manifest: OciDataDescriptor,
     val config: OciDataDescriptor,
     val platform: Platform,
@@ -44,12 +44,12 @@ internal class OciImage(
     }
 }
 
-internal class OciVariant(
+class OciVariant(
     val metadata: OciMetadata,
     val layers: List<OciLayer>,
 )
 
-internal class OciLayer( // TODO internal?
+class OciLayer(
     val descriptor: OciLayerDescriptor,
     val file: File,
 )
@@ -77,7 +77,7 @@ abstract class OciImagesTask : DefaultTask() {
         run(digestToLayerFile, images, multiPlatformImageAndReferencesPairs)
     }
 
-    internal abstract fun run( // TODO internal? protected?
+    protected abstract fun run(
         digestToLayerFile: Map<OciDigest, File>,
         images: List<OciImage>,
         multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,

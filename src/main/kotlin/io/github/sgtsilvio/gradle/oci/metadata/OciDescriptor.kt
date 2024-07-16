@@ -19,7 +19,7 @@ internal class OciDescriptorImpl(
     override val annotations: SortedMap<String, String>,
 ) : OciDescriptor
 
-internal class OciData(
+class OciData(
     val mediaType: String,
     val bytes: ByteArray,
     digestAlgorithm: OciDigestAlgorithm,
@@ -27,7 +27,7 @@ internal class OciData(
     val digest = bytes.calculateOciDigest(digestAlgorithm)
 }
 
-internal class OciDataDescriptor(
+class OciDataDescriptor(
     val data: OciData,
     override val annotations: SortedMap<String, String>,
 ) : OciDescriptor {
