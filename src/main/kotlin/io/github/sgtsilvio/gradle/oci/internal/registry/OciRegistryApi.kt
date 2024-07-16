@@ -74,7 +74,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         Caffeine.newBuilder().expireAfter(TokenCacheExpiry).buildAsync()
 
     private data class TokenCacheKey(
-        val registry: String,
+        val registry: URI,
         val scopes: Set<OciRegistryResourceScope>,
         val credentials: HashedCredentials?,
     )
@@ -99,7 +99,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     private fun pullManifestInternal(
-        registry: String,
+        registry: URI,
         imageName: String,
         reference: String,
         credentials: Credentials?,
@@ -133,7 +133,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun pullManifest(
-        registry: String,
+        registry: URI,
         imageName: String,
         reference: String,
         credentials: Credentials?,
@@ -143,7 +143,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun pullManifest(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest,
         size: Int,
@@ -163,7 +163,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun <T> pullBlob(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -188,7 +188,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun pullBlobAsString(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -206,7 +206,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Int)
 //
 //    fun isManifestPresent(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        reference: String,
 //        credentials: Credentials?,
@@ -244,14 +244,14 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun isManifestPresent(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
 //    ): Mono<ManifestMetadata> = isManifestPresent(registry, imageName, digest.toString(), credentials)
 
     fun isBlobPresent(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest,
         credentials: Credentials?,
@@ -273,7 +273,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun mountBlobOrCreatePushUrl(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest?,
         sourceImageName: String?,
@@ -302,7 +302,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
             when (response.status().code()) {
                 201 -> if (isMount) body.then(Mono.empty()) else createError(response, body.aggregate())
                 202 -> response.responseHeaders()[HttpHeaderNames.LOCATION]?.let { location ->
-                    body.then(URI(registry).resolve(location).toMono())
+                    body.then(registry.resolve(location).toMono())
                 } ?: createError(response, body.aggregate())
 
                 else -> createError(response, body.aggregate())
@@ -318,7 +318,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
 //    fun cancelBlobPush(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        credentials: Credentials?,
 //        uri: URI,
@@ -337,7 +337,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 
     fun pushBlob(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -364,7 +364,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun mountOrPushBlob(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -377,7 +377,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         }
 
     fun pushBlobIfNotPresent(
-        registry: String,
+        registry: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -394,7 +394,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun pushManifest(
-        registry: String,
+        registry: URI,
         imageName: String,
         reference: String,
         mediaType: String,
@@ -422,7 +422,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
 //    fun pushManifest(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        mediaType: String,
@@ -431,7 +431,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), mediaType, data, credentials)
 //
 //    fun pushManifestIfNotPresent(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        reference: String,
 //        mediaType: String,
@@ -443,7 +443,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun pushManifestIfNotPresent(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        mediaType: String,
@@ -455,7 +455,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun deleteBlob(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
@@ -476,7 +476,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun deleteManifest(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        reference: String,
 //        credentials: Credentials?,
@@ -497,14 +497,14 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun deleteManifest(
-//        registry: String,
+//        registry: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
 //    ): Mono<Nothing> = deleteManifest(registry, imageName, digest.toString(), credentials)
 
     private fun <T> send(
-        registry: String,
+        registry: URI,
         imageName: String,
         path: String,
         scopes: Set<OciRegistryResourceScope>,
@@ -520,7 +520,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     )
 
     private fun <T> send(
-        registry: String,
+        registry: URI,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
         requestAction: HttpClient.() -> HttpClient.ResponseReceiver<*>,
@@ -545,7 +545,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 
     private fun tryAuthorize(
         responseHeaders: HttpHeaders,
-        registry: String,
+        registry: URI,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String>? {
@@ -588,7 +588,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     private fun getAuthorization(
-        registry: String,
+        registry: URI,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String> {

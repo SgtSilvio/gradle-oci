@@ -230,7 +230,7 @@ internal abstract class OciPushService : BuildService<BuildServiceParameters.Non
         val progressPrefix = "Pushing $imageName > blob $digest"
         progressLogger.start("pushing blob", progressPrefix)
         registryApi.pushBlobIfNotPresent(
-            context.registryUrl.toString(),
+            context.registryUrl,
             imageName,
             digest,
             size,
@@ -276,7 +276,7 @@ internal abstract class OciPushService : BuildService<BuildServiceParameters.Non
         val progressLogger = context.progressLoggerFactory.newOperation(OciPushService::class.java)
         progressLogger.start("pushing manifest", "Pushing $imageName > manifest $reference ($mediaType)")
         registryApi.pushManifest(
-            context.registryUrl.toString(),
+            context.registryUrl,
             imageName,
             reference,
             mediaType,

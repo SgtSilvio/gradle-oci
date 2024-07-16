@@ -56,7 +56,7 @@ internal class OciRepositoryHandler(
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     private data class ImageMetadataCacheKey(
-        val registry: String,
+        val registryUrl: URI,
         val imageReference: OciImageReference,
         val digest: OciDigest?,
         val size: Int,
@@ -84,7 +84,7 @@ internal class OciRepositoryHandler(
         if (segments.size < 5) {
             response.sendNotFound()
         }
-        val registryUri = try {
+        val registryUrl = try {
             URI(segments[0].unescapePathSegment())
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
@@ -94,18 +94,18 @@ internal class OciRepositoryHandler(
         if ((segments.size == 5) && segments[4].endsWith(".module")) {
             val componentId = VersionedCoordinates(segments[1], segments[2], segments[3])
             val mappedComponent = imageMappingData.map(componentId)
-            return getOrHeadGradleModuleMetadata(registryUri, mappedComponent, credentials, isGet, response)
+            return getOrHeadGradleModuleMetadata(registryUrl, mappedComponent, credentials, isGet, response)
         }
         val last = segments.last()
         return when {
-            last.endsWith(".json") -> getOrHeadMetadata(registryUri, segments, isGet, response)
-            last.endsWith("oci-layer") -> getOrHeadLayer(registryUri, segments, isGet, response)
+            last.endsWith(".json") -> getOrHeadMetadata(registryUrl, segments, isGet, response)
+            last.endsWith("oci-layer") -> getOrHeadLayer(registryUrl, segments, isGet, response)
             else -> response.sendNotFound()
         }
     }
 
     private fun getOrHeadGradleModuleMetadata(
-        registryUri: URI,
+        registryUrl: URI,
         ociImageComponent: OciImageComponent,
         credentials: Credentials?,
         isGet: Boolean,
@@ -120,7 +120,7 @@ internal class OciRepositoryHandler(
         )
         val componentId = ociImageComponent.componentId
         val variantsMetadataMonoList = ociImageComponent.features.map { (featureName, feature) ->
-            getMultiPlatformImageMetadata(registryUri, feature.imageReference, credentials).map {
+            getMultiPlatformImageMetadata(registryUrl, feature.imageReference, credentials).map {
                 OciVariantsMetadata(featureName, feature.capabilities, it.platformToMetadata, it.digest, it.size)
             }
         }
@@ -206,7 +206,7 @@ internal class OciRepositoryHandler(
     }
 
     private fun getOrHeadMetadata(
-        registryUri: URI,
+        registryUrl: URI,
         segments: List<String>,
         isGet: Boolean,
         response: HttpServerResponse,
@@ -235,7 +235,7 @@ internal class OciRepositoryHandler(
             return response.sendBadRequest()
         }
         val metadataJsonMono =
-            getMultiPlatformImageMetadata(registryUri, imageReference, digest, size, credentials).handle { it, sink ->
+            getMultiPlatformImageMetadata(registryUrl, imageReference, digest, size, credentials).handle { it, sink ->
                 val metadata = it.platformToMetadata[platform]
                 if (metadata == null) {
                     response.status(400)
@@ -248,7 +248,7 @@ internal class OciRepositoryHandler(
     }
 
     private fun getOrHeadLayer(
-        registryUri: URI,
+        registryUrl: URI,
         segments: List<String>,
         isGet: Boolean,
         response: HttpServerResponse,
@@ -274,45 +274,46 @@ internal class OciRepositoryHandler(
         response.header(HttpHeaderNames.CONTENT_LENGTH, size.toString())
         response.header(HttpHeaderNames.ETAG, digest.encodedHash)
         return if (isGet) {
-            getLayer(registryUri, imageName, digest, size, credentials, response)
+            getLayer(registryUrl, imageName, digest, size, credentials, response)
         } else {
-            headLayer(registryUri, imageName, digest, credentials, response)
+            headLayer(registryUrl, imageName, digest, credentials, response)
         }
     }
 
     private fun getMultiPlatformImageMetadata(
-        registryUri: URI,
+        registryUrl: URI,
         imageReference: OciImageReference,
         credentials: Credentials?,
     ): Mono<OciMultiPlatformImageMetadata> {
         return imageMetadataCache.getMono(
-            ImageMetadataCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
+            ImageMetadataCacheKey(registryUrl, imageReference, null, -1, credentials?.hashed())
         ) { key ->
-            imageMetadataRegistry.pullMultiPlatformImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
-                imageMetadataCache.asMap().putIfAbsent(
-                    key.copy(digest = it.digest, size = it.size),
-                    CompletableFuture.completedFuture(it),
-                )
-            }
+            imageMetadataRegistry.pullMultiPlatformImageMetadata(key.registryUrl, key.imageReference, credentials)
+                .doOnNext {
+                    imageMetadataCache.asMap().putIfAbsent(
+                        key.copy(digest = it.digest, size = it.size),
+                        CompletableFuture.completedFuture(it),
+                    )
+                }
         }
     }
 
     private fun getMultiPlatformImageMetadata(
-        registryUri: URI,
+        registryUrl: URI,
         imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
     ): Mono<OciMultiPlatformImageMetadata> {
         return imageMetadataCache.getMono(
-            ImageMetadataCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
-        ) { (registry, imageReference) ->
-            imageMetadataRegistry.pullMultiPlatformImageMetadata(registry, imageReference, digest, size, credentials)
+            ImageMetadataCacheKey(registryUrl, imageReference, digest, size, credentials?.hashed())
+        ) { (registryUrl, imageReference) ->
+            imageMetadataRegistry.pullMultiPlatformImageMetadata(registryUrl, imageReference, digest, size, credentials)
         }
     }
 
     private fun getLayer(
-        registryUri: URI,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -320,7 +321,7 @@ internal class OciRepositoryHandler(
         response: HttpServerResponse,
     ): Publisher<Void> = response.send(
         imageMetadataRegistry.registryApi.pullBlob(
-            registryUri.toString(),
+            registryUrl,
             imageName,
             digest,
             size,
@@ -330,14 +331,13 @@ internal class OciRepositoryHandler(
     )
 
     private fun headLayer(
-        registryUri: URI,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         credentials: Credentials?,
         response: HttpServerResponse,
-    ): Publisher<Void> =
-        imageMetadataRegistry.registryApi.isBlobPresent(registryUri.toString(), imageName, digest, credentials)
-            .flatMap { present -> if (present) response.send() else response.sendNotFound() }
+    ): Publisher<Void> = imageMetadataRegistry.registryApi.isBlobPresent(registryUrl, imageName, digest, credentials)
+        .flatMap { present -> if (present) response.send() else response.sendNotFound() }
 
     private fun mapLayerMediaTypeToExtension(mediaType: String) = when (mediaType) {
         UNCOMPRESSED_LAYER_MEDIA_TYPE -> ".tar"
