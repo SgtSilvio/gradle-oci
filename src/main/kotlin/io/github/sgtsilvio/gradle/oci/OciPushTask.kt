@@ -44,9 +44,7 @@ import kotlin.io.path.fileSize
  * @author Silvio Giebl
  */
 @DisableCachingByDefault(because = "Pushing to an external registry")
-abstract class OciPushTask @Inject constructor(
-    private val workerExecutor: WorkerExecutor,
-) : OciImagesInputTask() {
+abstract class OciPushTask @Inject constructor(private val workerExecutor: WorkerExecutor) : OciImagesTask() {
 
     @get:Nested
     val registry = project.objects.newInstance<Registry>()

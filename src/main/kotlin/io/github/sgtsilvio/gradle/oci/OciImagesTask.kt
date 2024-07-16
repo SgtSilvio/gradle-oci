@@ -50,7 +50,7 @@ internal class OciLayer( // TODO internal?
     val file: File,
 )
 
-abstract class OciImagesInputTask : DefaultTask() {
+abstract class OciImagesTask : DefaultTask() {
 
     @get:Nested
     val imageInputs = project.objects.setProperty<OciImageInput>()
