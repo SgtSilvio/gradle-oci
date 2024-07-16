@@ -13,21 +13,6 @@ import java.io.File
 /**
  * @author Silvio Giebl
  */
-data class OciImageInput(
-    @get:Input val platform: Platform,
-    @get:Nested val variants: List<OciVariantInput>,
-    @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
-) {
-    init {
-        require(variants.isNotEmpty()) { "variants must not be empty" }
-    }
-}
-
-data class OciVariantInput(
-    @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
-    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
-)
-
 class OciMultiPlatformImage(
     val index: OciData,
     val platformToImage: Map<Platform, OciImage>,
@@ -57,7 +42,22 @@ class OciLayer(
 abstract class OciImagesTask : DefaultTask() {
 
     @get:Nested
-    val images = project.objects.setProperty<OciImageInput>()
+    val images = project.objects.setProperty<ImageInput>()
+
+    data class ImageInput(
+        @get:Input val platform: Platform,
+        @get:Nested val variants: List<VariantInput>,
+        @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
+    ) {
+        init {
+            require(variants.isNotEmpty()) { "variants must not be empty" }
+        }
+    }
+
+    data class VariantInput(
+        @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
+        @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
+    )
 
     init {
         @Suppress("LeakingThis")
@@ -69,7 +69,7 @@ abstract class OciImagesTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val imageInputs: Set<OciImageInput> = images.get()
+        val imageInputs: Set<ImageInput> = images.get()
         val imageAndReferencesPairs = createImageAndReferencesPairs(imageInputs)
         val multiPlatformImageAndReferencesPairs = createMultiPlatformImageAndReferencesPairs(imageAndReferencesPairs)
         val images = imageAndReferencesPairs.map { it.first }
@@ -84,9 +84,9 @@ abstract class OciImagesTask : DefaultTask() {
     )
 
     private fun createImageAndReferencesPairs(
-        imageInputs: Iterable<OciImageInput>,
+        imageInputs: Iterable<ImageInput>,
     ): List<Pair<OciImage, Set<OciImageReference>>> {
-        val variantInputToVariant = HashMap<OciVariantInput, OciVariant>()
+        val variantInputToVariant = HashMap<VariantInput, OciVariant>()
         return imageInputs.map { imageInput ->
             val variants = imageInput.variants.map { variantInput ->
                 variantInputToVariant.getOrPut(variantInput) { variantInput.toVariant() }
@@ -105,7 +105,7 @@ abstract class OciImagesTask : DefaultTask() {
         }
     }
 
-    private fun OciVariantInput.toVariant(): OciVariant {
+    private fun VariantInput.toVariant(): OciVariant {
         val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
         val layerFiles = layerFiles
         val layers = ArrayList<OciLayer>(layerFiles.size)

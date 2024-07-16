@@ -1,7 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
-import io.github.sgtsilvio.gradle.oci.OciImageInput
-import io.github.sgtsilvio.gradle.oci.OciVariantInput
+import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.internal.gradle.ArtifactViewVariantFilter
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.component.ComponentIdentifier
@@ -10,7 +9,7 @@ import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.Provider
 
-internal fun ResolvableDependencies.resolveOciImageInputs(): Provider<List<OciImageInput>> {
+internal fun ResolvableDependencies.resolveOciImageInputs(): Provider<List<OciImagesTask.ImageInput>> {
     val rootComponentProvider = resolutionResult.rootComponent
     val imageSpecsProvider = rootComponentProvider.map(::resolveOciImageSpecs)
     val artifactResultsProvider = artifactView {
@@ -28,9 +27,9 @@ internal fun ResolvableDependencies.resolveOciImageInputs(): Provider<List<OciIm
     return artifactResultsProvider.flatMap { artifactResults ->
         val imageSpecs = imageSpecsProvider.get()
         val variantDescriptorToInput = artifactResults.groupBy({ it.variant.toDescriptor() }) { it.file }
-            .mapValues { (_, files) -> OciVariantInput(files.first(), files.drop(1)) }
+            .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
         val imageInputs = imageSpecs.map { imageSpec ->
-            OciImageInput(
+            OciImagesTask.ImageInput(
                 imageSpec.platform,
                 imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toDescriptor()] },
                 imageSpec.referenceSpecs,
