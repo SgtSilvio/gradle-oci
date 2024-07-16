@@ -22,8 +22,8 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.reactivestreams.Publisher
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.zip
 import reactor.netty.ByteBufFlux
 import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
@@ -194,12 +194,13 @@ internal class OciRepositoryHandler(
             val size: Int,
         )
         val componentId = mappedComponent.componentId
-        val imageVariantsMetadataMonoList = mappedComponent.features.map { (featureName, feature) ->
+        val variantsMetadataMonoList = mappedComponent.features.map { (featureName, feature) ->
             getMultiArchImageMetadata(registryUri, feature.imageReference, credentials).map {
                 OciVariantsMetadata(featureName, feature.capabilities, it.platformToMetadata, it.digest, it.size)
             }
         }
-        val moduleJsonMono = imageVariantsMetadataMonoList.zip { imageVariantsMetadataList ->
+        // merge is used instead of zip as the latter one discards all elements if one Mono is empty
+        val moduleJsonMono = Flux.mergeSequential(variantsMetadataMonoList).collectList().map { variantsMetadataList ->
             jsonObject {
                 addString("formatVersion", "1.1")
                 addObject("component") {
@@ -212,7 +213,7 @@ internal class OciRepositoryHandler(
                 }
                 val fileNamePrefix = "${componentId.name}-${componentId.version}-"
                 addArray("variants") {
-                    for ((imageDefName, capabilities, platformToMetadata, digest, size) in imageVariantsMetadataList) {
+                    for ((imageDefName, capabilities, platformToMetadata, digest, size) in variantsMetadataList) {
                         addObject {
                             addString("name", createOciVariantName(imageDefName))
                             addOciVariantAttributes(MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
