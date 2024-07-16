@@ -28,7 +28,7 @@ data class OciVariantInput(
     @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
 )
 
-internal class OciMultiArchImage(
+internal class OciMultiPlatformImage(
     val index: OciData,
     val platformToImage: Map<Platform, OciImage>,
 )
@@ -71,16 +71,16 @@ abstract class OciImagesTask : DefaultTask() {
     protected fun run() {
         val imageInputs: Set<OciImageInput> = images.get()
         val imageAndReferencesPairs = createImageAndReferencesPairs(imageInputs)
-        val multiArchImageAndReferencesPairs = createMultiArchImageAndReferencesPairs(imageAndReferencesPairs)
+        val multiPlatformImageAndReferencesPairs = createMultiPlatformImageAndReferencesPairs(imageAndReferencesPairs)
         val images = imageAndReferencesPairs.map { it.first }
         val digestToLayerFile = collectDigestToLayerFile(images)
-        run(digestToLayerFile, images, multiArchImageAndReferencesPairs)
+        run(digestToLayerFile, images, multiPlatformImageAndReferencesPairs)
     }
 
     internal abstract fun run( // TODO internal? protected?
         digestToLayerFile: Map<OciDigest, File>,
         images: List<OciImage>,
-        multiArchImageAndReferencesPairs: List<Pair<OciMultiArchImage, List<OciImageReference>>>,
+        multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
     )
 
     private fun createImageAndReferencesPairs(
@@ -124,9 +124,9 @@ abstract class OciImagesTask : DefaultTask() {
         return OciVariant(metadata, layers)
     }
 
-    private fun createMultiArchImageAndReferencesPairs(
+    private fun createMultiPlatformImageAndReferencesPairs(
         imageAndReferencesPairs: Iterable<Pair<OciImage, Set<OciImageReference>>>,
-    ): List<Pair<OciMultiArchImage, List<OciImageReference>>> {
+    ): List<Pair<OciMultiPlatformImage, List<OciImageReference>>> {
         // referenceToPlatformToImage map is linked because it will be iterated
         // platformToImage map is linked to preserve the platform order
         val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>()
@@ -140,19 +140,19 @@ abstract class OciImagesTask : DefaultTask() {
                 }
             }
         }
-        // multiArchImageAndReferencesPairMap is linked because it will be iterated
-        val multiArchImageAndReferencesPairMap =
-            LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiArchImage, ArrayList<OciImageReference>>>() // TODO reference non multi arch images?
+        // multiPlatformImageAndReferencesPairMap is linked because it will be iterated
+        val multiPlatformImageAndReferencesPairMap =
+            LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiPlatformImage, ArrayList<OciImageReference>>>() // TODO reference non multi arch images?
         for ((reference, platformToImage) in referenceToPlatformToImage) {
-            var multiArchImageAndReferencesPair = multiArchImageAndReferencesPairMap[platformToImage]
-            if (multiArchImageAndReferencesPair == null) {
+            var multiPlatformImageAndReferencesPair = multiPlatformImageAndReferencesPairMap[platformToImage]
+            if (multiPlatformImageAndReferencesPair == null) {
                 val index = createIndex(platformToImage)
-                multiArchImageAndReferencesPair = Pair(OciMultiArchImage(index, platformToImage), ArrayList()) // TODO ArrayList
-                multiArchImageAndReferencesPairMap[platformToImage] = multiArchImageAndReferencesPair
+                multiPlatformImageAndReferencesPair = Pair(OciMultiPlatformImage(index, platformToImage), ArrayList()) // TODO ArrayList
+                multiPlatformImageAndReferencesPairMap[platformToImage] = multiPlatformImageAndReferencesPair
             }
-            multiArchImageAndReferencesPair.second += reference
+            multiPlatformImageAndReferencesPair.second += reference
         }
-        return multiArchImageAndReferencesPairMap.values.toList()
+        return multiPlatformImageAndReferencesPairMap.values.toList()
     }
 
     private fun collectDigestToLayerFile(images: List<OciImage>): Map<OciDigest, File> {

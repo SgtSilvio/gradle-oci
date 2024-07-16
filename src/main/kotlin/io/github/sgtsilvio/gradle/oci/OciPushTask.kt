@@ -88,10 +88,10 @@ abstract class OciPushTask @Inject constructor(private val workerExecutor: Worke
     protected fun setRegistryCredentialsId(credentialsId: String) =
         registry.credentials.set(project.providers.passwordCredentials(credentialsId))
 
-    override fun run(
+    final override fun run(
         digestToLayerFile: Map<OciDigest, File>,
         images: List<OciImage>,
-        multiArchImageAndReferencesPairs: List<Pair<OciMultiArchImage, List<OciImageReference>>>,
+        multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
     ) {
         val context = Context(
             pushService,
@@ -102,10 +102,10 @@ abstract class OciPushTask @Inject constructor(private val workerExecutor: Worke
         )
 
         val blobs = HashMap<OciDigest, Blob>()
-        for ((multiArchImage, imageReferences) in multiArchImageAndReferencesPairs) {
+        for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
             for ((imageName, tags) in imageReferences.groupByTo(HashMap(), { it.name }, { it.tag })) {
                 val manifestFutures = mutableListOf<CompletableFuture<Unit>>()
-                for (image in multiArchImage.platformToImage.values) {
+                for (image in multiPlatformImage.platformToImage.values) {
                     val blobFutures = mutableListOf<CompletableFuture<Unit>>()
                     for (variant in image.variants) {
                         for (layer in variant.layers) {
@@ -171,7 +171,7 @@ abstract class OciPushTask @Inject constructor(private val workerExecutor: Worke
                         )
                     }
                 }
-                val index = multiArchImage.index
+                val index = multiPlatformImage.index
                 for (tag in tags) {
                     CompletableFuture.allOf(*manifestFutures.toTypedArray()).thenRun {
                         context.pushService.get()

@@ -20,10 +20,10 @@ abstract class OciRegistryDataTask : OciImagesTask() {
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
 
-    override fun run(
+    final override fun run(
         digestToLayerFile: Map<OciDigest, File>,
         images: List<OciImage>,
-        multiArchImageAndReferencesPairs: List<Pair<OciMultiArchImage, List<OciImageReference>>>,
+        multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
     ) {
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
         val blobsDirectory = registryDataDirectory.resolve("blobs").createDirectory()
@@ -35,15 +35,15 @@ abstract class OciRegistryDataTask : OciImagesTask() {
             blobsDirectory.writeDigestData(image.config.data)
             blobsDirectory.writeDigestData(image.manifest.data)
         }
-        for ((multiArchImage, imageReferences) in multiArchImageAndReferencesPairs) {
-            blobsDirectory.writeDigestData(multiArchImage.index)
+        for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
+            blobsDirectory.writeDigestData(multiPlatformImage.index)
             for ((name, tags) in imageReferences.groupBy({ it.name }, { it.tag })) {
                 val repositoryDirectory = repositoriesDirectory.resolve(name).createDirectories()
                 val layersDirectory = repositoryDirectory.resolve("_layers").createDirectories()
                 val manifestsDirectory = repositoryDirectory.resolve("_manifests").createDirectories()
                 val manifestRevisionsDirectory = manifestsDirectory.resolve("revisions").createDirectories()
                 val blobDigests = LinkedHashSet<OciDigest>()
-                for (image in multiArchImage.platformToImage.values) {
+                for (image in multiPlatformImage.platformToImage.values) {
                     manifestRevisionsDirectory.writeDigestLink(image.manifest.digest)
                     blobDigests += image.config.digest
                     for (variant in image.variants) {
@@ -55,7 +55,7 @@ abstract class OciRegistryDataTask : OciImagesTask() {
                 for (blobDigest in blobDigests) {
                     layersDirectory.writeDigestLink(blobDigest)
                 }
-                val indexDigest = multiArchImage.index.digest
+                val indexDigest = multiPlatformImage.index.digest
                 manifestRevisionsDirectory.writeDigestLink(indexDigest)
                 for (tag in tags) {
                     val tagDirectory = manifestsDirectory.resolve("tags").resolve(tag).createDirectories()

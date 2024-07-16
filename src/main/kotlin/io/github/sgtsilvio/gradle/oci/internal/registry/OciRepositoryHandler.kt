@@ -52,7 +52,7 @@ internal class OciRepositoryHandler(
     private val credentials: Credentials?,
 ) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciMultiArchImageMetadata> =
+    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciMultiPlatformImageMetadata> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     private data class ImageMetadataCacheKey(
@@ -120,7 +120,7 @@ internal class OciRepositoryHandler(
         )
         val componentId = ociImageComponent.componentId
         val variantsMetadataMonoList = ociImageComponent.features.map { (featureName, feature) ->
-            getMultiArchImageMetadata(registryUri, feature.imageReference, credentials).map {
+            getMultiPlatformImageMetadata(registryUri, feature.imageReference, credentials).map {
                 OciVariantsMetadata(featureName, feature.capabilities, it.platformToMetadata, it.digest, it.size)
             }
         }
@@ -235,7 +235,7 @@ internal class OciRepositoryHandler(
             return response.sendBadRequest()
         }
         val metadataJsonMono =
-            getMultiArchImageMetadata(registryUri, imageReference, digest, size, credentials).handle { it, sink ->
+            getMultiPlatformImageMetadata(registryUri, imageReference, digest, size, credentials).handle { it, sink ->
                 val metadata = it.platformToMetadata[platform]
                 if (metadata == null) {
                     response.status(400)
@@ -280,15 +280,15 @@ internal class OciRepositoryHandler(
         }
     }
 
-    private fun getMultiArchImageMetadata(
+    private fun getMultiPlatformImageMetadata(
         registryUri: URI,
         imageReference: OciImageReference,
         credentials: Credentials?,
-    ): Mono<OciMultiArchImageMetadata> {
+    ): Mono<OciMultiPlatformImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
         ) { key ->
-            imageMetadataRegistry.pullMultiArchImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
+            imageMetadataRegistry.pullMultiPlatformImageMetadata(key.registry, key.imageReference, credentials).doOnNext {
                 imageMetadataCache.asMap().putIfAbsent(
                     key.copy(digest = it.digest, size = it.size),
                     CompletableFuture.completedFuture(it),
@@ -297,17 +297,17 @@ internal class OciRepositoryHandler(
         }
     }
 
-    private fun getMultiArchImageMetadata(
+    private fun getMultiPlatformImageMetadata(
         registryUri: URI,
         imageReference: OciImageReference,
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<OciMultiArchImageMetadata> {
+    ): Mono<OciMultiPlatformImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
         ) { (registry, imageReference) ->
-            imageMetadataRegistry.pullMultiArchImageMetadata(registry, imageReference, digest, size, credentials)
+            imageMetadataRegistry.pullMultiPlatformImageMetadata(registry, imageReference, digest, size, credentials)
         }
     }
 
