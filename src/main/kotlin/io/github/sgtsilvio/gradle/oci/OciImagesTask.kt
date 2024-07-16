@@ -38,7 +38,11 @@ internal class OciImage(
     val config: OciDataDescriptor,
     val platform: Platform,
     val variants: List<OciVariant>,
-)
+) {
+    init {
+        require(variants.isNotEmpty()) { "variants must not be empty" }
+    }
+}
 
 internal class OciVariant(
     val metadata: OciMetadata,
