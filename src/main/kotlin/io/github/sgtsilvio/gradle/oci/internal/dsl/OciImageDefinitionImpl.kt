@@ -146,7 +146,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         if (platformBundles == null) {
             platformBundles = LinkedHashMap()
             this.platformBundles = platformBundles
-            configuration.attributes.attribute(PLATFORM_ATTRIBUTE, MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
+            configuration.attributes.attribute(PLATFORM_ATTRIBUTE, MULTI_PLATFORM_ATTRIBUTE_VALUE)
         }
         var bundle = platformBundles[platform]
         if (bundle == null) {

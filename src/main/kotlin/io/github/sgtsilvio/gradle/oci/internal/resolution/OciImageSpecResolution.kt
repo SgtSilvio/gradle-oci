@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
-import io.github.sgtsilvio.gradle.oci.attributes.MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE
+import io.github.sgtsilvio.gradle.oci.attributes.MULTI_PLATFORM_ATTRIBUTE_VALUE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
@@ -59,20 +59,20 @@ private fun resolveOciVariantNode(
             resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
         }
     }
-    val node = when (val platformOrUniversalOrMultiple = variantResult.platformOrUniversalOrMultiple) {
-        MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE -> {
+    val node = when (val platformOrUniversalOrMulti = variantResult.platformOrUniversalOrMulti) {
+        MULTI_PLATFORM_ATTRIBUTE_VALUE -> {
             val platformToDependency = HashMap<Platform, OciVariantNode.SinglePlatform>()
             val platformSet = PlatformSet(false)
             for (dependency in dependencies) {
                 if (dependency !is OciVariantNode.SinglePlatform) {
-                    throw IllegalStateException("dependencies of multiple platforms variant must be single platform variants")
+                    throw IllegalStateException("dependencies of multi platform variant must be single platform variants")
                 }
                 if (platformToDependency.putIfAbsent(dependency.platform, dependency) != null) {
-                    throw IllegalStateException("dependencies of multiple platforms variant must be unique single platform variants")
+                    throw IllegalStateException("dependencies of multi platform variant must be unique single platform variants")
                 }
                 platformSet.union(dependency.platformSet)
             }
-            OciVariantNode.MultiplePlatforms(variantResult, platformToDependency, platformSet)
+            OciVariantNode.MultiPlatform(variantResult, platformToDependency, platformSet)
         }
 
         UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE -> {
@@ -84,7 +84,7 @@ private fun resolveOciVariantNode(
         }
 
         else -> {
-            val platform = platformOrUniversalOrMultiple.toPlatform()
+            val platform = platformOrUniversalOrMulti.toPlatform()
             val platformSet = PlatformSet(platform)
             for (dependency in dependencies) {
                 platformSet.intersect(dependency.platformSet)
@@ -101,7 +101,7 @@ private sealed class OciVariantNode(
     val platformSet: PlatformSet,
 ) {
 
-    class MultiplePlatforms(
+    class MultiPlatform(
         variantResult: ResolvedVariantResult,
         val platformToDependency: Map<Platform, SinglePlatform>,
         platformSet: PlatformSet,
@@ -121,7 +121,7 @@ private sealed class OciVariantNode(
     ) : OciVariantNode(variantResult, platformSet)
 }
 
-private val ResolvedVariantResult.platformOrUniversalOrMultiple: String
+private val ResolvedVariantResult.platformOrUniversalOrMulti: String
     get() {
         val platformAttribute = attributes.getAttribute(PLATFORM_ATTRIBUTE)
         if (platformAttribute != null) {
@@ -155,7 +155,7 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
 ) {
     if (variantResult !in result) {
         when (this) {
-            is OciVariantNode.MultiplePlatforms -> {
+            is OciVariantNode.MultiPlatform -> {
                 platformToDependency[platform]?.collectVariantResultsForPlatform(platform, result)
                     ?: throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platforms are ${platformToDependency.keys})")
             }

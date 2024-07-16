@@ -7,7 +7,7 @@ import org.gradle.api.attributes.CompatibilityCheckDetails
 val PLATFORM_ATTRIBUTE: Attribute<String> = Attribute.of("io.github.sgtsilvio.gradle.platform", String::class.java)
 
 const val UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE = "universal"
-const val MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE = "multiple"
+const val MULTI_PLATFORM_ATTRIBUTE_VALUE = "multi"
 
 internal class PlatformAttributeCompatibilityRule : AttributeCompatibilityRule<String> {
     override fun execute(details: CompatibilityCheckDetails<String>) {

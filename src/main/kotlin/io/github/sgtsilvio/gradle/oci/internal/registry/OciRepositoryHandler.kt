@@ -141,7 +141,7 @@ internal class OciRepositoryHandler(
                     for ((imageDefName, capabilities, platformToMetadata, digest, size) in variantsMetadataList) {
                         addObject {
                             addString("name", createOciVariantName(imageDefName))
-                            addOciVariantAttributes(MULTIPLE_PLATFORMS_ATTRIBUTE_VALUE)
+                            addOciVariantAttributes(MULTI_PLATFORM_ATTRIBUTE_VALUE)
                             addCapabilities("capabilities", capabilities, componentId)
                             addArray("dependencies") {
                                 for (platform in platformToMetadata.keys) {
