@@ -9,9 +9,9 @@ internal class OciImageMappingData(
     val componentMappings: Map<VersionedCoordinates, ComponentSpec>,
 ) {
 
-    class ComponentSpec(val mainVariant: VariantSpec, val featureVariants: Map<String, VariantSpec>)
+    class ComponentSpec(val mainFeature: FeatureSpec, val additionalFeatures: Map<String, FeatureSpec>)
 
-    class VariantSpec(
+    class FeatureSpec(
         val capabilities: List<Triple<NameSpec, NameSpec, NameSpec>>,
         val imageName: NameSpec?,
         val imageTag: NameSpec?,

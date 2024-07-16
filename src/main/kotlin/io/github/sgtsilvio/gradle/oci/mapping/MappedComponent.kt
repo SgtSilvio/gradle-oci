@@ -8,10 +8,14 @@ import java.util.*
  */
 internal class MappedComponent(
     val componentId: VersionedCoordinates,
-    val variants: Map<String, Variant>,
+    val features: Map<String, Feature>,
 ) {
-    class Variant(
+    class Feature(
         val capabilities: SortedSet<VersionedCoordinates>,
         val imageReference: OciImageReference,
-    )
+    ) {
+        init {
+            require(capabilities.isNotEmpty()) { "capabilities must not be empty" }
+        }
+    }
 }

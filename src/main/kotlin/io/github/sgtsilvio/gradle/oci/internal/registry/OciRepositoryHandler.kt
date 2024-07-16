@@ -194,9 +194,9 @@ internal class OciRepositoryHandler(
             val size: Int,
         )
         val componentId = mappedComponent.componentId
-        val imageVariantsMetadataMonoList = mappedComponent.variants.map { (imageDefName, variant) ->
-            getMultiArchImageMetadata(registryUri, variant.imageReference, credentials).map {
-                OciVariantsMetadata(imageDefName, variant.capabilities, it.platformToMetadata, it.digest, it.size)
+        val imageVariantsMetadataMonoList = mappedComponent.features.map { (featureName, feature) ->
+            getMultiArchImageMetadata(registryUri, feature.imageReference, credentials).map {
+                OciVariantsMetadata(featureName, feature.capabilities, it.platformToMetadata, it.digest, it.size)
             }
         }
         val moduleJsonMono = imageVariantsMetadataMonoList.zip { imageVariantsMetadataList ->

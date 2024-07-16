@@ -6,20 +6,20 @@ import java.util.*
 private const val GROUP_PARAMETER_KEY = "group"
 private const val NAME_PARAMETER_KEY = "name"
 private const val VERSION_PARAMETER_KEY = "version"
-private const val FEATURE_VARIANT_PARAMETER_KEY = "featureVariant"
+private const val FEATURE_NAME_PARAMETER_KEY = "featureName"
 private const val IMAGE_NAMESPACE_PARAMETER_KEY = "imageNamespace"
 internal val GROUP_PARAMETER_NAME_SPEC = ParameterNameSpec(GROUP_PARAMETER_KEY, null)
 internal val NAME_PARAMETER_NAME_SPEC = ParameterNameSpec(NAME_PARAMETER_KEY, null)
 internal val VERSION_PARAMETER_NAME_SPEC = ParameterNameSpec(VERSION_PARAMETER_KEY, null)
-internal val FEATURE_VARIANT_PARAMETER_NAME_SPEC = ParameterNameSpec(FEATURE_VARIANT_PARAMETER_KEY, "")
+internal val FEATURE_NAME_PARAMETER_NAME_SPEC = ParameterNameSpec(FEATURE_NAME_PARAMETER_KEY, "")
 private val IMAGE_NAMESPACE_PARAMETER_NAME_SPEC = ParameterNameSpec(IMAGE_NAMESPACE_PARAMETER_KEY, null)
 private val DEFAULT_CAPABILITY = Triple(
     GROUP_PARAMETER_NAME_SPEC,
-    NAME_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-"),
+    NAME_PARAMETER_NAME_SPEC + FEATURE_NAME_PARAMETER_NAME_SPEC.prefix("-"),
     VERSION_PARAMETER_NAME_SPEC,
 )
 private val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + NAME_PARAMETER_NAME_SPEC
-private val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_VARIANT_PARAMETER_NAME_SPEC.prefix("-")
+private val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_NAME_PARAMETER_NAME_SPEC.prefix("-")
 
 internal fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedComponent {
     val componentSpec = componentMappings[componentId]
@@ -32,25 +32,25 @@ internal fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedC
         put(VERSION_PARAMETER_KEY, componentId.version)
         put(IMAGE_NAMESPACE_PARAMETER_KEY, defaultMappedImageNamespace(componentId.group))
     }
-    val defaultFeatureVariantImageName = componentSpec.mainVariant.imageName ?: DEFAULT_IMAGE_NAME
-    val defaultFeatureVariantImageTag = componentSpec.mainVariant.imageTag ?: DEFAULT_IMAGE_TAG
+    val defaultImageName = componentSpec.mainFeature.imageName ?: DEFAULT_IMAGE_NAME
+    val defaultImageTag = componentSpec.mainFeature.imageTag ?: DEFAULT_IMAGE_TAG
     return MappedComponent(
         componentId,
-        LinkedHashMap<String, MappedComponent.Variant>().apply {
-            put("main", componentSpec.mainVariant.map(parameters, DEFAULT_IMAGE_NAME, DEFAULT_IMAGE_TAG))
-            putAll(componentSpec.featureVariants.mapValuesTo(TreeMap()) { (featureVariantName, variantSpec) ->
-                parameters[FEATURE_VARIANT_PARAMETER_KEY] = featureVariantName
-                variantSpec.map(parameters, defaultFeatureVariantImageName, defaultFeatureVariantImageTag)
+        LinkedHashMap<String, MappedComponent.Feature>().apply {
+            put("main", componentSpec.mainFeature.map(parameters, DEFAULT_IMAGE_NAME, DEFAULT_IMAGE_TAG))
+            putAll(componentSpec.additionalFeatures.mapValuesTo(TreeMap()) { (featureName, featureSpec) ->
+                parameters[FEATURE_NAME_PARAMETER_KEY] = featureName
+                featureSpec.map(parameters, defaultImageName, defaultImageTag)
             })
         },
     )
 }
 
-private fun OciImageMappingData.VariantSpec.map(
+private fun OciImageMappingData.FeatureSpec.map(
     parameters: Map<String, String>,
     defaultImageName: NameSpec,
     defaultImageTag: NameSpec,
-) = MappedComponent.Variant(
+) = MappedComponent.Feature(
     capabilities.ifEmpty { listOf(DEFAULT_CAPABILITY) }.mapTo(TreeSet()) { (group, name, version) ->
         VersionedCoordinates(
             group.generateName(parameters),
@@ -67,7 +67,7 @@ private fun OciImageMappingData.VariantSpec.map(
 private fun defaultMappedComponent(componentId: VersionedCoordinates) = MappedComponent(
     componentId,
     mapOf(
-        "main" to MappedComponent.Variant(
+        "main" to MappedComponent.Feature(
             sortedSetOf(componentId),
             OciImageReference(
                 defaultMappedImageNamespace(componentId.group) + componentId.name,

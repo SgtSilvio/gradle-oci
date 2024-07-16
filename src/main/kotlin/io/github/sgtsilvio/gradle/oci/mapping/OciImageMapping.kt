@@ -17,11 +17,11 @@ interface OciImageMapping {
 
     fun mapComponent(group: String, name: String, version: String, action: Action<in ComponentSpec>)
 
-    interface VariantSpec {
+    interface FeatureSpec {
         val group: NameSpec
         val name: NameSpec
         val version: NameSpec
-        val featureVariant: NameSpec
+        val featureName: NameSpec
 
         fun withCapabilities(action: Action<in CapabilitySpecs>)
 
@@ -42,11 +42,9 @@ interface OciImageMapping {
         }
     }
 
-    interface ComponentSpec : VariantSpec {
-        fun featureVariant(name: String, action: Action<in FeatureVariantSpec>)
+    interface ComponentSpec : FeatureSpec {
+        fun withFeature(name: String, action: Action<in FeatureSpec>)
     }
-
-    interface FeatureVariantSpec : VariantSpec
 }
 
 internal abstract class OciImageMappingImpl @Inject constructor(
@@ -85,17 +83,17 @@ internal abstract class OciImageMappingImpl @Inject constructor(
         componentMappings.get().mapValues { it.value.getData() },
     )
 
-    abstract class VariantSpec : OciImageMapping.VariantSpec, OciImageMapping.VariantSpec.CapabilitySpecs,
-        OciImageMapping.VariantSpec.ImageNameSpec {
+    abstract class FeatureSpec : OciImageMapping.FeatureSpec, OciImageMapping.FeatureSpec.CapabilitySpecs,
+        OciImageMapping.FeatureSpec.ImageNameSpec {
         final override val group: NameSpec get() = GROUP_PARAMETER_NAME_SPEC
         final override val name: NameSpec get() = NAME_PARAMETER_NAME_SPEC
         final override val version: NameSpec get() = VERSION_PARAMETER_NAME_SPEC
-        final override val featureVariant: NameSpec get() = FEATURE_VARIANT_PARAMETER_NAME_SPEC
-        protected val capabilities = mutableListOf<Triple<NameSpec, NameSpec, NameSpec>>()
-        protected var imageName: NameSpec? = null
-        protected var imageTag: NameSpec? = null
+        final override val featureName: NameSpec get() = FEATURE_NAME_PARAMETER_NAME_SPEC
+        private val capabilities = mutableListOf<Triple<NameSpec, NameSpec, NameSpec>>()
+        private var imageName: NameSpec? = null
+        private var imageTag: NameSpec? = null
 
-        final override fun withCapabilities(action: Action<in OciImageMapping.VariantSpec.CapabilitySpecs>) =
+        final override fun withCapabilities(action: Action<in OciImageMapping.FeatureSpec.CapabilitySpecs>) =
             action.execute(this)
 
         final override fun add(group: NameSpec, name: NameSpec, version: NameSpec) {
@@ -104,7 +102,7 @@ internal abstract class OciImageMappingImpl @Inject constructor(
 
         final override fun toImage(name: String) = toImage(StringNameSpec(name))
 
-        final override fun toImage(name: NameSpec): VariantSpec {
+        final override fun toImage(name: NameSpec): FeatureSpec {
             imageName = name
             return this
         }
@@ -116,28 +114,25 @@ internal abstract class OciImageMappingImpl @Inject constructor(
         }
 
         final override fun nameSpec(string: String): NameSpec = StringNameSpec(string)
+
+        fun createFeatureSpecData() = OciImageMappingData.FeatureSpec(capabilities, imageName, imageTag)
     }
 
     abstract class ComponentSpec @Inject constructor(
         private val objectFactory: ObjectFactory,
-    ) : VariantSpec(), OciImageMapping.ComponentSpec {
-        private val featureVariants = mutableMapOf<String, FeatureVariantSpec>()
+    ) : FeatureSpec(), OciImageMapping.ComponentSpec {
+        private val features = mutableMapOf<String, FeatureSpec>()
 
-        final override fun featureVariant(name: String, action: Action<in OciImageMapping.FeatureVariantSpec>) {
-            require(name != "main") { "featureVariant name must not be 'main'" }
-            val featureVariantSpec = objectFactory.newInstance<FeatureVariantSpec>()
-            action.execute(featureVariantSpec)
-            featureVariants[name] = featureVariantSpec
+        final override fun withFeature(name: String, action: Action<in OciImageMapping.FeatureSpec>) {
+            require(name != "main") { "feature name must not be 'main'" }
+            val featureSpec = objectFactory.newInstance<FeatureSpec>()
+            action.execute(featureSpec)
+            features[name] = featureSpec
         }
 
         fun getData() = OciImageMappingData.ComponentSpec(
-            OciImageMappingData.VariantSpec(capabilities, imageName, imageTag),
-            featureVariants.mapValues { it.value.getData() },
+            createFeatureSpecData(),
+            features.mapValues { it.value.createFeatureSpecData() },
         )
-    }
-
-    abstract class FeatureVariantSpec : VariantSpec(), OciImageMapping.FeatureVariantSpec {
-
-        fun getData() = OciImageMappingData.VariantSpec(capabilities, imageName, imageTag)
     }
 }
