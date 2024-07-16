@@ -53,19 +53,19 @@ internal class OciLayer( // TODO internal?
 abstract class OciImagesTask : DefaultTask() {
 
     @get:Nested
-    val imageInputs = project.objects.setProperty<OciImageInput>()
+    val images = project.objects.setProperty<OciImageInput>()
 
     init {
         @Suppress("LeakingThis")
-        dependsOn(imageInputs)
+        dependsOn(images)
     }
 
     fun from(dependencies: ResolvableOciImageDependencies) =
-        imageInputs.addAll(dependencies.configuration.incoming.resolveOciImageInputs())
+        images.addAll(dependencies.configuration.incoming.resolveOciImageInputs())
 
     @TaskAction
     protected fun run() {
-        val imageInputs: Set<OciImageInput> = imageInputs.get()
+        val imageInputs: Set<OciImageInput> = images.get()
         val imageAndReferencesPairs = createImageAndReferencesPairs(imageInputs)
         val multiArchImageAndReferencesPairs = createMultiArchImageAndReferencesPairs(imageAndReferencesPairs)
         val images = imageAndReferencesPairs.map { it.first }
