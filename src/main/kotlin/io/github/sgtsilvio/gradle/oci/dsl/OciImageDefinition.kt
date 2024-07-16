@@ -23,13 +23,13 @@ interface OciImageDefinition : Named {
 
     fun capabilities(configuration: Action<in Capabilities>)
 
-    fun allPlatforms(configuration: Action<in BundleScope>)
+    fun allPlatforms(configuration: Action<in VariantScope>)
 
-    fun platformsMatching(platformFilter: PlatformFilter, configuration: Action<in BundleScope>)
+    fun platformsMatching(platformFilter: PlatformFilter, configuration: Action<in VariantScope>)
 
     fun specificPlatform(platform: Platform)
 
-    fun specificPlatform(platform: Platform, configuration: Action<in Bundle>)
+    fun specificPlatform(platform: Platform, configuration: Action<in Variant>)
 
     interface Capabilities {
         val set: Provider<Set<Capability>>
@@ -43,7 +43,7 @@ interface OciImageDefinition : Named {
         operator fun plusAssign(notationProvider: Provider<String>) = add(notationProvider)
     }
 
-    interface Bundle {
+    interface Variant {
         val parentImages: ParentImages
         val config: Config
         val layers: Layers
@@ -96,11 +96,11 @@ interface OciImageDefinition : Named {
         }
     }
 
-    interface BundleScope {
+    interface VariantScope {
         val layers: Layers
 
-        fun parentImages(configuration: Action<in Bundle.ParentImages>)
-        fun config(configuration: Action<in Bundle.Config>)
+        fun parentImages(configuration: Action<in Variant.ParentImages>)
+        fun config(configuration: Action<in Variant.Config>)
         fun layers(configuration: Action<in Layers>)
 
         interface Layers {
@@ -110,7 +110,7 @@ interface OciImageDefinition : Named {
         }
 
         interface Layer : Named {
-            fun metadata(configuration: Action<in Bundle.Layer.Metadata>)
+            fun metadata(configuration: Action<in Variant.Layer.Metadata>)
             fun contents(configuration: Action<in OciCopySpec>)
             fun contents(task: TaskProvider<OciLayerTask>)
         }

@@ -59,24 +59,24 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         configuration.outgoing,
         name,
     )
-    private val bundles = objectFactory.domainObjectSet(Bundle::class)
-    private var allPlatformBundleScope: BundleScope? = null
-    private var platformBundleScopes: HashMap<PlatformFilter, BundleScope>? = null
-    private var universalBundle: UniversalBundle? = null
-    private var platformBundles: LinkedHashMap<Platform, PlatformBundle>? = null // linked because it will be iterated
+    private val variants = objectFactory.domainObjectSet(Variant::class)
+    private var allPlatformVariantScope: VariantScope? = null
+    private var platformVariantScopes: HashMap<PlatformFilter, VariantScope>? = null
+    private var universalVariant: UniversalVariant? = null
+    private var platformVariants: LinkedHashMap<Platform, PlatformVariant>? = null // linked because it will be iterated
     final override val dependency = project.createDependency().requireCapabilities(capabilities.set)
 
     init {
         project.afterEvaluate {
-            val platformBundles = platformBundles
-            if (platformBundles != null) {
-                for (bundle in platformBundles.values) {
-                    bundle.onAfterEvaluate()
+            val platformVariants = platformVariants
+            if (platformVariants != null) {
+                for (variant in platformVariants.values) {
+                    variant.onAfterEvaluate()
                 }
-            } else if (universalBundle == null) {
-                val bundle = objectFactory.newInstance<UniversalBundle>(this@OciImageDefinitionImpl)
-                bundles.add(bundle)
-                universalBundle = bundle
+            } else if (universalVariant == null) {
+                val variant = objectFactory.newInstance<UniversalVariant>(this@OciImageDefinitionImpl)
+                variants.add(variant)
+                universalVariant = variant
             }
         }
     }
@@ -103,59 +103,59 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     final override fun capabilities(configuration: Action<in OciImageDefinition.Capabilities>) =
         configuration.execute(capabilities)
 
-    final override fun allPlatforms(configuration: Action<in OciImageDefinition.BundleScope>) {
-        var bundleScope = allPlatformBundleScope
-        if (bundleScope == null) {
-            bundleScope = objectFactory.newInstance<BundleScope>(AllPlatformFilter, name, bundles)
-            allPlatformBundleScope = bundleScope
+    final override fun allPlatforms(configuration: Action<in OciImageDefinition.VariantScope>) {
+        var variantScope = allPlatformVariantScope
+        if (variantScope == null) {
+            variantScope = objectFactory.newInstance<VariantScope>(AllPlatformFilter, name, variants)
+            allPlatformVariantScope = variantScope
         }
-        configuration.execute(bundleScope)
+        configuration.execute(variantScope)
     }
 
     final override fun platformsMatching(
         platformFilter: PlatformFilter,
-        configuration: Action<in OciImageDefinition.BundleScope>,
+        configuration: Action<in OciImageDefinition.VariantScope>,
     ) {
         if (platformFilter == AllPlatformFilter) {
             return allPlatforms(configuration)
         }
-        var bundleScopes = platformBundleScopes
-        var bundleScope: BundleScope? = null
-        if (bundleScopes == null) {
-            bundleScopes = HashMap(4)
-            platformBundleScopes = bundleScopes
+        var variantScopes = platformVariantScopes
+        var variantScope: VariantScope? = null
+        if (variantScopes == null) {
+            variantScopes = HashMap(4)
+            platformVariantScopes = variantScopes
         } else {
-            bundleScope = bundleScopes[platformFilter]
+            variantScope = variantScopes[platformFilter]
         }
-        if (bundleScope == null) {
-            bundleScope = objectFactory.newInstance<BundleScope>(platformFilter, name, bundles)
-            bundleScopes[platformFilter] = bundleScope
+        if (variantScope == null) {
+            variantScope = objectFactory.newInstance<VariantScope>(platformFilter, name, variants)
+            variantScopes[platformFilter] = variantScope
         }
-        configuration.execute(bundleScope)
+        configuration.execute(variantScope)
     }
 
     final override fun specificPlatform(platform: Platform) {
-        getOrCreatePlatformBundle(platform)
+        getOrCreatePlatformVariant(platform)
     }
 
-    final override fun specificPlatform(platform: Platform, configuration: Action<in OciImageDefinition.Bundle>) =
-        configuration.execute(getOrCreatePlatformBundle(platform))
+    final override fun specificPlatform(platform: Platform, configuration: Action<in OciImageDefinition.Variant>) =
+        configuration.execute(getOrCreatePlatformVariant(platform))
 
-    private fun getOrCreatePlatformBundle(platform: Platform): Bundle {
-        var platformBundles = platformBundles
-        if (platformBundles == null) {
-            platformBundles = LinkedHashMap()
-            this.platformBundles = platformBundles
+    private fun getOrCreatePlatformVariant(platform: Platform): PlatformVariant {
+        var platformVariants = platformVariants
+        if (platformVariants == null) {
+            platformVariants = LinkedHashMap()
+            this.platformVariants = platformVariants
             configuration.attributes.attribute(PLATFORM_ATTRIBUTE, MULTI_PLATFORM_ATTRIBUTE_VALUE)
         }
-        var bundle = platformBundles[platform]
-        if (bundle == null) {
-            bundle = objectFactory.newInstance<PlatformBundle>(this, platform)
-            bundles.add(bundle)
-            platformBundles[platform] = bundle
-            configuration.dependencies.addLater(bundle.dependency)
+        var variant = platformVariants[platform]
+        if (variant == null) {
+            variant = objectFactory.newInstance<PlatformVariant>(this, platform)
+            variants.add(variant)
+            platformVariants[platform] = variant
+            configuration.dependencies.addLater(variant.dependency)
         }
-        return bundle
+        return variant
     }
 
 
@@ -212,7 +212,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     }
 
 
-    abstract class Bundle(
+    abstract class Variant(
         val imageDefinition: OciImageDefinitionImpl,
         val configuration: Configuration,
         val platform: Platform?,
@@ -221,10 +221,10 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
         projectName: String,
-    ) : OciImageDefinition.Bundle {
+    ) : OciImageDefinition.Variant {
 
         final override val parentImages = objectFactory.newInstance<ParentImages>(configuration)
-        final override val config = objectFactory.newInstance<OciImageDefinition.Bundle.Config>().apply {
+        final override val config = objectFactory.newInstance<OciImageDefinition.Variant.Config>().apply {
             entryPoint.convention(null)
             arguments.convention(null)
         }
@@ -290,19 +290,19 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 listProvider
             }
 
-        final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
+        final override fun parentImages(configuration: Action<in OciImageDefinition.Variant.ParentImages>) =
             configuration.execute(parentImages)
 
-        final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
+        final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =
             configuration.execute(config)
 
-        final override fun layers(configuration: Action<in OciImageDefinition.Bundle.Layers>) =
+        final override fun layers(configuration: Action<in OciImageDefinition.Variant.Layers>) =
             configuration.execute(layers)
 
         abstract class ParentImages @Inject constructor(
             configuration: Configuration,
             dependencyHandler: DependencyHandler,
-        ) : OciImageDependenciesImpl<Unit>(configuration, dependencyHandler), OciImageDefinition.Bundle.ParentImages {
+        ) : OciImageDependenciesImpl<Unit>(configuration, dependencyHandler), OciImageDefinition.Variant.ParentImages {
 
             final override fun DependencySet.addInternal(dependency: ModuleDependency) {
                 add(dependency)
@@ -317,12 +317,12 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             private val imageDefName: String,
             platform: Optional<Platform>,
             private val objectFactory: ObjectFactory,
-        ) : OciImageDefinition.Bundle.Layers {
+        ) : OciImageDefinition.Variant.Layers {
 
             private val platform: Platform? = platform.orElse(null)
-            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.Bundle.Layer::class)
+            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.Variant.Layer::class)
 
-            final override fun layer(name: String, configuration: Action<in OciImageDefinition.Bundle.Layer>) =
+            final override fun layer(name: String, configuration: Action<in OciImageDefinition.Variant.Layer>) =
                 configuration.execute(layer(name))
 
             fun layer(name: String): Layer {
@@ -343,20 +343,20 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             objectFactory: ObjectFactory,
             private val taskContainer: TaskContainer,
             private val projectLayout: ProjectLayout,
-        ) : OciImageDefinition.Bundle.Layer {
+        ) : OciImageDefinition.Variant.Layer {
 
             private val platform: Platform? = platform.orElse(null)
-            final override val metadata = objectFactory.newInstance<OciImageDefinition.Bundle.Layer.Metadata>().apply {
+            final override val metadata = objectFactory.newInstance<OciImageDefinition.Variant.Layer.Metadata>().apply {
                 createdBy.convention("gradle-oci: $name")
             }
 
             private var task: TaskProvider<OciLayerTask>? = null
-            private var bundleScopeConfigurations: LinkedList<Action<in OciCopySpec>>? = null
+            private var variantScopeConfigurations: LinkedList<Action<in OciCopySpec>>? = null
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
             final override fun getName() = name
 
-            final override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
+            final override fun metadata(configuration: Action<in OciImageDefinition.Variant.Layer.Metadata>) =
                 configuration.execute(metadata)
 
             final override fun contents(configuration: Action<in OciCopySpec>) {
@@ -364,15 +364,15 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
                 var task = task
-                val bundleScopeConfigurations = bundleScopeConfigurations
-                if ((task == null) || (bundleScopeConfigurations != null)) {
+                val variantScopeConfigurations = variantScopeConfigurations
+                if ((task == null) || (variantScopeConfigurations != null)) {
                     task = taskContainer.createLayerTask(imageDefName, name, createPlatformPostfix(platform), projectLayout)
                     this.task = task
-                    if (bundleScopeConfigurations != null) {
-                        this.bundleScopeConfigurations = null
+                    if (variantScopeConfigurations != null) {
+                        this.variantScopeConfigurations = null
                         task {
-                            for (bundleScopeConfiguration in bundleScopeConfigurations) {
-                                contents(bundleScopeConfiguration)
+                            for (variantScopeConfiguration in variantScopeConfigurations) {
+                                contents(variantScopeConfiguration)
                             }
                         }
                     }
@@ -380,24 +380,24 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 task.contents(configuration)
             }
 
-            fun contentsFromBundleScope(
-                bundleScopeConfiguration: Action<in OciCopySpec>,
-                bundleScopeTask: TaskProvider<OciLayerTask>,
+            fun contentsFromVariantScope(
+                variantScopeConfiguration: Action<in OciCopySpec>,
+                variantScopeTask: TaskProvider<OciLayerTask>,
             ) {
                 if (externalTask != null) {
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
                 }
                 val task = task
-                if ((task == null) || (task == bundleScopeTask)) {
-                    this.task = bundleScopeTask
-                    var bundleScopeConfigurations = bundleScopeConfigurations
-                    if (bundleScopeConfigurations == null) {
-                        bundleScopeConfigurations = LinkedList()
-                        this.bundleScopeConfigurations = bundleScopeConfigurations
+                if ((task == null) || (task == variantScopeTask)) {
+                    this.task = variantScopeTask
+                    var variantScopeConfigurations = variantScopeConfigurations
+                    if (variantScopeConfigurations == null) {
+                        variantScopeConfigurations = LinkedList()
+                        this.variantScopeConfigurations = variantScopeConfigurations
                     }
-                    bundleScopeConfigurations += bundleScopeConfiguration
+                    variantScopeConfigurations += variantScopeConfiguration
                 } else {
-                    contents(bundleScopeConfiguration)
+                    contents(variantScopeConfiguration)
                 }
             }
 
@@ -429,14 +429,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
     }
 
-    abstract class UniversalBundle @Inject constructor(
+    abstract class UniversalVariant @Inject constructor(
         imageDefinition: OciImageDefinitionImpl,
         objectFactory: ObjectFactory,
         providerFactory: ProviderFactory,
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
         project: Project,
-    ) : Bundle(
+    ) : Variant(
         imageDefinition,
         imageDefinition.configuration,
         null,
@@ -447,7 +447,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         project.name,
     )
 
-    abstract class PlatformBundle @Inject constructor(
+    abstract class PlatformVariant @Inject constructor(
         imageDefinition: OciImageDefinitionImpl,
         platform: Platform,
         objectFactory: ObjectFactory,
@@ -456,7 +456,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
         private val project: Project,
-    ) : Bundle(
+    ) : Variant(
         imageDefinition,
         configurationContainer.create(createOciVariantInternalName(imageDefinition.name, platform)).apply {
             description = "Elements of the '${imageDefinition.name}' OCI image for the platform $platform."
@@ -507,44 +507,44 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     }
 
 
-    abstract class BundleScope @Inject constructor(
+    abstract class VariantScope @Inject constructor(
         private val platformFilter: PlatformFilter,
         imageDefName: String,
-        bundles: DomainObjectSet<Bundle>,
+        variants: DomainObjectSet<Variant>,
         objectFactory: ObjectFactory,
-    ) : OciImageDefinition.BundleScope {
+    ) : OciImageDefinition.VariantScope {
 
-        private val filteredBundles = when (platformFilter) {
-            AllPlatformFilter -> bundles
-            else -> bundles.matching { bundle -> platformFilter.matches(bundle.platform) }
+        private val filteredVariants = when (platformFilter) {
+            AllPlatformFilter -> variants
+            else -> variants.matching { variant -> platformFilter.matches(variant.platform) }
         }
-        final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageDefName, filteredBundles)
+        final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageDefName, filteredVariants)
 
-        final override fun parentImages(configuration: Action<in OciImageDefinition.Bundle.ParentImages>) =
-            filteredBundles.configureEach { parentImages(configuration) }
+        final override fun parentImages(configuration: Action<in OciImageDefinition.Variant.ParentImages>) =
+            filteredVariants.configureEach { parentImages(configuration) }
 
-        final override fun config(configuration: Action<in OciImageDefinition.Bundle.Config>) =
-            filteredBundles.configureEach { config(configuration) }
+        final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =
+            filteredVariants.configureEach { config(configuration) }
 
-        final override fun layers(configuration: Action<in OciImageDefinition.BundleScope.Layers>) =
+        final override fun layers(configuration: Action<in OciImageDefinition.VariantScope.Layers>) =
             configuration.execute(layers)
 
         abstract class Layers @Inject constructor(
             private val platformFilter: PlatformFilter,
             private val imageDefName: String,
-            private val bundles: DomainObjectSet<Bundle>,
+            private val variants: DomainObjectSet<Variant>,
             private val objectFactory: ObjectFactory,
-        ) : OciImageDefinition.BundleScope.Layers {
+        ) : OciImageDefinition.VariantScope.Layers {
 
-            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.BundleScope.Layer::class)
+            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.VariantScope.Layer::class)
 
-            final override fun layer(name: String, configuration: Action<in OciImageDefinition.BundleScope.Layer>) =
+            final override fun layer(name: String, configuration: Action<in OciImageDefinition.VariantScope.Layer>) =
                 configuration.execute(layer(name))
 
             fun layer(name: String): Layer {
                 var layer = list.findByName(name) as Layer?
                 if (layer == null) {
-                    layer = objectFactory.newInstance<Layer>(name, platformFilter, imageDefName, bundles)
+                    layer = objectFactory.newInstance<Layer>(name, platformFilter, imageDefName, variants)
                     list.add(layer)
                 }
                 return layer
@@ -555,18 +555,18 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             private val name: String,
             private val platformFilter: PlatformFilter,
             private val imageDefName: String,
-            private val bundles: DomainObjectSet<Bundle>,
+            private val variants: DomainObjectSet<Variant>,
             private val projectLayout: ProjectLayout,
             private val taskContainer: TaskContainer,
-        ) : OciImageDefinition.BundleScope.Layer {
+        ) : OciImageDefinition.VariantScope.Layer {
 
             private var task: TaskProvider<OciLayerTask>? = null
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
             final override fun getName() = name
 
-            final override fun metadata(configuration: Action<in OciImageDefinition.Bundle.Layer.Metadata>) =
-                bundles.configureEach { layers.layer(name).metadata(configuration) }
+            final override fun metadata(configuration: Action<in OciImageDefinition.Variant.Layer.Metadata>) =
+                variants.configureEach { layers.layer(name).metadata(configuration) }
 
             final override fun contents(configuration: Action<in OciCopySpec>) {
                 if (externalTask != null) {
@@ -578,14 +578,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     this.task = task
                 }
                 task.contents(configuration)
-                bundles.configureEach {
-                    layers.layer(name).contentsFromBundleScope(configuration, task)
+                variants.configureEach {
+                    layers.layer(name).contentsFromVariantScope(configuration, task)
                 }
             }
 
             final override fun contents(task: TaskProvider<OciLayerTask>) {
                 externalTask = if (task == this.task) null else task
-                bundles.configureEach {
+                variants.configureEach {
                     layers.layer(name).contents(task)
                 }
             }
