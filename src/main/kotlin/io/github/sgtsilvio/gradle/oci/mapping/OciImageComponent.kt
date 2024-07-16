@@ -6,7 +6,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
-internal class MappedComponent(
+internal class OciImageComponent(
     val componentId: VersionedCoordinates,
     val features: Map<String, Feature>,
 ) {

@@ -8,7 +8,7 @@ import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.internal.string.escapeReplace
 import io.github.sgtsilvio.gradle.oci.internal.string.unescapeReplace
-import io.github.sgtsilvio.gradle.oci.mapping.MappedComponent
+import io.github.sgtsilvio.gradle.oci.mapping.OciImageComponent
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.mapping.map
@@ -106,7 +106,7 @@ internal class OciRepositoryHandler(
 
     private fun getOrHeadGradleModuleMetadata(
         registryUri: URI,
-        mappedComponent: MappedComponent,
+        ociImageComponent: OciImageComponent,
         credentials: Credentials?,
         isGet: Boolean,
         response: HttpServerResponse,
@@ -118,8 +118,8 @@ internal class OciRepositoryHandler(
             val digest: OciDigest,
             val size: Int,
         )
-        val componentId = mappedComponent.componentId
-        val variantsMetadataMonoList = mappedComponent.features.map { (featureName, feature) ->
+        val componentId = ociImageComponent.componentId
+        val variantsMetadataMonoList = ociImageComponent.features.map { (featureName, feature) ->
             getMultiArchImageMetadata(registryUri, feature.imageReference, credentials).map {
                 OciVariantsMetadata(featureName, feature.capabilities, it.platformToMetadata, it.digest, it.size)
             }

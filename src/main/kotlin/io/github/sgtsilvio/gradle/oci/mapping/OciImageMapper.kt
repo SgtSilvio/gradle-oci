@@ -21,7 +21,7 @@ private val DEFAULT_CAPABILITY = Triple(
 private val DEFAULT_IMAGE_NAME = IMAGE_NAMESPACE_PARAMETER_NAME_SPEC + NAME_PARAMETER_NAME_SPEC
 private val DEFAULT_IMAGE_TAG = VERSION_PARAMETER_NAME_SPEC + FEATURE_NAME_PARAMETER_NAME_SPEC.prefix("-")
 
-internal fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedComponent {
+internal fun OciImageMappingData.map(componentId: VersionedCoordinates): OciImageComponent {
     val componentSpec = componentMappings[componentId]
         ?: moduleMappings[componentId.coordinates]
         ?: groupMappings[componentId.group]
@@ -34,9 +34,9 @@ internal fun OciImageMappingData.map(componentId: VersionedCoordinates): MappedC
     }
     val defaultImageName = componentSpec.mainFeature.imageName ?: DEFAULT_IMAGE_NAME
     val defaultImageTag = componentSpec.mainFeature.imageTag ?: DEFAULT_IMAGE_TAG
-    return MappedComponent(
+    return OciImageComponent(
         componentId,
-        LinkedHashMap<String, MappedComponent.Feature>().apply {
+        LinkedHashMap<String, OciImageComponent.Feature>().apply {
             put("main", componentSpec.mainFeature.map(parameters, DEFAULT_IMAGE_NAME, DEFAULT_IMAGE_TAG))
             putAll(componentSpec.additionalFeatures.mapValuesTo(TreeMap()) { (featureName, featureSpec) ->
                 parameters[FEATURE_NAME_PARAMETER_KEY] = featureName
@@ -50,7 +50,7 @@ private fun OciImageMappingData.FeatureSpec.map(
     parameters: Map<String, String>,
     defaultImageName: NameSpec,
     defaultImageTag: NameSpec,
-) = MappedComponent.Feature(
+) = OciImageComponent.Feature(
     capabilities.ifEmpty { listOf(DEFAULT_CAPABILITY) }.mapTo(TreeSet()) { (group, name, version) ->
         VersionedCoordinates(
             group.generateName(parameters),
@@ -64,10 +64,10 @@ private fun OciImageMappingData.FeatureSpec.map(
     ),
 )
 
-private fun defaultMappedComponent(componentId: VersionedCoordinates) = MappedComponent(
+private fun defaultMappedComponent(componentId: VersionedCoordinates) = OciImageComponent(
     componentId,
     mapOf(
-        "main" to MappedComponent.Feature(
+        "main" to OciImageComponent.Feature(
             sortedSetOf(componentId),
             OciImageReference(
                 defaultMappedImageNamespace(componentId.group) + componentId.name,
