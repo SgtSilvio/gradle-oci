@@ -13,12 +13,6 @@ import java.util.*
  */
 internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
 
-    class OciMultiArchImageMetadata(
-        val platformToMetadata: Map<Platform, OciMetadata>,
-        val digest: OciDigest,
-        val size: Int,
-    )
-
     fun pullMultiArchImageMetadata(
         registry: String,
         imageReference: OciImageReference,
@@ -363,3 +357,9 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
         }
     }
 }
+
+internal class OciMultiArchImageMetadata(
+    val platformToMetadata: Map<Platform, OciMetadata>,
+    val digest: OciDigest,
+    val size: Int,
+)

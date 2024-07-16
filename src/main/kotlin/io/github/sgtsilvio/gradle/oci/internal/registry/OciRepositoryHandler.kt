@@ -52,7 +52,7 @@ internal class OciRepositoryHandler(
     private val credentials: Credentials?,
 ) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
-    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciImageMetadataRegistry.OciMultiArchImageMetadata> =
+    private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciMultiArchImageMetadata> =
         Caffeine.newBuilder().maximumSize(100).expireAfterAccess(1, TimeUnit.MINUTES).buildAsync()
 
     private data class ImageMetadataCacheKey(
@@ -284,7 +284,7 @@ internal class OciRepositoryHandler(
         registryUri: URI,
         imageReference: OciImageReference,
         credentials: Credentials?,
-    ): Mono<OciImageMetadataRegistry.OciMultiArchImageMetadata> {
+    ): Mono<OciMultiArchImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, null, -1, credentials?.hashed())
         ) { key ->
@@ -303,7 +303,7 @@ internal class OciRepositoryHandler(
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<OciImageMetadataRegistry.OciMultiArchImageMetadata> {
+    ): Mono<OciMultiArchImageMetadata> {
         return imageMetadataCache.getMono(
             ImageMetadataCacheKey(registryUri.toString(), imageReference, digest, size, credentials?.hashed())
         ) { (registry, imageReference) ->
