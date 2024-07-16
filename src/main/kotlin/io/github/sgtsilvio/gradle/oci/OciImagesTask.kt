@@ -13,32 +13,6 @@ import java.io.File
 /**
  * @author Silvio Giebl
  */
-class OciMultiPlatformImage(
-    val index: OciData,
-    val platformToImage: Map<Platform, OciImage>,
-)
-
-class OciImage(
-    val manifest: OciDataDescriptor,
-    val config: OciDataDescriptor,
-    val platform: Platform,
-    val variants: List<OciVariant>,
-) {
-    init {
-        require(variants.isNotEmpty()) { "variants must not be empty" }
-    }
-}
-
-class OciVariant(
-    val metadata: OciMetadata,
-    val layers: List<OciLayer>,
-)
-
-class OciLayer(
-    val descriptor: OciLayerDescriptor,
-    val file: File,
-)
-
 abstract class OciImagesTask : DefaultTask() {
 
     @get:Nested
@@ -186,4 +160,30 @@ abstract class OciImagesTask : DefaultTask() {
 private val EMPTY_LAYER_DIFF_IDS = setOf(
     "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef".toOciDigest(),
     "sha512:8efb4f73c5655351c444eb109230c556d39e2c7624e9c11abc9e3fb4b9b9254218cc5085b454a9698d085cfa92198491f07a723be4574adc70617b73eb0b6461".toOciDigest(),
+)
+
+class OciMultiPlatformImage(
+    val index: OciData,
+    val platformToImage: Map<Platform, OciImage>,
+)
+
+class OciImage(
+    val manifest: OciDataDescriptor,
+    val config: OciDataDescriptor,
+    val platform: Platform,
+    val variants: List<OciVariant>,
+) {
+    init {
+        require(variants.isNotEmpty()) { "variants must not be empty" }
+    }
+}
+
+class OciVariant(
+    val metadata: OciMetadata,
+    val layers: List<OciLayer>,
+)
+
+class OciLayer(
+    val descriptor: OciLayerDescriptor,
+    val file: File,
 )
