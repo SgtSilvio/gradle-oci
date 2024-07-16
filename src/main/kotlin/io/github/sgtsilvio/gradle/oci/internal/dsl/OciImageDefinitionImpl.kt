@@ -304,12 +304,12 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             dependencyHandler: DependencyHandler,
         ) : OciImageDependenciesImpl<Unit>(configuration, dependencyHandler), OciImageDefinition.Bundle.ParentImages {
 
-            final override fun addInternal(dependency: ModuleDependency) {
-                configuration.dependencies.add(dependency)
+            final override fun DependencySet.addInternal(dependency: ModuleDependency) {
+                add(dependency)
             }
 
-            final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>) {
-                configuration.dependencies.addLater(dependencyProvider)
+            final override fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>) {
+                addLater(dependencyProvider)
             }
         }
 

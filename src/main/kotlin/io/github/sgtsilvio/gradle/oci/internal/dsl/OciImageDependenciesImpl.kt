@@ -31,14 +31,14 @@ internal abstract class OciImageDependenciesImpl<T>(
         addInternal(dependencyProvider, action)
 
     private fun <D : ModuleDependency> addInternal(dependency: D, action: Action<in D>?) =
-        addInternal(finalizeDependency(dependency, action))
+        configuration.dependencies.addInternal(finalizeDependency(dependency, action))
 
     private fun <D : ModuleDependency> addInternal(dependencyProvider: Provider<out D>, action: Action<in D>?) =
-        addInternal(dependencyProvider.map { finalizeDependency(it, action) })
+        configuration.dependencies.addInternal(dependencyProvider.map { finalizeDependency(it, action) })
 
-    protected abstract fun addInternal(dependency: ModuleDependency): T
+    protected abstract fun DependencySet.addInternal(dependency: ModuleDependency): T
 
-    protected abstract fun addInternal(dependencyProvider: Provider<out ModuleDependency>): T
+    protected abstract fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): T
 
     private fun <D : ModuleDependency> finalizeDependency(dependency: D, action: Action<in D>?): D {
         @Suppress("UNCHECKED_CAST") val finalizedDependency = dependencyHandler.create(dependency) as D

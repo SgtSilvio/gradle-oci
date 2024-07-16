@@ -8,6 +8,7 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.DependencySet
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
@@ -44,17 +45,17 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
 
     final override fun getName() = name
 
-    final override fun addInternal(dependency: ModuleDependency): ReferenceSpecBuilder {
+    final override fun DependencySet.addInternal(dependency: ModuleDependency): ReferenceSpecBuilder {
         val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
-        configuration.dependencies.addLater(referenceSpecBuilder.attribute.map { attribute ->
+        addLater(referenceSpecBuilder.attribute.map { attribute ->
             dependency.attribute(OCI_IMAGE_REFERENCE_ATTRIBUTE, attribute)
         })
         return referenceSpecBuilder
     }
 
-    final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecBuilder {
+    final override fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecBuilder {
         val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
-        configuration.dependencies.addLater(dependencyProvider.zip(referenceSpecBuilder.attribute) { dependency, attribute ->
+        addLater(dependencyProvider.zip(referenceSpecBuilder.attribute) { dependency, attribute ->
             dependency.attribute(OCI_IMAGE_REFERENCE_ATTRIBUTE, attribute)
         })
         return referenceSpecBuilder
