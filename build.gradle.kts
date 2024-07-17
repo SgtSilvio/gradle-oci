@@ -56,7 +56,7 @@ gradlePlugin {
         create("oci") {
             id = "$group.$name"
             implementationClass = "$group.$name.OciPlugin"
-            tags = listOf("oci", "oci-image", "docker", "multi-arch")
+            tags = listOf("oci", "oci-image", "docker", "docker-image", "multi-arch")
         }
     }
 }
