@@ -2,9 +2,10 @@ package io.github.sgtsilvio.gradle.oci.internal.resolution
 
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
-internal class PlatformSet : Iterable<Platform> {
+internal class PlatformSet {
     var isInfinite: Boolean private set
-    private val set = LinkedHashSet<Platform>() // linked to preserve the platform order
+    private val _set = LinkedHashSet<Platform>() // linked to preserve the platform order
+    val set: Set<Platform> get() = _set
 
     constructor(isInfinite: Boolean) {
         this.isInfinite = isInfinite
@@ -12,7 +13,7 @@ internal class PlatformSet : Iterable<Platform> {
 
     constructor(platform: Platform) {
         isInfinite = false
-        set.add(platform)
+        _set.add(platform)
     }
 
     fun intersect(other: PlatformSet) {
@@ -21,9 +22,9 @@ internal class PlatformSet : Iterable<Platform> {
         }
         if (isInfinite) {
             isInfinite = false
-            set.addAll(other.set)
+            _set.addAll(other._set)
         } else {
-            set.retainAll((other.set))
+            _set.retainAll((other._set))
         }
     }
 
@@ -33,16 +34,11 @@ internal class PlatformSet : Iterable<Platform> {
         }
         if (other.isInfinite) {
             isInfinite = true
-            set.clear()
+            _set.clear()
         } else {
-            set.addAll(other.set)
+            _set.addAll(other._set)
         }
     }
 
-    override fun iterator(): Iterator<Platform> {
-        if (isInfinite) {
-            throw UnsupportedOperationException("iterating an infinite set is not possible")
-        }
-        return set.iterator()
-    }
+    override fun toString() = if (isInfinite) "[<any>]" else set.toString()
 }

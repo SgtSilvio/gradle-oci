@@ -8,6 +8,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.DEFAULT_OCI_REFERENCE_SPEC
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
@@ -19,9 +20,12 @@ internal class OciImageSpec(
     val referenceSpecs: Set<OciImageReferenceSpec>, // normalized setOf(OciImageReferenceSpec(null, null)) -> emptySet()
 )
 
-internal fun resolveOciImageSpecs(rootComponentResult: ResolvedComponentResult): List<OciImageSpec> {
+internal fun resolveOciImageSpecs(
+    rootComponentResult: ResolvedComponentResult,
+    platformSelector: PlatformSelector?,
+): List<OciImageSpec> {
     val rootNodesToReferenceSpecs = resolveOciVariantGraph(rootComponentResult)
-    return resolveOciImageSpecs(rootNodesToReferenceSpecs)
+    return resolveOciImageSpecs(rootNodesToReferenceSpecs, platformSelector)
 }
 
 private fun resolveOciVariantGraph(
@@ -132,10 +136,15 @@ private val ResolvedVariantResult.platformOrUniversalOrMulti: String
 
 private fun resolveOciImageSpecs(
     rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciImageReferenceSpec>>,
+    platformSelector: PlatformSelector?,
 ): List<OciImageSpec> {
     val imageSpecs = ArrayList<OciImageSpec>()
     for ((rootNode, referenceSpecs) in rootNodesToReferenceSpecs) {
-        for (platform in rootNode.platformSet) {
+        val platforms = platformSelector?.select(rootNode.platformSet) ?: rootNode.platformSet.set
+        if (platforms.isEmpty()) {
+            throw IllegalStateException("no platforms can be selected for variant ${rootNode.variantResult} (supported platforms: ${rootNode.platformSet}, platform selector: $platformSelector)")
+        }
+        for (platform in platforms) {
             val variantResults = rootNode.collectVariantResultsForPlatform(platform).toList()
             imageSpecs += OciImageSpec(platform, variantResults, referenceSpecs.normalize())
         }
@@ -157,12 +166,12 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
         when (this) {
             is OciVariantNode.MultiPlatform -> {
                 platformToDependency[platform]?.collectVariantResultsForPlatform(platform, result)
-                    ?: throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platforms are ${platformToDependency.keys})")
+                    ?: throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platforms: ${platformToDependency.keys})")
             }
 
             is OciVariantNode.SinglePlatform -> {
                 if (platform != this.platform) {
-                    throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platform is ${this.platform})")
+                    throw IllegalArgumentException("variant $variantResult does not support platform $platform (supported platform: ${this.platform})")
                 }
                 for (dependency in dependencies) {
                     dependency.collectVariantResultsForPlatform(platform, result)

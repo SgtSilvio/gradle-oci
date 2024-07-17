@@ -2,6 +2,8 @@ package io.github.sgtsilvio.gradle.oci.internal.resolution
 
 import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.internal.gradle.ArtifactViewVariantFilter
+import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedVariantResult
@@ -9,9 +11,14 @@ import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.Provider
 
-internal fun ResolvableDependencies.resolveOciImageInputs(): Provider<List<OciImagesTask.ImageInput>> {
+internal fun ResolvableDependencies.resolveOciImageInputs(
+    platformSelectorProvider: Provider<PlatformSelector>,
+): Provider<List<OciImagesTask.ImageInput>> {
     val rootComponentProvider = resolutionResult.rootComponent
-    val imageSpecsProvider = rootComponentProvider.map(::resolveOciImageSpecs)
+    val imageSpecsProvider =
+        rootComponentProvider.zipAbsentAsNull(platformSelectorProvider) { rootComponent, platformSelector ->
+            resolveOciImageSpecs(rootComponent, platformSelector)
+        }
     val artifactResultsProvider = artifactView {
         componentFilter(
             ArtifactViewVariantFilter(

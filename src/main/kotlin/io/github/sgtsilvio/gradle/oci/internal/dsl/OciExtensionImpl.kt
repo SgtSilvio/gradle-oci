@@ -11,6 +11,7 @@ import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
+import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
 import org.gradle.kotlin.dsl.domainObjectContainer
@@ -67,6 +68,8 @@ internal abstract class OciExtensionImpl @Inject constructor(private val objectF
 
     final override fun PlatformFilter.or(configuration: Action<in OciExtension.PlatformFilterBuilder>) =
         or(platformFilter(configuration))
+
+    final override fun platformSelector(platform: Platform) = PlatformSelector(platform)
 
     final override fun copySpec() = objectFactory.newOciCopySpec()
 

@@ -4,9 +4,13 @@ import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImageInputs
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
+import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
+import org.gradle.api.tasks.options.Option
+import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
 import java.io.File
 
@@ -33,13 +37,23 @@ abstract class OciImagesTask : DefaultTask() {
         @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
     )
 
+    @get:Internal
+    val platformSelector = project.objects.property<PlatformSelector>()
+
     init {
         @Suppress("LeakingThis")
         dependsOn(images)
     }
 
     fun from(dependencies: ResolvableOciImageDependencies) =
-        images.addAll(dependencies.configuration.incoming.resolveOciImageInputs())
+        images.addAll(dependencies.configuration.incoming.resolveOciImageInputs(platformSelector))
+
+    @Option(
+        option = "platform",
+        description = "Selects the platform specified in the format: <os>,<arch>[,<variant>[,<osVersion>[,<osFeature>(,<osFeature>)*]]]. Option can be specified multiple times. If not specified, all supported platforms are selected.",
+    )
+    protected fun selectPlatforms(platforms: List<String>) =
+        platformSelector.set(platforms.map { PlatformSelector(it.toPlatform()) }.reduce(PlatformSelector::and))
 
     @TaskAction
     protected fun run() {
