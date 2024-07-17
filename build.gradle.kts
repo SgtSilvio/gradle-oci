@@ -20,7 +20,7 @@ metadata {
         }
     }
     github {
-        org = "sgtsilvio"
+        org = "SgtSilvio"
         issues()
     }
 }
