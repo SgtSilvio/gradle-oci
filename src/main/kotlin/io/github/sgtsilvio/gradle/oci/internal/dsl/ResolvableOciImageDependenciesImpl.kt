@@ -45,23 +45,23 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
 
     final override fun getName() = name
 
-    final override fun DependencySet.addInternal(dependency: ModuleDependency): ReferenceSpecBuilder {
-        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
-        addLater(referenceSpecBuilder.attribute.map { attribute ->
+    final override fun DependencySet.addInternal(dependency: ModuleDependency): ReferenceSpecsBuilder {
+        val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
+        addLater(referenceSpecsBuilder.attribute.map { attribute ->
             dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
         })
-        return referenceSpecBuilder
+        return referenceSpecsBuilder
     }
 
-    final override fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecBuilder {
-        val referenceSpecBuilder = ReferenceSpecBuilder(objectFactory)
-        addLater(dependencyProvider.zip(referenceSpecBuilder.attribute) { dependency, attribute ->
+    final override fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecsBuilder {
+        val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
+        addLater(dependencyProvider.zip(referenceSpecsBuilder.attribute) { dependency, attribute ->
             dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
         })
-        return referenceSpecBuilder
+        return referenceSpecsBuilder
     }
 
-    class ReferenceSpecBuilder(objectFactory: ObjectFactory) : Nameable, Taggable {
+    class ReferenceSpecsBuilder(objectFactory: ObjectFactory) : Nameable, Taggable {
         private val nameProperty = objectFactory.property<String>()
         private val tagsProperty = objectFactory.setProperty<String>()
         val attribute: Provider<String> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
@@ -72,34 +72,34 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
             }
         }
 
-        override fun name(name: String): ReferenceSpecBuilder {
+        override fun name(name: String): ReferenceSpecsBuilder {
             nameProperty.set(name)
             return this
         }
 
-        override fun name(nameProvider: Provider<String>): ReferenceSpecBuilder {
+        override fun name(nameProvider: Provider<String>): ReferenceSpecsBuilder {
             nameProperty.set(nameProvider)
             return this
         }
 
-        override fun tag(vararg tags: String): ReferenceSpecBuilder {
+        override fun tag(vararg tags: String): ReferenceSpecsBuilder {
             tagsProperty.addAll(*tags)
             return this
         }
 
-        override fun tag(tags: Iterable<String>): ReferenceSpecBuilder {
+        override fun tag(tags: Iterable<String>): ReferenceSpecsBuilder {
             tagsProperty.addAll(tags)
             return this
         }
 
-        override fun tag(tagProvider: Provider<String>): ReferenceSpecBuilder {
+        override fun tag(tagProvider: Provider<String>): ReferenceSpecsBuilder {
             tagsProperty.addAll(tagProvider.map { listOf(it) }.orElse(emptyList()))
             return this
         }
 
         @Suppress("INAPPLICABLE_JVM_NAME")
         @JvmName("tagMultiple")
-        override fun tag(tagsProvider: Provider<out Iterable<String>>): ReferenceSpecBuilder {
+        override fun tag(tagsProvider: Provider<out Iterable<String>>): ReferenceSpecsBuilder {
             tagsProperty.addAll(tagsProvider.map { it }.orElse(emptyList()))
             return this
         }
