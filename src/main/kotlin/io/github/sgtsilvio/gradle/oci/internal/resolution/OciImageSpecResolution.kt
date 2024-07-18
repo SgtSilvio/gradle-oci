@@ -4,7 +4,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.MULTI_PLATFORM_ATTRIBUTE_VALUE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE
-import io.github.sgtsilvio.gradle.oci.metadata.DEFAULT_OCI_REFERENCE_SPEC
+import io.github.sgtsilvio.gradle.oci.metadata.DEFAULT_OCI_IMAGE_REFERENCE_SPEC
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -40,7 +40,7 @@ private fun resolveOciVariantGraph(
         val referenceSpecs = dependencyResult.requested.attributes.getAttribute(OCI_IMAGE_REFERENCE_ATTRIBUTE)
             ?.split(',')
             ?.map { it.toOciImageReferenceSpec() }
-            ?: listOf(DEFAULT_OCI_REFERENCE_SPEC)
+            ?: listOf(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)
         val node = resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
         rootNodesToReferenceSpecs.getOrPut(node) { HashSet() }.addAll(referenceSpecs)
     }
@@ -189,4 +189,4 @@ private fun OciVariantNode.collectVariantResultsForPlatform(
 }
 
 private fun Set<OciImageReferenceSpec>.normalize(): Set<OciImageReferenceSpec> =
-    if ((size == 1) && contains(DEFAULT_OCI_REFERENCE_SPEC)) emptySet() else this
+    if ((size == 1) && contains(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)) emptySet() else this

@@ -9,8 +9,7 @@ data class OciImageReferenceSpec(val name: String?, val tag: String?) : Serializ
     override fun toString() = (name ?: "") + ":" + (tag ?: "")
 }
 
-// TODO factory method for OciImageReferenceSpec that returns DEFAULT_OCI_REFERENCE_SPEC if both are null
-internal val DEFAULT_OCI_REFERENCE_SPEC = OciImageReferenceSpec(null, null)
+internal val DEFAULT_OCI_IMAGE_REFERENCE_SPEC = OciImageReferenceSpec(null, null)
 
 internal fun OciImageReferenceSpec.materialize(default: OciImageReference) =
     OciImageReference(name ?: default.name, tag ?: default.tag)
