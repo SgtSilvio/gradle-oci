@@ -14,15 +14,15 @@ import org.gradle.api.provider.Provider
 internal fun ResolvableDependencies.resolveOciImageInputs(
     platformSelectorProvider: Provider<PlatformSelector>,
 ): Provider<List<OciImagesTask.ImageInput>> {
-    val rootComponentProvider = resolutionResult.rootComponent
+    val rootComponentResultProvider = resolutionResult.rootComponent
     val imageSpecsProvider =
-        rootComponentProvider.zipAbsentAsNull(platformSelectorProvider) { rootComponent, platformSelector ->
-            resolveOciImageSpecs(rootComponent, platformSelector)
+        rootComponentResultProvider.zipAbsentAsNull(platformSelectorProvider) { rootComponentResult, platformSelector ->
+            resolveOciImageSpecs(rootComponentResult, platformSelector)
         }
     val artifactResultsProvider = artifactView {
         componentFilter(
             ArtifactViewVariantFilter(
-                rootComponentProvider,
+                rootComponentResultProvider,
                 imageSpecsProvider.map { imageSpecs -> imageSpecs.flatMapTo(HashSet()) { it.variants } },
             )
         )
