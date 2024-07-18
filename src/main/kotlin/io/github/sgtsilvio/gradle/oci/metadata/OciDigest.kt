@@ -2,10 +2,7 @@ package io.github.sgtsilvio.gradle.oci.metadata
 
 import io.github.sgtsilvio.gradle.oci.internal.json.JsonObject
 import org.apache.commons.codec.binary.Hex
-import java.io.File
-import java.io.FileInputStream
 import java.io.OutputStream
-import java.io.Serializable
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 import kotlin.contracts.ExperimentalContracts
@@ -35,7 +32,7 @@ enum class OciDigestAlgorithm(val id: String, val standardName: String, private 
     internal fun createMessageDigest(): MessageDigest = MessageDigest.getInstance(standardName)
 }
 
-data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) : Serializable {
+data class OciDigest(val algorithm: OciDigestAlgorithm, val hash: ByteArray) {
     val encodedHash get() = algorithm.encode(hash)
 
     init {
@@ -72,15 +69,6 @@ internal fun String.toOciDigest(): OciDigest {
     return OciDigest(algorithm, algorithm.decode(substring(colonIndex + 1)))
 }
 
-internal fun MessageDigest.toOciDigest(): OciDigest {
-    val algorithm = when (algorithm) {
-        OciDigestAlgorithm.SHA_256.standardName -> OciDigestAlgorithm.SHA_256
-        OciDigestAlgorithm.SHA_512.standardName -> OciDigestAlgorithm.SHA_512
-        else -> throw IllegalArgumentException("unsupported digest algorithm '$algorithm'")
-    }
-    return OciDigest(algorithm, digest())
-}
-
 internal fun ByteArray.calculateOciDigest(algorithm: OciDigestAlgorithm) =
     OciDigest(algorithm, algorithm.createMessageDigest().digest(this))
 
@@ -95,23 +83,6 @@ internal inline fun OutputStream.calculateOciDigest(
     val messageDigest = algorithm.createMessageDigest()
     DigestOutputStream(this, messageDigest).use { block(it) }
     return OciDigest(algorithm, messageDigest.digest())
-}
-
-private const val BUFFER_SIZE = 4096
-
-internal fun File.calculateOciDigests(algorithms: Iterable<OciDigestAlgorithm>): List<OciDigest> {
-    val messageDigests = algorithms.map { it.createMessageDigest() }
-    FileInputStream(this).use { inputStream ->
-        val buffer = ByteArray(BUFFER_SIZE)
-        var read = inputStream.read(buffer, 0, BUFFER_SIZE)
-        while (read > -1) {
-            for (messageDigest in messageDigests) {
-                messageDigest.update(buffer, 0, read)
-            }
-            read = inputStream.read(buffer, 0, BUFFER_SIZE)
-        }
-    }
-    return messageDigests.map { it.toOciDigest() }
 }
 
 internal fun JsonObject.getOciDigest(key: String) = get(key) { asString().toOciDigest() }

@@ -19,7 +19,6 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
-import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
@@ -95,7 +94,7 @@ internal abstract class OciRegistriesImpl @Inject constructor(
     }
 
     private fun ResolvableDependencies.resolvesOciImages() =
-        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE)?.name == OCI_IMAGE_DISTRIBUTION_TYPE
+        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) == OCI_IMAGE_DISTRIBUTION_TYPE
 
     private fun beforeResolve() {
         if (list.isNotEmpty()) {
@@ -121,7 +120,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
     final override val finalUrl: Provider<URI> =
         providerFactory.gradleProperty(url.map(URI::toString)).map(::URI).orElse(url)
     final override val credentials = objectFactory.property<PasswordCredentials>()
-    final override val repository: IvyArtifactRepository = repositoryHandler.ivy {
+    final override val repository = repositoryHandler.ivy {
         name = this@OciRegistryImpl.name + "OciRegistry"
         setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
             val escapedUrl = url.toString().escapePathSegment()
@@ -134,7 +133,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
             artifact()
         }
         content {
-            onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+            onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
         }
     }
 
@@ -150,7 +149,7 @@ private const val PORT_HTTP_HEADER_NAME = "port"
 internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
     private val httpServers = mutableListOf<DisposableServer>()
     private val loopResources = OciLoopResources.acquire()
-    private val ociComponentRegistry = OciComponentRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
+    private val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
 
     fun init(port: Int) {
         try {
@@ -164,7 +163,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
 
     fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
         val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
-        val port = addHttpServer(0, OciRepositoryHandler(ociComponentRegistry, imageMappingData, credentials)).port()
+        val port = addHttpServer(0, OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials)).port()
         registry.repository.credentials(HttpHeaderCredentials::class) {
             name = PORT_HTTP_HEADER_NAME
             value = port.toString()

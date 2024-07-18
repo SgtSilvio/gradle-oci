@@ -74,7 +74,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         Caffeine.newBuilder().expireAfter(TokenCacheExpiry).buildAsync()
 
     private data class TokenCacheKey(
-        val registry: String,
+        val registryUrl: URI,
         val scopes: Set<OciRegistryResourceScope>,
         val credentials: HashedCredentials?,
     )
@@ -98,16 +98,14 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         ) = currentDuration
     }
 
-    class Manifest(val mediaType: String, val data: ByteArray, val digest: OciDigest)
-
     private fun pullManifestInternal(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         reference: String,
         credentials: Credentials?,
-    ): Mono<Manifest> {
+    ): Mono<OciData> {
         return send(
-            registry,
+            registryUrl,
             imageName,
             "manifests/$reference",
             setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
@@ -125,7 +123,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                         val digestAlgorithm =
                             response.responseHeaders()["docker-content-digest"]?.toOciDigest()?.algorithm
                                 ?: OciDigestAlgorithm.SHA_256
-                        Manifest(contentType, data, data.calculateOciDigest(digestAlgorithm))
+                        OciData(contentType, data, digestAlgorithm)
                     }
                 } ?: createError(response, body.aggregate())
 
@@ -135,23 +133,23 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun pullManifest(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         reference: String,
         credentials: Credentials?,
-    ): Mono<Manifest> = when {
-        ':' in reference -> pullManifest(registry, imageName, reference.toOciDigest(), -1, credentials)
-        else -> pullManifestInternal(registry, imageName, reference, credentials)
+    ): Mono<OciData> = when {
+        ':' in reference -> pullManifest(registryUrl, imageName, reference.toOciDigest(), -1, credentials)
+        else -> pullManifestInternal(registryUrl, imageName, reference, credentials)
     }
 
     fun pullManifest(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         size: Int,
         credentials: Credentials?,
-    ): Mono<Manifest> = pullManifestInternal(registry, imageName, digest.toString(), credentials).map { manifest ->
-        val manifestBytes = manifest.data
+    ): Mono<OciData> = pullManifestInternal(registryUrl, imageName, digest.toString(), credentials).map { manifest ->
+        val manifestBytes = manifest.bytes
         if ((size != -1) && (size != manifestBytes.size)) {
             throw sizeMismatchException(size.toLong(), manifestBytes.size.toLong())
         }
@@ -165,7 +163,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun <T> pullBlob(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -173,7 +171,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         bodyMapper: ByteBufFlux.() -> Publisher<T>,
     ): Flux<T> {
         return send(
-            registry,
+            registryUrl,
             imageName,
             "blobs/$digest",
             setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
@@ -190,14 +188,14 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun pullBlobAsString(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
         credentials: Credentials?,
     ): Mono<String> {
         return pullBlob(
-            registry,
+            registryUrl,
             imageName,
             digest,
             size,
@@ -208,13 +206,13 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    data class ManifestMetadata(val present: Boolean, val mediaType: String?, val digest: OciDigest?, val size: Int)
 //
 //    fun isManifestPresent(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        reference: String,
 //        credentials: Credentials?,
 //    ): Mono<ManifestMetadata> {
 //        return send(
-//            registry,
+//            registryUrl,
 //            imageName,
 //            "manifests/$reference",
 //            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
@@ -246,20 +244,20 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun isManifestPresent(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
-//    ): Mono<ManifestMetadata> = isManifestPresent(registry, imageName, digest.toString(), credentials)
+//    ): Mono<ManifestMetadata> = isManifestPresent(registryUrl, imageName, digest.toString(), credentials)
 
     fun isBlobPresent(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         credentials: Credentials?,
     ): Mono<Boolean> {
         return send(
-            registry,
+            registryUrl,
             imageName,
             "blobs/$digest",
             setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PULL_ACTIONS)),
@@ -275,7 +273,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun mountBlobOrCreatePushUrl(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest?,
         sourceImageName: String?,
@@ -294,7 +292,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
             }
         }
         val mono = send(
-            registry,
+            registryUrl,
             imageName,
             "blobs/uploads/$query",
             scopes,
@@ -304,7 +302,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
             when (response.status().code()) {
                 201 -> if (isMount) body.then(Mono.empty()) else createError(response, body.aggregate())
                 202 -> response.responseHeaders()[HttpHeaderNames.LOCATION]?.let { location ->
-                    body.then(URI(registry).resolve(location).toMono())
+                    body.then(registryUrl.resolve(location).toMono())
                 } ?: createError(response, body.aggregate())
 
                 else -> createError(response, body.aggregate())
@@ -313,20 +311,20 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         return if (isMount && (sourceImageName != null)) {
             mono.onErrorResume { error ->
                 if (error is InsufficientScopesException) {
-                    mountBlobOrCreatePushUrl(registry, imageName, null, null, credentials)
+                    mountBlobOrCreatePushUrl(registryUrl, imageName, null, null, credentials)
                 } else throw error
             }
         } else mono
     }
 
 //    fun cancelBlobPush(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        credentials: Credentials?,
 //        uri: URI,
 //    ): Mono<Nothing> {
 //        return send(
-//            registry,
+//            registryUrl,
 //            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_DELETE_ACTIONS)),
 //            credentials,
 //            { delete().uri(uri) },
@@ -339,7 +337,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 
     fun pushBlob(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -348,7 +346,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Nothing> {
         return send(
-            registry,
+            registryUrl,
             setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS)),
             credentials,
             {
@@ -366,7 +364,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     fun mountOrPushBlob(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -374,12 +372,12 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
         sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Nothing> =
-        mountBlobOrCreatePushUrl(registry, imageName, digest, sourceImageName, credentials).flatMap { uri ->
-            pushBlob(registry, imageName, digest, size, uri, credentials, sender)
+        mountBlobOrCreatePushUrl(registryUrl, imageName, digest, sourceImageName, credentials).flatMap { uri ->
+            pushBlob(registryUrl, imageName, digest, size, uri, credentials, sender)
         }
 
     fun pushBlobIfNotPresent(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -388,15 +386,15 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         sender: NettyOutbound.() -> Publisher<Void>,
     ): Mono<Nothing> {
         return if ((sourceImageName == null) || (sourceImageName == imageName)) {
-            mountOrPushBlob(registry, imageName, digest, size, imageName, credentials, sender)
-        } else isBlobPresent(registry, imageName, digest, credentials).flatMap { present ->
+            mountOrPushBlob(registryUrl, imageName, digest, size, imageName, credentials, sender)
+        } else isBlobPresent(registryUrl, imageName, digest, credentials).flatMap { present ->
             if (present) Mono.empty()
-            else mountOrPushBlob(registry, imageName, digest, size, sourceImageName, credentials, sender)
+            else mountOrPushBlob(registryUrl, imageName, digest, size, sourceImageName, credentials, sender)
         }
     }
 
     fun pushManifest(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         reference: String,
         mediaType: String,
@@ -404,7 +402,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<Nothing> {
         return send(
-            registry,
+            registryUrl,
             imageName,
             "manifests/$reference",
             setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_PUSH_ACTIONS)),
@@ -424,46 +422,46 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
 //    fun pushManifest(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        mediaType: String,
 //        data: ByteArray,
 //        credentials: Credentials?,
-//    ): Mono<Nothing> = pushManifest(registry, imageName, digest.toString(), mediaType, data, credentials)
+//    ): Mono<Nothing> = pushManifest(registryUrl, imageName, digest.toString(), mediaType, data, credentials)
 //
 //    fun pushManifestIfNotPresent(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        reference: String,
 //        mediaType: String,
 //        data: ByteArray,
 //        credentials: Credentials?,
-//    ): Mono<Nothing> = isManifestPresent(registry, imageName, reference, credentials).flatMap { (present) ->
+//    ): Mono<Nothing> = isManifestPresent(registryUrl, imageName, reference, credentials).flatMap { (present) ->
 //        if (present) Mono.empty()
-//        else pushManifest(registry, imageName, reference, mediaType, data, credentials)
+//        else pushManifest(registryUrl, imageName, reference, mediaType, data, credentials)
 //    }
 //
 //    fun pushManifestIfNotPresent(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        mediaType: String,
 //        data: ByteArray,
 //        credentials: Credentials?,
-//    ): Mono<Nothing> = isManifestPresent(registry, imageName, digest, credentials).flatMap { (present) ->
+//    ): Mono<Nothing> = isManifestPresent(registryUrl, imageName, digest, credentials).flatMap { (present) ->
 //        if (present) Mono.empty()
-//        else pushManifest(registry, imageName, digest, mediaType, data, credentials)
+//        else pushManifest(registryUrl, imageName, digest, mediaType, data, credentials)
 //    }
 //
 //    fun deleteBlob(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
 //    ): Mono<Nothing> {
 //        return send(
-//            registry,
+//            registryUrl,
 //            imageName,
 //            "blobs/$digest",
 //            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_DELETE_ACTIONS)),
@@ -478,13 +476,13 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun deleteManifest(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        reference: String,
 //        credentials: Credentials?,
 //    ): Mono<Nothing> {
 //        return send(
-//            registry,
+//            registryUrl,
 //            imageName,
 //            "manifests/$reference",
 //            setOf(OciRegistryResourceScope(RESOURCE_SCOPE_REPOSITORY_TYPE, imageName, RESOURCE_SCOPE_DELETE_ACTIONS)),
@@ -499,14 +497,14 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //    }
 //
 //    fun deleteManifest(
-//        registry: String,
+//        registryUrl: URI,
 //        imageName: String,
 //        digest: OciDigest,
 //        credentials: Credentials?,
-//    ): Mono<Nothing> = deleteManifest(registry, imageName, digest.toString(), credentials)
+//    ): Mono<Nothing> = deleteManifest(registryUrl, imageName, digest.toString(), credentials)
 
     private fun <T> send(
-        registry: String,
+        registryUrl: URI,
         imageName: String,
         path: String,
         scopes: Set<OciRegistryResourceScope>,
@@ -514,29 +512,29 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         requestAction: HttpClient.() -> HttpClient.ResponseReceiver<*>,
         responseAction: (HttpClientResponse, ByteBufFlux) -> Publisher<T>,
     ) = send(
-        registry,
+        registryUrl,
         scopes,
         credentials,
-        { requestAction().uri("$registry/v2/$imageName/$path") },
+        { requestAction().uri("$registryUrl/v2/$imageName/$path") },
         responseAction,
     )
 
     private fun <T> send(
-        registry: String,
+        registryUrl: URI,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
         requestAction: HttpClient.() -> HttpClient.ResponseReceiver<*>,
         responseAction: (HttpClientResponse, ByteBufFlux) -> Publisher<T>,
     ): Flux<T> {
         return httpClient.headersWhen { headers ->
-            getAuthorization(registry, scopes, credentials).map { authorization ->
+            getAuthorization(registryUrl, scopes, credentials).map { authorization ->
                 headers.set(HttpHeaderNames.AUTHORIZATION, authorization)
             }.defaultIfEmpty(headers)
         }.requestAction().response(responseAction).retryWhen(RETRY_SPEC).onErrorResume { error ->
             when {
                 error !is HttpResponseException -> throw error
                 error.statusCode != 401 -> throw error
-                else -> tryAuthorize(error.headers, registry, scopes, credentials)?.flatMapMany { authorization ->
+                else -> tryAuthorize(error.headers, registryUrl, scopes, credentials)?.flatMapMany { authorization ->
                     httpClient.headers { headers ->
                         headers[HttpHeaderNames.AUTHORIZATION] = authorization
                     }.requestAction().response(responseAction).retryWhen(RETRY_SPEC)
@@ -547,7 +545,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 
     private fun tryAuthorize(
         responseHeaders: HttpHeaders,
-        registry: String,
+        registryUrl: URI,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String>? {
@@ -559,7 +557,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         if (scopesFromResponse != scopes) {
             throw IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse")
         }
-        return tokenCache.getMono(TokenCacheKey(registry, scopes, credentials?.hashed())) { key ->
+        return tokenCache.getMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed())) { key ->
             val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
                 if (credentials != null) {
@@ -590,11 +588,11 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     }
 
     private fun getAuthorization(
-        registry: String,
+        registryUrl: URI,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String> {
-        return tokenCache.getIfPresentMono(TokenCacheKey(registry, scopes, credentials?.hashed()))
+        return tokenCache.getIfPresentMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed()))
             .map { encodeBearerAuthorization(it.jws) }
             .run { if (credentials == null) this else defaultIfEmpty(credentials.encodeBasicAuthorization()) }
     }
@@ -740,10 +738,6 @@ internal class InsufficientScopesException(
 
 private fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
 
-internal const val DOCKER_MANIFEST_LIST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.list.v2+json"
-internal const val DOCKER_MANIFEST_MEDIA_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
-internal const val DOCKER_CONFIG_MEDIA_TYPE = "application/vnd.docker.container.image.v1+json"
-internal const val DOCKER_LAYER_MEDIA_TYPE = "application/vnd.docker.image.rootfs.diff.tar.gzip"
 private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
 private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
 private val RESOURCE_SCOPE_PUSH_ACTIONS = setOf("pull", "push")

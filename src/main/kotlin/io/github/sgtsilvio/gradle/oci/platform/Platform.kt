@@ -1,13 +1,14 @@
 package io.github.sgtsilvio.gradle.oci.platform
 
-import io.github.sgtsilvio.gradle.oci.internal.compareTo
+import io.github.sgtsilvio.gradle.oci.internal.string.escapeReplace
+import io.github.sgtsilvio.gradle.oci.internal.string.unescapeReplace
 import java.io.Serializable
 import java.util.*
 
 /**
  * @author Silvio Giebl
  */
-sealed interface Platform : Comparable<Platform>, Serializable {
+sealed interface Platform : Serializable {
     val os: String
     val architecture: String
     val variant: String
@@ -31,22 +32,22 @@ private data class PlatformImpl(
     override val osFeatures: SortedSet<String>,
 ) : Platform {
 
-    override fun toString(): String {
-        val s = "@$os,$architecture"
-        return when {
-            osFeatures.isNotEmpty() -> "$s,$variant,$osVersion," + osFeatures.joinToString(",")
-            osVersion.isNotEmpty() -> "$s,$variant,$osVersion"
-            variant.isNotEmpty() -> "$s,$variant"
-            else -> s
+    override fun toString() = buildString {
+        append(os.escapeReplace(',', '$'))
+        append(',')
+        append(architecture.escapeReplace(',', '$'))
+        if (variant.isNotEmpty() || osVersion.isNotEmpty() || osFeatures.isNotEmpty()) {
+            append(',')
+            append(variant.escapeReplace(',', '$'))
+            if (osVersion.isNotEmpty() || osFeatures.isNotEmpty()) {
+                append(',')
+                append(osVersion.escapeReplace(',', '$'))
+                for (osFeature in osFeatures) {
+                    append(',')
+                    append(osFeature.escapeReplace(',', '$'))
+                }
+            }
         }
-    }
-
-    override fun compareTo(other: Platform): Int {
-        os.compareTo(other.os).also { if (it != 0) return it }
-        architecture.compareTo(other.architecture).also { if (it != 0) return it }
-        variant.compareTo(other.variant).also { if (it != 0) return it }
-        osVersion.compareTo(other.osVersion).also { if (it != 0) return it }
-        return osFeatures.compareTo(other.osFeatures)
     }
 }
 
@@ -54,4 +55,20 @@ private fun defaultVariant(architecture: String) = when (architecture) {
     "arm64" -> "v8"
     "arm" -> "v7"
     else -> ""
+}
+
+internal fun String.toPlatform(): Platform {
+    val parts = split(',')
+    if (parts.size < 2) {
+        throw IllegalArgumentException("'$this' is not a platform string")
+    }
+    return Platform(
+        parts[0].unescapeReplace(',', '$'),
+        parts[1].unescapeReplace(',', '$'),
+        if (parts.size > 2) parts[2].unescapeReplace(',', '$') else "",
+        if (parts.size > 3) parts[3].unescapeReplace(',', '$') else "",
+        if (parts.size > 4) {
+            parts.subList(4, parts.size).mapTo(TreeSet()) { it.unescapeReplace(',', '$') }
+        } else TreeSet(),
+    )
 }

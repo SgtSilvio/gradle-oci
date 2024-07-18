@@ -2,13 +2,11 @@ package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciLayerTask
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
 import org.gradle.api.Named
 import org.gradle.api.NamedDomainObjectList
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.*
@@ -21,19 +19,17 @@ interface OciImageDefinition : Named {
     val capabilities: Capabilities
     val indexAnnotations: MapProperty<String, String>
 
-    val configuration: Configuration
-    val component: Provider<OciComponent>
     val dependency: Provider<ProjectDependency>
 
     fun capabilities(configuration: Action<in Capabilities>)
 
-    fun allPlatforms(configuration: Action<in BundleScope>)
+    fun allPlatforms(configuration: Action<in VariantScope>)
 
-    fun platformsMatching(platformFilter: PlatformFilter, configuration: Action<in BundleScope>)
+    fun platformsMatching(platformFilter: PlatformFilter, configuration: Action<in VariantScope>)
 
     fun specificPlatform(platform: Platform)
 
-    fun specificPlatform(platform: Platform, configuration: Action<in Bundle>)
+    fun specificPlatform(platform: Platform, configuration: Action<in Variant>)
 
     interface Capabilities {
         val set: Provider<Set<Capability>>
@@ -47,7 +43,7 @@ interface OciImageDefinition : Named {
         operator fun plusAssign(notationProvider: Provider<String>) = add(notationProvider)
     }
 
-    interface Bundle {
+    interface Variant {
         val parentImages: ParentImages
         val config: Config
         val layers: Layers
@@ -100,11 +96,11 @@ interface OciImageDefinition : Named {
         }
     }
 
-    interface BundleScope {
+    interface VariantScope {
         val layers: Layers
 
-        fun parentImages(configuration: Action<in Bundle.ParentImages>)
-        fun config(configuration: Action<in Bundle.Config>)
+        fun parentImages(configuration: Action<in Variant.ParentImages>)
+        fun config(configuration: Action<in Variant.Config>)
         fun layers(configuration: Action<in Layers>)
 
         interface Layers {
@@ -114,7 +110,7 @@ interface OciImageDefinition : Named {
         }
 
         interface Layer : Named {
-            fun metadata(configuration: Action<in Bundle.Layer.Metadata>)
+            fun metadata(configuration: Action<in Variant.Layer.Metadata>)
             fun contents(configuration: Action<in OciCopySpec>)
             fun contents(task: TaskProvider<OciLayerTask>)
         }

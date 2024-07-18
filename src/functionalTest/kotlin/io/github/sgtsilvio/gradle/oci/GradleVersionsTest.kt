@@ -17,9 +17,8 @@ internal class GradleVersionsTest {
     @ValueSource(
         strings = [
             "7.4", // minimum version
-            "8.3", // highest version not fulfilling version check >= 8.4 in ModuleDependencyExtensions
-            "8.4", // lowest version fulfilling version check >= 8.4 in ModuleDependencyExtensions
-            "8.5", // lowest version fulfilling version check >= 8.5 in ModuleDependencyExtensions
+            "8.5", // highest version not fulfilling version check >= 8.6 in OciImageDefinitionImpl
+            "8.6", // lowest version fulfilling version check >= 8.6 in OciImageDefinitionImpl
         ]
     )
     fun test(gradleVersion: String, @TempDir projectDir: File) {
@@ -34,12 +33,12 @@ internal class GradleVersionsTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":jar")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":jarOciLayer")?.outcome)
-        assertEquals(TaskOutcome.SUCCESS, result.task(":ociComponent")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":ociMetadata")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":testOciRegistryData")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         val isBeforeGradle8 = gradleVersion.startsWith('7')
         testProject.assertJarOciLayer(isBeforeGradle8)
-        testProject.assertOciComponent(isBeforeGradle8)
+        testProject.assertOciMetadata(isBeforeGradle8)
         testProject.assertTestOciRegistryData(isBeforeGradle8)
     }
 }

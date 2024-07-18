@@ -26,11 +26,11 @@ internal class ConfigurationCacheTest {
         assertTrue(result.output.contains("Configuration cache entry stored"))
         assertEquals(TaskOutcome.SUCCESS, result.task(":jar")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":jarOciLayer")?.outcome)
-        assertEquals(TaskOutcome.SUCCESS, result.task(":ociComponent")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":ociMetadata")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":testOciRegistryData")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":test")?.outcome)
         testProject.assertJarOciLayer()
-        testProject.assertOciComponent()
+        testProject.assertOciMetadata()
         testProject.assertTestOciRegistryData()
 
         testProject.buildDir.deleteRecursively()
@@ -44,11 +44,11 @@ internal class ConfigurationCacheTest {
         assertTrue(result2.output.contains("Configuration cache entry reused"))
         assertEquals(TaskOutcome.SUCCESS, result2.task(":jar")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result2.task(":jarOciLayer")?.outcome)
-        assertEquals(TaskOutcome.SUCCESS, result2.task(":ociComponent")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result2.task(":ociMetadata")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result2.task(":testOciRegistryData")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result2.task(":test")?.outcome)
         testProject.assertJarOciLayer()
-        testProject.assertOciComponent()
+        testProject.assertOciMetadata()
         testProject.assertTestOciRegistryData()
     }
 }

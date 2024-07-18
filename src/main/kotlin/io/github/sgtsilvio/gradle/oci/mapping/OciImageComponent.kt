@@ -1,18 +1,21 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import java.util.*
 
 /**
  * @author Silvio Giebl
  */
-internal class MappedComponent(
+internal class OciImageComponent(
     val componentId: VersionedCoordinates,
-    val variants: Map<String, Variant>,
+    val features: Map<String, Feature>,
 ) {
-    class Variant(
+    class Feature(
         val capabilities: SortedSet<VersionedCoordinates>,
         val imageReference: OciImageReference,
-    )
+    ) {
+        init {
+            require(capabilities.isNotEmpty()) { "capabilities must not be empty" }
+        }
+    }
 }

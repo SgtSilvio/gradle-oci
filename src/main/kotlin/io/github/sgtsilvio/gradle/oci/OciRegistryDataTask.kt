@@ -1,8 +1,8 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.component.ResolvedOciComponent
-import io.github.sgtsilvio.gradle.oci.metadata.*
-import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.metadata.OciData
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.OutputDirectory
 import java.io.File
@@ -15,72 +15,54 @@ import kotlin.io.path.*
 /**
  * @author Silvio Giebl
  */
-abstract class OciRegistryDataTask : OciImagesInputTask() {
+abstract class OciRegistryDataTask : OciImagesTask() {
 
     @get:OutputDirectory
     val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
 
-    override fun run(
-        resolvedComponentToImageReferences: Map<ResolvedOciComponent, Set<OciImageReference>>,
-        digestToLayer: Map<OciDigest, File>,
+    final override fun run(
+        digestToLayerFile: Map<OciDigest, File>,
+        images: List<OciImage>,
+        multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
     ) {
         val registryDataDirectory = registryDataDirectory.get().asFile.toPath().ensureEmptyDirectory()
         val blobsDirectory = registryDataDirectory.resolve("blobs").createDirectory()
         val repositoriesDirectory = registryDataDirectory.resolve("repositories").createDirectory()
-        val layerDigests = mutableSetOf<OciDigest>()
-        for ((resolvedComponent, imageReferences) in resolvedComponentToImageReferences) {
-            writeImage(resolvedComponent, imageReferences, blobsDirectory, repositoriesDirectory, layerDigests)
+        for ((digest, layerFile) in digestToLayerFile) {
+            blobsDirectory.resolveDigestDataFile(digest).createLinkPointingTo(layerFile.toPath())
         }
-        for (digest in layerDigests) {
-            blobsDirectory.resolveDigestDataFile(digest).createLinkPointingTo(digestToLayer[digest]!!.toPath())
+        for (image in images) {
+            blobsDirectory.writeDigestData(image.config.data)
+            blobsDirectory.writeDigestData(image.manifest.data)
         }
-    }
-
-    private fun writeImage(
-        resolvedComponent: ResolvedOciComponent,
-        imageReferences: Set<OciImageReference>,
-        blobsDirectory: Path,
-        repositoriesDirectory: Path,
-        layerDigests: MutableSet<OciDigest>,
-    ) {
-        val manifests = mutableListOf<Pair<Platform, OciDataDescriptor>>()
-        val blobDigests = mutableSetOf<OciDigest>()
-        for (platform in resolvedComponent.platforms) {
-            val bundlesForPlatform = resolvedComponent.collectBundlesForPlatform(platform).map { it.bundle }
-            for (bundle in bundlesForPlatform) {
-                for (layer in bundle.layers) {
-                    layer.descriptor?.let { (_, digest) ->
-                        layerDigests += digest
-                        blobDigests += digest
+        for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
+            blobsDirectory.writeDigestData(multiPlatformImage.index)
+            for ((name, tags) in imageReferences.groupBy({ it.name }, { it.tag })) {
+                val repositoryDirectory = repositoriesDirectory.resolve(name).createDirectories()
+                val layersDirectory = repositoryDirectory.resolve("_layers").createDirectories()
+                val manifestsDirectory = repositoryDirectory.resolve("_manifests").createDirectories()
+                val manifestRevisionsDirectory = manifestsDirectory.resolve("revisions").createDirectories()
+                val blobDigests = LinkedHashSet<OciDigest>()
+                for (image in multiPlatformImage.platformToImage.values) {
+                    manifestRevisionsDirectory.writeDigestLink(image.manifest.digest)
+                    blobDigests += image.config.digest
+                    for (variant in image.variants) {
+                        for (layer in variant.layers) {
+                            blobDigests += layer.descriptor.digest
+                        }
                     }
                 }
+                for (blobDigest in blobDigests) {
+                    layersDirectory.writeDigestLink(blobDigest)
+                }
+                val indexDigest = multiPlatformImage.index.digest
+                manifestRevisionsDirectory.writeDigestLink(indexDigest)
+                for (tag in tags) {
+                    val tagDirectory = manifestsDirectory.resolve("tags").resolve(tag).createDirectories()
+                    tagDirectory.writeTagLink(indexDigest)
+                    tagDirectory.resolve("index").createDirectories().writeDigestLink(indexDigest)
+                }
             }
-            val config = createConfig(platform, bundlesForPlatform)
-            blobsDirectory.writeDigestData(config)
-            blobDigests += config.digest
-            val manifest = createManifest(config, bundlesForPlatform)
-            blobsDirectory.writeDigestData(manifest)
-            manifests += Pair(platform, manifest)
-        }
-        val index = createIndex(manifests, resolvedComponent.component)
-        blobsDirectory.writeDigestData(index)
-        val indexDigest = index.digest
-
-        for (imageReference in imageReferences) {
-            val repositoryDirectory = repositoriesDirectory.resolve(imageReference.name).createDirectories()
-            val layersDirectory = repositoryDirectory.resolve("_layers").createDirectories()
-            for (blobDigest in blobDigests) {
-                layersDirectory.writeDigestLink(blobDigest)
-            }
-            val manifestsDirectory = repositoryDirectory.resolve("_manifests").createDirectories()
-            val manifestRevisionsDirectory = manifestsDirectory.resolve("revisions").createDirectories()
-            for ((_, manifestDescriptor) in manifests) {
-                manifestRevisionsDirectory.writeDigestLink(manifestDescriptor.digest)
-            }
-            manifestRevisionsDirectory.writeDigestLink(indexDigest)
-            val tagDirectory = manifestsDirectory.resolve("tags").resolve(imageReference.tag).createDirectories()
-            tagDirectory.writeTagLink(indexDigest)
-            tagDirectory.resolve("index").createDirectories().writeDigestLink(indexDigest)
         }
     }
 
@@ -92,13 +74,13 @@ abstract class OciRegistryDataTask : OciImagesInputTask() {
             .resolve("data")
     }
 
-    private fun Path.writeDigestData(dataDescriptor: OciDataDescriptor) {
-        val digestDataFile = resolveDigestDataFile(dataDescriptor.digest)
+    private fun Path.writeDigestData(data: OciData) {
+        val digestDataFile = resolveDigestDataFile(data.digest)
         try {
-            digestDataFile.writeBytes(dataDescriptor.data, StandardOpenOption.CREATE_NEW)
+            digestDataFile.writeBytes(data.bytes, StandardOpenOption.CREATE_NEW)
         } catch (e: FileAlreadyExistsException) {
-            if (!dataDescriptor.data.contentEquals(digestDataFile.readBytes())) {
-                throw IllegalStateException("hash collision for digest ${dataDescriptor.digest}: expected file content of $digestDataFile to be the same as ${dataDescriptor.data.contentToString()}")
+            if (!data.bytes.contentEquals(digestDataFile.readBytes())) {
+                throw IllegalStateException("hash collision for digest ${data.digest}: expected file content of $digestDataFile to be the same as ${data.bytes.contentToString()}")
             }
         }
     }

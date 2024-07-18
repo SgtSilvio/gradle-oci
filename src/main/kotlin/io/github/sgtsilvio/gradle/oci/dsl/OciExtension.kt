@@ -7,6 +7,7 @@ import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
+import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.provider.SetProperty
@@ -46,6 +47,8 @@ interface OciExtension {
         val variants: SetProperty<String>
         val osVersions: SetProperty<String>
     }
+
+    fun platformSelector(platform: Platform): PlatformSelector
 
     fun copySpec(): OciCopySpec
 

@@ -1,27 +1,20 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_CATEGORY
-import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
-import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
-import io.github.sgtsilvio.gradle.oci.component.Coordinates
-import io.github.sgtsilvio.gradle.oci.component.VersionedCoordinates
+import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.*
-import io.github.sgtsilvio.gradle.oci.internal.gradle.optional
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameable
+import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
+import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
+import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
+import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.ExternalDependency
+import org.gradle.api.artifacts.DependencySet
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.artifacts.component.ComponentSelector
-import org.gradle.api.artifacts.component.ModuleComponentSelector
-import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
@@ -36,136 +29,79 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
     configurationContainer: ConfigurationContainer,
     dependencyHandler: DependencyHandler,
 ) : OciImageDependenciesImpl<Nameable>(
-    configurationContainer.create(name + "OciImages") {
+    configurationContainer.create(name + "OciImages").apply {
         description = "OCI image dependencies '$name'"
         isCanBeConsumed = false
         isCanBeResolved = true
-        attributes {
+        attributes.apply {
             attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, objectFactory.named(OCI_IMAGE_DISTRIBUTION_TYPE))
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
             attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+            attribute(PLATFORM_ATTRIBUTE, MULTI_PLATFORM_ATTRIBUTE_VALUE)
         }
     },
     dependencyHandler,
 ), ResolvableOciImageDependencies {
 
-    private val dependencyReferencesPairs = objectFactory.listProperty<Pair<ModuleDependency, List<Reference>>>()
-
-    final override val rootCapabilities: Provider<Map<Coordinates, Set<Reference>>> =
-        configuration.incoming.resolutionResult.rootComponent.zip(dependencyReferencesPairs) { rootComponent, dependencyReferencesPairs ->
-            val descriptorToReferences = HashMap<ModuleDependencyDescriptor, List<Reference>>()
-            for ((dependency, references) in dependencyReferencesPairs) {
-                descriptorToReferences.merge(dependency.toDescriptor(), references) { a, b -> a + b }
-            }
-            val coordinatesToReferences = HashMap<Coordinates, HashSet<Reference>>()
-            val rootVariant = rootComponent.variants.first()
-            for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
-                if (dependency.isConstraint) continue
-                if (dependency !is ResolvedDependencyResult) continue
-                val references = descriptorToReferences[dependency.requested.toDescriptor()]
-                if (references != null) {
-                    val capability = dependency.resolvedVariant.capabilities.first()
-                    coordinatesToReferences.getOrPut(Coordinates(capability.group, capability.name)) { HashSet() }
-                        .addAll(references)
-                }
-            }
-            coordinatesToReferences
-        }
-
     final override fun getName() = name
 
-    final override fun returnType(dependency: ModuleDependency): ReferenceSpec {
-        val referenceSpec = ReferenceSpec(objectFactory)
-        dependencyReferencesPairs.add(referenceSpec.references.map { Pair(dependency, it) })
-        return referenceSpec
+    final override fun DependencySet.addInternal(dependency: ModuleDependency): ReferenceSpecsBuilder {
+        val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
+        addLater(referenceSpecsBuilder.attribute.map { attribute ->
+            dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
+        })
+        return referenceSpecsBuilder
     }
 
-    final override fun returnType(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpec {
-        val referenceSpec = ReferenceSpec(objectFactory)
-        dependencyReferencesPairs.add(dependencyProvider.zip(referenceSpec.references, ::Pair))
-        return referenceSpec
+    final override fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecsBuilder {
+        val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
+        addLater(dependencyProvider.zip(referenceSpecsBuilder.attribute) { dependency, attribute ->
+            dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
+        })
+        return referenceSpecsBuilder
     }
 
-    class ReferenceSpec(objectFactory: ObjectFactory) : Nameable, Taggable {
+    class ReferenceSpecsBuilder(objectFactory: ObjectFactory) : Nameable, Taggable {
         private val nameProperty = objectFactory.property<String>()
         private val tagsProperty = objectFactory.setProperty<String>()
-        val references: Provider<List<Reference>> = nameProperty.optional().zip(tagsProperty) { optionalName, tags ->
-            val name = optionalName.orElse(null)
+        val attribute: Provider<String> = tagsProperty.zipAbsentAsNull(nameProperty) { tags, name ->
             if (tags.isEmpty()) {
-                listOf(Reference(name, null))
+                OciImageReferenceSpec(name, null).toString()
             } else {
-                tags.map { tag -> Reference(name, if (tag == ".") null else tag) }
+                tags.map { tag -> OciImageReferenceSpec(name, if (tag == ".") null else tag) }.joinToString(",")
             }
         }
 
-        override fun name(name: String): ReferenceSpec {
+        override fun name(name: String): ReferenceSpecsBuilder {
             nameProperty.set(name)
             return this
         }
 
-        override fun name(nameProvider: Provider<String>): ReferenceSpec {
+        override fun name(nameProvider: Provider<String>): ReferenceSpecsBuilder {
             nameProperty.set(nameProvider)
             return this
         }
 
-        override fun tag(vararg tags: String): ReferenceSpec {
+        override fun tag(vararg tags: String): ReferenceSpecsBuilder {
             tagsProperty.addAll(*tags)
             return this
         }
 
-        override fun tag(tags: Iterable<String>): ReferenceSpec {
+        override fun tag(tags: Iterable<String>): ReferenceSpecsBuilder {
             tagsProperty.addAll(tags)
             return this
         }
 
-        override fun tag(tagProvider: Provider<String>): ReferenceSpec {
+        override fun tag(tagProvider: Provider<String>): ReferenceSpecsBuilder {
             tagsProperty.addAll(tagProvider.map { listOf(it) }.orElse(emptyList()))
             return this
         }
 
         @Suppress("INAPPLICABLE_JVM_NAME")
         @JvmName("tagMultiple")
-        override fun tag(tagsProvider: Provider<out Iterable<String>>): ReferenceSpec {
+        override fun tag(tagsProvider: Provider<out Iterable<String>>): ReferenceSpecsBuilder {
             tagsProperty.addAll(tagsProvider.map { it }.orElse(emptyList()))
             return this
         }
-    }
-}
-
-private interface ModuleDependencyDescriptor
-
-private data class ProjectDependencyDescriptor(
-    val projectPath: String,
-    val requestedCapabilities: List<Coordinates>,
-) : ModuleDependencyDescriptor
-
-private data class ExternalDependencyDescriptor(
-    val coordinates: VersionedCoordinates,
-    val requestedCapabilities: List<Coordinates>,
-) : ModuleDependencyDescriptor
-
-private fun ModuleDependency.toDescriptor(): ModuleDependencyDescriptor {
-    val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
-    return when (this) {
-        is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities)
-        is ExternalDependency -> ExternalDependencyDescriptor(
-            VersionedCoordinates(group, name, version ?: ""),
-            requestedCapabilities,
-        )
-
-        else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
-    }
-}
-
-private fun ComponentSelector.toDescriptor(): ModuleDependencyDescriptor {
-    val requestedCapabilities = requestedCapabilities.map { Coordinates(it.group, it.name) }
-    return when (this) {
-        is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities)
-        is ModuleComponentSelector -> ExternalDependencyDescriptor(
-            VersionedCoordinates(group, module, version),
-            requestedCapabilities,
-        )
-
-        else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
     }
 }

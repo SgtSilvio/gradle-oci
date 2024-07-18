@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.internal.gradle.createDependency
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
@@ -20,57 +21,45 @@ internal abstract class OciImageDependenciesImpl<T>(
 
     // add dependency
 
-    final override fun add(dependency: ModuleDependency): T {
-        val finalizedDependency = finalizeDependency(dependency)
-        configuration.dependencies.add(finalizedDependency)
-        return returnType(finalizedDependency)
+    final override fun add(dependency: ModuleDependency) = addInternal(dependency, null)
+
+    final override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>) = addInternal(dependency, action)
+
+    final override fun add(dependencyProvider: Provider<out ModuleDependency>) = addInternal(dependencyProvider, null)
+
+    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>) =
+        addInternal(dependencyProvider, action)
+
+    private fun <D : ModuleDependency> addInternal(dependency: D, action: Action<in D>?) =
+        configuration.dependencies.addInternal(finalizeDependency(dependency, action))
+
+    private fun <D : ModuleDependency> addInternal(dependencyProvider: Provider<out D>, action: Action<in D>?) =
+        configuration.dependencies.addInternal(dependencyProvider.map { finalizeDependency(it, action) })
+
+    protected abstract fun DependencySet.addInternal(dependency: ModuleDependency): T
+
+    protected abstract fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): T
+
+    private fun <D : ModuleDependency> finalizeDependency(dependency: D, action: Action<in D>?): D {
+        @Suppress("UNCHECKED_CAST") val finalizedDependency = dependencyHandler.create(dependency) as D
+        action?.execute(finalizedDependency)
+        return finalizedDependency
     }
-
-    final override fun <D : ModuleDependency> add(dependency: D, action: Action<in D>): T {
-        val finalizedDependency = finalizeDependency(dependency)
-        action.execute(finalizedDependency)
-        configuration.dependencies.add(finalizedDependency)
-        return returnType(finalizedDependency)
-    }
-
-    final override fun add(dependencyProvider: Provider<out ModuleDependency>): T {
-        val finalizedDependencyProvider = dependencyProvider.map { finalizeDependency(it) }
-        configuration.dependencies.addLater(finalizedDependencyProvider)
-        return returnType(finalizedDependencyProvider)
-    }
-
-    final override fun <D : ModuleDependency> add(dependencyProvider: Provider<out D>, action: Action<in D>): T {
-        val finalizedDependencyProvider = dependencyProvider.map {
-            val finalizedDependency = finalizeDependency(it)
-            action.execute(finalizedDependency)
-            finalizedDependency
-        }
-        configuration.dependencies.addLater(finalizedDependencyProvider)
-        return returnType(finalizedDependencyProvider)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun <D : ModuleDependency> finalizeDependency(dependency: D) = dependencyHandler.create(dependency) as D
-
-    abstract fun returnType(dependency: ModuleDependency): T
-
-    abstract fun returnType(dependencyProvider: Provider<out ModuleDependency>): T
 
     // add dependency converted from a different notation
 
     private fun module(dependencyNotation: CharSequence) =
         dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
 
-    private fun project(project: Project) = dependencyHandler.create(project) as ProjectDependency
-
     final override fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
 
     final override fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
         add(module(dependencyNotation), action)
 
-    final override fun add(project: Project) = add(project(project))
+    final override fun add(project: Project) = add(project.createDependency())
 
-    final override fun add(project: Project, action: Action<in ProjectDependency>) = add(project(project), action)
+    final override fun add(project: Project, action: Action<in ProjectDependency>) =
+        add(project.createDependency(), action)
 
     // add constraint
 

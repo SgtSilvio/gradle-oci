@@ -124,17 +124,17 @@ internal class TestProject(projectDir: File) {
         assertEquals("digest=$expectedDigest\nsize=704\ndiffId=$expectedDiffId", propertiesFile.readText())
     }
 
-    fun assertOciComponent(isBeforeGradle8: Boolean = false) {
+    fun assertOciMetadata(isBeforeGradle8: Boolean = false) {
         val imageDir = buildDir.resolve("oci/images/main")
-        val componentJsonFile = imageDir.resolve("oci-component.json")
-        assertTrue(componentJsonFile.exists())
+        val metadataJsonFile = imageDir.resolve("oci-metadata.json")
+        assertTrue(metadataJsonFile.exists())
         // https://docs.gradle.org/current/userguide/upgrading_version_7.html#reproducible_archives_can_change_compared_to_past_versions
         val expectedComponentJson = if (isBeforeGradle8) {
-            """{"imageReference":"example/test:1.0.0","capabilities":[{"group":"org.example","name":"test","version":"1.0.0"}],"bundle":{"parentCapabilities":[{"group":"library","name":"eclipse-temurin"}],"command":{"entryPoint":["java","-jar","app.jar"],"arguments":[]},"layers":[{"descriptor":{"digest":"sha256:9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c","size":704,"diffId":"sha256:f8363558d917871ea6722c762b6d4e67b0f2ac3be010ca94e4a74aead327212c"},"createdBy":"gradle-oci: jar"}]}}"""
+            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c","size":704,"diffId":"sha256:f8363558d917871ea6722c762b6d4e67b0f2ac3be010ca94e4a74aead327212c"},"createdBy":"gradle-oci: jar"}]}"""
         } else {
-            """{"imageReference":"example/test:1.0.0","capabilities":[{"group":"org.example","name":"test","version":"1.0.0"}],"bundle":{"parentCapabilities":[{"group":"library","name":"eclipse-temurin"}],"command":{"entryPoint":["java","-jar","app.jar"],"arguments":[]},"layers":[{"descriptor":{"digest":"sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0","size":704,"diffId":"sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"},"createdBy":"gradle-oci: jar"}]}}"""
+            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0","size":704,"diffId":"sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"},"createdBy":"gradle-oci: jar"}]}"""
         }
-        assertEquals(expectedComponentJson, componentJsonFile.readText())
+        assertEquals(expectedComponentJson, metadataJsonFile.readText())
     }
 
     fun assertTestOciRegistryData(isBeforeGradle8: Boolean = false) {
@@ -147,14 +147,14 @@ internal class TestProject(projectDir: File) {
         // https://docs.gradle.org/current/userguide/upgrading_version_7.html#reproducible_archives_can_change_compared_to_past_versions
         if (isBeforeGradle8) {
             expectedJarLayerDigest = "9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c"
-            expectedIndexDigest = "581c698db9bf7fc21809df9290c06687a1d40f7d6e22338fd544fe7cfc2c2ff2"
+            expectedIndexDigest = "63a0222f933874cb9a447957959f2e5dcc76f25580096f3dae7c06118d8dc198"
             expectedManifest1Digest = "37bf3695f5995dd5ec95ea0583a3fd53c543962fc4372993f7a6d39055e9ed16"
             expectedManifest2Digest = "61cedfd321a6a234f0cfb0c97506497af54405de24e7d63f3b3cd61fffdaacec"
             expectedConfig1Digest = "383b193872227cbe7e5f85742c3b3d5e9fe2f1db99b25d007d9d2d8b5ed4f6ef"
             expectedConfig2Digest = "c880e34f4fba15aa3ae99e494c1d73db3dba8d09abdeec1102a641ad377451d6"
         } else {
             expectedJarLayerDigest = "e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0"
-            expectedIndexDigest = "7f7843c962a8235352e0e11d331e6621a20634774d2e209f7f89a7b76e7857bc"
+            expectedIndexDigest = "524b2ffa869104df9d18697019ef0633ee3ce168ef3b7421b51f9628ac2b0809"
             expectedManifest1Digest = "10be4956d8ab1abc455e9a9260b67dcd2d6ca8febd42ea6049bab950a8a15edb"
             expectedManifest2Digest = "acd15ae115f4d1562c0ce83e8a628243c7b1130d90677b99ad9d29c95af39e0e"
             expectedConfig1Digest = "45c5e3d4ddbbd0b23a157b296cf09827dcd5b2bdb3323c58280948bd6955f8af"

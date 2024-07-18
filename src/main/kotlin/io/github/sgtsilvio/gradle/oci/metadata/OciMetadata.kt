@@ -1,153 +1,43 @@
 package io.github.sgtsilvio.gradle.oci.metadata
 
-import io.github.sgtsilvio.gradle.oci.component.OciComponent
-import io.github.sgtsilvio.gradle.oci.internal.json.*
-import io.github.sgtsilvio.gradle.oci.platform.Platform
+import java.time.Instant
 import java.util.*
 
-internal const val INDEX_MEDIA_TYPE = "application/vnd.oci.image.index.v1+json"
-internal const val MANIFEST_MEDIA_TYPE = "application/vnd.oci.image.manifest.v1+json"
-internal const val CONFIG_MEDIA_TYPE = "application/vnd.oci.image.config.v1+json"
-internal const val UNCOMPRESSED_LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar"
-internal const val GZIP_COMPRESSED_LAYER_MEDIA_TYPE = "application/vnd.oci.image.layer.v1.tar+gzip"
+/**
+ * @author Silvio Giebl
+ */
+class OciMetadata(
+    val imageReference: OciImageReference, // not inherited
+    val creationTime: Instant?, // not inherited
+    val author: String?, // not inherited
+    val user: String?,
+    val ports: SortedSet<String>,
+    val environment: SortedMap<String, String>,
+    val entryPoint: List<String>?, // empty (no args) is different from null (not set, inherit)
+    val arguments: List<String>?, // empty (no args) is different from null (not set, inherit)
+    val volumes: SortedSet<String>,
+    val workingDirectory: String?,
+    val stopSignal: String?,
+    val configAnnotations: SortedMap<String, String>,
+    val configDescriptorAnnotations: SortedMap<String, String>, // not inherited
+    val manifestAnnotations: SortedMap<String, String>, // not inherited
+    val manifestDescriptorAnnotations: SortedMap<String, String>, // not inherited
+    val indexAnnotations: SortedMap<String, String>, // not inherited
+    val layers: List<OciLayerMetadata>,
+)
 
-internal fun createConfig(platform: Platform, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
-    var user: String? = null
-    val ports = TreeSet<String>()
-    val environment = TreeMap<String, String>()
-    var entryPoint = listOf<String>()
-    var arguments = listOf<String>()
-    val volumes = TreeSet<String>()
-    var workingDirectory: String? = null
-    var stopSignal: String? = null
-    val annotations = TreeMap<String, String>()
-    for (bundle in bundles) {
-        bundle.user?.let { user = it }
-        ports.addAll(bundle.ports)
-        environment += bundle.environment
-        bundle.command?.let { command ->
-            command.entryPoint?.let { entryPoint = it }
-            arguments = command.arguments
-        }
-        volumes.addAll(bundle.volumes)
-        bundle.workingDirectory?.let { workingDirectory = it }
-        bundle.stopSignal?.let { stopSignal = it }
-        annotations += bundle.configAnnotations
-    }
-    val lastBundle = bundles.last()
-    val data = jsonObject {
-        // sorted for canonical json: architecture, author, config, created, history, os, os.features, os.version, rootfs, variant
-        addString("architecture", platform.architecture)
-        addStringIfNotNull("author", lastBundle.author)
-        addObject("config") {
-            // sorted for canonical json: Cmd, Entrypoint, Env, ExposedPorts, Labels, StopSignal, User, Volumes, WorkingDir
-            addArrayIfNotEmpty("Cmd", arguments)
-            addArrayIfNotEmpty("Entrypoint", entryPoint)
-            addArrayIfNotEmpty("Env", environment.map { "${it.key}=${it.value}" })
-            addObjectIfNotEmpty("ExposedPorts", ports)
-            addObjectIfNotEmpty("Labels", annotations)
-            addStringIfNotNull("StopSignal", stopSignal)
-            addStringIfNotNull("User", user)
-            addObjectIfNotEmpty("Volumes", volumes)
-            addStringIfNotNull("WorkingDir", workingDirectory)
-        }
-        addStringIfNotNull("created", lastBundle.creationTime?.toString())
-        addArray("history") {
-            for (bundle in bundles) {
-                for (layer in bundle.layers) {
-                    addObject {
-                        // sorted for canonical json: author, comment, created, created_by, empty_layer
-                        addStringIfNotNull("author", layer.author)
-                        addStringIfNotNull("comment", layer.comment)
-                        addStringIfNotNull("created", layer.creationTime?.toString())
-                        addStringIfNotNull("created_by", layer.createdBy)
-                        if (layer.descriptor == null) {
-                            addBoolean("empty_layer", true)
-                        }
-                    }
-                }
-            }
-        }
-        addString("os", platform.os)
-        addArrayIfNotEmpty("os.features", platform.osFeatures)
-        addStringIfNotEmpty("os.version", platform.osVersion)
-        addObject("rootfs") {
-            // sorted for canonical json: diff_ids, type
-            addArray("diff_ids") {
-                for (bundle in bundles) {
-                    for (layer in bundle.layers) {
-                        layer.descriptor?.let {
-                            addString(it.diffId.toString())
-                        }
-                    }
-                }
-            }
-            addString("type", "layers")
-        }
-        addStringIfNotEmpty("variant", platform.variant)
-    }.toByteArray()
-    return OciDataDescriptor(CONFIG_MEDIA_TYPE, data, lastBundle.configDescriptorAnnotations)
-}
+class OciLayerMetadata(
+    val descriptor: OciLayerDescriptor?,
+    val creationTime: Instant?,
+    val author: String?,
+    val createdBy: String?,
+    val comment: String?,
+)
 
-internal fun createManifest(configDescriptor: OciDescriptor, bundles: List<OciComponent.Bundle>): OciDataDescriptor {
-    val lastBundle = bundles.last()
-    val data = jsonObject {
-        // sorted for canonical json: annotations, config, layers, mediaType, schemaVersion
-        addObjectIfNotEmpty("annotations", lastBundle.manifestAnnotations)
-        addObject("config") { encodeOciDescriptor(configDescriptor) }
-        addArray("layers") {
-            for (bundle in bundles) {
-                for (layer in bundle.layers) {
-                    layer.descriptor?.let {
-                        addObject { encodeOciDescriptor(it) }
-                    }
-                }
-            }
-        }
-        addString("mediaType", MANIFEST_MEDIA_TYPE)
-        addNumber("schemaVersion", 2)
-    }.toByteArray()
-    return OciDataDescriptor(MANIFEST_MEDIA_TYPE, data, lastBundle.manifestDescriptorAnnotations)
-}
-
-internal fun createIndex(
-    manifestDescriptors: List<Pair<Platform, OciDescriptor>>,
-    component: OciComponent,
-): OciDataDescriptor {
-    val data = jsonObject {
-        // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
-        addObjectIfNotEmpty("annotations", component.indexAnnotations)
-        addArray("manifests") {
-            for ((platform, descriptor) in manifestDescriptors) {
-                addObject { encodeOciManifestDescriptor(descriptor, platform) }
-            }
-        }
-        addString("mediaType", INDEX_MEDIA_TYPE)
-        addNumber("schemaVersion", 2)
-    }.toByteArray()
-    return OciDataDescriptor(INDEX_MEDIA_TYPE, data, sortedMapOf())
-}
-
-private fun JsonObjectStringBuilder.encodeOciDescriptor(descriptor: OciDescriptor) {
-    // sorted for canonical json: annotations, digest, mediaType, size
-    addObjectIfNotEmpty("annotations", descriptor.annotations)
-    addString("digest", descriptor.digest.toString())
-    addString("mediaType", descriptor.mediaType)
-    addNumber("size", descriptor.size)
-}
-
-private fun JsonObjectStringBuilder.encodeOciManifestDescriptor(descriptor: OciDescriptor, platform: Platform) {
-    // sorted for canonical json: annotations, digest, mediaType, platform, size
-    addObjectIfNotEmpty("annotations", descriptor.annotations)
-    addString("digest", descriptor.digest.toString())
-    addString("mediaType", descriptor.mediaType)
-    addObject("platform") {
-        // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
-        addString("architecture", platform.architecture)
-        addString("os", platform.os)
-        addArrayIfNotEmpty("os.features", platform.osFeatures)
-        addStringIfNotEmpty("os.version", platform.osVersion)
-        addStringIfNotEmpty("variant", platform.variant)
-    }
-    addNumber("size", descriptor.size)
-}
+class OciLayerDescriptor(
+    override val mediaType: String,
+    override val digest: OciDigest,
+    override val size: Long,
+    val diffId: OciDigest,
+    override val annotations: SortedMap<String, String>,
+) : OciDescriptor

@@ -6,7 +6,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesForRuntime
 import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
-import io.github.sgtsilvio.gradle.oci.internal.concatCamelCase
+import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
