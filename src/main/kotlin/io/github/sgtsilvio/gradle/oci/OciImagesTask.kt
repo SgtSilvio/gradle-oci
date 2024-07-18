@@ -97,17 +97,17 @@ abstract class OciImagesTask : DefaultTask() {
         val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
         val layerFiles = layerFiles
         val layers = ArrayList<OciLayer>(layerFiles.size)
-        var layerFileIndex = 0
+        var layerFilesIndex = 0
         for (layer in metadata.layers) {
             val layerDescriptor = layer.descriptor ?: continue
-            if (layerFileIndex >= layerFiles.size) {
-                throw IllegalStateException("count of layer descriptors (${layerFileIndex + 1}+) and layer files (${layerFiles.size}) do not match")
+            if (layerFilesIndex >= layerFiles.size) {
+                throw IllegalStateException("count of layer descriptors (${layerFilesIndex + 1}+) and layer files (${layerFiles.size}) do not match")
             }
-            val layerFile = layerFiles[layerFileIndex++]
+            val layerFile = layerFiles[layerFilesIndex++]
             layers += OciLayer(layerDescriptor, layerFile)
         }
-        if (layerFileIndex < layerFiles.size) {
-            throw IllegalStateException("count of layer descriptors ($layerFileIndex) and layer files (${layerFiles.size}) do not match")
+        if (layerFilesIndex < layerFiles.size) {
+            throw IllegalStateException("count of layer descriptors ($layerFilesIndex) and layer files (${layerFiles.size}) do not match")
         }
         return OciVariant(metadata, layers)
     }
@@ -116,7 +116,6 @@ abstract class OciImagesTask : DefaultTask() {
         imageAndReferencesPairs: Iterable<Pair<OciImage, Set<OciImageReference>>>,
     ): List<Pair<OciMultiPlatformImage, List<OciImageReference>>> {
         // referenceToPlatformToImage map is linked because it will be iterated
-        // platformToImage map is linked to preserve the platform order
         val referenceToPlatformToImage = LinkedHashMap<OciImageReference, LinkedHashMap<Platform, OciImage>>()
         for ((image, imageReferences) in imageAndReferencesPairs) {
             for (imageReference in imageReferences) {
@@ -130,12 +129,12 @@ abstract class OciImagesTask : DefaultTask() {
         }
         // multiPlatformImageAndReferencesPairMap is linked because it will be iterated
         val multiPlatformImageAndReferencesPairMap =
-            LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiPlatformImage, ArrayList<OciImageReference>>>() // TODO reference non multi arch images?
+            LinkedHashMap<Map<Platform, OciImage>, Pair<OciMultiPlatformImage, ArrayList<OciImageReference>>>()
         for ((reference, platformToImage) in referenceToPlatformToImage) {
             var multiPlatformImageAndReferencesPair = multiPlatformImageAndReferencesPairMap[platformToImage]
             if (multiPlatformImageAndReferencesPair == null) {
                 val index = createIndex(platformToImage)
-                multiPlatformImageAndReferencesPair = Pair(OciMultiPlatformImage(index, platformToImage), ArrayList()) // TODO ArrayList
+                multiPlatformImageAndReferencesPair = Pair(OciMultiPlatformImage(index, platformToImage), ArrayList())
                 multiPlatformImageAndReferencesPairMap[platformToImage] = multiPlatformImageAndReferencesPair
             }
             multiPlatformImageAndReferencesPair.second += reference
