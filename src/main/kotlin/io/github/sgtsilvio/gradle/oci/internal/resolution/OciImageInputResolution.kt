@@ -16,9 +16,7 @@ internal fun ResolvableDependencies.resolveOciImageInputs(
 ): Provider<List<OciImagesTask.ImageInput>> {
     val rootComponentResultProvider = resolutionResult.rootComponent
     val imageSpecsProvider =
-        rootComponentResultProvider.zipAbsentAsNull(platformSelectorProvider) { rootComponentResult, platformSelector ->
-            resolveOciImageSpecs(rootComponentResult, platformSelector)
-        }
+        rootComponentResultProvider.zipAbsentAsNull(platformSelectorProvider, ::resolveOciImageSpecs)
     val artifactResultsProvider = artifactView {
         componentFilter(
             ArtifactViewVariantFilter(

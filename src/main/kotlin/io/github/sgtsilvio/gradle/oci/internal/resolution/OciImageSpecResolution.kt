@@ -25,7 +25,7 @@ internal fun resolveOciImageSpecs(
     platformSelector: PlatformSelector?,
 ): List<OciImageSpec> {
     val rootNodesToReferenceSpecs = resolveOciVariantGraph(rootComponentResult)
-    return resolveOciImageSpecs(rootNodesToReferenceSpecs, platformSelector)
+    return collectOciImageSpecs(rootNodesToReferenceSpecs, platformSelector)
 }
 
 private fun resolveOciVariantGraph(
@@ -134,7 +134,7 @@ private val ResolvedVariantResult.platformOrUniversalOrMulti: String
         return capabilities.first().name.substringAfterLast('@')
     }
 
-private fun resolveOciImageSpecs(
+private fun collectOciImageSpecs(
     rootNodesToReferenceSpecs: Map<OciVariantNode, Set<OciImageReferenceSpec>>,
     platformSelector: PlatformSelector?,
 ): List<OciImageSpec> {
