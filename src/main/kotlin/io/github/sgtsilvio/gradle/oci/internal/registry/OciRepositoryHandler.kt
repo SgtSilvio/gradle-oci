@@ -372,24 +372,18 @@ private fun JsonObjectStringBuilder.addCapabilities(
     componentId: VersionedCoordinates,
 ) {
     if (capabilities != setOf(componentId)) {
-        addCapabilities(key, capabilities, "")
+        addCapabilities(key, capabilities, null)
     }
 }
 
 private fun JsonObjectStringBuilder.addCapabilities(
     key: String,
     capabilities: Set<VersionedCoordinates>,
-    platform: Platform,
-) = addCapabilities(key, capabilities, createPlatformPostfix(platform))
-
-private fun JsonObjectStringBuilder.addCapabilities(
-    key: String,
-    capabilities: Set<VersionedCoordinates>,
-    featureName: String,
+    platform: Platform?,
 ) = addArray(key, capabilities) { capability ->
     addObject {
         addString("group", capability.group)
-        addString("name", capability.name + featureName)
+        addString("name", capability.name + createPlatformPostfix(platform))
         addString("version", capability.version)
     }
 }
