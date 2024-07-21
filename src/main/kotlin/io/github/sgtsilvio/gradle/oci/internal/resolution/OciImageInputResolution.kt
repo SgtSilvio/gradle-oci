@@ -32,75 +32,6 @@ internal fun ResolvableDependencies.resolveOciImageInputs(
             )
         )
     }.artifacts
-    /*
-    val artifactResultsProvider = artifacts.resolvedArtifacts
-    val variantArtifactResultsProvider = providerFactory.provider {
-        val variantArtifactResults = LinkedHashSet<VariantArtifactResult>()
-        (artifacts as ArtifactCollectionInternal).visitArtifacts(object : ArtifactVisitor {
-            override fun visitArtifact(
-                variantName: DisplayName,
-                attributes: AttributeContainer,
-                capabilities: ImmutableCapabilities,
-                artifact: ResolvableArtifact,
-            ) {
-                @Suppress("UNCHECKED_CAST") val capabilitySet =
-                    ImmutableCapabilities::class.java.getMethod("asSet").invoke(capabilities) as Set<Capability>
-                visitArtifact(variantName, attributes, capabilitySet.toList(), artifact)
-            }
-
-            @Suppress("UNUSED_PARAMETER")
-            fun visitArtifact(
-                variantName: DisplayName,
-                attributes: AttributeContainer,
-                capabilities: List<Capability>,
-                artifact: ResolvableArtifact,
-            ) {
-                variantArtifactResults += VariantArtifactResult(
-                    VariantDescriptor(artifact.id.componentIdentifier, capabilities, attributes.toMap()),
-                    artifact.file,
-                )
-            }
-
-            override fun visitFailure(failure: Throwable) = Unit
-
-            override fun requireArtifactFiles() = true
-        })
-        variantArtifactResults
-    }
-    // zip or map is not used here because their mapper function is executed after the file contents are available
-    //  this mapper function does not read the file contents, so can already be called once the value is available
-    //  this allows this mapper function to be run before storing the configuration cache
-    //  apart from performance benefits this also avoids a bug where the artifactResultsProvider value is different when using the configuration cache
-//    return artifactResultsProvider.flatMap { artifactResults ->
-    return variantArtifactResultsProvider.flatMap { variantArtifactResults ->
-//        for (artifactResult in artifactResults) {
-//            println(artifactResult.variant.toString() + " " + artifactResult.file + " " + artifactResult::class.java + " " + artifactResult.id + " " + artifactResult.id::class.java + " " + artifactResult.id.hashCode())
-//            val id = artifactResult.id
-//            if (id is PublishArtifactLocalArtifactMetadata) {
-//                println(id.toString() + " " + id.componentIdentifier::class.java + " " + id.componentIdentifier.hashCode() + " " + id.publishArtifact::class.java + " " + id.publishArtifact.hashCode())
-//            }
-//        }
-//        println()
-//        for (variantArtifactResult in variantArtifactResults) {
-//            println(variantArtifactResult.variantDescriptor.toString() + " " + variantArtifactResult.file)
-//        }
-//        println()
-        val imageSpecs = imageSpecsProvider.get()
-//        val variantDescriptorToInput = artifactResults.groupBy({ it.variant.toDescriptor() }) { it.file }
-//            .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
-        val variantDescriptorToInput = variantArtifactResults.groupBy({ it.variantDescriptor }) { it.file }
-            .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
-        val imageInputs = imageSpecs.map { imageSpec ->
-            OciImagesTask.ImageInput(
-                imageSpec.platform,
-                imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toDescriptor()] },
-                imageSpec.referenceSpecs,
-            )
-        }
-        // using map to attach the task dependencies from the artifactResultsProvider
-        artifactResultsProvider.map { imageInputs }
-    }
-     */
     return artifacts.mapMetadata { variantArtifactResults ->
         val imageSpecs = imageSpecsProvider.get()
         val variantDescriptorToInput = variantArtifactResults.groupBy({ it.variantDescriptor }) { it.file }
@@ -130,8 +61,14 @@ private fun AttributeContainer.toMap(): Map<String, String> =
 
 private fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantArtifactResult>) -> R): Provider<R> {
     val artifactResultsProvider = resolvedArtifacts
+    // zip or map is not used here because their mapper function is executed after the file contents are available
+    //  this mapper function does not read the file contents, so can already be called once the value is available
+    //  this allows this mapper function to be run before storing the configuration cache
+    //  apart from performance benefits this also avoids a bug where the artifactResultsProvider value is different when using the configuration cache
     return artifactResultsProvider.flatMap { _ ->
         val variantArtifactResults = LinkedHashSet<VariantArtifactResult>()
+        // we need to use internal APIs to workaround the issue https://github.com/gradle/gradle/issues/29977
+        //  ArtifactCollection.getResolvedArtifacts() wrongly deduplicates ResolvedArtifactResults of different variants for the same file
         (this as ArtifactCollectionInternal).visitArtifacts(object : ArtifactVisitor {
             override fun visitArtifact(
                 variantName: DisplayName,
@@ -139,11 +76,17 @@ private fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantAr
                 capabilities: ImmutableCapabilities,
                 artifact: ResolvableArtifact,
             ) {
+                // capabilities.asSet() is defined to return org.gradle.internal.impldep.com.google.common.collect.ImmutableSet during compile time
+                //  during runtime it actually returns com.google.common.collect.ImmutableSet
+                //  this leads to a NoSuchMethodError during runtime, so we need to use reflection
+                //  this allows us to remove the dependency on the specific set implementation
                 @Suppress("UNCHECKED_CAST") val capabilitySet =
                     ImmutableCapabilities::class.java.getMethod("asSet").invoke(capabilities) as Set<Capability>
                 visitArtifact(variantName, attributes, capabilitySet.toList(), artifact)
             }
 
+            // this method implements the signature of the old ArtifactVisitor interface of Gradle versions between 7.2 and 8.5
+            //  https://github.com/gradle/gradle/blame/57cc16c8fbf4116a0ef0ad7b742c1a4a4e11a474/platforms/software/dependency-management/src/main/java/org/gradle/api/internal/artifacts/ivyservice/resolveengine/artifact/ArtifactVisitor.java#L41
             @Suppress("UNUSED_PARAMETER")
             fun visitArtifact(
                 variantName: DisplayName,
@@ -162,6 +105,7 @@ private fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantAr
             override fun requireArtifactFiles() = true
         })
         val transformed = transformer(variantArtifactResults)
+        // using map to attach the task dependencies from the artifactResultsProvider
         artifactResultsProvider.map { transformed }
     }
 }
