@@ -32,6 +32,7 @@ import reactor.util.retry.RetrySpec
 import java.net.URI
 import java.security.DigestException
 import java.security.MessageDigest
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.*
@@ -80,8 +81,10 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     )
 
     private object TokenCacheExpiry : Expiry<TokenCacheKey, OciRegistryToken> {
-        override fun expireAfterCreate(key: TokenCacheKey, value: OciRegistryToken, currentTime: Long) =
-            Instant.now().until(value.payload.expirationTime!!.minusSeconds(30), ChronoUnit.NANOS).coerceAtLeast(0)
+        override fun expireAfterCreate(key: TokenCacheKey, value: OciRegistryToken, currentTime: Long): Long {
+            val expirationTime = value.claims?.expirationTime ?: return Duration.ofMinutes(3).toNanos()
+            return Instant.now().until(expirationTime.minusSeconds(30), ChronoUnit.NANOS).coerceAtLeast(0)
+        }
 
         override fun expireAfterUpdate(
             key: TokenCacheKey,
@@ -569,12 +572,12 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                     else -> createError(response, body)
                 }
             }.retryWhen(RETRY_SPEC).map { response ->
-                val jws = jsonObject(response).run {
+                val token = jsonObject(response).run {
                     if (hasKey("token")) getString("token") else getString("access_token")
                 }
-                val registryToken = OciRegistryToken(jws)
-                val grantedScopes = registryToken.payload.scopes
-                if (grantedScopes == key.scopes) {
+                val registryToken = OciRegistryToken(token)
+                val grantedScopes = registryToken.claims?.scopes
+                if ((grantedScopes == null) || (grantedScopes == key.scopes)) {
                     registryToken
                 } else {
                     tokenCache.asMap().putIfAbsent(
@@ -584,7 +587,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                     throw InsufficientScopesException(key.scopes, grantedScopes)
                 }
             }
-        }.map { encodeBearerAuthorization(it.jws) }
+        }.map { encodeBearerAuthorization(it.token) }
     }
 
     private fun getAuthorization(
@@ -593,7 +596,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<String> {
         return tokenCache.getIfPresentMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed()))
-            .map { encodeBearerAuthorization(it.jws) }
+            .map { encodeBearerAuthorization(it.token) }
             .run { if (credentials == null) this else defaultIfEmpty(credentials.encodeBasicAuthorization()) }
     }
 

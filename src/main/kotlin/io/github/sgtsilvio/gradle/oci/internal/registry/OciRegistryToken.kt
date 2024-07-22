@@ -10,11 +10,19 @@ import java.time.Instant
 /**
  * @author Silvio Giebl
  */
-internal class OciRegistryToken(val jws: String) {
-    val payload = jsonObject(jws.decodeToJWS().payload).decodeOciRegistryTokenPayload()
+internal class OciRegistryToken(val token: String, val claims: OciRegistryTokenClaims?)
+
+internal fun OciRegistryToken(token: String): OciRegistryToken {
+    val jws = try {
+        token.decodeToJWS()
+    } catch (e: IllegalArgumentException) {
+        return OciRegistryToken(token, null)
+    }
+    val claims = jsonObject(jws.payload).decodeOciRegistryTokenClaims()
+    return OciRegistryToken(token, claims)
 }
 
-internal data class OciRegistryTokenPayload(
+internal data class OciRegistryTokenClaims(
     val issuer: String?,
     val subject: String?,
     val audience: List<String>,
@@ -25,7 +33,7 @@ internal data class OciRegistryTokenPayload(
     val scopes: Set<OciRegistryResourceScope>,
 )
 
-internal fun JsonObject.decodeOciRegistryTokenPayload() = OciRegistryTokenPayload(
+private fun JsonObject.decodeOciRegistryTokenClaims() = OciRegistryTokenClaims(
     getStringOrNull("iss"),
     getStringOrNull("sub"),
     getOrNull("aud") { if (isString()) listOf(asString()) else asArray().toStringList() } ?: emptyList(),
