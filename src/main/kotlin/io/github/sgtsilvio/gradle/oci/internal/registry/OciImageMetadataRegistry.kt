@@ -105,42 +105,44 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
     ): Mono<OciMultiPlatformImageMetadata> {
         val indexJsonObject = jsonObject(String(index.bytes))
         val indexAnnotations = indexJsonObject.getStringMapOrEmpty("annotations")
-        val metadataMonoList = indexJsonObject.get("manifests") {
-            asArray().toList {
-                val (manifestDescriptorPlatform, manifestDescriptor) = asObject().decodeOciManifestDescriptor()
-                if (manifestDescriptor.mediaType != manifestMediaType) { // TODO support nested index
-                    Mono.empty()
-                } else {
-                    registryApi.pullManifest(
+        val manifestDescriptors = indexJsonObject.get("manifests") {
+            // linked to preserve the platform order
+            asArray().toSet(LinkedHashSet()) { asObject().decodeOciManifestDescriptor() }
+        }
+        indexJsonObject.requireStringOrNull("mediaType", index.mediaType)
+        indexJsonObject.requireLong("schemaVersion", 2)
+
+        val metadataMonoList = manifestDescriptors.map { (manifestDescriptorPlatform, manifestDescriptor) ->
+            if (manifestDescriptor.mediaType != manifestMediaType) { // TODO support nested index
+                Mono.empty()
+            } else {
+                registryApi.pullManifest(
+                    registryUrl,
+                    imageReference.name,
+                    manifestDescriptor.digest,
+                    manifestDescriptor.size.toInt(),
+                    credentials,
+                ).flatMap { manifest ->
+                    if (manifest.mediaType != manifestMediaType) {
+                        throw IllegalStateException("media type in manifest descriptor ($manifestMediaType) and manifest (${manifest.mediaType}) do not match")
+                    }
+                    transformManifestToImageMetadata(
                         registryUrl,
-                        imageReference.name,
-                        manifestDescriptor.digest,
-                        manifestDescriptor.size.toInt(),
+                        imageReference,
+                        manifest,
+                        manifestDescriptor.annotations,
+                        indexAnnotations,
                         credentials,
-                    ).flatMap { manifest ->
-                        if (manifest.mediaType != manifestMediaType) {
-                            throw IllegalStateException("media type in manifest descriptor ($manifestMediaType) and manifest (${manifest.mediaType}) do not match")
-                        }
-                        transformManifestToImageMetadata(
-                            registryUrl,
-                            imageReference,
-                            manifest,
-                            manifestDescriptor.annotations,
-                            indexAnnotations,
-                            credentials,
-                            configMediaType,
-                            layerMediaTypePrefix,
-                        )
-                    }.doOnNext { (platform) ->
-                        if ((manifestDescriptorPlatform != null) && (platform != manifestDescriptorPlatform)) {
-                            throw IllegalStateException("platform in manifest descriptor ($manifestDescriptorPlatform) and config ($platform) do not match")
-                        }
+                        configMediaType,
+                        layerMediaTypePrefix,
+                    )
+                }.doOnNext { (platform) ->
+                    if ((manifestDescriptorPlatform != null) && (platform != manifestDescriptorPlatform)) {
+                        throw IllegalStateException("platform in manifest descriptor ($manifestDescriptorPlatform) and config ($platform) do not match")
                     }
                 }
             }
         }
-        indexJsonObject.requireStringOrNull("mediaType", index.mediaType)
-        indexJsonObject.requireLong("schemaVersion", 2)
         // the same order as in the manifest is guaranteed by mergeSequential
         return Flux.mergeSequential(metadataMonoList)
             // linked to preserve the platform order
