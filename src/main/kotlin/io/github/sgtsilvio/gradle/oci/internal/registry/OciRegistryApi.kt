@@ -577,15 +577,16 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                 }
                 val registryToken = OciRegistryToken(token)
                 val grantedScopes = registryToken.claims?.scopes
-                if ((grantedScopes == null) || (grantedScopes == key.scopes)) {
-                    registryToken
-                } else {
-                    tokenCache.asMap().putIfAbsent(
-                        key.copy(scopes = grantedScopes),
-                        CompletableFuture.completedFuture(registryToken),
-                    )
+                if ((grantedScopes != null) && (grantedScopes != key.scopes)) {
+                    if (grantedScopes.isNotEmpty()) {
+                        tokenCache.asMap().putIfAbsent(
+                            key.copy(scopes = grantedScopes),
+                            CompletableFuture.completedFuture(registryToken),
+                        )
+                    }
                     throw InsufficientScopesException(key.scopes, grantedScopes)
                 }
+                registryToken
             }
         }.map { encodeBearerAuthorization(it.token) }
     }
