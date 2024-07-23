@@ -18,6 +18,7 @@ interface OciRegistries {
 
     fun registry(name: String, configuration: Action<in OciRegistry>): OciRegistry
     fun dockerHub(configuration: Action<in OciRegistry>): OciRegistry
+    fun gitHubContainerRegistry(configuration: Action<in OciRegistry>): OciRegistry
 }
 
 interface OciRegistry : Named {

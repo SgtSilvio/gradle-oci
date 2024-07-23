@@ -83,6 +83,14 @@ internal abstract class OciRegistriesImpl @Inject constructor(
         return registry
     }
 
+    final override fun gitHubContainerRegistry(configuration: Action<in OciRegistry>): OciRegistry {
+        val registry = getOrCreateRegistry("ghcr") {
+            url.convention(URI("https://ghcr.io"))
+        }
+        configuration.execute(registry)
+        return registry
+    }
+
     private inline fun getOrCreateRegistry(name: String, init: OciRegistry.() -> Unit = {}): OciRegistry {
         var registry = list.findByName(name)
         if (registry == null) {
