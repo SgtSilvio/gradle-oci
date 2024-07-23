@@ -557,11 +557,11 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
         val scopesFromResponse = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
-        if (scopesFromResponse != scopes) {
-            throw IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse")
-        }
+//        if (scopesFromResponse != scopes) { // TODO GitHub container registry always returns pull as action (no pull,push) and returns "user/image" as repository when sending basic auth in first request, log a warning instead?
+//            throw IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse")
+//        }
         return tokenCache.getMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed())) { key ->
-            val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
+            val scopeParams = scopesFromResponse.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
                 if (credentials != null) {
                     headers[HttpHeaderNames.AUTHORIZATION] = credentials.encodeBasicAuthorization()
