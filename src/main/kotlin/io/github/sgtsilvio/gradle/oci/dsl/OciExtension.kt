@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
-import io.github.sgtsilvio.gradle.oci.OciCopySpec
-import io.github.sgtsilvio.gradle.oci.OciLayerTask
-import io.github.sgtsilvio.gradle.oci.OciPushTask
-import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
+import io.github.sgtsilvio.gradle.oci.*
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
@@ -17,7 +14,9 @@ import org.gradle.api.provider.SetProperty
  */
 interface OciExtension {
     val layerTaskClass get() = OciLayerTask::class
+    val imagesTaskClass get() = OciImagesTask::class
     val pushTaskClass get() = OciPushTask::class
+    val pushSingleTaskClass get() = OciPushSingleTask::class
     val registryDataTaskClass get() = OciRegistryDataTask::class
 
     val registries: OciRegistries
