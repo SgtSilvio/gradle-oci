@@ -31,9 +31,11 @@ internal fun resolveOciImageSpecs(
 private fun resolveOciVariantGraph(
     rootComponentResult: ResolvedComponentResult,
 ): Map<OciVariantNode, Set<OciImageReferenceSpec>> {
+    // the first variant is the resolvable configuration, but only if it declares at least one dependency
+    val rootVariant = rootComponentResult.variants.firstOrNull() ?: return emptyMap()
     val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
     val rootNodesToReferenceSpecs = LinkedHashMap<OciVariantNode, HashSet<OciImageReferenceSpec>>()
-    for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootComponentResult.variants.first())) {
+    for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootVariant)) {
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             continue
         }
