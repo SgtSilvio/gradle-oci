@@ -1,6 +1,6 @@
 [versions]
-gradleOci-junitJupiter = "0.4.0"
-testcontainers = "1.19.7"
+gradleOci-junitJupiter = "0.6.0"
+testcontainers = "1.20.0"
 
 [libraries]
 gradleOci-junitJupiter = { module = "io.github.sgtsilvio:gradle-oci-junit-jupiter", version.ref = "gradleOci-junitJupiter" }
