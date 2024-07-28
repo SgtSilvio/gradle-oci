@@ -32,41 +32,40 @@ internal fun ResolvableDependencies.resolveOciImageInputs(
             )
         )
     }.artifacts
-    return artifacts.mapMetadata { variantArtifactResults ->
+    return artifacts.mapMetadata { variantIdToArtifactFiles ->
         val imageSpecs = imageSpecsProvider.get()
-        val variantDescriptorToInput = variantArtifactResults.groupBy({ it.variantDescriptor }) { it.file }
-            .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
+        val variantIdToInput =
+            variantIdToArtifactFiles.mapValues { (_, files) -> OciImagesTask.VariantInput(files[0], files.drop(1)) }
         imageSpecs.map { imageSpec ->
             OciImagesTask.ImageInput(
                 imageSpec.platform,
-                imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toDescriptor()] },
+                imageSpec.variants.mapNotNull { variant -> variantIdToInput[variant.id] },
                 imageSpec.referenceSpecs,
             )
         }
     }
 }
 
-private data class VariantArtifactResult(val variantDescriptor: VariantDescriptor, val file: File)
-
-private data class VariantDescriptor(
+private data class VariantId(
     val owner: ComponentIdentifier,
     val capabilities: List<Capability>,
     val attributes: Map<String, String>,
 )
 
-private fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap())
+private val ResolvedVariantResult.id get() = VariantId(owner, capabilities, attributes.toMap())
 
 private fun AttributeContainer.toMap(): Map<String, String> =
     keySet().associateBy({ it.name }) { getAttribute(it).toString() }
 
-private fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantArtifactResult>) -> R): Provider<R> {
+private fun <R : Any> ArtifactCollection.mapMetadata(transform: (Map<VariantId, List<File>>) -> R): Provider<R> {
     val artifactResultsProvider = resolvedArtifacts
     // zip or map is not used here because their mapper function is executed after the file contents are available
     //  this mapper function does not read the file contents, so can already be called once the value is available
     //  this allows this mapper function to be run before storing the configuration cache
     //  apart from performance benefits this also avoids a bug where the artifactResultsProvider value is different when using the configuration cache
     return artifactResultsProvider.flatMap { _ ->
-        val variantArtifactResults = LinkedHashSet<VariantArtifactResult>()
+        val variantIdToArtifactFiles = LinkedHashMap<VariantId, MutableList<File>>()
+        val duplicateVariantIds = HashSet<VariantId>()
         // we need to use internal APIs to workaround the issue https://github.com/gradle/gradle/issues/29977
         //  ArtifactCollection.getResolvedArtifacts() wrongly deduplicates ResolvedArtifactResults of different variants for the same file
         (this as ArtifactCollectionInternal).visitArtifacts(object : ArtifactVisitor {
@@ -94,17 +93,25 @@ private fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantAr
                 capabilities: List<Capability>,
                 artifact: ResolvableArtifact,
             ) {
-                variantArtifactResults += VariantArtifactResult(
-                    VariantDescriptor(artifact.id.componentIdentifier, capabilities, attributes.toMap()),
-                    artifact.file,
-                )
+                val variantId = VariantId(artifact.id.componentIdentifier, capabilities, attributes.toMap())
+                if (variantId !in duplicateVariantIds) {
+                    val artifactFile = artifact.file
+                    val artifactFiles = variantIdToArtifactFiles[variantId]
+                    if (artifactFiles == null) {
+                        variantIdToArtifactFiles[variantId] = mutableListOf(artifactFile)
+                    } else if (artifactFile != artifactFiles[0]) {
+                        artifactFiles += artifactFile
+                    } else {
+                        duplicateVariantIds += variantId
+                    }
+                }
             }
 
             override fun visitFailure(failure: Throwable) = Unit
 
             override fun requireArtifactFiles() = true
         })
-        val transformed = transformer(variantArtifactResults)
+        val transformed = transform(variantIdToArtifactFiles)
         // using map to attach the task dependencies from the artifactResultsProvider
         artifactResultsProvider.map { transformed }
     }
