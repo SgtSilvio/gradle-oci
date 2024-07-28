@@ -19,6 +19,8 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
+import org.gradle.api.artifacts.repositories.InclusiveRepositoryContentDescriptor
+import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
 import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.api.credentials.PasswordCredentials
 import org.gradle.api.model.ObjectFactory
@@ -47,6 +49,7 @@ import javax.inject.Inject
 internal abstract class OciRegistriesImpl @Inject constructor(
     private val imageMapping: OciImageMappingImpl,
     private val objectFactory: ObjectFactory,
+    private val repositoryHandler: RepositoryHandler,
     configurationContainer: ConfigurationContainer,
     buildServiceRegistry: BuildServiceRegistry,
     project: Project,
@@ -101,6 +104,13 @@ internal abstract class OciRegistriesImpl @Inject constructor(
         return registry
     }
 
+    final override fun OciRegistry.exclusiveContent(configuration: Action<in InclusiveRepositoryContentDescriptor>) {
+        repositoryHandler.exclusiveContent {
+            forRepository { repository }
+            filter(configuration)
+        }
+    }
+
     private fun ResolvableDependencies.resolvesOciImages() =
         attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) == OCI_IMAGE_DISTRIBUTION_TYPE
 
@@ -150,6 +160,9 @@ internal abstract class OciRegistryImpl @Inject constructor(
     final override fun credentials() = credentials.set(providerFactory.passwordCredentials(name))
 
     final override fun optionalCredentials() = credentials.set(providerFactory.optionalPasswordCredentials(name))
+
+    final override fun content(configuration: Action<in RepositoryContentDescriptor>) =
+        repository.content(configuration)
 }
 
 private const val PORT_HTTP_HEADER_NAME = "port"
