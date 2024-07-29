@@ -94,7 +94,6 @@ private fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantAr
                 capabilities: List<Capability>,
                 artifact: ResolvableArtifact,
             ) {
-                println("$variantName ${artifact.file}")
                 variantArtifactResults += VariantArtifactResult(
                     VariantDescriptor(artifact.id.componentIdentifier, capabilities, attributes.toMap()),
                     artifact.file,
