@@ -3,8 +3,11 @@ package io.github.sgtsilvio.gradle.oci.internal.registry
 import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.*
-import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
+import io.github.sgtsilvio.gradle.oci.internal.createOciMetadataClassifier
+import io.github.sgtsilvio.gradle.oci.internal.createOciVariantInternalName
+import io.github.sgtsilvio.gradle.oci.internal.createOciVariantName
+import io.github.sgtsilvio.gradle.oci.internal.createPlatformPostfix
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.internal.string.escapeReplace
 import io.github.sgtsilvio.gradle.oci.internal.string.unescapeReplace
@@ -38,10 +41,12 @@ import java.util.function.BiFunction
 /v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-component.json
 /v2/repository/<base64(registryUrl)> / <group>/<name>/<version> / <variantName>/<digest>/<size>/<...>oci-layer
 
-/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <...>.module
-/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageReference)>/<digest>/<size>/<platform>/<...>.json
-/v0.11/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageName)>/<digest>/<size>/<...>oci-layer
+/v0.15/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <...>.module
+/v0.15/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageReference)>/<digest>/<size>/<platform>/<...>.json
+/v0.15/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageName)>/<digest>/<size>/<...>oci-layer
  */
+
+internal const val OCI_REPOSITORY_VERSION = "v0.15"
 
 /**
  * @author Silvio Giebl
@@ -65,7 +70,7 @@ internal class OciRepositoryHandler(
 
     override fun apply(request: HttpServerRequest, response: HttpServerResponse): Publisher<Void> {
         val segments = request.uri().substring(1).split('/')
-        if (segments[0] == "v0.11") {
+        if (segments[0] == OCI_REPOSITORY_VERSION) {
             return handleRepository(request, segments.drop(1), response)
         }
         return response.sendNotFound()
@@ -176,6 +181,7 @@ internal class OciRepositoryHandler(
                                         addString("md5", DigestUtils.md5Hex(metadataJson))
                                     }
                                     val escapedImageName = metadata.imageReference.name.escapePathSegment()
+                                    val digestCounts = HashMap<OciDigest, Int>()
                                     for (layerMetadata in metadata.layers) {
                                         layerMetadata.descriptor?.let { layerDescriptor ->
                                             addObject {
@@ -183,10 +189,20 @@ internal class OciRepositoryHandler(
                                                 val algorithmId = layerDigest.algorithm.id
                                                 val encodedHash = layerDigest.encodedHash
                                                 val layerSize = layerDescriptor.size
-                                                val layerName = fileNamePrefix + createOciLayerClassifier(
-                                                    "main",
-                                                    algorithmId + '!' + encodedHash.take(5) + ".." + encodedHash.takeLast(5),
-                                                )
+                                                val count = digestCounts[layerDigest] ?: 0
+                                                digestCounts[layerDigest] = count + 1
+                                                val layerName = buildString {
+                                                    append(fileNamePrefix)
+                                                    append(algorithmId)
+                                                    append('!')
+                                                    append(encodedHash.take(5))
+                                                    append("..")
+                                                    append(encodedHash.takeLast(5))
+                                                    if (count != 0) {
+                                                        append("-dup").append(count)
+                                                    }
+                                                    append("-oci-layer")
+                                                }
                                                 addString("name", layerName + mapLayerMediaTypeToExtension(layerDescriptor.mediaType))
                                                 addString("url", "$escapedImageName/$layerDigest/$layerSize/$layerName")
                                                 addNumber("size", layerSize)

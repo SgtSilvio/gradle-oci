@@ -142,7 +142,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
         name = this@OciRegistryImpl.name + "OciRegistry"
         setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
             val escapedUrl = url.toString().escapePathSegment()
-            URI("http://localhost:$repositoryPort/v0.11/$escapedUrl")
+            URI("http://localhost:$repositoryPort/$OCI_REPOSITORY_VERSION/$escapedUrl")
         })
         isAllowInsecureProtocol = true
         layout("gradle")
