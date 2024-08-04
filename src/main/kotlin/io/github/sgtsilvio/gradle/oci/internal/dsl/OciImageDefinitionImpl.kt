@@ -302,7 +302,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         abstract class ParentImages @Inject constructor(
             configuration: Configuration,
             dependencyHandler: DependencyHandler,
-        ) : OciImageDependenciesImpl<Unit>(configuration, dependencyHandler), OciImageDefinition.Variant.ParentImages {
+        ) : OciImageDependencyCollectorImpl<Unit>(configuration, dependencyHandler),
+            OciImageDefinition.Variant.ParentImages {
 
             final override fun DependencySet.addInternal(dependency: ModuleDependency) {
                 add(dependency)

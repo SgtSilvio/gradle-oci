@@ -1,7 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import org.gradle.api.Action
-import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
 import org.gradle.api.provider.Provider
@@ -10,10 +9,9 @@ import org.gradle.api.provider.ProviderConvertible
 /**
  * @author Silvio Giebl
  */
-interface OciImageDependencies<T> : DependencyConstraintFactories {
+interface OciImageDependencyCollector<T> : DependencyConstraintFactories {
 
     val configuration: Configuration
-    val set: DomainObjectSet<ModuleDependency>
 
     // add dependency
 
@@ -55,10 +53,7 @@ interface OciImageDependencies<T> : DependencyConstraintFactories {
 
     @Suppress("INAPPLICABLE_JVM_NAME")
     @JvmName("addConstraint")
-    fun add(
-        dependencyConstraintProvider: Provider<out DependencyConstraint>,
-        action: Action<in DependencyConstraint>,
-    )
+    fun add(dependencyConstraintProvider: Provider<out DependencyConstraint>, action: Action<in DependencyConstraint>)
 
     // dsl syntactic sugar for adding dependency
 

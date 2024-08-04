@@ -52,7 +52,7 @@ interface OciImageDefinition : Named {
         fun config(configuration: Action<in Config>)
         fun layers(configuration: Action<in Layers>)
 
-        interface ParentImages : OciImageDependencies<Unit>
+        interface ParentImages : OciImageDependencyCollector<Unit>
 
         interface Config {
             val creationTime: Property<Instant>

@@ -5,7 +5,7 @@ import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesForRuntime
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.file.ProjectLayout
@@ -69,11 +69,11 @@ internal abstract class OciImageDependenciesForRuntimeImpl @Inject constructor(
     dependencyConstraintHandler: DependencyConstraintHandler,
 ) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDependenciesForRuntime {
 
-    private val scopes = HashMap<String, ResolvableOciImageDependencies>()
+    private val scopes = HashMap<String, ReferencableOciImageDependencyCollector>()
 
     final override val runtime = runtimeScope("")
 
-    final override fun runtimeScope(scope: String): ResolvableOciImageDependencies = scopes.getOrPut(scope) {
+    final override fun runtimeScope(scope: String): ReferencableOciImageDependencyCollector = scopes.getOrPut(scope) {
         val imageDependencies = oci.imageDependencies.create(name.concatCamelCase("runtime").concatCamelCase(scope))
         registryDataTask {
             from(imageDependencies)

@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImageInputs
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -45,7 +45,7 @@ abstract class OciImagesTask : DefaultTask() {
         dependsOn(images)
     }
 
-    fun from(dependencies: ResolvableOciImageDependencies) =
+    fun from(dependencies: ReferencableOciImageDependencyCollector) =
         images.addAll(dependencies.configuration.incoming.resolveOciImageInputs(platformSelector))
 
     @Option(

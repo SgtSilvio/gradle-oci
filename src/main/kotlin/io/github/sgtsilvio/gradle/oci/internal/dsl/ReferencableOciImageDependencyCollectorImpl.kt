@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.attributes.*
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Nameable
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies.Taggable
+import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
+import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector.Nameable
+import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
@@ -23,12 +23,12 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
+internal abstract class ReferencableOciImageDependencyCollectorImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
     configurationContainer: ConfigurationContainer,
     dependencyHandler: DependencyHandler,
-) : OciImageDependenciesImpl<Nameable>(
+) : OciImageDependencyCollectorImpl<Nameable>(
     configurationContainer.create(name + "OciImages").apply {
         description = "OCI image dependencies '$name'"
         isCanBeConsumed = false
@@ -41,7 +41,7 @@ internal abstract class ResolvableOciImageDependenciesImpl @Inject constructor(
         }
     },
     dependencyHandler,
-), ResolvableOciImageDependencies {
+), ReferencableOciImageDependencyCollector {
 
     final override fun getName() = name
 

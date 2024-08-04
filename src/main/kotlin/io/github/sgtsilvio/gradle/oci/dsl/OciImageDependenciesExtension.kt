@@ -31,7 +31,7 @@ interface OciImageDependenciesExtension : DependencyConstraintFactories {
 
 interface OciImageDependenciesForRuntime : DependencyConstraintFactories {
 
-    val runtime: ResolvableOciImageDependencies
+    val runtime: ReferencableOciImageDependencyCollector
 
-    fun runtimeScope(scope: String): ResolvableOciImageDependencies
+    fun runtimeScope(scope: String): ReferencableOciImageDependencyCollector
 }

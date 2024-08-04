@@ -4,7 +4,7 @@ import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
-import io.github.sgtsilvio.gradle.oci.dsl.ResolvableOciImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.OciCopySpecImpl
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.newOciCopySpec
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
@@ -32,8 +32,8 @@ internal abstract class OciExtensionImpl @Inject constructor(private val objectF
     }
 
     final override val imageDependencies =
-        objectFactory.domainObjectContainer(ResolvableOciImageDependencies::class) { name ->
-            objectFactory.newInstance<ResolvableOciImageDependenciesImpl>(name)
+        objectFactory.domainObjectContainer(ReferencableOciImageDependencyCollector::class) { name ->
+            objectFactory.newInstance<ReferencableOciImageDependencyCollectorImpl>(name)
         }
 
     init {

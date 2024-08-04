@@ -1,23 +1,20 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.createDependency
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.withType
 
 /**
  * @author Silvio Giebl
  */
-internal abstract class OciImageDependenciesImpl<T>(
+internal abstract class OciImageDependencyCollectorImpl<T>(
     final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
-) : DependencyConstraintFactoriesImpl(dependencyHandler.constraints), OciImageDependencies<T> {
-
-    final override val set get() = configuration.allDependencies.withType(ModuleDependency::class)
+) : DependencyConstraintFactoriesImpl(dependencyHandler.constraints), OciImageDependencyCollector<T> {
 
     // add dependency
 
