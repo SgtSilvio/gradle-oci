@@ -3,8 +3,8 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
-import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.OciCopySpecImpl
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.newOciCopySpec
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
@@ -31,16 +31,13 @@ internal abstract class OciExtensionImpl @Inject constructor(private val objectF
         objectFactory.newInstance<OciImageDefinitionImpl>(name)
     }
 
-    final override val imageDependencies =
-        objectFactory.domainObjectContainer(ReferencableOciImageDependencyCollector::class) { name ->
-            objectFactory.newInstance<ReferencableOciImageDependencyCollectorImpl>(name)
-        }
+    final override val imageDependencies = objectFactory.domainObjectContainer(OciImageDependencies::class) { name ->
+        objectFactory.newInstance<OciImageDependenciesImpl>(name)
+    }
 
     init {
         // eagerly realize imageDefinitions because they register configurations and tasks
         imageDefinitions.all {}
-        // eagerly realize imageDependencies because they register configurations
-        imageDependencies.all {}
     }
 
     final override fun registries(configuration: Action<in OciRegistries>) = configuration.execute(registries)

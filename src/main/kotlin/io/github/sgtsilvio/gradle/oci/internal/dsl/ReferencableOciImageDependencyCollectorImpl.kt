@@ -1,21 +1,16 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.attributes.*
+import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector.Nameable
 import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
-import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.DependencySet
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.attributes.Bundling
-import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
 import javax.inject.Inject
@@ -24,38 +19,24 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 internal abstract class ReferencableOciImageDependencyCollectorImpl @Inject constructor(
-    private val name: String,
     private val objectFactory: ObjectFactory,
-    configurationContainer: ConfigurationContainer,
     dependencyHandler: DependencyHandler,
 ) : OciImageDependencyCollectorImpl<Nameable>(
-    configurationContainer.create(name + "OciImages").apply {
-        description = "OCI image dependencies '$name'"
-        isCanBeConsumed = false
-        isCanBeResolved = true
-        attributes.apply {
-            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
-            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-            attribute(PLATFORM_ATTRIBUTE, MULTI_PLATFORM_ATTRIBUTE_VALUE)
-        }
-    },
     dependencyHandler,
+    objectFactory,
 ), ReferencableOciImageDependencyCollector {
 
-    final override fun getName() = name
-
-    final override fun DependencySet.addInternal(dependency: ModuleDependency): ReferenceSpecsBuilder {
+    final override fun addInternal(dependency: ModuleDependency): ReferenceSpecsBuilder {
         val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
-        addLater(referenceSpecsBuilder.attribute.map { attribute ->
+        dependencies.add(referenceSpecsBuilder.attribute.map { attribute ->
             dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
         })
         return referenceSpecsBuilder
     }
 
-    final override fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecsBuilder {
+    final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecsBuilder {
         val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
-        addLater(dependencyProvider.zip(referenceSpecsBuilder.attribute) { dependency, attribute ->
+        dependencies.add(dependencyProvider.zip(referenceSpecsBuilder.attribute) { dependency, attribute ->
             dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
         })
         return referenceSpecsBuilder

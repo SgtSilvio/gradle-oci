@@ -6,15 +6,20 @@ import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyHandler
+import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
+import org.gradle.kotlin.dsl.setProperty
 
 /**
  * @author Silvio Giebl
  */
 internal abstract class OciImageDependencyCollectorImpl<T>(
-    final override val configuration: Configuration,
     private val dependencyHandler: DependencyHandler,
+    objectFactory: ObjectFactory,
 ) : DependencyConstraintFactoriesImpl(dependencyHandler.constraints), OciImageDependencyCollector<T> {
+
+    final override val dependencies = objectFactory.setProperty<Dependency>()
+    final override val dependencyConstraints = objectFactory.setProperty<DependencyConstraint>()
 
     // add dependency
 
@@ -28,14 +33,14 @@ internal abstract class OciImageDependencyCollectorImpl<T>(
         addInternal(dependencyProvider, action)
 
     private fun <D : ModuleDependency> addInternal(dependency: D, action: Action<in D>?) =
-        configuration.dependencies.addInternal(finalizeDependency(dependency, action))
+        addInternal(finalizeDependency(dependency, action))
 
     private fun <D : ModuleDependency> addInternal(dependencyProvider: Provider<out D>, action: Action<in D>?) =
-        configuration.dependencies.addInternal(dependencyProvider.map { finalizeDependency(it, action) })
+        addInternal(dependencyProvider.map { finalizeDependency(it, action) })
 
-    protected abstract fun DependencySet.addInternal(dependency: ModuleDependency): T
+    protected abstract fun addInternal(dependency: ModuleDependency): T
 
-    protected abstract fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>): T
+    protected abstract fun addInternal(dependencyProvider: Provider<out ModuleDependency>): T
 
     private fun <D : ModuleDependency> finalizeDependency(dependency: D, action: Action<in D>?): D {
         @Suppress("UNCHECKED_CAST") val finalizedDependency = dependencyHandler.create(dependency) as D
@@ -61,23 +66,23 @@ internal abstract class OciImageDependencyCollectorImpl<T>(
     // add constraint
 
     final override fun add(dependencyConstraint: DependencyConstraint) {
-        configuration.dependencyConstraints.add(dependencyConstraint)
+        dependencyConstraints.add(dependencyConstraint)
     }
 
     final override fun add(dependencyConstraint: DependencyConstraint, action: Action<in DependencyConstraint>) {
         action.execute(dependencyConstraint)
-        configuration.dependencyConstraints.add(dependencyConstraint)
+        dependencyConstraints.add(dependencyConstraint)
     }
 
     @Suppress("INAPPLICABLE_JVM_NAME")
     @JvmName("addConstraint")
     final override fun add(dependencyConstraintProvider: Provider<out DependencyConstraint>) =
-        configuration.dependencyConstraints.addLater(dependencyConstraintProvider)
+        dependencyConstraints.add(dependencyConstraintProvider)
 
     @Suppress("INAPPLICABLE_JVM_NAME")
     @JvmName("addConstraint")
     final override fun add(
         dependencyConstraintProvider: Provider<out DependencyConstraint>,
         action: Action<in DependencyConstraint>,
-    ) = configuration.dependencyConstraints.addLater(dependencyConstraintProvider.map { action.execute(it); it })
+    ) = dependencyConstraints.add(dependencyConstraintProvider.map { action.execute(it); it })
 }

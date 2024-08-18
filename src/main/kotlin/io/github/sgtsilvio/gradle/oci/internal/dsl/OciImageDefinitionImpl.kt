@@ -223,7 +223,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         projectName: String,
     ) : OciImageDefinition.Variant {
 
-        final override val parentImages = objectFactory.newInstance<ParentImages>(configuration)
+        final override val parentImages = objectFactory.newInstance<ParentImages>()
         final override val config = objectFactory.newInstance<OciImageDefinition.Variant.Config>().apply {
             entryPoint.convention(null)
             arguments.convention(null)
@@ -232,6 +232,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             objectFactory.newInstance<Layers>(imageDefinition.name, Optional.ofNullable(platform))
 
         init {
+            configuration.dependencies.addAllLater(parentImages.dependencies)
+            configuration.dependencyConstraints.addAllLater(parentImages.dependencyConstraints)
             val metadata = createMetadata(providerFactory)
             val metadataTask = taskContainer.createMetadataTask(imageDefinition.name, platform, metadata, projectLayout)
             configuration.outgoing.addArtifacts(providerFactory.provider {
@@ -300,18 +302,15 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             configuration.execute(layers)
 
         abstract class ParentImages @Inject constructor(
-            configuration: Configuration,
             dependencyHandler: DependencyHandler,
-        ) : OciImageDependencyCollectorImpl<Unit>(configuration, dependencyHandler),
+            objectFactory: ObjectFactory,
+        ) : OciImageDependencyCollectorImpl<Unit>(dependencyHandler, objectFactory),
             OciImageDefinition.Variant.ParentImages {
 
-            final override fun DependencySet.addInternal(dependency: ModuleDependency) {
-                add(dependency)
-            }
+            final override fun addInternal(dependency: ModuleDependency) = dependencies.add(dependency)
 
-            final override fun DependencySet.addInternal(dependencyProvider: Provider<out ModuleDependency>) {
-                addLater(dependencyProvider)
-            }
+            final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>) =
+                dependencies.add(dependencyProvider)
         }
 
         abstract class Layers @Inject constructor(
@@ -335,7 +334,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 return layer
             }
         }
-
 
         abstract class Layer @Inject constructor(
             private val name: String,

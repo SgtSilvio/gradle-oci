@@ -22,7 +22,7 @@ interface OciExtension {
     val registries: OciRegistries
     val imageMapping: OciImageMapping
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
-    val imageDependencies: NamedDomainObjectContainer<ReferencableOciImageDependencyCollector>
+    val imageDependencies: NamedDomainObjectContainer<OciImageDependencies>
 
     fun registries(configuration: Action<in OciRegistries>)
 

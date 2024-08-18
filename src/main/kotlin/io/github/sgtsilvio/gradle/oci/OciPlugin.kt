@@ -45,7 +45,7 @@ class OciPlugin : Plugin<Project> {
             val pushName = "push".concatCamelCase(imageDefName.mainToEmpty())
             val pushTask = project.tasks.register<OciPushSingleTask>(pushName.concatCamelCase("ociImage"))
             val pushImageDependencies = extension.imageDependencies.create(pushName).apply {
-                add(dependency).name(pushTask.flatMap { it.imageName }).tag(pushTask.flatMap { it.imageTags })
+                runtime(dependency).name(pushTask.flatMap { it.imageName }).tag(pushTask.flatMap { it.imageTags })
             }
             pushTask {
                 group = TASK_GROUP_NAME

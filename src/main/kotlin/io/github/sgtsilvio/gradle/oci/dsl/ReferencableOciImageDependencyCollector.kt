@@ -1,13 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
-import org.gradle.api.Named
 import org.gradle.api.provider.Provider
 
 /**
  * @author Silvio Giebl
  */
 interface ReferencableOciImageDependencyCollector :
-    OciImageDependencyCollector<ReferencableOciImageDependencyCollector.Nameable>, Named {
+    OciImageDependencyCollector<ReferencableOciImageDependencyCollector.Nameable> {
 
     interface Taggable {
         fun tag(vararg tags: String): Taggable
