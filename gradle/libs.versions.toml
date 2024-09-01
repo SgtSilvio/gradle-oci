@@ -21,6 +21,6 @@ reactor-kotlin = { module = "io.projectreactor.kotlin:reactor-kotlin-extensions"
 reactor-netty = { module = "io.projectreactor.netty:reactor-netty", version.ref = "reactor-netty" }
 
 [plugins]
-pluginPublish = { id = "com.gradle.plugin-publish", version = "1.2.1" }
+pluginPublish = { id = "com.gradle.plugin-publish", version = "1.2.2" }
 defaults = { id = "io.github.sgtsilvio.gradle.defaults", version = "0.2.0" }
 metadata = { id = "io.github.sgtsilvio.gradle.metadata", version = "0.6.0" }
