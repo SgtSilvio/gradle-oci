@@ -5,7 +5,6 @@ import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesWithScopes
-import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciImageInputs
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
@@ -33,8 +32,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
 
     final override fun getName() = name
 
-    final override val runtime: ReferencableOciImageDependencyCollector =
-        objectFactory.newInstance<ReferencableOciImageDependencyCollectorImpl>()
+    final override val runtime = objectFactory.newInstance<ReferencableOciImageDependencyCollectorImpl>()
 
     private val configuration: Configuration = configurationContainer.create(name + "OciImages").apply {
         description = "OCI image dependencies '$name'"

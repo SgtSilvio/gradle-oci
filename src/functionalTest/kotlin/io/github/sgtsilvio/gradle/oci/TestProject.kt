@@ -56,8 +56,8 @@ internal class TestProject(projectDir: File) {
                 }
                 imageDefinitions.register("main") {
                     allPlatforms {
-                        parentImages {
-                            add("library:eclipse-temurin:17.0.7_7-jre-jammy")
+                        dependencies {
+                            runtime("library:eclipse-temurin:17.0.7_7-jre-jammy")
                         }
                         config {
                             entryPoint.set(listOf("java", "-jar", "app.jar"))

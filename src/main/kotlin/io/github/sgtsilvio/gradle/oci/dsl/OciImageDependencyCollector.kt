@@ -9,7 +9,7 @@ import org.gradle.api.provider.ProviderConvertible
 /**
  * @author Silvio Giebl
  */
-interface OciImageDependencyCollector<T> : DependencyConstraintFactories {
+interface OciImageDependencyCollector<T> {
 
     val dependencies: Provider<Set<ModuleDependency>>
     val dependencyConstraints: Provider<Set<DependencyConstraint>>

@@ -28,8 +28,8 @@ oci {
     }
     imageDefinitions.register("main") {
         allPlatforms {
-            parentImages {
-                add("library:eclipse-temurin:21.0.2_13-jre-jammy")
+            dependencies {
+                runtime.add("library:eclipse-temurin:21.0.2_13-jre-jammy")
             }
             config {
                 entryPoint = ["java", "-jar"]

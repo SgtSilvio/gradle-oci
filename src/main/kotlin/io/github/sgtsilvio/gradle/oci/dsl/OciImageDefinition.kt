@@ -44,15 +44,17 @@ interface OciImageDefinition : Named {
     }
 
     interface Variant {
-        val parentImages: ParentImages
+        val dependencies: Dependencies
         val config: Config
         val layers: Layers
 
-        fun parentImages(configuration: Action<in ParentImages>)
+        fun dependencies(configuration: Action<in Dependencies>)
         fun config(configuration: Action<in Config>)
         fun layers(configuration: Action<in Layers>)
 
-        interface ParentImages : OciImageDependencyCollector<Unit>
+        interface Dependencies : DependencyConstraintFactories {
+            val runtime: OciImageDependencyCollector<Unit>
+        }
 
         interface Config {
             val creationTime: Property<Instant>
@@ -99,7 +101,7 @@ interface OciImageDefinition : Named {
     interface VariantScope {
         val layers: Layers
 
-        fun parentImages(configuration: Action<in Variant.ParentImages>)
+        fun dependencies(configuration: Action<in Variant.Dependencies>)
         fun config(configuration: Action<in Variant.Config>)
         fun layers(configuration: Action<in Layers>)
 

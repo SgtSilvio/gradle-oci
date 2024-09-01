@@ -20,7 +20,7 @@ import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
 import org.gradle.api.artifacts.*
-import org.gradle.api.artifacts.dsl.DependencyHandler
+import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.capabilities.Capability
@@ -223,7 +223,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         projectName: String,
     ) : OciImageDefinition.Variant {
 
-        final override val parentImages = objectFactory.newInstance<ParentImages>()
+        final override val dependencies = objectFactory.newInstance<Dependencies>()
         final override val config = objectFactory.newInstance<OciImageDefinition.Variant.Config>().apply {
             entryPoint.convention(null)
             arguments.convention(null)
@@ -232,8 +232,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             objectFactory.newInstance<Layers>(imageDefinition.name, Optional.ofNullable(platform))
 
         init {
-            configuration.dependencies.addAllLater(parentImages.dependencies)
-            configuration.dependencyConstraints.addAllLater(parentImages.dependencyConstraints)
+            configuration.dependencies.addAllLater(dependencies.runtime.dependencies)
+            configuration.dependencyConstraints.addAllLater(dependencies.runtime.dependencyConstraints)
             val metadata = createMetadata(providerFactory)
             val metadataTask = taskContainer.createMetadataTask(imageDefinition.name, platform, metadata, projectLayout)
             configuration.outgoing.addArtifacts(providerFactory.provider {
@@ -292,8 +292,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 listProvider
             }
 
-        final override fun parentImages(configuration: Action<in OciImageDefinition.Variant.ParentImages>) =
-            configuration.execute(parentImages)
+        final override fun dependencies(configuration: Action<in OciImageDefinition.Variant.Dependencies>) =
+            configuration.execute(dependencies)
 
         final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =
             configuration.execute(config)
@@ -301,16 +301,12 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         final override fun layers(configuration: Action<in OciImageDefinition.Variant.Layers>) =
             configuration.execute(layers)
 
-        abstract class ParentImages @Inject constructor(
-            dependencyHandler: DependencyHandler,
+        abstract class Dependencies @Inject constructor(
             objectFactory: ObjectFactory,
-        ) : OciImageDependencyCollectorImpl<Unit>(dependencyHandler, objectFactory),
-            OciImageDefinition.Variant.ParentImages {
+            dependencyConstraintHandler: DependencyConstraintHandler,
+        ) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDefinition.Variant.Dependencies {
 
-            final override fun addInternal(dependency: ModuleDependency) = dependencies.add(dependency)
-
-            final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>) =
-                dependencies.add(dependencyProvider)
+            final override val runtime = objectFactory.newInstance<OciImageDependencyCollectorImpl.Default>()
         }
 
         abstract class Layers @Inject constructor(
@@ -519,8 +515,8 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
         final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageDefName, filteredVariants)
 
-        final override fun parentImages(configuration: Action<in OciImageDefinition.Variant.ParentImages>) =
-            filteredVariants.configureEach { parentImages(configuration) }
+        final override fun dependencies(configuration: Action<in OciImageDefinition.Variant.Dependencies>) =
+            filteredVariants.configureEach { dependencies(configuration) }
 
         final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =
             filteredVariants.configureEach { config(configuration) }
