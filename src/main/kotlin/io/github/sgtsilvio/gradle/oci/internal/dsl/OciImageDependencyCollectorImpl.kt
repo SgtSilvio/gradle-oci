@@ -4,7 +4,10 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.createDependency
 import org.gradle.api.Action
 import org.gradle.api.Project
-import org.gradle.api.artifacts.*
+import org.gradle.api.artifacts.DependencyConstraint
+import org.gradle.api.artifacts.ExternalModuleDependency
+import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
@@ -18,7 +21,7 @@ internal abstract class OciImageDependencyCollectorImpl<T>(
     objectFactory: ObjectFactory,
 ) : DependencyConstraintFactoriesImpl(dependencyHandler.constraints), OciImageDependencyCollector<T> {
 
-    final override val dependencies = objectFactory.setProperty<Dependency>()
+    final override val dependencies = objectFactory.setProperty<ModuleDependency>()
     final override val dependencyConstraints = objectFactory.setProperty<DependencyConstraint>()
 
     // add dependency
