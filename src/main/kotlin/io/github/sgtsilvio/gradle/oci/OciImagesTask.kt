@@ -7,8 +7,10 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.options.Option
+import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.setProperty
 import java.io.File
@@ -45,6 +47,17 @@ abstract class OciImagesTask : DefaultTask() {
     }
 
     fun from(dependencies: OciImageDependencies) = images.addAll(dependencies.resolve(platformSelector))
+
+    fun from(dependenciesListProvider: Provider<List<OciImageDependencies>>) {
+        val objectFactory = project.objects
+        images.addAll(dependenciesListProvider.flatMap { dependenciesList ->
+            val listProperty = objectFactory.listProperty<ImageInput>()
+            for (dependencies in dependenciesList) {
+                listProperty.addAll(dependencies.resolve(platformSelector))
+            }
+            listProperty
+        })
+    }
 
     @Option(
         option = "platform",

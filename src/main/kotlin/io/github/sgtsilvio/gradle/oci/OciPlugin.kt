@@ -5,9 +5,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRI
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PlatformAttributeCompatibilityRule
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
-import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependenciesExtension
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
-import io.github.sgtsilvio.gradle.oci.internal.dsl.OciImageDependenciesExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
 import org.gradle.api.Plugin
@@ -31,12 +29,6 @@ class OciPlugin : Plugin<Project> {
         }
         val extension = project.extensions.create(OciExtension::class, EXTENSION_NAME, OciExtensionImpl::class)
         registerPushTasks(project, extension)
-        project.extensions.create(
-            OciImageDependenciesExtension::class,
-            IMAGE_DEPENDENCIES_EXTENSION_NAME,
-            OciImageDependenciesExtensionImpl::class,
-            extension,
-        )
     }
 
     private fun registerPushTasks(project: Project, extension: OciExtension) {
@@ -57,5 +49,4 @@ class OciPlugin : Plugin<Project> {
 }
 
 const val EXTENSION_NAME = "oci"
-const val IMAGE_DEPENDENCIES_EXTENSION_NAME = "ociImageDependencies"
 const val TASK_GROUP_NAME = "oci"

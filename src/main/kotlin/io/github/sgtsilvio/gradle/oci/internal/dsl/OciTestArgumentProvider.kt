@@ -1,33 +1,29 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
-import org.gradle.api.file.FileTree
 import org.gradle.api.model.ObjectFactory
-import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.kotlin.dsl.property
 import org.gradle.process.CommandLineArgumentProvider
 
 /**
  * @author Silvio Giebl
  */
-internal class OciTestArgumentProvider(
-    objectFactory: ObjectFactory,
-    registryDataTask: TaskProvider<OciRegistryDataTask>,
-) : CommandLineArgumentProvider {
+internal class OciTestArgumentProvider(objectFactory: ObjectFactory) : CommandLineArgumentProvider {
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    val registryDataFiles: FileTree
+    val registryDataFiles = objectFactory.fileTree()
 
-    private val registryDataDirectoryPath: Provider<String>
+    private val registryDataDirectoryPath = objectFactory.property<String>()
 
-    init {
+    fun from(registryDataTask: TaskProvider<OciRegistryDataTask>) {
         val registryDataDirectory = registryDataTask.flatMap { it.registryDataDirectory }
-        registryDataFiles = objectFactory.fileTree().from(registryDataDirectory).builtBy(registryDataTask)
-        registryDataDirectoryPath = registryDataDirectory.map { it.asFile.absolutePath }
+        registryDataFiles.setDir(registryDataDirectory).setBuiltBy(listOf(registryDataTask))
+        registryDataDirectoryPath.set(registryDataDirectory.map { it.asFile.absolutePath })
     }
 
     override fun asArguments() =
