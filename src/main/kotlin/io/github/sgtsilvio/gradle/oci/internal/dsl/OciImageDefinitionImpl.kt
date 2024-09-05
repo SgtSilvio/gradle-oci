@@ -234,7 +234,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         init {
             configuration.dependencies.addAllLater(dependencies.runtime.dependencies)
             configuration.dependencyConstraints.addAllLater(dependencies.runtime.dependencyConstraints)
-            val metadata = createMetadata(providerFactory)
+            val metadata = createMetadata(objectFactory, providerFactory)
             val metadataTask = taskContainer.createMetadataTask(imageDefinition.name, platform, metadata, projectLayout)
             configuration.outgoing.addArtifacts(providerFactory.provider {
                 listOf(LazyPublishArtifact(objectFactory).apply {
@@ -255,42 +255,46 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             })
         }
 
-        private fun createMetadata(providerFactory: ProviderFactory): Provider<OciMetadata> =
-            providerFactory.provider { OciMetadataBuilder() }
-                .zip(imageDefinition.imageReference, OciMetadataBuilder::imageReference)
-                .zipAbsentAsNull(config.creationTime, OciMetadataBuilder::creationTime)
-                .zipAbsentAsNull(config.author, OciMetadataBuilder::author)
-                .zipAbsentAsNull(config.user, OciMetadataBuilder::user)
-                .zip(config.ports.orElse(emptySet()), OciMetadataBuilder::ports)
-                .zip(config.environment.orElse(emptyMap()), OciMetadataBuilder::environment)
-                .zipAbsentAsNull(config.entryPoint, OciMetadataBuilder::entryPoint)
-                .zipAbsentAsNull(config.arguments, OciMetadataBuilder::arguments)
-                .zip(config.volumes.orElse(emptySet()), OciMetadataBuilder::volumes)
-                .zipAbsentAsNull(config.workingDirectory, OciMetadataBuilder::workingDirectory)
-                .zipAbsentAsNull(config.stopSignal, OciMetadataBuilder::stopSignal)
-                .zip(config.configAnnotations.orElse(emptyMap()), OciMetadataBuilder::configAnnotations)
-                .zip(
-                    config.configDescriptorAnnotations.orElse(emptyMap()),
-                    OciMetadataBuilder::configDescriptorAnnotations,
-                )
-                .zip(config.manifestAnnotations.orElse(emptyMap()), OciMetadataBuilder::manifestAnnotations)
-                .zip(
-                    config.manifestDescriptorAnnotations.orElse(emptyMap()),
-                    OciMetadataBuilder::manifestDescriptorAnnotations,
-                )
-                .zip(imageDefinition.indexAnnotations.orElse(emptyMap()), OciMetadataBuilder::indexAnnotations)
-                .zip(createLayerMetadataList(providerFactory), OciMetadataBuilder::layers)
-                .map { it.build() }
+        private fun createMetadata(
+            objectFactory: ObjectFactory,
+            providerFactory: ProviderFactory,
+        ): Provider<OciMetadata> = providerFactory.provider { OciMetadataBuilder() }
+            .zip(imageDefinition.imageReference, OciMetadataBuilder::imageReference)
+            .zipAbsentAsNull(config.creationTime, OciMetadataBuilder::creationTime)
+            .zipAbsentAsNull(config.author, OciMetadataBuilder::author)
+            .zipAbsentAsNull(config.user, OciMetadataBuilder::user)
+            .zip(config.ports.orElse(emptySet()), OciMetadataBuilder::ports)
+            .zip(config.environment.orElse(emptyMap()), OciMetadataBuilder::environment)
+            .zipAbsentAsNull(config.entryPoint, OciMetadataBuilder::entryPoint)
+            .zipAbsentAsNull(config.arguments, OciMetadataBuilder::arguments)
+            .zip(config.volumes.orElse(emptySet()), OciMetadataBuilder::volumes)
+            .zipAbsentAsNull(config.workingDirectory, OciMetadataBuilder::workingDirectory)
+            .zipAbsentAsNull(config.stopSignal, OciMetadataBuilder::stopSignal)
+            .zip(config.configAnnotations.orElse(emptyMap()), OciMetadataBuilder::configAnnotations)
+            .zip(
+                config.configDescriptorAnnotations.orElse(emptyMap()),
+                OciMetadataBuilder::configDescriptorAnnotations,
+            )
+            .zip(config.manifestAnnotations.orElse(emptyMap()), OciMetadataBuilder::manifestAnnotations)
+            .zip(
+                config.manifestDescriptorAnnotations.orElse(emptyMap()),
+                OciMetadataBuilder::manifestDescriptorAnnotations,
+            )
+            .zip(imageDefinition.indexAnnotations.orElse(emptyMap()), OciMetadataBuilder::indexAnnotations)
+            .zip(createLayerMetadataList(objectFactory, providerFactory), OciMetadataBuilder::layers)
+            .map { it.build() }
 
-        private fun createLayerMetadataList(providerFactory: ProviderFactory): Provider<List<OciLayerMetadata>> =
-            providerFactory.provider { layers.list }.flatMap { layers ->
-                var listProvider = providerFactory.provider { listOf<OciLayerMetadata>() }
-                for (layer in layers) {
-                    layer as Layer
-                    listProvider = listProvider.zip(layer.createLayerMetadata(providerFactory)) { list, e -> list + e }
-                }
-                listProvider
+        private fun createLayerMetadataList(
+            objectFactory: ObjectFactory,
+            providerFactory: ProviderFactory,
+        ): Provider<List<OciLayerMetadata>> = providerFactory.provider { layers.list }.flatMap { layers ->
+            val listProperty = objectFactory.listProperty<OciLayerMetadata>()
+            for (layer in layers) {
+                layer as Layer
+                listProperty.add(layer.createLayerMetadata(providerFactory))
             }
+            listProperty
+        }
 
         final override fun dependencies(configuration: Action<in OciImageDefinition.Variant.Dependencies>) =
             configuration.execute(dependencies)
