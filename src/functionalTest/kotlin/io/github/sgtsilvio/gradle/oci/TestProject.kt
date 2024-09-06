@@ -39,11 +39,13 @@ internal class TestProject(projectDir: File) {
                 suites {
                     "test"(JvmTestSuite::class) {
                         useJUnitJupiter("5.10.0")
-                        ociImageDependencies {
-                            runtime(project)
-                            runtime(project).tag("latest")
-                            runtime(constraint("library:eclipse-temurin:20.0.1_9-jre-jammy"))
-                            runtime("hivemq:hivemq4:4.16.0")
+                        oci.of(this) {
+                            imageDependencies {
+                                runtime(project)
+                                runtime(project).tag("latest")
+                                runtime(constraint("library:eclipse-temurin:20.0.1_9-jre-jammy"))
+                                runtime("hivemq:hivemq4:4.16.0")
+                            }
                         }
                     }
                 }
@@ -96,7 +98,7 @@ internal class TestProject(projectDir: File) {
                 @Test
                 void test() {
                     assertEquals(
-                        new File("build/oci/registries/test").getAbsolutePath(),
+                        new File("build/oci/registries/testSuite").getAbsolutePath(),
                         System.getProperty("io.github.sgtsilvio.gradle.oci.registry.data.dir")
                     );
                 }
@@ -161,7 +163,7 @@ internal class TestProject(projectDir: File) {
             expectedConfig2Digest = "1013d54d227bc8e0ecdbc989217da3325065b8c0021123065b01bb15fd9eab04"
         }
 
-        val registryDir = buildDir.resolve("oci/registries/test")
+        val registryDir = buildDir.resolve("oci/registries/testSuite")
         val blobsDir = registryDir.resolve("blobs")
         // @formatter:off
         assertTrue(blobsDir.resolve("sha256/1d/1d511796a8d527cf68165c8b95d6606d03c6a30a624d781f8f3682ae14797078/data").exists())
