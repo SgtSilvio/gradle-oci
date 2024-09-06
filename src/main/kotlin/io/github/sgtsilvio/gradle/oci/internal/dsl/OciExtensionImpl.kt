@@ -140,6 +140,7 @@ internal abstract class OciExtensionImpl @Inject constructor(
             }
             testSuite.targets.all {
                 val testTaskState = getOrCreateTestTaskState(testTask)
+                testTaskState.testSuiteExtension = extension
                 val testTaskExtension = testTaskState.testTaskExtension
                 if (testTaskExtension == null) {
                     testTaskState.testArgumentProvider.from(registryDataTask)
