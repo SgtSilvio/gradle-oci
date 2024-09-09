@@ -54,8 +54,10 @@ testing {
                 implementation(libs.testcontainers)
                 implementation(libs.gradleOci.junitJupiter)
             }
-            ociImageDependencies {
-                runtime(project).tag("latest")
+            oci.of(this) {
+                imageDependencies {
+                    runtime(project).tag("latest")
+                }
             }
         }
     }
