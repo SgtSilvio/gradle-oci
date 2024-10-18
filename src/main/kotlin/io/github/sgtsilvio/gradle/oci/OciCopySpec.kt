@@ -67,7 +67,7 @@ interface OciCopySpec {
     /**
      * Configure inclusion and exclusion filters for source files added via [from].
      *
-     * @param action configuration action that can add or modify inclusion and exclusion filters.
+     * @param action configuration action that can add or modify inclusion and exclusion filters
      */
     fun filter(action: Action<in PatternFilterable>)
 
@@ -77,7 +77,7 @@ interface OciCopySpec {
      * Multiple renaming rules of this copy spec are applied in the supplied order.
      * All renaming rules of parent copy specs are applied before this copy spec's renaming rules.
      *
-     * @param fileNameRegex regex applied to the file name without the parent directory path,
+     * @param fileNameRegex regex applied to the file name without the parent directory path
      * @param replacement   regex replacement expression that can include substitutions,
      *                      the result must not be empty and must not contain `/`
      * @return the current copy spec
@@ -93,8 +93,8 @@ interface OciCopySpec {
      *
      * @param parentPathPattern glob pattern applied to the parent directory path without the file name,
      *                          must not start with `/` (would never match),
-     *                          must match a directory (be empty, end with `/` or '**')
-     * @param fileNameRegex     regex applied to the file name without the parent directory path,
+     *                          must match a directory (be empty, end with `/` or `**`)
+     * @param fileNameRegex     regex applied to the file name without the parent directory path
      * @param replacement       regex replacement expression that can include substitutions,
      *                          the result must not be empty and must not contain `/`
      * @return the current copy spec
@@ -107,25 +107,28 @@ interface OciCopySpec {
      * Multiple movement rules of this copy spec are applied in the supplied order.
      * All movement rules of parent copy specs are applied before this copy spec's movement rules.
      *
-     * @param directoryNameRegex regex applied to the directory name without the parent directory path,
+     * @param directoryNameRegex regex applied to the directory name without the parent directory path
      * @param replacement        regex replacement expression that can include substitutions,
      *                           the result may be empty (deleting the directory, moving all children to the parent directory),
-     *                           the result may contain multiple '/' (adding directories) but not at the start or end,
+     *                           the result may contain multiple `/` (adding directories) but not at the start or end
      * @return the current copy spec
      */
     fun move(directoryNameRegex: String, replacement: String) = move("**/", directoryNameRegex, replacement)
 
     /**
-     * Add a renaming rule to the current copy spec.
-     * The renaming rule is only applied to files/directories that match the directoryPathPattern.
+     * Add a directory movement rule to the current copy spec.
+     * The movement rule is only applied to directories whose parent directory path (after all directory movement rules
+     * have been applied) match the `parentPathPattern`.
+     * Multiple movement rules of this copy spec are applied in the supplied order.
+     * All movement rules of parent copy specs are applied before this copy spec's movement rules.
      *
      * @param parentPathPattern  glob pattern applied to the parent directory path without the directory name,
      *                           must not start with `/` (would never match),
-     *                           must match a directory (be empty, end with `/` or '**')
-     * @param directoryNameRegex regex applied to the directory name without the parent directory path,
+     *                           must match a directory (be empty, end with `/` or `**`)
+     * @param directoryNameRegex regex applied to the directory name without the parent directory path
      * @param replacement        regex replacement expression that can include substitutions,
      *                           the result may be empty (deleting the directory, moving all children to the parent directory),
-     *                           the result may contain multiple '/' (adding directories) but not at the start or end,
+     *                           the result may contain multiple `/` (adding directories) but not at the start or end
      * @return the current copy spec
      */
     fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): OciCopySpec
