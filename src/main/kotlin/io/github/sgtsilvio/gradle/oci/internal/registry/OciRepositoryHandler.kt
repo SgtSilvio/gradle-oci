@@ -4,8 +4,8 @@ import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
+import io.github.sgtsilvio.gradle.oci.internal.createOciIndexVariantName
 import io.github.sgtsilvio.gradle.oci.internal.createOciMetadataClassifier
-import io.github.sgtsilvio.gradle.oci.internal.createOciVariantInternalName
 import io.github.sgtsilvio.gradle.oci.internal.createOciVariantName
 import io.github.sgtsilvio.gradle.oci.internal.createPlatformPostfix
 import io.github.sgtsilvio.gradle.oci.internal.json.*
@@ -46,7 +46,7 @@ import java.util.function.BiFunction
 /v0.15/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageName)>/<digest>/<size>/<...>oci-layer
  */
 
-internal const val OCI_REPOSITORY_VERSION = "v0.15"
+internal const val OCI_REPOSITORY_VERSION = "v0.17f"
 
 /**
  * @author Silvio Giebl
@@ -144,29 +144,21 @@ internal class OciRepositoryHandler(
                 val fileNamePrefix = "${componentId.name}-${componentId.version}-"
                 addArray("variants") {
                     for ((imageDefName, capabilities, platformToMetadata, digest, size) in variantsMetadataList) {
-                        addObject {
-                            addString("name", createOciVariantName(imageDefName))
-                            addOciVariantAttributes(MULTI_PLATFORM_ATTRIBUTE_VALUE)
-                            addCapabilities("capabilities", capabilities, componentId)
-                            addArray("dependencies") {
-                                for (platform in platformToMetadata.keys) {
-                                    addDependency(componentId, capabilities, platform)
-                                }
+                        if (platformToMetadata.size > 1) {
+                            addObject {
+                                addString("name", createOciIndexVariantName(imageDefName))
+                                addOciVariantAttributes(
+                                    OCI_IMAGE_INDEX_DISTRIBUTION_TYPE,
+                                    platformToMetadata.keys.joinToString(";"),
+                                )
+                                addCapabilities(capabilities, componentId)
                             }
                         }
                         for ((platform, metadata) in platformToMetadata) {
                             addObject {
                                 addString("name", createOciVariantName(imageDefName, platform))
-                                addOciVariantAttributes(platform.toString())
-                                addCapabilities("capabilities", capabilities, componentId)
-                                addArray("dependencies") {
-                                    addDependency(componentId, capabilities, platform)
-                                }
-                            }
-                            addObject {
-                                addString("name", createOciVariantInternalName(imageDefName, platform))
-                                addOciVariantAttributes(null)
-                                addCapabilities("capabilities", capabilities, platform)
+                                addOciVariantAttributes(OCI_IMAGE_DISTRIBUTION_TYPE, platform.toString())
+                                addCapabilities(capabilities, componentId)
                                 addArray("files") {
                                     addObject {
                                         val metadataJson = metadata.encodeToJsonString().toByteArray()
@@ -374,47 +366,28 @@ internal class OciRepositoryHandler(
     }
 }
 
-private fun JsonObjectStringBuilder.addOciVariantAttributes(platformAttributeValue: String?) = addObject("attributes") {
-    addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, OCI_IMAGE_DISTRIBUTION_TYPE)
-    addStringIfNotNull(PLATFORM_ATTRIBUTE.name, platformAttributeValue)
-    addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
-    addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
-//    addString(Usage.USAGE_ATTRIBUTE.name, "release")
-}
+private fun JsonObjectStringBuilder.addOciVariantAttributes(distributionType: String, platformAttributeValue: String) =
+    addObject("attributes") {
+        addString(DISTRIBUTION_TYPE_ATTRIBUTE.name, distributionType)
+        addString(PLATFORM_ATTRIBUTE.name, platformAttributeValue)
+        addString(Category.CATEGORY_ATTRIBUTE.name, DISTRIBUTION_CATEGORY)
+        addString(Bundling.BUNDLING_ATTRIBUTE.name, Bundling.EXTERNAL)
+//        addString(Usage.USAGE_ATTRIBUTE.name, "release")
+    }
 
 private fun JsonObjectStringBuilder.addCapabilities(
-    key: String,
     capabilities: Set<VersionedCoordinates>,
     componentId: VersionedCoordinates,
 ) {
     if (capabilities != setOf(componentId)) {
-        addCapabilities(key, capabilities, null)
+        addArray("capabilities", capabilities) { capability ->
+            addObject {
+                addString("group", capability.group)
+                addString("name", capability.name)
+                addString("version", capability.version)
+            }
+        }
     }
-}
-
-private fun JsonObjectStringBuilder.addCapabilities(
-    key: String,
-    capabilities: Set<VersionedCoordinates>,
-    platform: Platform?,
-) = addArray(key, capabilities) { capability ->
-    addObject {
-        addString("group", capability.group)
-        addString("name", capability.name + createPlatformPostfix(platform))
-        addString("version", capability.version)
-    }
-}
-
-private fun JsonArrayStringBuilder.addDependency(
-    componentId: VersionedCoordinates,
-    capabilities: Set<VersionedCoordinates>,
-    platform: Platform,
-) = addObject {
-    addString("group", componentId.group)
-    addString("module", componentId.name)
-    addObject("version") {
-        addString("requires", componentId.version)
-    }
-    addCapabilities("requestedCapabilities", capabilities, platform)
 }
 
 internal fun String.escapePathSegment() = escapeReplace('*', '$').replace('/', '*')

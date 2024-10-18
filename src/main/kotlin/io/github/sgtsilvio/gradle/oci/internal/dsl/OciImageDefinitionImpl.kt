@@ -23,7 +23,6 @@ import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
-import org.gradle.api.capabilities.Capability
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
@@ -32,15 +31,14 @@ import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.*
-import org.gradle.util.GradleVersion
 import java.util.*
 import javax.inject.Inject
 
 internal abstract class OciImageDefinitionImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
-    providerFactory: ProviderFactory,
-    configurationContainer: ConfigurationContainer,
+    private val providerFactory: ProviderFactory,
+    private val configurationContainer: ConfigurationContainer,
     project: Project,
 ) : OciImageDefinition {
 
@@ -53,55 +51,82 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             project.version.toString().concatKebabCase(name.mainToEmpty().kebabCase())
         })
     val imageReference: Provider<OciImageReference> = imageName.zip(imageTag, ::OciImageReference)
-    val configuration = createConfiguration(configurationContainer, name, objectFactory)
-    final override val capabilities = objectFactory.newInstance(
-        if (GradleVersion.current() >= GradleVersion.version("8.6")) Capabilities::class.java else Capabilities.Legacy::class.java,
-        configuration.outgoing,
-        name,
-    )
+    final override val capabilities = objectFactory.listProperty<String>()
     private val variants = objectFactory.domainObjectSet(Variant::class)
     private var allPlatformVariantScope: VariantScope? = null
     private var platformVariantScopes: HashMap<PlatformFilter, VariantScope>? = null
-    private var universalVariant: UniversalVariant? = null
-    private var platformVariants: LinkedHashMap<Platform, PlatformVariant>? = null // linked because it will be iterated
-    final override val dependency = project.createDependency().requireCapabilities(capabilities.set)
+    private var universalVariant: Variant? = null
+    private var platformVariants: LinkedHashMap<Platform, Variant>? = null // linked because it will be iterated
+    private var indexConfiguration: Configuration? = null
+    final override val dependency = project.createDependency().requireCapabilities(capabilities)
 
     init {
+        if (!name.isMain()) {
+            capabilities.convention(providerFactory.provider {
+                listOf("${project.group}:${project.name.concatKebabCase(name.kebabCase())}:${project.version}")
+            })
+        }
         project.afterEvaluate {
             val platformVariants = platformVariants
-            if (platformVariants != null) {
-                for (variant in platformVariants.values) {
-                    variant.onAfterEvaluate()
-                }
-            } else if (universalVariant == null) {
-                val variant = objectFactory.newInstance<UniversalVariant>(this@OciImageDefinitionImpl)
+            if ((platformVariants == null) && (universalVariant == null)) {
+                val variant = objectFactory.newInstance<Variant>(this@OciImageDefinitionImpl, Optional.empty<Platform>())
                 variants.add(variant)
                 universalVariant = variant
+            }
+            val capabilities = capabilities.get()
+            for (variant in variants) {
+                val configurationPublications = variant.configuration.outgoing
+                for (capability in capabilities) {
+                    configurationPublications.capability(capability)
+                }
+            }
+            indexConfiguration?.let { indexConfiguration ->
+                val configurationPublications = indexConfiguration.outgoing
+                for (capability in capabilities) {
+                    configurationPublications.capability(capability)
+                }
             }
         }
     }
 
-    private fun createConfiguration(
+    private fun createIndexConfiguration(
         configurationContainer: ConfigurationContainer,
         imageDefName: String,
         objectFactory: ObjectFactory,
-    ): Configuration = configurationContainer.create(createOciVariantName(imageDefName)).apply {
-        description = "Elements of the '$imageDefName' OCI image."
+        providerFactory: ProviderFactory,
+    ): Configuration = configurationContainer.create(createOciIndexVariantName(imageDefName)).apply {
+        description = "Elements of the '$imageDefName' OCI image index."
         isCanBeConsumed = true
         isCanBeResolved = false
         attributes.apply {
             attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
+            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_INDEX_DISTRIBUTION_TYPE)
             attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-            attribute(PLATFORM_ATTRIBUTE, UNIVERSAL_PLATFORM_ATTRIBUTE_VALUE)
+            attributeProvider(PLATFORM_ATTRIBUTE, providerFactory.provider {
+                platformVariants!!.keys.mapTo(TreeSet()) { it.toString() }.joinToString(";") // TODO !!
+            })
 //            attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
+        }
+        val indexConfiguration = this
+        variants.all {
+            val variantDependencies = dependencies.runtime
+            var dependenciesProvider: Provider<out Collection<ModuleDependency>> = variantDependencies.dependencies
+            val variantPlatform = platform
+            if (variantPlatform != null) {
+                dependenciesProvider = dependenciesProvider.map { dependencies ->
+                    dependencies.map { dependency ->
+                        dependency.copy().apply {
+                            attribute(PLATFORM_ATTRIBUTE, variantPlatform.toString())
+                        }
+                    }
+                }
+            }
+            indexConfiguration.dependencies.addAllLater(dependenciesProvider)
+            indexConfiguration.dependencyConstraints.addAllLater(variantDependencies.dependencyConstraints)
         }
     }
 
     final override fun getName() = name
-
-    final override fun capabilities(configuration: Action<in OciImageDefinition.Capabilities>) =
-        configuration.execute(capabilities)
 
     final override fun allPlatforms(configuration: Action<in OciImageDefinition.VariantScope>) {
         var variantScope = allPlatformVariantScope
@@ -141,87 +166,52 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     final override fun specificPlatform(platform: Platform, configuration: Action<in OciImageDefinition.Variant>) =
         configuration.execute(getOrCreatePlatformVariant(platform))
 
-    private fun getOrCreatePlatformVariant(platform: Platform): PlatformVariant {
+    private fun getOrCreatePlatformVariant(platform: Platform): Variant {
         var platformVariants = platformVariants
         if (platformVariants == null) {
             platformVariants = LinkedHashMap()
             this.platformVariants = platformVariants
-            configuration.attributes.attribute(PLATFORM_ATTRIBUTE, MULTI_PLATFORM_ATTRIBUTE_VALUE)
         }
         var variant = platformVariants[platform]
         if (variant == null) {
-            variant = objectFactory.newInstance<PlatformVariant>(this, platform)
+            variant = objectFactory.newInstance<Variant>(this, Optional.of(platform))
             variants.add(variant)
             platformVariants[platform] = variant
-            configuration.dependencies.addLater(variant.dependency)
+        }
+        if ((indexConfiguration == null) && (platformVariants.size > 1)) {
+            indexConfiguration = createIndexConfiguration(configurationContainer, name, objectFactory, providerFactory) // TODO parameters
         }
         return variant
     }
 
 
-    abstract class Capabilities @Inject constructor(
-        private val configurationPublications: ConfigurationPublications,
-        imageDefName: String,
-        providerFactory: ProviderFactory,
-        project: Project,
-    ) : OciImageDefinition.Capabilities {
-
-        final override val set: Provider<Set<Capability>> = providerFactory.provider {
-            configurationPublications.capabilities.toSet()
-        }
-
-        init {
-            if (!imageDefName.isMain()) {
-                project.afterEvaluate {
-                    if (configurationPublications.capabilities.isEmpty()) {
-                        add("$group:${name.concatKebabCase(imageDefName.kebabCase())}:$version")
-                    }
-                }
-            }
-        }
-
-        final override fun add(notation: String) = configurationPublications.capability(notation)
-
-        override fun add(notationProvider: Provider<String>) = configurationPublications.capability(notationProvider)
-
-        abstract class Legacy @Inject constructor(
-            configurationPublications: ConfigurationPublications,
-            imageDefName: String,
-            providerFactory: ProviderFactory,
-            project: Project,
-        ) : Capabilities(configurationPublications, imageDefName, providerFactory, project) {
-
-            private val lazyNotations = mutableListOf<Provider<String>>()
-
-            init {
-                project.afterEvaluate {
-                    for (lazyNotation in lazyNotations) {
-                        val notation = lazyNotation.orNull
-                        if (notation != null) {
-                            add(notation)
-                        }
-                    }
-                    lazyNotations.clear()
-                }
-            }
-
-            final override fun add(notationProvider: Provider<String>) {
-                lazyNotations += notationProvider
-            }
-        }
-    }
-
-
-    abstract class Variant(
-        val imageDefinition: OciImageDefinitionImpl,
-        val configuration: Configuration,
-        val platform: Platform?,
+    abstract class Variant @Inject constructor(
+        private val imageDefinition: OciImageDefinitionImpl,
+        platformOptional: Optional<Platform>,
         objectFactory: ObjectFactory,
         providerFactory: ProviderFactory,
+        configurationContainer: ConfigurationContainer,
         taskContainer: TaskContainer,
         projectLayout: ProjectLayout,
-        projectName: String,
+        project: Project,
     ) : OciImageDefinition.Variant {
+
+        val platform: Platform? = platformOptional.orElse(null)
+
+        val configuration: Configuration = configurationContainer.create(createOciVariantName(imageDefinition.name, platform)).apply {
+            description = "Elements of the '${imageDefinition.name}' OCI image" + if (platform == null) "." else " for the platform $platform."
+            isCanBeConsumed = true
+            isCanBeResolved = false
+            attributes.apply {
+                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
+                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+                if (platform != null) {
+                    attribute(PLATFORM_ATTRIBUTE, platform.toString())
+                }
+//                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
+            }
+        }
 
         final override val dependencies = objectFactory.newInstance<Dependencies>()
         final override val config = objectFactory.newInstance<OciImageDefinition.Variant.Config>().apply {
@@ -239,14 +229,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             configuration.outgoing.addArtifacts(providerFactory.provider {
                 listOf(LazyPublishArtifact(objectFactory).apply {
                     file.set(metadataTask.flatMap { it.file })
-                    name.set(projectName)
+                    name.set(project.name)
                     classifier.set(metadataTask.flatMap { it.classifier })
                     extension.set("json")
                 }) + layers.list.mapNotNull { layer ->
                     (layer as Layer).getTask()?.let { layerTask ->
                         LazyPublishArtifact(objectFactory).apply {
                             file.set(layerTask.flatMap { it.file })
-                            name.set(projectName)
+                            name.set(project.name)
                             classifier.set(layerTask.flatMap { it.classifier })
                             extension.set(layerTask.flatMap { it.extension })
                         }
@@ -424,83 +414,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     .zipAbsentAsNull(task.flatMap { it.size }, OciLayerDescriptorBuilder::size)
                     .zipAbsentAsNull(task.flatMap { it.diffId }, OciLayerDescriptorBuilder::diffId)
                     .map { it.build() }
-            }
-        }
-    }
-
-    abstract class UniversalVariant @Inject constructor(
-        imageDefinition: OciImageDefinitionImpl,
-        objectFactory: ObjectFactory,
-        providerFactory: ProviderFactory,
-        taskContainer: TaskContainer,
-        projectLayout: ProjectLayout,
-        project: Project,
-    ) : Variant(
-        imageDefinition,
-        imageDefinition.configuration,
-        null,
-        objectFactory,
-        providerFactory,
-        taskContainer,
-        projectLayout,
-        project.name,
-    )
-
-    abstract class PlatformVariant @Inject constructor(
-        imageDefinition: OciImageDefinitionImpl,
-        platform: Platform,
-        objectFactory: ObjectFactory,
-        providerFactory: ProviderFactory,
-        configurationContainer: ConfigurationContainer,
-        taskContainer: TaskContainer,
-        projectLayout: ProjectLayout,
-        private val project: Project,
-    ) : Variant(
-        imageDefinition,
-        configurationContainer.create(createOciVariantInternalName(imageDefinition.name, platform)).apply {
-            description = "Elements of the '${imageDefinition.name}' OCI image for the platform $platform."
-            isCanBeConsumed = true
-            isCanBeResolved = false
-            attributes.apply {
-                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
-                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-//                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
-            }
-        },
-        platform,
-        objectFactory,
-        providerFactory,
-        taskContainer,
-        projectLayout,
-        project.name,
-    ) {
-        val dependency: Provider<ProjectDependency> = project.createDependency()
-            .requireCapabilities(providerFactory.provider { configuration.outgoing.capabilities })
-
-        private val externalConfiguration: Configuration = configurationContainer.create(createOciVariantName(imageDefinition.name, platform)).apply {
-            description = "Elements of the '${imageDefinition.name}' OCI image for the platform $platform."
-            isCanBeConsumed = true
-            isCanBeResolved = false
-            attributes.apply {
-                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
-                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-                attribute(PLATFORM_ATTRIBUTE, platform.toString())
-//                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
-            }
-            dependencies.addLater(dependency)
-        }
-
-        fun onAfterEvaluate() {
-            val capabilities = imageDefinition.configuration.outgoing.capabilities
-            if (capabilities.isEmpty()) {
-                configuration.outgoing.capability("${project.group}:${project.name}${createPlatformPostfix(platform)}:${project.version}")
-            } else {
-                for (capability in capabilities) {
-                    externalConfiguration.outgoing.capability(capability)
-                    configuration.outgoing.capability("${capability.group}:${capability.name}${createPlatformPostfix(platform)}:${capability.version}")
-                }
             }
         }
     }

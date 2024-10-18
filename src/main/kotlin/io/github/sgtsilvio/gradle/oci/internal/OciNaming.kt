@@ -10,14 +10,11 @@ internal fun String.isMain() = this == "main"
 
 internal fun String.mainToEmpty() = if (isMain()) "" else this
 
-internal fun createOciVariantName(imageDefName: String): String =
-    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImage")
+internal fun createOciIndexVariantName(imageDefName: String): String =
+    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImageIndex")
 
-internal fun createOciVariantName(imageDefName: String, platform: Platform): String =
-    createOciVariantName(imageDefName) + createPlatformPostfix(platform)
-
-internal fun createOciVariantInternalName(imageDefName: String, platform: Platform): String =
-    createOciVariantName(imageDefName).concatCamelCase("internal") + createPlatformPostfix(platform)
+internal fun createOciVariantName(imageDefName: String, platform: Platform?): String =
+    imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImage") + createPlatformPostfix(platform)
 
 internal fun createOciMetadataClassifier(imageDefName: String): String =
     imageDefName.mainToEmpty().kebabCase().concatKebabCase("oci-metadata")

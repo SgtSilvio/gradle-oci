@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
+import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_INDEX_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistries
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
 import io.github.sgtsilvio.gradle.oci.internal.gradle.optionalPasswordCredentials
@@ -42,6 +43,8 @@ import java.net.InetSocketAddress
 import java.net.URI
 import java.util.function.BiFunction
 import javax.inject.Inject
+
+internal val OCI_IMAGE_DISTRIBUTION_TYPES = arrayOf(OCI_IMAGE_DISTRIBUTION_TYPE, OCI_IMAGE_INDEX_DISTRIBUTION_TYPE)
 
 /**
  * @author Silvio Giebl
@@ -112,7 +115,7 @@ internal abstract class OciRegistriesImpl @Inject constructor(
     }
 
     private fun ResolvableDependencies.resolvesOciImages() =
-        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) == OCI_IMAGE_DISTRIBUTION_TYPE
+        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) in OCI_IMAGE_DISTRIBUTION_TYPES
 
     private fun beforeResolve() {
         if (list.isNotEmpty()) {
@@ -151,7 +154,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
             artifact()
         }
         content {
-            onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
+            onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, *OCI_IMAGE_DISTRIBUTION_TYPES)
         }
     }
 

@@ -1,11 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
-import io.github.sgtsilvio.gradle.oci.OciImagesTask
-import io.github.sgtsilvio.gradle.oci.internal.gradle.ArtifactViewVariantFilter
-import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
-import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import org.gradle.api.artifacts.ArtifactCollection
-import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.attributes.AttributeContainer
@@ -18,48 +13,20 @@ import org.gradle.internal.DisplayName
 import org.gradle.internal.component.external.model.ImmutableCapabilities
 import java.io.File
 
-internal fun ResolvableDependencies.resolveOciImageInputs(
-    platformSelectorProvider: Provider<PlatformSelector>,
-): Provider<List<OciImagesTask.ImageInput>> {
-    val rootComponentResultProvider = resolutionResult.rootComponent
-    val imageSpecsProvider =
-        rootComponentResultProvider.zipAbsentAsNull(platformSelectorProvider, ::resolveOciImageSpecs)
-    val artifacts = artifactView {
-        componentFilter(
-            ArtifactViewVariantFilter(
-                rootComponentResultProvider,
-                imageSpecsProvider.map { imageSpecs -> imageSpecs.flatMapTo(HashSet()) { it.variants } },
-            )
-        )
-    }.artifacts
-    return artifacts.mapMetadata { variantArtifactResults ->
-        val imageSpecs = imageSpecsProvider.get()
-        val variantDescriptorToInput = variantArtifactResults.groupBy({ it.variantDescriptor }) { it.file }
-            .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
-        imageSpecs.map { imageSpec ->
-            OciImagesTask.ImageInput(
-                imageSpec.platform,
-                imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toDescriptor()] },
-                imageSpec.referenceSpecs,
-            )
-        }
-    }
-}
+internal data class VariantArtifactResult(val variantDescriptor: VariantDescriptor, val file: File)
 
-private data class VariantArtifactResult(val variantDescriptor: VariantDescriptor, val file: File)
-
-private data class VariantDescriptor(
+internal data class VariantDescriptor(
     val owner: ComponentIdentifier,
     val capabilities: List<Capability>,
     val attributes: Map<String, String>,
 )
 
-private fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap())
+internal fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap())
 
 private fun AttributeContainer.toMap(): Map<String, String> =
     keySet().associateBy({ it.name }) { getAttribute(it).toString() }
 
-private fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantArtifactResult>) -> R): Provider<R> {
+internal fun <R : Any> ArtifactCollection.mapMetadata(transformer: (Set<VariantArtifactResult>) -> R): Provider<R> {
     val artifactResultsProvider = resolvedArtifacts
     // zip or map is not used here because their mapper function is executed after the file contents are available
     //  this mapper function does not read the file contents, so can already be called once the value is available

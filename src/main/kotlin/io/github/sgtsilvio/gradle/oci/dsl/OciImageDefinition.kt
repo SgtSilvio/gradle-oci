@@ -8,7 +8,6 @@ import org.gradle.api.Action
 import org.gradle.api.Named
 import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.*
 import org.gradle.api.tasks.TaskProvider
 import java.time.Instant
@@ -16,12 +15,10 @@ import java.time.Instant
 interface OciImageDefinition : Named {
     val imageName: Property<String>
     val imageTag: Property<String>
-    val capabilities: Capabilities
+    val capabilities: ListProperty<String>
     val indexAnnotations: MapProperty<String, String>
 
     val dependency: Provider<ProjectDependency>
-
-    fun capabilities(configuration: Action<in Capabilities>)
 
     fun allPlatforms(configuration: Action<in VariantScope>)
 
@@ -30,18 +27,6 @@ interface OciImageDefinition : Named {
     fun specificPlatform(platform: Platform)
 
     fun specificPlatform(platform: Platform, configuration: Action<in Variant>)
-
-    interface Capabilities {
-        val set: Provider<Set<Capability>>
-
-        fun add(notation: String)
-
-        fun add(notationProvider: Provider<String>)
-
-        operator fun plusAssign(notation: String) = add(notation)
-
-        operator fun plusAssign(notationProvider: Provider<String>) = add(notationProvider)
-    }
 
     interface Variant {
         val dependencies: Dependencies

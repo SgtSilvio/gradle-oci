@@ -12,5 +12,5 @@ interface OciImageDependencies : DependencyConstraintFactories, Named {
 
     val runtime: ReferencableOciImageDependencyCollector
 
-    fun resolve(platformSelector: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>>
+    fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>>
 }

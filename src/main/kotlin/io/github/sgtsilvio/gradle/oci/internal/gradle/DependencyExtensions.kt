@@ -4,17 +4,16 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Attribute
-import org.gradle.api.capabilities.Capability
 import org.gradle.api.provider.Provider
 
 internal fun Project.createDependency() = project.dependencies.create(project) as ProjectDependency
 
 internal fun <T : ModuleDependency> T.requireCapabilities(
-    capabilitiesProvider: Provider<out Iterable<Capability>>,
+    capabilitiesProvider: Provider<out Iterable<String>>,
 ): Provider<T> = capabilitiesProvider.map { capabilities ->
     capabilities {
         for (capability in capabilities) {
-            requireCapability("${capability.group}:${capability.name}")
+            requireCapability(capability)
         }
     }
     this

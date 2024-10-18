@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci
 
-import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
-import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
-import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
-import io.github.sgtsilvio.gradle.oci.attributes.PlatformAttributeCompatibilityRule
+import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
@@ -23,8 +20,11 @@ class OciPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         project.dependencies.attributesSchema.apply {
             attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
+            getMatchingStrategy(DISTRIBUTION_TYPE_ATTRIBUTE).apply {
+                compatibilityRules.add(OciDistributionTypeCompatibilityRule::class)
+                disambiguationRules.add(OciDistributionTypeDisambiguationRule::class)
+            }
             attribute(PLATFORM_ATTRIBUTE)
-            getMatchingStrategy(PLATFORM_ATTRIBUTE).compatibilityRules.add(PlatformAttributeCompatibilityRule::class)
             attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE)
         }
         val extension = project.extensions.create(OciExtension::class, EXTENSION_NAME, OciExtensionImpl::class)
