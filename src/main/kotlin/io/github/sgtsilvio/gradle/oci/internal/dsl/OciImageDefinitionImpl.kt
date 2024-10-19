@@ -61,7 +61,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     final override val dependency = project.createDependency().requireCapabilities(capabilities)
 
     init {
-        if (!name.isMain()) {
+        if (name != MAIN_NAME) {
             capabilities.convention(providerFactory.provider {
                 listOf("${project.group}:${project.name.concatKebabCase(name.kebabCase())}:${project.version}")
             })

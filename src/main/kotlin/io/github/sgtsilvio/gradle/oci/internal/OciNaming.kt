@@ -6,9 +6,9 @@ import io.github.sgtsilvio.gradle.oci.internal.string.concatKebabCase
 import io.github.sgtsilvio.gradle.oci.internal.string.kebabCase
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 
-internal fun String.isMain() = this == "main"
+internal const val MAIN_NAME = "main"
 
-internal fun String.mainToEmpty() = if (isMain()) "" else this
+internal fun String.mainToEmpty() = if (this == MAIN_NAME) "" else this
 
 internal fun createOciIndexVariantName(imageDefName: String): String =
     imageDefName.mainToEmpty().camelCase().concatCamelCase("ociImageIndex")
