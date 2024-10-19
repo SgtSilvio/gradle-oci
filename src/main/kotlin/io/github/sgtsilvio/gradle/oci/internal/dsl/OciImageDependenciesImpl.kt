@@ -50,8 +50,8 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     private val platformConfigurations = HashMap<String, Configuration>()
 
     final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
-        val graphProvider = indexConfiguration.incoming.resolutionResult.rootComponent.map { resolveOciVariantGraph(it) }
-        return graphProvider.flatMap { graph ->
+        return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponentResult ->
+            val graph = resolveOciVariantGraph(rootComponentResult)
             val platformSelector = platformSelectorProvider.orNull
             val platformToGraphRoots = selectPlatforms(graph, platformSelector)
             val platformToConfiguration = platformToGraphRoots.mapValues { (platform, graphRoots) ->

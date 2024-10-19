@@ -89,43 +89,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
     }
 
-    private fun createIndexConfiguration(
-        configurationContainer: ConfigurationContainer,
-        imageDefName: String,
-        objectFactory: ObjectFactory,
-        providerFactory: ProviderFactory,
-    ): Configuration = configurationContainer.create(createOciIndexVariantName(imageDefName)).apply {
-        description = "Elements of the '$imageDefName' OCI image index."
-        isCanBeConsumed = true
-        isCanBeResolved = false
-        attributes.apply {
-            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_INDEX_DISTRIBUTION_TYPE)
-            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-            attributeProvider(PLATFORM_ATTRIBUTE, providerFactory.provider {
-                platformVariants!!.keys.mapTo(TreeSet()) { it.toString() }.joinToString(";") // TODO !!
-            })
-//            attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
-        }
-        val indexConfiguration = this
-        variants.all {
-            val variantDependencies = dependencies.runtime
-            var dependenciesProvider: Provider<out Collection<ModuleDependency>> = variantDependencies.dependencies
-            val variantPlatform = platform
-            if (variantPlatform != null) {
-                dependenciesProvider = dependenciesProvider.map { dependencies ->
-                    dependencies.map { dependency ->
-                        dependency.copy().apply {
-                            attribute(PLATFORM_ATTRIBUTE, variantPlatform.toString())
-                        }
-                    }
-                }
-            }
-            indexConfiguration.dependencies.addAllLater(dependenciesProvider)
-            indexConfiguration.dependencyConstraints.addAllLater(variantDependencies.dependencyConstraints)
-        }
-    }
-
     final override fun getName() = name
 
     final override fun allPlatforms(configuration: Action<in OciImageDefinition.VariantScope>) {
@@ -145,13 +108,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             return allPlatforms(configuration)
         }
         var variantScopes = platformVariantScopes
-        var variantScope: VariantScope? = null
         if (variantScopes == null) {
             variantScopes = HashMap(4)
             platformVariantScopes = variantScopes
-        } else {
-            variantScope = variantScopes[platformFilter]
         }
+        var variantScope = variantScopes[platformFilter]
         if (variantScope == null) {
             variantScope = objectFactory.newInstance<VariantScope>(platformFilter, name, variants)
             variantScopes[platformFilter] = variantScope
@@ -175,13 +136,47 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         var variant = platformVariants[platform]
         if (variant == null) {
             variant = objectFactory.newInstance<Variant>(this, Optional.of(platform))
-            variants.add(variant)
             platformVariants[platform] = variant
+            variants.add(variant)
         }
         if ((indexConfiguration == null) && (platformVariants.size > 1)) {
-            indexConfiguration = createIndexConfiguration(configurationContainer, name, objectFactory, providerFactory) // TODO parameters
+            createIndexConfiguration(platformVariants)
         }
         return variant
+    }
+
+    private fun createIndexConfiguration(platformVariants: Map<Platform, Variant>) {
+        val indexConfiguration = configurationContainer.create(createOciIndexVariantName(name)).apply {
+            description = "Elements of the '$name' OCI image index."
+            isCanBeConsumed = true
+            isCanBeResolved = false
+            attributes.apply {
+                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_INDEX_DISTRIBUTION_TYPE)
+                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+                attributeProvider(PLATFORM_ATTRIBUTE, providerFactory.provider {
+                    platformVariants.keys.mapTo(TreeSet()) { it.toString() }.joinToString(";")
+                })
+//                attribute(Usage.USAGE_ATTRIBUTE, objectFactory.named("release"))
+            }
+        }
+        this.indexConfiguration = indexConfiguration
+        variants.all {
+            val variantDependencies = dependencies.runtime
+            var dependenciesProvider: Provider<out Collection<ModuleDependency>> = variantDependencies.dependencies
+            val variantPlatform = platform
+            if (variantPlatform != null) {
+                dependenciesProvider = dependenciesProvider.map { dependencies ->
+                    dependencies.map { dependency ->
+                        dependency.copy().apply {
+                            attribute(PLATFORM_ATTRIBUTE, variantPlatform.toString())
+                        }
+                    }
+                }
+            }
+            indexConfiguration.dependencies.addAllLater(dependenciesProvider)
+            indexConfiguration.dependencyConstraints.addAllLater(variantDependencies.dependencyConstraints)
+        }
     }
 
 
