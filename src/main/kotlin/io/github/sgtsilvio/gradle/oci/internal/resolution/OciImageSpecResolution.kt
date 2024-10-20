@@ -14,48 +14,46 @@ import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
 
-internal fun resolveOciVariantGraph(rootComponentResult: ResolvedComponentResult): List<OciVariantGraphRoot> {
+internal fun resolveOciVariantGraph(rootComponent: ResolvedComponentResult): List<OciVariantGraphRoot> {
     // the first variant is the resolvable configuration, but only if it declares at least one dependency
-    val rootVariantResult = rootComponentResult.variants.firstOrNull() ?: return emptyList()
-    val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
+    val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
+    val variantToNode = HashMap<ResolvedVariantResult, OciVariantNode?>()
     // rootNodesToDependencySelectors is linked to preserve the dependency order
-    val rootNodesToDependencySelectors = LinkedHashMap<OciVariantNode, ArrayList<ComponentSelector>>()
-    for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootVariantResult)) {
-        if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
+    val rootNodesToSelectors = LinkedHashMap<OciVariantNode, ArrayList<ComponentSelector>>()
+    for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
+        if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
             continue // TODO fail
         }
-        val node = resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
-        rootNodesToDependencySelectors.getOrPut(node) { ArrayList() }.add(dependencyResult.requested)
+        val node = resolveOciVariantNode(dependency.selected, dependency.resolvedVariant, variantToNode)
+        rootNodesToSelectors.getOrPut(node) { ArrayList() }.add(dependency.requested)
     }
-    return rootNodesToDependencySelectors.map { (node, dependencySelectors) ->
-        OciVariantGraphRoot(node, dependencySelectors)
-    }
+    return rootNodesToSelectors.map { (node, selectors) -> OciVariantGraphRoot(node, selectors) }
 }
 
 private fun resolveOciVariantNode(
-    componentResult: ResolvedComponentResult,
-    variantResult: ResolvedVariantResult,
-    nodes: HashMap<ResolvedVariantResult, OciVariantNode?>,
+    component: ResolvedComponentResult,
+    variant: ResolvedVariantResult,
+    variantToNode: HashMap<ResolvedVariantResult, OciVariantNode?>,
 ): OciVariantNode {
-    if (variantResult in nodes) {
-        return nodes[variantResult] ?: throw IllegalStateException("cycle in dependencies graph")
+    if (variant in variantToNode) {
+        return variantToNode[variant] ?: throw IllegalStateException("cycle in dependencies graph")
     }
-    nodes[variantResult] = null
+    variantToNode[variant] = null
     // platformToDependencies is linked to preserve the platform order
-    val platformToDependencies = LinkedHashMap<Platform?, Pair<ArrayList<OciVariantNode>, PlatformSet>>()
-    val platforms = variantResult.attributes.getAttribute(PLATFORM_ATTRIBUTE)?.decodePlatforms() ?: setOf(null)
+    val platformToDependencies = LinkedHashMap<Platform?, Pair<ArrayList<OciVariantNode>, PlatformSet>>() // TODO name
+    val platforms = variant.attributes.getAttribute(PLATFORM_ATTRIBUTE)?.decodePlatforms() ?: setOf(null)
     for (platform in platforms) {
         val platformSet = if (platform == null) PlatformSet(true) else PlatformSet(platform)
         platformToDependencies[platform] = Pair(ArrayList(), platformSet)
     }
-    for (dependencyResult in componentResult.getDependenciesForVariant(variantResult)) {
-        if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
+    for (dependency in component.getDependenciesForVariant(variant)) {
+        if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
             continue // TODO fail
         }
         val dependencyPlatforms =
-            dependencyResult.requested.attributes.getAttribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE)?.decodePlatforms()
+            dependency.requested.attributes.getAttribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE)?.decodePlatforms()
                 ?: platforms
-        val node = resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
+        val node = resolveOciVariantNode(dependency.selected, dependency.resolvedVariant, variantToNode)
         for (dependencyPlatform in dependencyPlatforms) {
             val dependenciesAndPlatformSet = platformToDependencies[dependencyPlatform]
                 ?: throw IllegalStateException("dependency can not be defined for more platforms than component") // TODO message
@@ -68,18 +66,18 @@ private fun resolveOciVariantNode(
     for ((_, dependenciesAndPlatformSet) in platformToDependencies) {
         platformSet.union(dependenciesAndPlatformSet.second)
     }
-    val node = OciVariantNode(variantResult, platformToDependencies.mapValues { it.value.first }, platformSet)
-    nodes[variantResult] = node
+    val node = OciVariantNode(variant, platformToDependencies.mapValues { it.value.first }, platformSet)
+    variantToNode[variant] = node
     return node
 }
 
 internal class OciVariantNode(
-    val variantResult: ResolvedVariantResult,
+    val variant: ResolvedVariantResult,
     val platformToDependencies: Map<Platform?, List<OciVariantNode>>,
     val platformSet: PlatformSet,
 )
 
-internal class OciVariantGraphRoot(val node: OciVariantNode, val dependencySelectors: List<ComponentSelector>)
+internal class OciVariantGraphRoot(val node: OciVariantNode, val selectors: List<ComponentSelector>)
 
 // return value is linked to preserve the platform order
 private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.toPlatform() }
@@ -95,7 +93,7 @@ internal fun selectPlatforms(
         val rootNode = graphRoot.node
         val platforms = platformSelector?.select(rootNode.platformSet) ?: rootNode.platformSet.set
         if (platforms.isEmpty()) {
-            throw IllegalStateException("no platforms can be selected for variant ${rootNode.variantResult} (supported platforms: ${rootNode.platformSet}, platform selector: $platformSelector)")
+            throw IllegalStateException("no platforms can be selected for variant ${rootNode.variant} (supported platforms: ${rootNode.platformSet}, platform selector: $platformSelector)")
         }
         for (platform in platforms) {
             platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
@@ -112,43 +110,43 @@ internal class OciImageSpec(
     val referenceSpecs: Set<OciImageReferenceSpec>, // normalized setOf(OciImageReferenceSpec(null, null)) -> emptySet()
 )
 
-internal fun collectOciImageSpecs(rootComponentResult: ResolvedComponentResult, platform: Platform): List<OciImageSpec> {
+internal fun collectOciImageSpecs(rootComponent: ResolvedComponentResult, platform: Platform): List<OciImageSpec> {
     // the first variant is the resolvable configuration, but only if it declares at least one dependency
-    val rootVariantResult = rootComponentResult.variants.firstOrNull() ?: return emptyList()
+    val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
     // TODO naming firstLevel...
     // variantToReferenceSpecs is linked to preserve the dependency order
     val variantToReferenceSpecs = LinkedHashMap<Pair<ResolvedComponentResult, ResolvedVariantResult>, HashSet<OciImageReferenceSpec>>()
-    for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootVariantResult)) {
-        if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
+    for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
+        if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
             continue // TODO fail
         }
-        val referenceSpecs = dependencyResult.requested.attributes.getAttribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE)
+        val referenceSpecs = dependency.requested.attributes.getAttribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE)
             ?.split(',')
             ?.map { it.toOciImageReferenceSpec() }
             ?: listOf(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)
-        variantToReferenceSpecs.getOrPut(Pair(dependencyResult.selected, dependencyResult.resolvedVariant)) { HashSet() } += referenceSpecs
+        variantToReferenceSpecs.getOrPut(Pair(dependency.selected, dependency.resolvedVariant)) { HashSet() } += referenceSpecs
     }
-    return variantToReferenceSpecs.map { (variant, referenceSpecs) ->
-        val (componentResult, variantResult) = variant
-        val variantResults = LinkedHashSet<ResolvedVariantResult>()
-        collectOciVariantResults(componentResult, variantResult, variantResults)
-        OciImageSpec(platform, variantResults.toList(), referenceSpecs.normalize())
+    return variantToReferenceSpecs.map { (componentAndVariant, referenceSpecs) ->
+        val (component, variant) = componentAndVariant
+        val variants = LinkedHashSet<ResolvedVariantResult>()
+        collectOciVariants(component, variant, variants)
+        OciImageSpec(platform, variants.toList(), referenceSpecs.normalize())
     }
 }
 
-private fun collectOciVariantResults(
-    componentResult: ResolvedComponentResult,
-    variantResult: ResolvedVariantResult,
-    variantResults: LinkedHashSet<ResolvedVariantResult>,
+private fun collectOciVariants(
+    component: ResolvedComponentResult,
+    variant: ResolvedVariantResult,
+    variants: LinkedHashSet<ResolvedVariantResult>,
 ) {
-    if (variantResult !in variantResults) {
-        for (dependencyResult in componentResult.getDependenciesForVariant(variantResult)) {
-            if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
+    if (variant !in variants) {
+        for (dependency in component.getDependenciesForVariant(variant)) {
+            if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
                 continue // TODO fail
             }
-            collectOciVariantResults(dependencyResult.selected, dependencyResult.resolvedVariant, variantResults)
+            collectOciVariants(dependency.selected, dependency.resolvedVariant, variants)
         }
-        variantResults += variantResult
+        variants += variant
     }
 }
 

@@ -50,8 +50,8 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     private val platformConfigurations = HashMap<String, Configuration>()
 
     final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
-        return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponentResult ->
-            val graph = resolveOciVariantGraph(rootComponentResult)
+        return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponent ->
+            val graph = resolveOciVariantGraph(rootComponent)
             val platformSelector = platformSelectorProvider.orNull
             val platformToGraphRoots = selectPlatforms(graph, platformSelector)
             val platformToConfiguration = platformToGraphRoots.mapValues { (platform, graphRoots) ->
@@ -69,8 +69,8 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                         }
                         shouldResolveConsistentlyWith(indexConfiguration)
                         for (graphRoot in graphRoots) {
-                            for (dependencySelector in graphRoot.dependencySelectors) {
-                                dependencies.add(dependencySelector.toDependency(dependencyHandler))
+                            for (selector in graphRoot.selectors) {
+                                dependencies.add(selector.toDependency(dependencyHandler))
                             }
                         }
                     }
@@ -79,9 +79,9 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             val imageInputs = objectFactory.listProperty<OciImagesTask.ImageInput>()
             for ((platform, configuration) in platformToConfiguration) {
                 val imageSpecsProvider = configuration.incoming.resolutionResult.rootComponent.map { collectOciImageSpecs(it, platform) }
-                imageInputs.addAll(configuration.incoming.artifacts.mapMetadata { variantArtifactResults ->
+                imageInputs.addAll(configuration.incoming.artifacts.mapMetadata { variantArtifacts ->
                     val imageSpecs = imageSpecsProvider.get()
-                    val variantDescriptorToInput = variantArtifactResults.groupBy({ it.variantDescriptor }) { it.file }
+                    val variantDescriptorToInput = variantArtifacts.groupBy({ it.variantDescriptor }) { it.file }
                         .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
                     imageSpecs.map { imageSpec ->
                         OciImagesTask.ImageInput(
