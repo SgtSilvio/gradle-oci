@@ -169,7 +169,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 dependenciesProvider = dependenciesProvider.map { dependencies ->
                     dependencies.map { dependency ->
                         dependency.copy().apply {
-                            attribute(PLATFORM_ATTRIBUTE, variantPlatform.toString())
+                            attribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE, variantPlatform.toString())
                         }
                     }
                 }

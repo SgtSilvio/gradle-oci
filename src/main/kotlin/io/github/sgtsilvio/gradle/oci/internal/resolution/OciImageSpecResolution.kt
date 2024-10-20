@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
+import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.metadata.DEFAULT_OCI_IMAGE_REFERENCE_SPEC
@@ -12,7 +13,6 @@ import org.gradle.api.artifacts.component.ComponentSelector
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
-import org.gradle.api.attributes.AttributeContainer
 
 internal fun resolveOciVariantGraph(rootComponentResult: ResolvedComponentResult): List<OciVariantGraphRoot> {
     // the first variant is the resolvable configuration, but only if it declares at least one dependency
@@ -41,7 +41,7 @@ private fun resolveOciVariantNode(
     }
     nodes[variantResult] = null
     val platformToDependencies = LinkedHashMap<Platform?, Pair<ArrayList<OciVariantNode>, PlatformSet>>()
-    val platforms = variantResult.attributes.platforms ?: setOf(null)
+    val platforms = variantResult.attributes.getAttribute(PLATFORM_ATTRIBUTE)?.decodePlatforms() ?: setOf(null)
     for (platform in platforms) {
         val platformSet = if (platform == null) PlatformSet(true) else PlatformSet(platform)
         platformToDependencies[platform] = Pair(ArrayList(), platformSet)
@@ -50,7 +50,9 @@ private fun resolveOciVariantNode(
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
             continue // TODO fail
         }
-        val dependencyPlatforms = dependencyResult.requested.attributes.platforms ?: platforms
+        val dependencyPlatforms =
+            dependencyResult.requested.attributes.getAttribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE)?.decodePlatforms()
+                ?: platforms
         val node = resolveOciVariantNode(dependencyResult.selected, dependencyResult.resolvedVariant, nodes)
         for (dependencyPlatform in dependencyPlatforms) {
             val dependenciesAndPlatformSet = platformToDependencies[dependencyPlatform]
@@ -77,11 +79,7 @@ internal class OciVariantNode(
 
 internal class OciVariantGraphRoot(val node: OciVariantNode, val dependencySelectors: List<ComponentSelector>)
 
-private val AttributeContainer.platforms: Set<Platform>?
-    get() {
-        val platformAttribute = getAttribute(PLATFORM_ATTRIBUTE) ?: return null
-        return platformAttribute.split(';').mapTo(LinkedHashSet()) { it.toPlatform() }
-    }
+private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.toPlatform() }
 
 // TODO new file from here?
 
