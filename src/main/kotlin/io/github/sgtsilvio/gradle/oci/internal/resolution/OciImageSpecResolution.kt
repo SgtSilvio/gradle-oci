@@ -18,6 +18,7 @@ internal fun resolveOciVariantGraph(rootComponentResult: ResolvedComponentResult
     // the first variant is the resolvable configuration, but only if it declares at least one dependency
     val rootVariantResult = rootComponentResult.variants.firstOrNull() ?: return emptyList()
     val nodes = HashMap<ResolvedVariantResult, OciVariantNode?>()
+    // rootNodesToDependencySelectors is linked to preserve the dependency order
     val rootNodesToDependencySelectors = LinkedHashMap<OciVariantNode, ArrayList<ComponentSelector>>()
     for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootVariantResult)) {
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
@@ -40,6 +41,7 @@ private fun resolveOciVariantNode(
         return nodes[variantResult] ?: throw IllegalStateException("cycle in dependencies graph")
     }
     nodes[variantResult] = null
+    // platformToDependencies is linked to preserve the platform order
     val platformToDependencies = LinkedHashMap<Platform?, Pair<ArrayList<OciVariantNode>, PlatformSet>>()
     val platforms = variantResult.attributes.getAttribute(PLATFORM_ATTRIBUTE)?.decodePlatforms() ?: setOf(null)
     for (platform in platforms) {
@@ -79,6 +81,7 @@ internal class OciVariantNode(
 
 internal class OciVariantGraphRoot(val node: OciVariantNode, val dependencySelectors: List<ComponentSelector>)
 
+// return value is linked to preserve the platform order
 private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.toPlatform() }
 
 // TODO new file from here?
@@ -113,6 +116,7 @@ internal fun collectOciImageSpecs(rootComponentResult: ResolvedComponentResult, 
     // the first variant is the resolvable configuration, but only if it declares at least one dependency
     val rootVariantResult = rootComponentResult.variants.firstOrNull() ?: return emptyList()
     // TODO naming firstLevel...
+    // variantToReferenceSpecs is linked to preserve the dependency order
     val variantToReferenceSpecs = LinkedHashMap<Pair<ResolvedComponentResult, ResolvedVariantResult>, HashSet<OciImageReferenceSpec>>()
     for (dependencyResult in rootComponentResult.getDependenciesForVariant(rootVariantResult)) {
         if ((dependencyResult !is ResolvedDependencyResult) || dependencyResult.isConstraint) {
