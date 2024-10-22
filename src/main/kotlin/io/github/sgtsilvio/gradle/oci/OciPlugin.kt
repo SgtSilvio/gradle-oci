@@ -25,6 +25,7 @@ class OciPlugin : Plugin<Project> {
                 disambiguationRules.add(OciDistributionTypeDisambiguationRule::class)
             }
             attribute(PLATFORM_ATTRIBUTE)
+            attribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE)
             attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE)
         }
         val extension = project.extensions.create(OciExtension::class, EXTENSION_NAME, OciExtensionImpl::class)
