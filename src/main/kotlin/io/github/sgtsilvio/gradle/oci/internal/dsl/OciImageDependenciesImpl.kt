@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
@@ -53,7 +54,13 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
         return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponent ->
             val graph = resolveOciVariantGraph(rootComponent)
             val platformSelector = platformSelectorProvider.orNull
-            val platformToGraphRoots = selectPlatforms(graph, platformSelector)
+            val graphRootAndPlatformsList = selectPlatforms(graph, platformSelector)
+            val platformToGraphRoots = HashMap<Platform, ArrayList<OciVariantGraphRoot>>()
+            for ((graphRoot, platforms) in graphRootAndPlatformsList) {
+                for (platform in platforms) {
+                    platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
+                }
+            }
             val platformToConfiguration = platformToGraphRoots.mapValues { (platform, graphRoots) ->
                 val platformConfigurationName =
                     "${indexConfiguration.name}@$platform" + if (platformSelector == null) "" else "($platformSelector)"
@@ -76,23 +83,31 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                     }
                 }
             }
-            val imageInputs = objectFactory.listProperty<OciImagesTask.ImageInput>()
+            val taskDependenciesProvider = objectFactory.listProperty<Any>()
+            val capabilityAndPlatformToInput = HashMap<Triple<String, String, Platform>, OciImagesTask.VariantInput>()
             for ((platform, configuration) in platformToConfiguration) {
-                val imageSpecsProvider = configuration.incoming.resolutionResult.rootComponent.map { collectOciImageSpecs(it, platform) }
-                imageInputs.addAll(configuration.incoming.artifacts.mapMetadata { variantArtifacts ->
-                    val imageSpecs = imageSpecsProvider.get()
-                    val variantDescriptorToInput = variantArtifacts.groupBy({ it.variantDescriptor }) { it.file }
-                        .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
-                    imageSpecs.map { imageSpec ->
-                        OciImagesTask.ImageInput(
-                            imageSpec.platform,
-                            imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toDescriptor()] },
-                            imageSpec.referenceSpecs,
-                        )
+                val artifacts = configuration.incoming.artifacts
+                taskDependenciesProvider.addAll(artifacts.resolvedArtifacts)
+                val variantDescriptorToInput = artifacts.variantArtifacts.groupBy({ it.variantDescriptor }) { it.file }
+                    .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
+                for ((variantDescriptor, variantInput) in variantDescriptorToInput) {
+                    for (capability in variantDescriptor.capabilities) {
+                        capabilityAndPlatformToInput[Triple(capability.group, capability.name, platform)] = variantInput
                     }
-                })
+                }
             }
-            imageInputs
+            val imageInputs = ArrayList<OciImagesTask.ImageInput>()
+            for ((graphRoot, platforms) in graphRootAndPlatformsList) {
+                for (platform in platforms) {
+                    val variantInputs = graphRoot.collectOciVariants(platform).map { variant ->
+                        val anyCapability = variant.capabilities.first()
+                        capabilityAndPlatformToInput[Triple(anyCapability.group, anyCapability.name, platform)]
+                            ?: throw IllegalStateException() // TODO message
+                    }
+                    imageInputs += OciImagesTask.ImageInput(platform, variantInputs, graphRoot.referenceSpecs)
+                }
+            }
+            taskDependenciesProvider.map { imageInputs }
         }
     }
 }

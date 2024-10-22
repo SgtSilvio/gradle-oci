@@ -89,69 +89,40 @@ private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.to
 internal fun selectPlatforms(
     graph: List<OciVariantGraphRoot>,
     platformSelector: PlatformSelector?,
-): Map<Platform, List<OciVariantGraphRoot>> {
-    val platformToGraphRoots = HashMap<Platform, ArrayList<OciVariantGraphRoot>>()
-    for (graphRoot in graph) {
-        val rootNode = graphRoot.node
-        val platforms = platformSelector?.select(rootNode.platformSet) ?: rootNode.platformSet.set
-        if (platforms.isEmpty()) {
-            throw IllegalStateException("no platforms can be selected for variant ${rootNode.variant} (supported platforms: ${rootNode.platformSet}, platform selector: $platformSelector)")
-        }
-        for (platform in platforms) {
-            platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
-        }
+): List<Pair<OciVariantGraphRoot, Set<Platform>>> = graph.map { graphRoot ->
+    val rootNode = graphRoot.node
+    val platforms = platformSelector?.select(rootNode.platformSet) ?: rootNode.platformSet.set
+    if (platforms.isEmpty()) {
+        throw IllegalStateException("no platforms can be selected for variant ${rootNode.variant} (supported platforms: ${rootNode.platformSet}, platform selector: $platformSelector)")
     }
-    return platformToGraphRoots
+    Pair(graphRoot, platforms)
 }
 
 // TODO new file from here?
 
-internal class OciImageSpec(
-    val platform: Platform,
-    val variants: List<ResolvedVariantResult>,
-    val referenceSpecs: Set<OciImageReferenceSpec>, // normalized setOf(OciImageReferenceSpec(null, null)) -> emptySet()
-)
-
-internal fun collectOciImageSpecs(rootComponent: ResolvedComponentResult, platform: Platform): List<OciImageSpec> {
-    // the first variant is the resolvable configuration, but only if it declares at least one dependency
-    val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
-    // firstLevelComponentAndVariantToReferenceSpecs is linked to preserve the dependency order
-    val firstLevelComponentAndVariantToReferenceSpecs =
-        LinkedHashMap<Pair<ResolvedComponentResult, ResolvedVariantResult>, HashSet<OciImageReferenceSpec>>()
-    for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
-        if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
-            continue // TODO fail
-        }
-        val componentAndVariant = Pair(dependency.selected, dependency.resolvedVariant)
-        val referenceSpecs = dependency.requested.attributes.getAttribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE)
-            ?.split(',')
-            ?.map { it.toOciImageReferenceSpec() }
-            ?: listOf(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)
-        firstLevelComponentAndVariantToReferenceSpecs.getOrPut(componentAndVariant) { HashSet() } += referenceSpecs
-    }
-    return firstLevelComponentAndVariantToReferenceSpecs.map { (componentAndVariant, referenceSpecs) ->
-        val (component, variant) = componentAndVariant
-        val variants = LinkedHashSet<ResolvedVariantResult>()
-        collectOciVariants(component, variant, variants)
-        OciImageSpec(platform, variants.toList(), referenceSpecs.normalize())
-    }
+internal fun OciVariantGraphRoot.collectOciVariants(platform: Platform): Set<ResolvedVariantResult> {
+    val variants = LinkedHashSet<ResolvedVariantResult>()
+    node.collectOciVariants(platform, variants)
+    return variants
 }
 
-private fun collectOciVariants(
-    component: ResolvedComponentResult,
-    variant: ResolvedVariantResult,
-    variants: LinkedHashSet<ResolvedVariantResult>,
-) {
+private fun OciVariantNode.collectOciVariants(platform: Platform, variants: LinkedHashSet<ResolvedVariantResult>) {
     if (variant !in variants) {
-        for (dependency in component.getDependenciesForVariant(variant)) {
-            if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
-                continue // TODO fail
-            }
-            collectOciVariants(dependency.selected, dependency.resolvedVariant, variants)
+        val dependencies = platformToDependencies[platform] ?: platformToDependencies[null] // TODO platform matching
+        ?: throw IllegalArgumentException("variant $variant does not support platform $platform (supported platforms: ${platformToDependencies.keys})")
+        for (dependency in dependencies) {
+            dependency.collectOciVariants(platform, variants)
         }
         variants += variant
     }
 }
+
+internal val OciVariantGraphRoot.referenceSpecs
+    get() = selectors.flatMapTo(LinkedHashSet()) { selector ->
+        selector.attributes.getAttribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE)
+            ?.split(',')
+            ?.map { it.toOciImageReferenceSpec() } ?: listOf(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)
+    }.normalize() // TODO inline?
 
 private fun Set<OciImageReferenceSpec>.normalize(): Set<OciImageReferenceSpec> =
     if ((size == 1) && contains(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)) emptySet() else this
