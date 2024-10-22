@@ -140,5 +140,7 @@ internal fun ComponentSelector.toDependency(dependencyHandler: DependencyHandler
     dependency.capabilities {
         requireCapabilities(*requestedCapabilities.toTypedArray())
     }
+    // TODO excludeRules, isTransitive, isEndorsingStrictVersions?, reason?
+    //  not necessary: artifacts, targetConfiguration, isChanging?
     return dependency
 }

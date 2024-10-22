@@ -11,6 +11,8 @@ import org.gradle.internal.DisplayName
 import org.gradle.internal.component.external.model.ImmutableCapabilities
 import java.io.File
 
+// TODO move file to io.github.sgtsilvio.gradle.oci.internal.gradle.ArtifactCollectionExtensions?
+
 internal data class VariantArtifactResult(val variantDescriptor: VariantDescriptor, val file: File)
 
 internal data class VariantDescriptor(
