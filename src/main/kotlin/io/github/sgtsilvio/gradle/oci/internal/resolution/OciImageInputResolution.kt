@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci.internal.resolution
 
 import org.gradle.api.artifacts.ArtifactCollection
 import org.gradle.api.artifacts.component.ComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.internal.artifacts.configurations.ArtifactCollectionInternal
@@ -21,7 +22,9 @@ internal data class VariantDescriptor(
     val attributes: Map<String, String>,
 )
 
-private fun AttributeContainer.toMap(): Map<String, String> =
+internal fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap())
+
+internal fun AttributeContainer.toMap(): Map<String, String> =
     keySet().associateBy({ it.name }) { getAttribute(it).toString() }
 
 internal val ArtifactCollection.variantArtifacts: Set<VariantArtifactResult>

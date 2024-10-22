@@ -6,19 +6,19 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.*
 import org.gradle.api.artifacts.component.ComponentSelector
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
-import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.attributes.Attribute
+import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
+import org.gradle.api.capabilities.Capability
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.*
+import org.gradle.kotlin.dsl.listProperty
+import org.gradle.kotlin.dsl.named
+import org.gradle.kotlin.dsl.newInstance
 import javax.inject.Inject
 
 /**
@@ -28,8 +28,8 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
     private val configurationContainer: ConfigurationContainer,
-    private val dependencyHandler: DependencyHandler,
-) : DependencyConstraintFactoriesImpl(dependencyHandler.constraints), OciImageDependencies {
+    dependencyConstraintHandler: DependencyConstraintHandler,
+) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDependencies {
 
     final override fun getName() = name
 
@@ -50,9 +50,13 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
 
     private val platformConfigurations = HashMap<String, Configuration>()
 
+    private val allDependencies = lazy { indexConfiguration.allDependencies.filterIsInstance<ModuleDependency>() }
+
     final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
         return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponent ->
             val graph = resolveOciVariantGraph(rootComponent)
+//        val lazy = lazy {
+//            val graph = resolveOciVariantGraph(indexConfiguration.incoming.resolutionResult.root)
             val platformSelector = platformSelectorProvider.orNull
             val graphRootAndPlatformsList = selectPlatforms(graph, platformSelector)
             val platformToGraphRoots = HashMap<Platform, ArrayList<OciVariantGraphRoot>>()
@@ -61,6 +65,9 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                     platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
                 }
             }
+            val descriptorToDependencies = // TODO name
+//                indexConfiguration.allDependencies.withType<ModuleDependency>().groupBy { it.toDescriptor() }
+                allDependencies.value.groupBy { it.toDescriptor() }
             val platformToConfiguration = platformToGraphRoots.mapValues { (platform, graphRoots) ->
                 val platformConfigurationName =
                     "${indexConfiguration.name}@$platform" + if (platformSelector == null) "" else "($platformSelector)"
@@ -77,70 +84,66 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                         shouldResolveConsistentlyWith(indexConfiguration)
                         for (graphRoot in graphRoots) {
                             for (selector in graphRoot.selectors) {
-                                dependencies.add(selector.toDependency(dependencyHandler))
+                                val selectorDependencies = descriptorToDependencies[selector.toDescriptor()]
+                                    ?: throw IllegalStateException() // TODO message
+                                dependencies.addAll(selectorDependencies)
                             }
                         }
                     }
                 }
             }
             val taskDependenciesProvider = objectFactory.listProperty<Any>()
-            val capabilityAndPlatformToInput = HashMap<Triple<String, String, Platform>, OciImagesTask.VariantInput>()
+            val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<ModuleDependencyDescriptor>>, OciImagesTask.ImageInput>()
             for ((platform, configuration) in platformToConfiguration) {
                 val artifacts = configuration.incoming.artifacts
                 taskDependenciesProvider.addAll(artifacts.resolvedArtifacts)
                 val variantDescriptorToInput = artifacts.variantArtifacts.groupBy({ it.variantDescriptor }) { it.file }
                     .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
-                for ((variantDescriptor, variantInput) in variantDescriptorToInput) {
-                    for (capability in variantDescriptor.capabilities) {
-                        capabilityAndPlatformToInput[Triple(capability.group, capability.name, platform)] = variantInput
-                    }
+                val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.root)
+                for (imageSpec in imageSpecs) {
+                    val imageInput = OciImagesTask.ImageInput(
+                        platform,
+                        imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toDescriptor()] },
+                        imageSpec.selectors.collectReferenceSpecs(),
+                    )
+                    variantSelectorsToImageInput[Pair(platform, imageSpec.selectors.mapTo(HashSet()) { it.toDescriptor() })] = imageInput
                 }
             }
             val imageInputs = ArrayList<OciImagesTask.ImageInput>()
             for ((graphRoot, platforms) in graphRootAndPlatformsList) {
                 for (platform in platforms) {
-                    val variantInputs = graphRoot.collectOciVariants(platform).map { variant ->
-                        val anyCapability = variant.capabilities.first()
-                        capabilityAndPlatformToInput[Triple(anyCapability.group, anyCapability.name, platform)]
-                            ?: throw IllegalStateException() // TODO message
-                    }
-                    imageInputs += OciImagesTask.ImageInput(platform, variantInputs, graphRoot.referenceSpecs)
+                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.selectors.mapTo(HashSet()) { it.toDescriptor() })]
+                        ?: throw IllegalStateException() // TODO message
                 }
             }
             taskDependenciesProvider.map { imageInputs }
         }
+//        return providerFactory.provider { lazy.value }.flatMap { it }
     }
 }
 
-internal fun ComponentSelector.toDependency(dependencyHandler: DependencyHandler): ModuleDependency {
-    val dependency = when (this) {
-        is ModuleComponentSelector -> dependencyHandler.create(group, module).apply {
-            version {
-                branch = versionConstraint.branch
-                prefer(versionConstraint.preferredVersion)
-                if (versionConstraint.strictVersion == "") {
-                    require(versionConstraint.requiredVersion)
-                } else {
-                    strictly(versionConstraint.strictVersion)
-                }
-                reject(*versionConstraint.rejectedVersions.toTypedArray())
-            }
-        }
+private interface ModuleDependencyDescriptor // TODO name VariantSelector?
 
-        is ProjectComponentSelector -> dependencyHandler.project(projectPath)
-        else -> throw IllegalStateException("expected Module- or ProjectComponentSelector, but got $this")
-    }
-    val attributes = attributes
-    dependency.attributes {
-        for (attribute in attributes.keySet()) {
-            @Suppress("UNCHECKED_CAST")
-            attribute(attribute as Attribute<Any>, attributes.getAttribute(attribute)!!)
-        }
-    }
-    dependency.capabilities {
-        requireCapabilities(*requestedCapabilities.toTypedArray())
-    }
-    // TODO excludeRules, isTransitive, isEndorsingStrictVersions?, reason?
-    //  not necessary: artifacts, targetConfiguration, isChanging?
-    return dependency
+private data class ProjectDependencyDescriptor(
+    val projectPath: String,
+    val capabilities: List<Capability>,
+    val attributes: Map<String, String>,
+) : ModuleDependencyDescriptor
+
+private data class ExternalDependencyDescriptor(
+    val moduleId: ModuleIdentifier,
+    val capabilities: List<Capability>,
+    val attributes: Map<String, String>,
+) : ModuleDependencyDescriptor
+
+private fun ModuleDependency.toDescriptor() = when (this) {
+    is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities, attributes.toMap())
+    is ExternalDependency -> ExternalDependencyDescriptor(module, requestedCapabilities, attributes.toMap())
+    else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
+}
+
+private fun ComponentSelector.toDescriptor() = when (this) {
+    is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes.toMap())
+    is ModuleComponentSelector -> ExternalDependencyDescriptor(moduleIdentifier, requestedCapabilities, attributes.toMap())
+    else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
 }
