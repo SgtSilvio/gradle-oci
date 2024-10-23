@@ -67,7 +67,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                     platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
                 }
             }
-            val variantSelectorToDependencies = allDependencies.value.groupBy { it.toVariantSelector() }
+            val allDependencies = allDependencies.value
             val platformToConfiguration = platformToGraphRoots.mapValues { (platform, graphRoots) ->
                 val platformConfigurationName =
                     "${indexConfiguration.name}@$platform" + if (platformSelector == null) "" else "($platformSelector)"
@@ -82,13 +82,8 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                             attribute(PLATFORM_ATTRIBUTE, platform.toString())
                         }
                         shouldResolveConsistentlyWith(indexConfiguration)
-                        for (graphRoot in graphRoots) {
-                            for (selector in graphRoot.selectors) {
-                                val selectorDependencies = variantSelectorToDependencies[selector]
-                                    ?: throw IllegalStateException() // TODO message
-                                dependencies.addAll(selectorDependencies)
-                            }
-                        }
+                        val variantSelectors = graphRoots.flatMapTo(HashSet()) { it.selectors }
+                        dependencies.addAll(allDependencies.filter { it.toVariantSelector() in variantSelectors })
                     }
                 }
             }
