@@ -4,7 +4,9 @@ import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toId
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
+import io.github.sgtsilvio.gradle.oci.internal.gradle.variantArtifacts
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector

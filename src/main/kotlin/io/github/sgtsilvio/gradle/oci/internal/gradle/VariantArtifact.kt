@@ -1,9 +1,6 @@
-package io.github.sgtsilvio.gradle.oci.internal.resolution
+package io.github.sgtsilvio.gradle.oci.internal.gradle
 
-import io.github.sgtsilvio.gradle.oci.internal.gradle.toStringMap
 import org.gradle.api.artifacts.ArtifactCollection
-import org.gradle.api.artifacts.component.ComponentIdentifier
-import org.gradle.api.artifacts.result.ResolvedVariantResult
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.internal.artifacts.configurations.ArtifactCollectionInternal
@@ -12,16 +9,6 @@ import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.Resol
 import org.gradle.internal.DisplayName
 import org.gradle.internal.component.external.model.ImmutableCapabilities
 import java.io.File
-
-// TODO move file to io.github.sgtsilvio.gradle.oci.internal.gradle.ArtifactCollectionExtensions?
-
-internal data class VariantId(
-    val componentId: ComponentIdentifier,
-    val capabilities: List<Capability>,
-    val attributes: Map<String, String>,
-)
-
-internal fun ResolvedVariantResult.toId() = VariantId(owner, capabilities, attributes.toStringMap())
 
 internal data class VariantArtifact(val variantId: VariantId, val file: File)
 
