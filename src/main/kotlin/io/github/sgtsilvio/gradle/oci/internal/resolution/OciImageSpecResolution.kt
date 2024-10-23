@@ -40,12 +40,13 @@ private fun resolveOciVariantNode(
         return variantToNode[variant] ?: throw IllegalStateException("cycle in dependencies graph")
     }
     variantToNode[variant] = null
-    // platformToDependenciesAndPlatformSet is linked to preserve the platform order
-    val platformToDependenciesAndPlatformSet = LinkedHashMap<Platform?, Pair<ArrayList<OciVariantNode>, PlatformSet>>()
+    // platformToDependenciesAndSupportedPlatforms is linked to preserve the platform order
+    val platformToDependenciesAndSupportedPlatforms =
+        LinkedHashMap<Platform?, Pair<ArrayList<OciVariantNode>, PlatformSet>>()
     val platforms = variant.attributes.getAttribute(PLATFORM_ATTRIBUTE)?.decodePlatforms() ?: setOf(null)
     for (platform in platforms) {
-        val platformSet = if (platform == null) PlatformSet(true) else PlatformSet(platform)
-        platformToDependenciesAndPlatformSet[platform] = Pair(ArrayList(), platformSet)
+        val supportedPlatforms = if (platform == null) PlatformSet(true) else PlatformSet(platform)
+        platformToDependenciesAndSupportedPlatforms[platform] = Pair(ArrayList(), supportedPlatforms)
     }
     for (dependency in component.getDependenciesForVariant(variant)) {
         if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
@@ -56,18 +57,19 @@ private fun resolveOciVariantNode(
                 ?: platforms
         val node = resolveOciVariantNode(dependency.selected, dependency.resolvedVariant, variantToNode)
         for (dependencyPlatform in dependencyPlatforms) {
-            val dependenciesAndPlatformSet = platformToDependenciesAndPlatformSet[dependencyPlatform]
+            val (dependencies, supportedPlatforms) = platformToDependenciesAndSupportedPlatforms[dependencyPlatform]
                 ?: throw IllegalStateException("dependency can not be defined for more platforms than component") // TODO message
-            dependenciesAndPlatformSet.first += node
-            dependenciesAndPlatformSet.second.intersect(node.platformSet)
+            dependencies += node
+            supportedPlatforms.intersect(node.supportedPlatforms)
         }
     }
     // platformToDependencies is linked to preserve the platform order
     val platformToDependencies = LinkedHashMap<Platform?, List<OciVariantNode>>()
     val platformSet = PlatformSet(false)
-    for ((platform, dependenciesAndPlatformSet) in platformToDependenciesAndPlatformSet) {
-        platformToDependencies[platform] = dependenciesAndPlatformSet.first
-        platformSet.union(dependenciesAndPlatformSet.second)
+    for ((platform, dependenciesAndSupportedPlatforms) in platformToDependenciesAndSupportedPlatforms) {
+        val (dependencies, supportedPlatforms) = dependenciesAndSupportedPlatforms
+        platformToDependencies[platform] = dependencies
+        platformSet.union(supportedPlatforms)
     }
     val node = OciVariantNode(variant, platformToDependencies, platformSet)
     variantToNode[variant] = node
@@ -77,10 +79,10 @@ private fun resolveOciVariantNode(
 internal class OciVariantNode(
     val variant: ResolvedVariantResult,
     val platformToDependencies: Map<Platform?, List<OciVariantNode>>,
-    val platformSet: PlatformSet,
+    val supportedPlatforms: PlatformSet,
 )
 
-internal class OciVariantGraphRoot(val node: OciVariantNode, val selectors: Set<VariantSelector>)
+internal class OciVariantGraphRoot(val node: OciVariantNode, val variantSelectors: Set<VariantSelector>)
 
 // return value is linked to preserve the platform order
 private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.toPlatform() }
@@ -92,9 +94,9 @@ internal fun selectPlatforms(
     platformSelector: PlatformSelector?,
 ): List<Pair<OciVariantGraphRoot, Set<Platform>>> = graph.map { graphRoot ->
     val rootNode = graphRoot.node
-    val platforms = platformSelector?.select(rootNode.platformSet) ?: rootNode.platformSet.set
-    if (platforms.isEmpty()) {
-        throw IllegalStateException("no platforms can be selected for variant ${rootNode.variant} (supported platforms: ${rootNode.platformSet}, platform selector: $platformSelector)")
+    val platforms = platformSelector?.select(rootNode.supportedPlatforms) ?: rootNode.supportedPlatforms.set
+    if (platforms.isEmpty()) { // TODO defer exception, empty set is failed
+        throw IllegalStateException("no platforms can be selected for variant ${rootNode.variant} (supported platforms: ${rootNode.supportedPlatforms}, platform selector: $platformSelector)")
     }
     Pair(graphRoot, platforms)
 }

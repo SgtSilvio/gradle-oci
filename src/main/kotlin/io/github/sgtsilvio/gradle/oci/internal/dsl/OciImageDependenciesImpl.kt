@@ -82,7 +82,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                             attribute(PLATFORM_ATTRIBUTE, platform.toString())
                         }
                         shouldResolveConsistentlyWith(indexConfiguration)
-                        val variantSelectors = graphRoots.flatMapTo(HashSet()) { it.selectors }
+                        val variantSelectors = graphRoots.flatMapTo(HashSet()) { it.variantSelectors }
                         dependencies.addAll(allDependencies.filter { it.toVariantSelector() in variantSelectors })
                     }
                 }
@@ -107,7 +107,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             val imageInputs = ArrayList<OciImagesTask.ImageInput>()
             for ((graphRoot, platforms) in graphRootAndPlatformsList) {
                 for (platform in platforms) {
-                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.selectors)]
+                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.variantSelectors)]
                         ?: throw IllegalStateException() // TODO message
                 }
             }
