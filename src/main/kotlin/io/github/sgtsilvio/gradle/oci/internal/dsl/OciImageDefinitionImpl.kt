@@ -58,7 +58,16 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     private var universalVariant: Variant? = null
     private var platformVariants: LinkedHashMap<Platform, Variant>? = null // linked because it will be iterated
     private var indexConfiguration: Configuration? = null
-    final override val dependency = project.createDependency().requireCapabilities(capabilities)
+    final override val dependency: Provider<ProjectDependency> = project.createDependency().run {
+        capabilities.map { capabilities ->
+            capabilities {
+                for (capability in capabilities) {
+                    requireCapability(capability)
+                }
+            }
+            this
+        }
+    }
 
     init {
         if (name != MAIN_NAME) {
