@@ -3,18 +3,17 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
-import io.github.sgtsilvio.gradle.oci.internal.gradle.toStringMap
+import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
-import org.gradle.api.artifacts.*
-import org.gradle.api.artifacts.component.ComponentSelector
-import org.gradle.api.artifacts.component.ModuleComponentSelector
-import org.gradle.api.artifacts.component.ProjectComponentSelector
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
-import org.gradle.api.capabilities.Capability
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.listProperty
@@ -119,30 +118,4 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
         }
 //        return providerFactory.provider { lazy.value }.flatMap { it }
     }
-}
-
-private interface VariantSelector
-
-private data class ProjectVariantSelector(
-    val projectPath: String,
-    val capabilities: List<Capability>,
-    val attributes: Map<String, String>,
-) : VariantSelector
-
-private data class ExternalVariantSelector(
-    val moduleId: ModuleIdentifier,
-    val capabilities: List<Capability>,
-    val attributes: Map<String, String>,
-) : VariantSelector
-
-private fun ModuleDependency.toVariantSelector() = when (this) {
-    is ProjectDependency -> ProjectVariantSelector(dependencyProject.path, requestedCapabilities, attributes.toStringMap())
-    is ExternalDependency -> ExternalVariantSelector(module, requestedCapabilities, attributes.toStringMap())
-    else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
-}
-
-private fun ComponentSelector.toVariantSelector() = when (this) {
-    is ProjectComponentSelector -> ProjectVariantSelector(projectPath, requestedCapabilities, attributes.toStringMap())
-    is ModuleComponentSelector -> ExternalVariantSelector(moduleIdentifier, requestedCapabilities, attributes.toStringMap())
-    else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
 }
