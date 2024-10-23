@@ -29,7 +29,7 @@ internal abstract class ReferencableOciImageDependencyCollectorImpl @Inject cons
     final override fun addInternal(dependency: ModuleDependency): ReferenceSpecsBuilder {
         val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
         dependencies.add(referenceSpecsBuilder.attribute.map { attribute ->
-            dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
+            dependency.copy().attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
         })
         return referenceSpecsBuilder
     }
@@ -37,7 +37,7 @@ internal abstract class ReferencableOciImageDependencyCollectorImpl @Inject cons
     final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>): ReferenceSpecsBuilder {
         val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)
         dependencies.add(dependencyProvider.zip(referenceSpecsBuilder.attribute) { dependency, attribute ->
-            dependency.attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
+            dependency.copy().attribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE, attribute)
         })
         return referenceSpecsBuilder
     }
