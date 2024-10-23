@@ -9,18 +9,21 @@ import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.capabilities.Capability
 
-internal sealed interface VariantSelector
+internal sealed interface VariantSelector {
+    val capabilities: List<Capability>
+    val attributes: Map<String, String>
+}
 
 internal data class ProjectVariantSelector(
     val projectPath: String,
-    val capabilities: List<Capability>,
-    val attributes: Map<String, String>,
+    override val capabilities: List<Capability>,
+    override val attributes: Map<String, String>,
 ) : VariantSelector
 
 internal data class ExternalVariantSelector(
     val moduleId: ModuleIdentifier,
-    val capabilities: List<Capability>,
-    val attributes: Map<String, String>,
+    override val capabilities: List<Capability>,
+    override val attributes: Map<String, String>,
 ) : VariantSelector
 
 internal fun ModuleDependency.toVariantSelector() = when (this) {

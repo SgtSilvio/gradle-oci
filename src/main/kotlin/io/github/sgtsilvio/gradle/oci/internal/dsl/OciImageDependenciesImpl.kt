@@ -84,7 +84,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                         shouldResolveConsistentlyWith(indexConfiguration)
                         for (graphRoot in graphRoots) {
                             for (selector in graphRoot.selectors) {
-                                val selectorDependencies = variantSelectorToDependencies[selector.toVariantSelector()]
+                                val selectorDependencies = variantSelectorToDependencies[selector]
                                     ?: throw IllegalStateException() // TODO message
                                 dependencies.addAll(selectorDependencies)
                             }
@@ -106,13 +106,13 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                         imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toId()] },
                         imageSpec.selectors.collectReferenceSpecs(),
                     )
-                    variantSelectorsToImageInput[Pair(platform, imageSpec.selectors.mapTo(HashSet()) { it.toVariantSelector() })] = imageInput
+                    variantSelectorsToImageInput[Pair(platform, imageSpec.selectors)] = imageInput
                 }
             }
             val imageInputs = ArrayList<OciImagesTask.ImageInput>()
             for ((graphRoot, platforms) in graphRootAndPlatformsList) {
                 for (platform in platforms) {
-                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.selectors.mapTo(HashSet()) { it.toVariantSelector() })]
+                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.selectors)]
                         ?: throw IllegalStateException() // TODO message
                 }
             }

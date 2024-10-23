@@ -3,13 +3,14 @@ package io.github.sgtsilvio.gradle.oci.internal.resolution
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.metadata.DEFAULT_OCI_IMAGE_REFERENCE_SPEC
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
-import org.gradle.api.artifacts.component.ComponentSelector
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
@@ -19,13 +20,13 @@ internal fun resolveOciVariantGraph(rootComponent: ResolvedComponentResult): Lis
     val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
     val variantToNode = HashMap<ResolvedVariantResult, OciVariantNode?>()
     // rootNodesToDependencySelectors is linked to preserve the dependency order
-    val rootNodesToSelectors = LinkedHashMap<OciVariantNode, ArrayList<ComponentSelector>>()
+    val rootNodesToSelectors = LinkedHashMap<OciVariantNode, HashSet<VariantSelector>>()
     for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
         if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
             continue // TODO fail
         }
         val node = resolveOciVariantNode(dependency.selected, dependency.resolvedVariant, variantToNode)
-        rootNodesToSelectors.getOrPut(node) { ArrayList() }.add(dependency.requested)
+        rootNodesToSelectors.getOrPut(node) { HashSet() } += dependency.requested.toVariantSelector()
     }
     return rootNodesToSelectors.map { (node, selectors) -> OciVariantGraphRoot(node, selectors) }
 }
@@ -79,7 +80,7 @@ internal class OciVariantNode(
     val platformSet: PlatformSet,
 )
 
-internal class OciVariantGraphRoot(val node: OciVariantNode, val selectors: List<ComponentSelector>)
+internal class OciVariantGraphRoot(val node: OciVariantNode, val selectors: Set<VariantSelector>)
 
 // return value is linked to preserve the platform order
 private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.toPlatform() }
@@ -100,20 +101,20 @@ internal fun selectPlatforms(
 
 // TODO new file from here?
 
-internal class OciImageSpec(val variants: List<ResolvedVariantResult>, val selectors: List<ComponentSelector>) // TODO
+internal class OciImageSpec(val variants: List<ResolvedVariantResult>, val selectors: Set<VariantSelector>) // TODO
 
 internal fun collectOciImageSpecs(rootComponent: ResolvedComponentResult): List<OciImageSpec> {
     // the first variant is the resolvable configuration, but only if it declares at least one dependency
     val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
     // firstLevelComponentAndVariantToSelectors is linked to preserve the dependency order
     val firstLevelComponentAndVariantToSelectors =
-        LinkedHashMap<Pair<ResolvedComponentResult, ResolvedVariantResult>, ArrayList<ComponentSelector>>()
+        LinkedHashMap<Pair<ResolvedComponentResult, ResolvedVariantResult>, HashSet<VariantSelector>>()
     for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
         if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
             continue // TODO fail
         }
         val componentAndVariant = Pair(dependency.selected, dependency.resolvedVariant)
-        firstLevelComponentAndVariantToSelectors.getOrPut(componentAndVariant) { ArrayList() } += dependency.requested
+        firstLevelComponentAndVariantToSelectors.getOrPut(componentAndVariant) { HashSet() } += dependency.requested.toVariantSelector()
     }
     return firstLevelComponentAndVariantToSelectors.map { (componentAndVariant, selectors) ->
         val (component, variant) = componentAndVariant
@@ -139,11 +140,10 @@ private fun collectOciVariants(
     }
 }
 
-internal fun List<ComponentSelector>.collectReferenceSpecs() = flatMapTo(LinkedHashSet()) { selector ->
-    selector.attributes.getAttribute(OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE)
-        ?.split(',')
-        ?.map { it.toOciImageReferenceSpec() } ?: listOf(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)
-}.normalize() // TODO inline?
+internal fun Set<VariantSelector>.collectReferenceSpecs() = flatMapTo(LinkedHashSet()) { selector ->
+    selector.attributes[OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE.name]?.split(',')?.map { it.toOciImageReferenceSpec() }
+        ?: listOf(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)
+}.normalize()
 
 private fun Set<OciImageReferenceSpec>.normalize(): Set<OciImageReferenceSpec> =
     if ((size == 1) && contains(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)) emptySet() else this
