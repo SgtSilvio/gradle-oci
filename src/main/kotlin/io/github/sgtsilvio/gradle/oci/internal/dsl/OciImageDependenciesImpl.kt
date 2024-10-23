@@ -55,10 +55,15 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     private val allDependencies = lazy { indexConfiguration.allDependencies.filterIsInstance<ModuleDependency>() }
 
     final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
-        return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponent ->
-            val graph = resolveOciVariantGraph(rootComponent)
 //        val lazy = lazy {
 //            val graph = resolveOciVariantGraph(indexConfiguration.incoming.resolutionResult.root)
+        return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponent ->
+            val graph = try {
+                resolveOciVariantGraph(rootComponent)
+            } catch (e: ResolutionException) {
+                indexConfiguration.incoming.artifacts.failures // throws the failures
+                throw e
+            }
             val platformSelector = platformSelectorProvider.orNull
             val graphRootAndPlatformsList = selectPlatforms(graph, platformSelector)
             val platformToGraphRoots = HashMap<Platform, ArrayList<OciVariantGraphRoot>>()
@@ -98,7 +103,9 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                 for (imageSpec in imageSpecs) {
                     val imageInput = OciImagesTask.ImageInput(
                         platform,
-                        imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toId()] },
+                        imageSpec.variants.map { variant ->
+                            variantDescriptorToInput[variant.toId()] ?: throw IllegalStateException() // TODO message
+                        },
                         imageSpec.selectors.collectReferenceSpecs(),
                     )
                     variantSelectorsToImageInput[Pair(platform, imageSpec.selectors)] = imageInput

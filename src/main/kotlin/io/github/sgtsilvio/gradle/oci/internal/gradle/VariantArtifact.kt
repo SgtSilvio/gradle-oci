@@ -15,6 +15,7 @@ internal data class VariantArtifact(val variantId: VariantId, val file: File)
 internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
     get() {
         val variantArtifacts = LinkedHashSet<VariantArtifact>()
+        var hasFailure = false
         // we need to use internal APIs to workaround the issue https://github.com/gradle/gradle/issues/29977
         //  ArtifactCollection.getResolvedArtifacts() wrongly deduplicates ResolvedArtifactResults of different variants for the same file
         (this as ArtifactCollectionInternal).visitArtifacts(object : ArtifactVisitor {
@@ -48,9 +49,14 @@ internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
                 )
             }
 
-            override fun visitFailure(failure: Throwable) = Unit
+            override fun visitFailure(failure: Throwable) {
+                hasFailure = true
+            }
 
             override fun requireArtifactFiles() = true
         })
+        if (hasFailure && !isLenient) {
+            failures // throws the failures
+        }
         return variantArtifacts
     }

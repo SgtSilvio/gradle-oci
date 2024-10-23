@@ -22,9 +22,8 @@ internal fun resolveOciVariantGraph(rootComponent: ResolvedComponentResult): Lis
     // rootNodesToDependencySelectors is linked to preserve the dependency order
     val rootNodesToSelectors = LinkedHashMap<OciVariantNode, HashSet<VariantSelector>>()
     for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
-        if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
-            continue // TODO fail
-        }
+        if (dependency.isConstraint) continue
+        if (dependency !is ResolvedDependencyResult) throw ResolutionException()
         val node = resolveOciVariantNode(dependency.selected, dependency.resolvedVariant, variantToNode)
         rootNodesToSelectors.getOrPut(node) { HashSet() } += dependency.requested.toVariantSelector()
     }
@@ -49,9 +48,8 @@ private fun resolveOciVariantNode(
         platformToDependenciesAndSupportedPlatforms[platform] = Pair(ArrayList(), supportedPlatforms)
     }
     for (dependency in component.getDependenciesForVariant(variant)) {
-        if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
-            continue // TODO fail
-        }
+        if (dependency.isConstraint) continue
+        if (dependency !is ResolvedDependencyResult) throw ResolutionException()
         val dependencyPlatforms =
             dependency.requested.attributes.getAttribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE)?.decodePlatforms()
                 ?: platforms
@@ -112,9 +110,8 @@ internal fun collectOciImageSpecs(rootComponent: ResolvedComponentResult): List<
     val firstLevelComponentAndVariantToSelectors =
         LinkedHashMap<Pair<ResolvedComponentResult, ResolvedVariantResult>, HashSet<VariantSelector>>()
     for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
-        if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
-            continue // TODO fail
-        }
+        if (dependency.isConstraint) continue
+        if (dependency !is ResolvedDependencyResult) throw ResolutionException()
         val componentAndVariant = Pair(dependency.selected, dependency.resolvedVariant)
         firstLevelComponentAndVariantToSelectors.getOrPut(componentAndVariant) { HashSet() } += dependency.requested.toVariantSelector()
     }
@@ -133,9 +130,8 @@ private fun collectOciVariants(
 ) {
     if (variant !in variants) {
         for (dependency in component.getDependenciesForVariant(variant)) {
-            if ((dependency !is ResolvedDependencyResult) || dependency.isConstraint) {
-                continue // TODO fail
-            }
+            if (dependency.isConstraint) continue
+            if (dependency !is ResolvedDependencyResult) throw ResolutionException()
             collectOciVariants(dependency.selected, dependency.resolvedVariant, variants)
         }
         variants += variant
@@ -149,3 +145,5 @@ internal fun Set<VariantSelector>.collectReferenceSpecs() = flatMapTo(LinkedHash
 
 private fun Set<OciImageReferenceSpec>.normalize(): Set<OciImageReferenceSpec> =
     if ((size == 1) && contains(DEFAULT_OCI_IMAGE_REFERENCE_SPEC)) emptySet() else this
+
+internal class ResolutionException : Exception()
