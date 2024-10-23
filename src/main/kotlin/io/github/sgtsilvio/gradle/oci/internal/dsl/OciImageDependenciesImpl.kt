@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toStringMap
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
@@ -65,9 +66,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                     platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
                 }
             }
-            val descriptorToDependencies = // TODO name
-//                indexConfiguration.allDependencies.withType<ModuleDependency>().groupBy { it.toDescriptor() }
-                allDependencies.value.groupBy { it.toDescriptor() }
+            val variantSelectorToDependencies = allDependencies.value.groupBy { it.toVariantSelector() }
             val platformToConfiguration = platformToGraphRoots.mapValues { (platform, graphRoots) ->
                 val platformConfigurationName =
                     "${indexConfiguration.name}@$platform" + if (platformSelector == null) "" else "($platformSelector)"
@@ -84,7 +83,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                         shouldResolveConsistentlyWith(indexConfiguration)
                         for (graphRoot in graphRoots) {
                             for (selector in graphRoot.selectors) {
-                                val selectorDependencies = descriptorToDependencies[selector.toDescriptor()]
+                                val selectorDependencies = variantSelectorToDependencies[selector.toVariantSelector()]
                                     ?: throw IllegalStateException() // TODO message
                                 dependencies.addAll(selectorDependencies)
                             }
@@ -93,26 +92,26 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                 }
             }
             val taskDependenciesProvider = objectFactory.listProperty<Any>()
-            val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<ModuleDependencyDescriptor>>, OciImagesTask.ImageInput>()
+            val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<VariantSelector>>, OciImagesTask.ImageInput>()
             for ((platform, configuration) in platformToConfiguration) {
                 val artifacts = configuration.incoming.artifacts
                 taskDependenciesProvider.addAll(artifacts.resolvedArtifacts)
-                val variantDescriptorToInput = artifacts.variantArtifacts.groupBy({ it.variantDescriptor }) { it.file }
+                val variantDescriptorToInput = artifacts.variantArtifacts.groupBy({ it.variantId }) { it.file }
                     .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
                 val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.root)
                 for (imageSpec in imageSpecs) {
                     val imageInput = OciImagesTask.ImageInput(
                         platform,
-                        imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toDescriptor()] },
+                        imageSpec.variants.mapNotNull { variant -> variantDescriptorToInput[variant.toId()] },
                         imageSpec.selectors.collectReferenceSpecs(),
                     )
-                    variantSelectorsToImageInput[Pair(platform, imageSpec.selectors.mapTo(HashSet()) { it.toDescriptor() })] = imageInput
+                    variantSelectorsToImageInput[Pair(platform, imageSpec.selectors.mapTo(HashSet()) { it.toVariantSelector() })] = imageInput
                 }
             }
             val imageInputs = ArrayList<OciImagesTask.ImageInput>()
             for ((graphRoot, platforms) in graphRootAndPlatformsList) {
                 for (platform in platforms) {
-                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.selectors.mapTo(HashSet()) { it.toDescriptor() })]
+                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.selectors.mapTo(HashSet()) { it.toVariantSelector() })]
                         ?: throw IllegalStateException() // TODO message
                 }
             }
@@ -122,28 +121,28 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     }
 }
 
-private interface ModuleDependencyDescriptor // TODO name VariantSelector?
+private interface VariantSelector
 
-private data class ProjectDependencyDescriptor(
+private data class ProjectVariantSelector(
     val projectPath: String,
     val capabilities: List<Capability>,
     val attributes: Map<String, String>,
-) : ModuleDependencyDescriptor
+) : VariantSelector
 
-private data class ExternalDependencyDescriptor(
+private data class ExternalVariantSelector(
     val moduleId: ModuleIdentifier,
     val capabilities: List<Capability>,
     val attributes: Map<String, String>,
-) : ModuleDependencyDescriptor
+) : VariantSelector
 
-private fun ModuleDependency.toDescriptor() = when (this) {
-    is ProjectDependency -> ProjectDependencyDescriptor(dependencyProject.path, requestedCapabilities, attributes.toMap())
-    is ExternalDependency -> ExternalDependencyDescriptor(module, requestedCapabilities, attributes.toMap())
+private fun ModuleDependency.toVariantSelector() = when (this) {
+    is ProjectDependency -> ProjectVariantSelector(dependencyProject.path, requestedCapabilities, attributes.toStringMap())
+    is ExternalDependency -> ExternalVariantSelector(module, requestedCapabilities, attributes.toStringMap())
     else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
 }
 
-private fun ComponentSelector.toDescriptor() = when (this) {
-    is ProjectComponentSelector -> ProjectDependencyDescriptor(projectPath, requestedCapabilities, attributes.toMap())
-    is ModuleComponentSelector -> ExternalDependencyDescriptor(moduleIdentifier, requestedCapabilities, attributes.toMap())
+private fun ComponentSelector.toVariantSelector() = when (this) {
+    is ProjectComponentSelector -> ProjectVariantSelector(projectPath, requestedCapabilities, attributes.toStringMap())
+    is ModuleComponentSelector -> ExternalVariantSelector(moduleIdentifier, requestedCapabilities, attributes.toStringMap())
     else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
 }

@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
+import io.github.sgtsilvio.gradle.oci.internal.gradle.toStringMap
 import org.gradle.api.artifacts.ArtifactCollection
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedVariantResult
@@ -14,22 +15,19 @@ import java.io.File
 
 // TODO move file to io.github.sgtsilvio.gradle.oci.internal.gradle.ArtifactCollectionExtensions?
 
-internal data class VariantArtifactResult(val variantDescriptor: VariantDescriptor, val file: File)
-
-internal data class VariantDescriptor(
-    val owner: ComponentIdentifier,
+internal data class VariantId(
+    val componentId: ComponentIdentifier,
     val capabilities: List<Capability>,
     val attributes: Map<String, String>,
 )
 
-internal fun ResolvedVariantResult.toDescriptor() = VariantDescriptor(owner, capabilities, attributes.toMap())
+internal fun ResolvedVariantResult.toId() = VariantId(owner, capabilities, attributes.toStringMap())
 
-internal fun AttributeContainer.toMap(): Map<String, String> =
-    keySet().associateBy({ it.name }) { getAttribute(it).toString() }
+internal data class VariantArtifact(val variantId: VariantId, val file: File)
 
-internal val ArtifactCollection.variantArtifacts: Set<VariantArtifactResult>
+internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
     get() {
-        val variantArtifactResults = LinkedHashSet<VariantArtifactResult>()
+        val variantArtifacts = LinkedHashSet<VariantArtifact>()
         // we need to use internal APIs to workaround the issue https://github.com/gradle/gradle/issues/29977
         //  ArtifactCollection.getResolvedArtifacts() wrongly deduplicates ResolvedArtifactResults of different variants for the same file
         (this as ArtifactCollectionInternal).visitArtifacts(object : ArtifactVisitor {
@@ -57,8 +55,8 @@ internal val ArtifactCollection.variantArtifacts: Set<VariantArtifactResult>
                 capabilities: List<Capability>,
                 artifact: ResolvableArtifact,
             ) {
-                variantArtifactResults += VariantArtifactResult(
-                    VariantDescriptor(artifact.id.componentIdentifier, capabilities, attributes.toMap()),
+                variantArtifacts += VariantArtifact(
+                    VariantId(artifact.id.componentIdentifier, capabilities, attributes.toStringMap()),
                     artifact.file,
                 )
             }
@@ -67,5 +65,5 @@ internal val ArtifactCollection.variantArtifacts: Set<VariantArtifactResult>
 
             override fun requireArtifactFiles() = true
         })
-        return variantArtifactResults
+        return variantArtifacts
     }
