@@ -65,7 +65,11 @@ internal class PublishMetadataTest {
                 }
             }
             val javaComponent = components["java"] as AdhocComponentWithVariants
-            javaComponent.addVariantsFromConfiguration(configurations["ociImage"]) {}
+            configurations.all {
+                if (name.startsWith("ociImage")) {
+                    javaComponent.addVariantsFromConfiguration(this) {}
+                }
+            }
             publishing {
                 publications {
                     register<MavenPublication>("maven") {
@@ -107,7 +111,6 @@ internal class PublishMetadataTest {
               "name": "ociImage",
               "attributes": {
                 "io.github.sgtsilvio.gradle.distributiontype": "oci-image",
-                "io.github.sgtsilvio.gradle.platform": "universal",
                 "org.gradle.category": "distribution",
                 "org.gradle.dependency.bundling": "external"
               },
