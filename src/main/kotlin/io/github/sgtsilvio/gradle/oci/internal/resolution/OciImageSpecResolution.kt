@@ -90,18 +90,21 @@ private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.to
 internal fun List<OciVariantGraphRoot>.selectPlatforms(
     platformSelector: PlatformSelector?,
 ): List<Pair<OciVariantGraphRoot, Set<Platform>>> {
-    var hasEmptySelection = false
-    val selectedPlatformsGraph = map { graphRoot ->
+    val selectedPlatformsGraph = ArrayList<Pair<OciVariantGraphRoot, Set<Platform>>>(size)
+    val graphRootsWithEmptySelection = ArrayList<OciVariantGraphRoot>()
+    for (graphRoot in this) {
         val supportedPlatforms = graphRoot.node.supportedPlatforms
         val platforms = platformSelector?.select(supportedPlatforms) ?: supportedPlatforms.set
         if (platforms.isEmpty()) {
-            hasEmptySelection = true
+            graphRootsWithEmptySelection += graphRoot
+        } else {
+            selectedPlatformsGraph += Pair(graphRoot, platforms)
         }
-        Pair(graphRoot, platforms)
     }
-    if (hasEmptySelection) {
-        val errorMessage = selectedPlatformsGraph.filter { (_, platforms) -> platforms.isEmpty() }
-            .joinToString("\n") { (graphRoot) -> "no platforms can be selected for variant ${graphRoot.node.variant} (supported platforms: ${graphRoot.node.supportedPlatforms}, platform selector: $platformSelector)" }
+    if (graphRootsWithEmptySelection.isNotEmpty()) {
+        val errorMessage = graphRootsWithEmptySelection.joinToString("\n") {
+            "no platforms can be selected for variant ${it.node.variant} (supported platforms: ${it.node.supportedPlatforms}, platform selector: $platformSelector)"
+        }
         throw IllegalStateException(errorMessage)
     }
     return selectedPlatformsGraph
