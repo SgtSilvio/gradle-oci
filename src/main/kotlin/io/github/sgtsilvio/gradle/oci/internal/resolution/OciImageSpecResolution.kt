@@ -87,16 +87,34 @@ private fun String.decodePlatforms() = split(';').mapTo(LinkedHashSet()) { it.to
 
 // TODO new file from here?
 
-internal fun selectPlatforms(
-    graph: List<OciVariantGraphRoot>,
+internal fun List<OciVariantGraphRoot>.selectPlatforms(
     platformSelector: PlatformSelector?,
-): List<Pair<OciVariantGraphRoot, Set<Platform>>> = graph.map { graphRoot ->
-    val rootNode = graphRoot.node
-    val platforms = platformSelector?.select(rootNode.supportedPlatforms) ?: rootNode.supportedPlatforms.set
-    if (platforms.isEmpty()) { // TODO defer exception, empty set is failed
-        throw IllegalStateException("no platforms can be selected for variant ${rootNode.variant} (supported platforms: ${rootNode.supportedPlatforms}, platform selector: $platformSelector)")
+): List<Pair<OciVariantGraphRoot, Set<Platform>>> {
+    var hasEmptySelection = false
+    val selectedPlatformsGraph = map { graphRoot ->
+        val supportedPlatforms = graphRoot.node.supportedPlatforms
+        val platforms = platformSelector?.select(supportedPlatforms) ?: supportedPlatforms.set
+        if (platforms.isEmpty()) {
+            hasEmptySelection = true
+        }
+        Pair(graphRoot, platforms)
     }
-    Pair(graphRoot, platforms)
+    if (hasEmptySelection) {
+        val errorMessage = selectedPlatformsGraph.filter { (_, platforms) -> platforms.isEmpty() }
+            .joinToString("\n") { (graphRoot) -> "no platforms can be selected for variant ${graphRoot.node.variant} (supported platforms: ${graphRoot.node.supportedPlatforms}, platform selector: $platformSelector)" }
+        throw IllegalStateException(errorMessage)
+    }
+    return selectedPlatformsGraph
+}
+
+internal fun List<Pair<OciVariantGraphRoot, Set<Platform>>>.groupByPlatform(): Map<Platform, List<OciVariantGraphRoot>> {
+    val platformToGraphRoots = HashMap<Platform, ArrayList<OciVariantGraphRoot>>()
+    for ((graphRoot, platforms) in this) {
+        for (platform in platforms) {
+            platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
+        }
+    }
+    return platformToGraphRoots
 }
 
 // TODO new file from here?

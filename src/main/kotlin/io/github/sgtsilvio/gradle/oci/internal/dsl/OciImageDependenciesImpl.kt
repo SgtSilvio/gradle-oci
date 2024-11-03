@@ -65,15 +65,9 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                 throw e
             }
             val platformSelector = platformSelectorProvider.orNull
-            val graphRootAndPlatformsList = selectPlatforms(graph, platformSelector)
-            val platformToGraphRoots = HashMap<Platform, ArrayList<OciVariantGraphRoot>>()
-            for ((graphRoot, platforms) in graphRootAndPlatformsList) {
-                for (platform in platforms) {
-                    platformToGraphRoots.getOrPut(platform) { ArrayList() } += graphRoot
-                }
-            }
+            val selectedPlatformsGraph = graph.selectPlatforms(platformSelector)
             val allDependencies = allDependencies.value
-            val platformToConfiguration = platformToGraphRoots.mapValues { (platform, graphRoots) ->
+            val platformToConfiguration = selectedPlatformsGraph.groupByPlatform().mapValues { (platform, graphRoots) ->
                 val platformConfigurationName =
                     "${indexConfiguration.name}@$platform" + if (platformSelector == null) "" else "($platformSelector)"
                 platformConfigurations.getOrPut(platformConfigurationName) {
@@ -112,7 +106,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                 }
             }
             val imageInputs = ArrayList<OciImagesTask.ImageInput>()
-            for ((graphRoot, platforms) in graphRootAndPlatformsList) {
+            for ((graphRoot, platforms) in selectedPlatformsGraph) {
                 for (platform in platforms) {
                     imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.variantSelectors)]
                         ?: throw IllegalStateException() // TODO message
