@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.gradle
 
 import org.gradle.api.artifacts.ArtifactCollection
+import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.capabilities.Capability
 import org.gradle.api.internal.artifacts.configurations.ArtifactCollectionInternal
@@ -10,7 +11,12 @@ import org.gradle.internal.DisplayName
 import org.gradle.internal.component.external.model.ImmutableCapabilities
 import java.io.File
 
-internal data class VariantArtifact(val variantId: VariantId, val file: File)
+internal data class VariantArtifact(
+    val componentId: ComponentIdentifier,
+    val capabilities: List<Capability>,
+    val attributes: Map<String, String>,
+    val file: File,
+)
 
 internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
     get() {
@@ -44,7 +50,9 @@ internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
                 artifact: ResolvableArtifact,
             ) {
                 variantArtifacts += VariantArtifact(
-                    VariantId(artifact.id.componentIdentifier, capabilities, attributes.toStringMap()),
+                    artifact.id.componentIdentifier,
+                    capabilities,
+                    attributes.toStringMap(),
                     artifact.file,
                 )
             }

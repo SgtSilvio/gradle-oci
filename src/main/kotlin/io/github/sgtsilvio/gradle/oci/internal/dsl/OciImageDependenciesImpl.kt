@@ -4,7 +4,6 @@ import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
-import io.github.sgtsilvio.gradle.oci.internal.gradle.toId
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.variantArtifacts
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
@@ -91,14 +90,14 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             for ((platform, configuration) in platformToConfiguration) {
                 val artifacts = configuration.incoming.artifacts
                 taskDependenciesProvider.addAll(artifacts.resolvedArtifacts)
-                val variantDescriptorToInput = artifacts.variantArtifacts.groupBy({ it.variantId }) { it.file }
+                val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
                     .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
                 val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.root)
                 for (imageSpec in imageSpecs) {
                     val imageInput = OciImagesTask.ImageInput(
                         platform,
                         imageSpec.variants.map { variant ->
-                            variantDescriptorToInput[variant.toId()] ?: throw IllegalStateException() // TODO message
+                            capabilitiesToVariantInput[variant.capabilities] ?: throw IllegalStateException() // TODO message
                         },
                         imageSpec.selectors.collectReferenceSpecs(),
                     )
