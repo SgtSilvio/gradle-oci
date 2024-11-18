@@ -81,7 +81,7 @@ internal inline fun OutputStream.calculateOciDigest(
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
     val messageDigest = algorithm.createMessageDigest()
-    DigestOutputStream(this, messageDigest).use { block(it) }
+    DigestOutputStream(this, messageDigest).use(block)
     return OciDigest(algorithm, messageDigest.digest())
 }
 

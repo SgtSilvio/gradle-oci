@@ -66,7 +66,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             val platformSelector = platformSelectorProvider.orNull
             val selectedPlatformsGraph = graph.selectPlatforms(platformSelector)
             val allDependencies = allDependencies.value
-            val platformToConfiguration = selectedPlatformsGraph.groupByPlatform().mapValues { (platform, graphRoots) ->
+            val platformToConfiguration = selectedPlatformsGraph.groupByPlatform().mapValues { (platform, graph) ->
                 val platformConfigurationName =
                     "${indexConfiguration.name}@$platform" + if (platformSelector == null) "" else "($platformSelector)"
                 platformConfigurations.getOrPut(platformConfigurationName) {
@@ -80,7 +80,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                             attribute(PLATFORM_ATTRIBUTE, platform.toString())
                         }
                         shouldResolveConsistentlyWith(indexConfiguration)
-                        val variantSelectors = graphRoots.flatMapTo(HashSet()) { it.variantSelectors }
+                        val variantSelectors = graph.flatMapTo(HashSet()) { it.variantSelectors }
                         dependencies.addAll(allDependencies.filter { it.toVariantSelector() in variantSelectors })
                     }
                 }

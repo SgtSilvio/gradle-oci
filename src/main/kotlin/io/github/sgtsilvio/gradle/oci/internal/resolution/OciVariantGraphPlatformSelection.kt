@@ -26,7 +26,7 @@ internal fun OciVariantGraph.selectPlatforms(platformSelector: PlatformSelector?
     return selectedPlatformsGraph
 }
 
-internal fun OciVariantGraphWithSelectedPlatforms.groupByPlatform(): Map<Platform, List<OciVariantGraphRoot>> {
+internal fun OciVariantGraphWithSelectedPlatforms.groupByPlatform(): Map<Platform, OciVariantGraph> {
     val platformToGraphRoots = HashMap<Platform, ArrayList<OciVariantGraphRoot>>()
     for ((graphRoot, platforms) in this) {
         for (platform in platforms) {
