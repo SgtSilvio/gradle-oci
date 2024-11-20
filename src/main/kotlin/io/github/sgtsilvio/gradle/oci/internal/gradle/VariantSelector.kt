@@ -8,6 +8,7 @@ import org.gradle.api.artifacts.component.ComponentSelector
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.capabilities.Capability
+import org.gradle.util.GradleVersion
 
 internal sealed interface VariantSelector {
     val capabilities: List<Capability>
@@ -27,7 +28,11 @@ internal data class ExternalVariantSelector(
 ) : VariantSelector
 
 internal fun ModuleDependency.toVariantSelector() = when (this) {
-    is ProjectDependency -> ProjectVariantSelector(dependencyProject.path, requestedCapabilities, attributes.toStringMap())
+    is ProjectDependency -> ProjectVariantSelector(
+        if (GradleVersion.current() >= GradleVersion.version("8.11")) path else dependencyProject.path,
+        requestedCapabilities,
+        attributes.toStringMap(),
+    )
     is ExternalDependency -> ExternalVariantSelector(module, requestedCapabilities, attributes.toStringMap())
     else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
 }
