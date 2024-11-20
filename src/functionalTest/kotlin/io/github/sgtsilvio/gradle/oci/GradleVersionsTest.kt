@@ -16,9 +16,10 @@ internal class GradleVersionsTest {
     @ParameterizedTest
     @ValueSource(
         strings = [
-            "7.4", // minimum version
-            "8.5", // highest version not fulfilling version check >= 8.6 in OciImageDefinitionImpl
-            "8.6", // lowest version fulfilling version check >= 8.6 in OciImageDefinitionImpl
+            "7.6.4", // minimum version
+            "8.3", // minimum 8.x version
+            "8.10.2", // highest version not fulfilling version check >= 8.11 in VariantSelector
+            "8.11", // lowest version fulfilling version check >= 8.11 in VariantSelector
         ]
     )
     fun test(gradleVersion: String, @TempDir projectDir: File) {

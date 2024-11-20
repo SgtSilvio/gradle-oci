@@ -127,7 +127,7 @@ public class ImageTest {
 
 ## Requirements
 
-- Gradle 7.4 or higher
+- Gradle 7.6.4 or higher
 
 ## Why Another Image Builder?
 
