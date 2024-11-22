@@ -7,38 +7,47 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.component.ComponentSelector
 import org.gradle.api.artifacts.component.ModuleComponentSelector
 import org.gradle.api.artifacts.component.ProjectComponentSelector
-import org.gradle.api.capabilities.Capability
 import org.gradle.util.GradleVersion
 
 internal sealed interface VariantSelector {
-    val capabilities: List<Capability>
+    val capabilities: Any // < 8.11 List<Capability>, >= 8.11 Set<CapabilitySelector>
     val attributes: Map<String, String>
 }
 
-internal data class ProjectVariantSelector(
+private data class ProjectVariantSelector(
     val projectPath: String,
-    override val capabilities: List<Capability>,
+    override val capabilities: Any,
     override val attributes: Map<String, String>,
 ) : VariantSelector
 
-internal data class ExternalVariantSelector(
+private data class ExternalVariantSelector(
     val moduleId: ModuleIdentifier,
-    override val capabilities: List<Capability>,
+    override val capabilities: Any,
     override val attributes: Map<String, String>,
 ) : VariantSelector
 
-internal fun ModuleDependency.toVariantSelector() = when (this) {
-    is ProjectDependency -> ProjectVariantSelector(
-        if (GradleVersion.current() >= GradleVersion.version("8.11")) path else dependencyProject.path,
-        requestedCapabilities,
-        attributes.toStringMap(),
-    )
-    is ExternalDependency -> ExternalVariantSelector(module, requestedCapabilities, attributes.toStringMap())
-    else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
+private val isAtLeastGradle8Dot11 = GradleVersion.current() >= GradleVersion.version("8.11")
+
+internal fun ModuleDependency.toVariantSelector(): VariantSelector {
+    val capabilities = if (isAtLeastGradle8Dot11) capabilitySelectors else requestedCapabilities
+    val attributes = attributes.toStringMap()
+    return when (this) {
+        is ProjectDependency -> ProjectVariantSelector(
+            if (isAtLeastGradle8Dot11) path else dependencyProject.path,
+            capabilities,
+            attributes,
+        )
+        is ExternalDependency -> ExternalVariantSelector(module, capabilities, attributes)
+        else -> throw IllegalStateException("expected ProjectDependency or ExternalDependency, got: $this")
+    }
 }
 
-internal fun ComponentSelector.toVariantSelector() = when (this) {
-    is ProjectComponentSelector -> ProjectVariantSelector(projectPath, requestedCapabilities, attributes.toStringMap())
-    is ModuleComponentSelector -> ExternalVariantSelector(moduleIdentifier, requestedCapabilities, attributes.toStringMap())
-    else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
+internal fun ComponentSelector.toVariantSelector(): VariantSelector {
+    val capabilities = if (isAtLeastGradle8Dot11) capabilitySelectors else requestedCapabilities
+    val attributes = attributes.toStringMap()
+    return when (this) {
+        is ProjectComponentSelector -> ProjectVariantSelector(projectPath, capabilities, attributes)
+        is ModuleComponentSelector -> ExternalVariantSelector(moduleIdentifier, capabilities, attributes)
+        else -> throw IllegalStateException("expected ProjectComponentSelector or ModuleComponentSelector, got: $this")
+    }
 }
