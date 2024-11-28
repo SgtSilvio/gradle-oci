@@ -85,19 +85,18 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
         }
     }
 
-//    private val indexGraph = lazy { resolveOciVariantGraph(indexConfiguration.incoming.resolutionResult.root) }
+    private val indexGraph = lazy { resolveOciVariantGraph(indexConfiguration.incoming) }
     private val allDependencies = lazy { indexConfiguration.allDependencies.filterIsInstance<ModuleDependency>() }
 
     final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
         val lazy = lazy {
             val platformSelector = platformSelectorProvider.orNull
             val singlePlatform = platformSelector?.singlePlatformOrNull()
-            val allDependencies = allDependencies.value
             val selectedPlatformsGraph: OciVariantGraphWithSelectedPlatforms?
             val platformConfigurationPairs: List<Pair<Platform, Configuration>>
             if (singlePlatform == null) {
-                val graph = resolveOciVariantGraph(indexConfiguration.incoming)
-                selectedPlatformsGraph = graph.selectPlatforms(platformSelector)
+                val allDependencies = allDependencies.value
+                selectedPlatformsGraph = indexGraph.value.selectPlatforms(platformSelector)
                 platformConfigurationPairs = selectedPlatformsGraph.groupByPlatform().map { (platform, graph) ->
                     val platformSelectorString = platformSelector?.toString() ?: "all supported"
                     val platformConfiguration = getOrCreatePlatformConfiguration(platform, platformSelectorString) {
@@ -109,11 +108,12 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                 }
             } else {
                 selectedPlatformsGraph = null
-                val platformConfiguration = getOrCreatePlatformConfiguration(singlePlatform, null) {
-                    dependencies.addAll(allDependencies)
-                    dependencyConstraints.addAll(indexConfiguration.allDependencyConstraints)
-                }
-                platformConfigurationPairs = listOf(Pair(singlePlatform, platformConfiguration))
+                platformConfigurationPairs = listOf(
+                    Pair(singlePlatform, getOrCreatePlatformConfiguration(singlePlatform, null) {
+                        dependencies.addAll(indexConfiguration.allDependencies)
+                        dependencyConstraints.addAll(indexConfiguration.allDependencyConstraints)
+                    })
+                )
             }
             val taskDependenciesProvider = objectFactory.listProperty<Any>()
             val imageInputs = ArrayList<OciImagesTask.ImageInput>()
