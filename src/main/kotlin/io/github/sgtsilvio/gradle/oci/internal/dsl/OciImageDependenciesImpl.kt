@@ -3,9 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
-import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
-import io.github.sgtsilvio.gradle.oci.internal.gradle.variantArtifacts
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
@@ -18,7 +16,6 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
-import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.newInstance
 import javax.inject.Inject
@@ -115,39 +112,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                     })
                 )
             }
-            val taskDependenciesProvider = objectFactory.listProperty<Any>()
-            val imageInputs = ArrayList<OciImagesTask.ImageInput>()
-            val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<VariantSelector>>, OciImagesTask.ImageInput>()
-            for ((platform, configuration) in platformConfigurationPairs) {
-                val artifacts = configuration.incoming.artifacts
-                taskDependenciesProvider.addAll(artifacts.resolvedArtifacts)
-                val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
-                    .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
-                val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.root)
-                for (imageSpec in imageSpecs) {
-                    val imageInput = OciImagesTask.ImageInput(
-                        platform,
-                        imageSpec.variants.map { variant ->
-                            capabilitiesToVariantInput[variant.capabilities] ?: throw IllegalStateException() // TODO message
-                        },
-                        imageSpec.selectors.collectReferenceSpecs(),
-                    )
-                    if (selectedPlatformsGraph == null) {
-                        imageInputs += imageInput
-                    } else {
-                        variantSelectorsToImageInput[Pair(platform, imageSpec.selectors)] = imageInput
-                    }
-                }
-            }
-            if (selectedPlatformsGraph != null) {
-                for ((graphRoot, platforms) in selectedPlatformsGraph) {
-                    for (platform in platforms) {
-                        imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.variantSelectors)]
-                            ?: throw IllegalStateException() // TODO message
-                    }
-                }
-            }
-            taskDependenciesProvider.map { imageInputs }
+            resolveOciImageInputs(selectedPlatformsGraph, platformConfigurationPairs, objectFactory)
         }
         return providerFactory.provider { lazy.value }.flatMap { it }
     }
