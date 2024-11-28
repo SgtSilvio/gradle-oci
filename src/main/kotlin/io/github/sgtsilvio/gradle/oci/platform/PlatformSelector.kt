@@ -14,6 +14,8 @@ sealed class PlatformSelector {
     internal abstract fun select(platformSet: PlatformSet): Set<Platform>
     // PlatformFilter as argument?
     // return nullable? null -> not fulfilled, empty -> fulfilled with empty
+
+    internal open fun singlePlatformOrNull(): Platform? = null
 }
 
 fun PlatformSelector(platform: Platform): PlatformSelector = SinglePlatformSelector(platform)
@@ -28,6 +30,8 @@ private class SinglePlatformSelector(private val platform: Platform): PlatformSe
         if (platformSet.isInfinite || (platform in platformSet.set)) setOf(platform) else emptySet()
 
     override fun toString() = platform.toString()
+
+    override fun singlePlatformOrNull() = platform
 }
 
 private class AndPlatformSelector(

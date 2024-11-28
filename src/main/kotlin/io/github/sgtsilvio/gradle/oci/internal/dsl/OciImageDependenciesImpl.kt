@@ -17,6 +17,7 @@ import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.newInstance
@@ -28,6 +29,7 @@ import javax.inject.Inject
 internal abstract class OciImageDependenciesImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
+    private val providerFactory: ProviderFactory,
     private val configurationContainer: ConfigurationContainer,
     dependencyConstraintHandler: DependencyConstraintHandler,
 ) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDependencies {
@@ -37,7 +39,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     final override val runtime = objectFactory.newInstance<ReferencableOciImageDependencyCollectorImpl>()
 
     private val indexConfiguration: Configuration = configurationContainer.create(name + "OciImages").apply {
-        description = "OCI image dependencies '$name'"
+        description = "OCI image dependencies '${this@OciImageDependenciesImpl.name}'"
         isCanBeConsumed = false
         isCanBeResolved = true
         attributes.apply {
@@ -51,43 +53,77 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
 
     private val platformConfigurations = HashMap<String, Configuration>()
 
+    private inline fun getOrCreatePlatformConfiguration(
+        platform: Platform,
+        platformSelectorString: String?,
+        init: Configuration.() -> Unit,
+    ): Configuration {
+        val name = name
+        var platformConfigurationName = "${name}OciImages@$platform"
+        if (platformSelectorString != null) {
+            platformConfigurationName += "($platformSelectorString)"
+        }
+        return platformConfigurations.getOrPut(platformConfigurationName) {
+            configurationContainer.create(platformConfigurationName).apply {
+                description = buildString {
+                    append("OCI image dependencies '").append(name).append("' for platform ").append(platform)
+                    if (platformSelectorString != null) {
+                        append(" selected by ").append(platformSelectorString)
+                    }
+                    append('.')
+                }
+                isCanBeConsumed = false
+                isCanBeResolved = true
+                attributes.apply {
+                    attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+                    attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
+                    attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+                    attribute(PLATFORM_ATTRIBUTE, platform.toString())
+                }
+                init()
+            }
+        }
+    }
+
+//    private val indexGraph = lazy { resolveOciVariantGraph(indexConfiguration.incoming.resolutionResult.root) }
     private val allDependencies = lazy { indexConfiguration.allDependencies.filterIsInstance<ModuleDependency>() }
 
     final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
-//        val lazy = lazy {
-//            val graph = resolveOciVariantGraph(indexConfiguration.incoming.resolutionResult.root)
-        return indexConfiguration.incoming.resolutionResult.rootComponent.flatMap { rootComponent ->
-            val graph = try {
-                resolveOciVariantGraph(rootComponent)
-            } catch (e: ResolutionException) {
-                indexConfiguration.incoming.artifacts.failures // throws the failures
-                throw e
-            }
+        val lazy = lazy {
             val platformSelector = platformSelectorProvider.orNull
-            val selectedPlatformsGraph = graph.selectPlatforms(platformSelector)
+            val singlePlatform = platformSelector?.singlePlatformOrNull()
             val allDependencies = allDependencies.value
-            val platformToConfiguration = selectedPlatformsGraph.groupByPlatform().mapValues { (platform, graph) ->
-                val platformConfigurationName =
-                    "${indexConfiguration.name}@$platform" + if (platformSelector == null) "" else "($platformSelector)"
-                platformConfigurations.getOrPut(platformConfigurationName) {
-                    configurationContainer.create(platformConfigurationName).apply {
-                        isCanBeConsumed = false
-                        isCanBeResolved = true
-                        attributes.apply {
-                            attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                            attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
-                            attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-                            attribute(PLATFORM_ATTRIBUTE, platform.toString())
-                        }
-                        shouldResolveConsistentlyWith(indexConfiguration)
+            val selectedPlatformsGraph: OciVariantGraphWithSelectedPlatforms?
+            val platformConfigurationPairs: List<Pair<Platform, Configuration>>
+            if (singlePlatform == null) {
+                val graph = try {
+                    resolveOciVariantGraph(indexConfiguration.incoming.resolutionResult.root)
+                } catch (e: ResolutionException) {
+                    indexConfiguration.incoming.artifacts.failures // throws the failures
+                    throw e // TODO illegal state
+                }
+                selectedPlatformsGraph = graph.selectPlatforms(platformSelector)
+                platformConfigurationPairs = selectedPlatformsGraph.groupByPlatform().map { (platform, graph) ->
+                    val platformSelectorString = platformSelector?.toString() ?: "all supported"
+                    val platformConfiguration = getOrCreatePlatformConfiguration(platform, platformSelectorString) {
                         val variantSelectors = graph.flatMapTo(HashSet()) { it.variantSelectors }
                         dependencies.addAll(allDependencies.filter { it.toVariantSelector() in variantSelectors })
+                        shouldResolveConsistentlyWith(indexConfiguration)
                     }
+                    Pair(platform, platformConfiguration)
                 }
+            } else {
+                selectedPlatformsGraph = null
+                val platformConfiguration = getOrCreatePlatformConfiguration(singlePlatform, null) {
+                    dependencies.addAll(allDependencies)
+                    dependencyConstraints.addAll(indexConfiguration.allDependencyConstraints)
+                }
+                platformConfigurationPairs = listOf(Pair(singlePlatform, platformConfiguration))
             }
             val taskDependenciesProvider = objectFactory.listProperty<Any>()
+            val imageInputs = ArrayList<OciImagesTask.ImageInput>()
             val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<VariantSelector>>, OciImagesTask.ImageInput>()
-            for ((platform, configuration) in platformToConfiguration) {
+            for ((platform, configuration) in platformConfigurationPairs) {
                 val artifacts = configuration.incoming.artifacts
                 taskDependenciesProvider.addAll(artifacts.resolvedArtifacts)
                 val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
@@ -101,18 +137,23 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
                         },
                         imageSpec.selectors.collectReferenceSpecs(),
                     )
-                    variantSelectorsToImageInput[Pair(platform, imageSpec.selectors)] = imageInput
+                    if (selectedPlatformsGraph == null) {
+                        imageInputs += imageInput
+                    } else {
+                        variantSelectorsToImageInput[Pair(platform, imageSpec.selectors)] = imageInput
+                    }
                 }
             }
-            val imageInputs = ArrayList<OciImagesTask.ImageInput>()
-            for ((graphRoot, platforms) in selectedPlatformsGraph) {
-                for (platform in platforms) {
-                    imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.variantSelectors)]
-                        ?: throw IllegalStateException() // TODO message
+            if (selectedPlatformsGraph != null) {
+                for ((graphRoot, platforms) in selectedPlatformsGraph) {
+                    for (platform in platforms) {
+                        imageInputs += variantSelectorsToImageInput[Pair(platform, graphRoot.variantSelectors)]
+                            ?: throw IllegalStateException() // TODO message
+                    }
                 }
             }
             taskDependenciesProvider.map { imageInputs }
         }
-//        return providerFactory.provider { lazy.value }.flatMap { it }
+        return providerFactory.provider { lazy.value }.flatMap { it }
     }
 }
