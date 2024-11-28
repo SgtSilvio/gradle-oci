@@ -6,6 +6,7 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
+import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
@@ -20,7 +21,16 @@ internal class OciVariantGraphNode(
     val supportedPlatforms: PlatformSet,
 )
 
-internal fun resolveOciVariantGraph(rootComponent: ResolvedComponentResult): OciVariantGraph {
+internal fun resolveOciVariantGraph(dependencies: ResolvableDependencies): OciVariantGraph {
+    try {
+        return resolveOciVariantGraph(dependencies.resolutionResult.root)
+    } catch (e: ResolutionException) {
+        dependencies.artifacts.failures // throws the failures
+        throw IllegalStateException(e)
+    }
+}
+
+private fun resolveOciVariantGraph(rootComponent: ResolvedComponentResult): OciVariantGraph {
     // the first variant is the resolvable configuration, but only if it declares at least one dependency
     val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
     val variantToNode = HashMap<ResolvedVariantResult, OciVariantGraphNode?>()

@@ -96,12 +96,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             val selectedPlatformsGraph: OciVariantGraphWithSelectedPlatforms?
             val platformConfigurationPairs: List<Pair<Platform, Configuration>>
             if (singlePlatform == null) {
-                val graph = try {
-                    resolveOciVariantGraph(indexConfiguration.incoming.resolutionResult.root)
-                } catch (e: ResolutionException) {
-                    indexConfiguration.incoming.artifacts.failures // throws the failures
-                    throw e // TODO illegal state
-                }
+                val graph = resolveOciVariantGraph(indexConfiguration.incoming)
                 selectedPlatformsGraph = graph.selectPlatforms(platformSelector)
                 platformConfigurationPairs = selectedPlatformsGraph.groupByPlatform().map { (platform, graph) ->
                     val platformSelectorString = platformSelector?.toString() ?: "all supported"
