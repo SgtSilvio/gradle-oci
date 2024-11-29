@@ -84,7 +84,6 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     }
 
     private val indexGraph = lazy { resolveOciVariantGraph(indexConfiguration.incoming) }
-    private val allDependencies = lazy { indexConfiguration.allDependencies.filterIsInstance<ModuleDependency>() }
 
     final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
         val lazy = lazy {
@@ -93,7 +92,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             val selectedPlatformsGraph: OciVariantGraphWithSelectedPlatforms?
             val platformConfigurationPairs: List<Pair<Platform, Configuration>>
             if (singlePlatform == null) {
-                val allDependencies = allDependencies.value
+                val allDependencies = indexConfiguration.allDependencies.filterIsInstance<ModuleDependency>()
                 selectedPlatformsGraph = indexGraph.value.selectPlatforms(platformSelector)
                 platformConfigurationPairs = selectedPlatformsGraph.groupByPlatform().map { (platform, graph) ->
                     val platformSelectorString = platformSelector?.toString() ?: "all supported"
