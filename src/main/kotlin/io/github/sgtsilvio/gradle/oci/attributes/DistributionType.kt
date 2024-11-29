@@ -27,7 +27,7 @@ internal class OciDistributionTypeCompatibilityRule : AttributeCompatibilityRule
 }
 
 /**
- * | consumer value  | candidates                 | closet match    |
+ * | consumer value  | candidates                 | closest match   |
  * |-----------------|----------------------------|-----------------|
  * | oci-image-index | oci-image-index, oci-image | oci-image-index |
  */

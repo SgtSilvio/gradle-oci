@@ -35,8 +35,10 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
 
     final override val runtime = objectFactory.newInstance<ReferencableOciImageDependencyCollectorImpl>()
 
-    private val indexConfiguration: Configuration = configurationContainer.create(name + "OciImages").apply {
-        description = "OCI image dependencies '${this@OciImageDependenciesImpl.name}'"
+    private val descriptionPrefix get() = "OCI image dependencies '$name'"
+
+    private val indexConfiguration: Configuration = configurationContainer.create("${name}OciImages").apply {
+        description = "$descriptionPrefix."
         isCanBeConsumed = false
         isCanBeResolved = true
         attributes.apply {
@@ -55,7 +57,6 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
         platformSelectorString: String?,
         init: Configuration.() -> Unit,
     ): Configuration {
-        val name = name
         var platformConfigurationName = "${name}OciImages@$platform"
         if (platformSelectorString != null) {
             platformConfigurationName += "($platformSelectorString)"
@@ -63,9 +64,9 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
         return platformConfigurations.getOrPut(platformConfigurationName) {
             configurationContainer.create(platformConfigurationName).apply {
                 description = buildString {
-                    append("OCI image dependencies '").append(name).append("' for platform ").append(platform)
+                    append("$descriptionPrefix for the platform $platform")
                     if (platformSelectorString != null) {
-                        append(" selected by ").append(platformSelectorString)
+                        append(" selected by $platformSelectorString")
                     }
                     append('.')
                 }

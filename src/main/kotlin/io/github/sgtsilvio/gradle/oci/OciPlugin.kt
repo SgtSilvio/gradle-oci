@@ -42,7 +42,7 @@ class OciPlugin : Plugin<Project> {
             }
             pushTask {
                 group = TASK_GROUP_NAME
-                description = "Pushes the $imageDefName OCI image to a registry."
+                description = "Pushes the '$imageDefName' OCI image to a registry."
                 from(pushImageDependencies)
             }
         }

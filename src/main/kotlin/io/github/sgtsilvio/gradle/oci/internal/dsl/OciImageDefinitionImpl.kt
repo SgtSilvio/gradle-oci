@@ -177,9 +177,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             if (variantPlatform != null) {
                 dependenciesProvider = dependenciesProvider.map { dependencies ->
                     dependencies.map { dependency ->
-                        dependency.copy().apply {
-                            attribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE, variantPlatform.toString())
-                        }
+                        dependency.copy().attribute(OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE, variantPlatform.toString())
                     }
                 }
             }
@@ -203,7 +201,13 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         val platform: Platform? = platformOptional.orElse(null)
 
         val configuration: Configuration = configurationContainer.create(createOciVariantName(imageDefinition.name, platform)).apply {
-            description = "Elements of the '${imageDefinition.name}' OCI image" + if (platform == null) "." else " for the platform $platform."
+            description = buildString {
+                append("Elements of the '${imageDefinition.name}' OCI image")
+                if (platform != null) {
+                    append(" for the platform $platform")
+                }
+                append('.')
+            }
             isCanBeConsumed = true
             isCanBeResolved = false
             attributes.apply {
@@ -516,7 +520,13 @@ private fun TaskContainer.createMetadataTask(
     projectLayout: ProjectLayout,
 ) = register<OciMetadataTask>(createOciMetadataClassifier(imageDefName).camelCase() + createPlatformPostfix(platform)) {
     group = TASK_GROUP_NAME
-    description = "Assembles the metadata json file of the '$imageDefName' OCI image" + if (platform == null) "." else " for the platform $platform"
+    description = buildString {
+        append("Assembles the metadata json file of the '$imageDefName' OCI image")
+        if (platform != null) {
+            append(" for the platform $platform")
+        }
+        append('.')
+    }
     encodedMetadata.set(metadata.map { it.encodeToJsonString() })
     destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
     classifier.set(createOciMetadataClassifier(imageDefName) + createPlatformPostfix(platform))
@@ -529,7 +539,7 @@ private fun TaskContainer.createLayerTask(
     projectLayout: ProjectLayout,
 ) = register<OciLayerTask>(createOciLayerClassifier(imageDefName, layerName).camelCase() + platformPostfix) {
     group = TASK_GROUP_NAME
-    description = "Assembles the layer '$layerName' of the '$imageDefName' OCI image."
+    description = "Assembles the '$layerName' layer of the '$imageDefName' OCI image."
     destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
     classifier.set(createOciLayerClassifier(imageDefName, layerName) + platformPostfix)
 }
