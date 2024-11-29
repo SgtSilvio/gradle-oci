@@ -51,7 +51,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             project.version.toString().concatKebabCase(name.mainToEmpty().kebabCase())
         })
     val imageReference: Provider<OciImageReference> = imageName.zip(imageTag, ::OciImageReference)
-    final override val capabilities = objectFactory.listProperty<String>()
+    final override val capabilities = objectFactory.setProperty<String>()
     private val variants = objectFactory.domainObjectSet(Variant::class)
     private var allPlatformVariantScope: VariantScope? = null
     private var platformVariantScopes: HashMap<PlatformFilter, VariantScope>? = null

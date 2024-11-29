@@ -15,7 +15,7 @@ import java.time.Instant
 interface OciImageDefinition : Named {
     val imageName: Property<String>
     val imageTag: Property<String>
-    val capabilities: ListProperty<String>
+    val capabilities: SetProperty<String>
     val indexAnnotations: MapProperty<String, String>
 
     val dependency: Provider<ProjectDependency>
