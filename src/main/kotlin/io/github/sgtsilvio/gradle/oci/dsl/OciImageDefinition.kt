@@ -12,10 +12,10 @@ import org.gradle.api.provider.*
 import org.gradle.api.tasks.TaskProvider
 import java.time.Instant
 
-interface OciImageDefinition : Named {
+interface OciImageDefinition : Named, CapabilityFactories {
     val imageName: Property<String>
     val imageTag: Property<String>
-    val capabilities: SetProperty<String>
+    val capabilities: SetProperty<Capability>
     val indexAnnotations: MapProperty<String, String>
 
     val dependency: Provider<ProjectDependency>

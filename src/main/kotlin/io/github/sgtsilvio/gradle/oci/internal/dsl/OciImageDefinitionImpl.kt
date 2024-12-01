@@ -5,7 +5,9 @@ import io.github.sgtsilvio.gradle.oci.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.OciMetadataTask
 import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.attributes.*
+import io.github.sgtsilvio.gradle.oci.dsl.Capability
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
+import io.github.sgtsilvio.gradle.oci.dsl.toMapNotation
 import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.gradle.*
 import io.github.sgtsilvio.gradle.oci.internal.string.camelCase
@@ -51,7 +53,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             project.version.toString().concatKebabCase(name.mainToEmpty().kebabCase())
         })
     val imageReference: Provider<OciImageReference> = imageName.zip(imageTag, ::OciImageReference)
-    final override val capabilities = objectFactory.setProperty<String>()
+    final override val capabilities = objectFactory.setProperty<Capability>()
     private val variants = objectFactory.domainObjectSet(Variant::class)
     private var allPlatformVariantScope: VariantScope? = null
     private var platformVariantScopes: HashMap<PlatformFilter, VariantScope>? = null
@@ -62,7 +64,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         capabilities.map { capabilities ->
             capabilities {
                 for (capability in capabilities) {
-                    requireCapability(capability)
+                    requireCapability(capability.toMapNotation())
                 }
             }
             this
@@ -72,7 +74,13 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     init {
         if (name != MAIN_NAME) {
             capabilities.convention(providerFactory.provider {
-                listOf("${project.group}:${project.name.concatKebabCase(name.kebabCase())}:${project.version}")
+                listOf(
+                    Capability(
+                        project.group.toString(),
+                        project.name.concatKebabCase(name.kebabCase()),
+                        project.version.toString(),
+                    )
+                )
             })
         }
         project.afterEvaluate {
@@ -86,13 +94,13 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             for (variant in variants) {
                 val configurationPublications = variant.configuration.outgoing
                 for (capability in capabilities) {
-                    configurationPublications.capability(capability)
+                    configurationPublications.capability(capability.toMapNotation())
                 }
             }
             indexConfiguration?.let { indexConfiguration ->
                 val configurationPublications = indexConfiguration.outgoing
                 for (capability in capabilities) {
-                    configurationPublications.capability(capability)
+                    configurationPublications.capability(capability.toMapNotation())
                 }
             }
         }
