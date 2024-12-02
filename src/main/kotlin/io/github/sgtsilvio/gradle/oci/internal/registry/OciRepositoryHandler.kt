@@ -46,7 +46,7 @@ import java.util.function.BiFunction
 /v0.15/<escapeSlash(registryUrl)> / <group>/<name>/<version> / <escapeSlash(imageName)>/<digest>/<size>/<...>oci-layer
  */
 
-internal const val OCI_REPOSITORY_VERSION = "v0.17f"
+internal const val OCI_REPOSITORY_VERSION = "v0.17"
 
 /**
  * @author Silvio Giebl
