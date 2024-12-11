@@ -17,6 +17,8 @@ import org.gradle.api.tasks.testing.Test
  */
 interface OciExtension : PlatformFactories, PlatformSelectorFactories {
     val layerTaskClass get() = OciLayerTask::class
+    val defaultLayerTask get() = DefaultOciLayerTask::class
+    val dockerLayerTaskClass get() = DockerLayerTask::class
     val imagesTaskClass get() = OciImagesTask::class
     val pushTaskClass get() = OciPushTask::class
     val pushSingleTaskClass get() = OciPushSingleTask::class

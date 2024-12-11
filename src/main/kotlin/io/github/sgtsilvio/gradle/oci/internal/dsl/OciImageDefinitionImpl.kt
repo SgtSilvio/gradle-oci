@@ -1,9 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.OciCopySpec
-import io.github.sgtsilvio.gradle.oci.OciLayerTask
-import io.github.sgtsilvio.gradle.oci.OciMetadataTask
-import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
+import io.github.sgtsilvio.gradle.oci.*
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.Capability
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
@@ -355,7 +352,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 createdBy.convention("gradle-oci: $name")
             }
 
-            private var task: TaskProvider<OciLayerTask>? = null
+            private var task: TaskProvider<DefaultOciLayerTask>? = null
             private var variantScopeConfigurations: LinkedList<Action<in OciCopySpec>>? = null
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
@@ -387,7 +384,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
 
             fun contentsFromVariantScope(
                 variantScopeConfiguration: Action<in OciCopySpec>,
-                variantScopeTask: TaskProvider<OciLayerTask>,
+                variantScopeTask: TaskProvider<DefaultOciLayerTask>,
             ) {
                 if (externalTask != null) {
                     throw IllegalStateException("'contents {}' must not be called if 'contents(task)' was called")
@@ -488,7 +485,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             private val taskContainer: TaskContainer,
         ) : OciImageDefinition.VariantScope.Layer {
 
-            private var task: TaskProvider<OciLayerTask>? = null
+            private var task: TaskProvider<DefaultOciLayerTask>? = null
             private var externalTask: TaskProvider<OciLayerTask>? = null
 
             final override fun getName() = name
@@ -545,12 +542,12 @@ private fun TaskContainer.createLayerTask(
     layerName: String,
     platformPostfix: String,
     projectLayout: ProjectLayout,
-) = register<OciLayerTask>(createOciLayerClassifier(imageDefName, layerName).camelCase() + platformPostfix) {
+) = register<DefaultOciLayerTask>(createOciLayerClassifier(imageDefName, layerName).camelCase() + platformPostfix) {
     group = TASK_GROUP_NAME
     description = "Assembles the '$layerName' layer of the '$imageDefName' OCI image."
     destinationDirectory.set(projectLayout.buildDirectory.dir("oci/images/$imageDefName"))
     classifier.set(createOciLayerClassifier(imageDefName, layerName) + platformPostfix)
 }
 
-private fun TaskProvider<OciLayerTask>.contents(configuration: Action<in OciCopySpec>) =
+private fun TaskProvider<DefaultOciLayerTask>.contents(configuration: Action<in OciCopySpec>) =
     configure { contents(configuration) }
