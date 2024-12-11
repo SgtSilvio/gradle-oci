@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
-import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
+import io.github.sgtsilvio.gradle.oci.image.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.variantArtifacts

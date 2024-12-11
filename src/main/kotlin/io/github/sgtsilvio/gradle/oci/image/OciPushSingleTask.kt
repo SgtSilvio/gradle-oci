@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci
+package io.github.sgtsilvio.gradle.oci.image
 
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.options.Option

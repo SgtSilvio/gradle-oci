@@ -1,8 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.image.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform

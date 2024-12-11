@@ -1,6 +1,10 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
-import io.github.sgtsilvio.gradle.oci.*
+import io.github.sgtsilvio.gradle.oci.OciCopySpec
+import io.github.sgtsilvio.gradle.oci.image.OciImagesTask
+import io.github.sgtsilvio.gradle.oci.image.OciPushSingleTask
+import io.github.sgtsilvio.gradle.oci.image.OciPushTask
+import io.github.sgtsilvio.gradle.oci.image.OciRegistryDataTask
 import io.github.sgtsilvio.gradle.oci.layer.DefaultOciLayerTask
 import io.github.sgtsilvio.gradle.oci.layer.DockerLayerTask
 import io.github.sgtsilvio.gradle.oci.layer.OciLayerTask

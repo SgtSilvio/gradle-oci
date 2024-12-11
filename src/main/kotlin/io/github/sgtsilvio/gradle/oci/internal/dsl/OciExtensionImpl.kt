@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
-import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
 import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.dsl.*
+import io.github.sgtsilvio.gradle.oci.image.OciRegistryDataTask
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.OciCopySpecImpl
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.newOciCopySpec
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
