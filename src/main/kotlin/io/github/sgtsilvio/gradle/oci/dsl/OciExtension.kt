@@ -1,6 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.*
+import io.github.sgtsilvio.gradle.oci.layer.DefaultOciLayerTask
+import io.github.sgtsilvio.gradle.oci.layer.DockerLayerTask
+import io.github.sgtsilvio.gradle.oci.layer.OciLayerTask
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector

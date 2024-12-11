@@ -1,5 +1,6 @@
-package io.github.sgtsilvio.gradle.oci
+package io.github.sgtsilvio.gradle.oci.layer
 
+import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.*
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
