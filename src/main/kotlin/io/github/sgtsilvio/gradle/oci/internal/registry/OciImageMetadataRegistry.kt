@@ -60,7 +60,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
             credentials,
             MANIFEST_MEDIA_TYPE,
             CONFIG_MEDIA_TYPE,
-            LAYER_MEDIA_TYPE_PREFIX,
+            UNCOMPRESSED_LAYER_MEDIA_TYPE,
         )
 
         MANIFEST_MEDIA_TYPE -> transformManifestToMultiPlatformImageMetadata(
@@ -69,7 +69,7 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
             manifest,
             credentials,
             CONFIG_MEDIA_TYPE,
-            LAYER_MEDIA_TYPE_PREFIX,
+            UNCOMPRESSED_LAYER_MEDIA_TYPE,
         )
 
         DOCKER_MANIFEST_LIST_MEDIA_TYPE -> transformIndexToMultiPlatformImageMetadata(
