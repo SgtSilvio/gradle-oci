@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci
+package io.github.sgtsilvio.gradle.oci.image
 
 import io.github.sgtsilvio.gradle.oci.metadata.OciData
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest

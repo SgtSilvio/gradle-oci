@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.OciRegistryDataTask
+import io.github.sgtsilvio.gradle.oci.image.OciRegistryDataTask
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.PathSensitive

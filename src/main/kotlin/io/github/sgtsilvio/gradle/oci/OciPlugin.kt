@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci
 
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
+import io.github.sgtsilvio.gradle.oci.image.OciPushSingleTask
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase

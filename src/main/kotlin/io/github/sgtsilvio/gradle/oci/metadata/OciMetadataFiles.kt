@@ -1,7 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.metadata
 
-import io.github.sgtsilvio.gradle.oci.OciImage
-import io.github.sgtsilvio.gradle.oci.OciVariant
+import io.github.sgtsilvio.gradle.oci.image.OciImage
+import io.github.sgtsilvio.gradle.oci.image.OciVariant
 import io.github.sgtsilvio.gradle.oci.internal.json.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.util.*
