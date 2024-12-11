@@ -1,4 +1,4 @@
-package io.github.sgtsilvio.gradle.oci
+package io.github.sgtsilvio.gradle.oci.metadata
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
