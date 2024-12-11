@@ -1,24 +1,24 @@
 package io.github.sgtsilvio.gradle.oci.layer
 
-import io.github.sgtsilvio.gradle.oci.OciCopySpec
-import io.github.sgtsilvio.gradle.oci.internal.copyspec.*
-import io.github.sgtsilvio.gradle.oci.metadata.*
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.OciDigestAlgorithm
+import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
+import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
-import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.util.*
-import java.util.zip.GZIPOutputStream
 
 /**
  * @author Silvio Giebl
@@ -90,58 +90,4 @@ abstract class OciLayerTask : DefaultTask() {
     }
 
     protected abstract fun run(tos: TarArchiveOutputStream)
-}
-
-abstract class DefaultOciLayerTask : OciLayerTask() {
-
-    private val _contents = project.objects.newOciCopySpec()
-
-    @get:Nested
-    protected val copySpecInput = _contents.asInput(project.providers)
-
-    @get:Internal
-    val contents: OciCopySpec get() = _contents
-
-    fun contents(action: Action<in OciCopySpec>) = action.execute(_contents)
-
-    override fun run(tos: TarArchiveOutputStream) {
-        copySpecInput.get().process(object : OciCopySpecVisitor {
-            override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
-                tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
-                    setPermissions(fileMetadata.permissions)
-                    setUserId(fileMetadata.userId)
-                    setGroupId(fileMetadata.groupId)
-                    setModTime(fileMetadata.modificationTime.toEpochMilli())
-                    size = fileMetadata.size
-                })
-                fileSource.copyTo(tos)
-                tos.closeArchiveEntry()
-            }
-
-            override fun visitDirectory(fileMetadata: FileMetadata) {
-                tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
-                    setPermissions(fileMetadata.permissions)
-                    setUserId(fileMetadata.userId)
-                    setGroupId(fileMetadata.groupId)
-                    setModTime(fileMetadata.modificationTime.toEpochMilli())
-                })
-                tos.closeArchiveEntry()
-            }
-
-            private fun TarArchiveEntry.setPermissions(permissions: Int) {
-                mode = (mode and 0b111_111_111.inv()) or (permissions and 0b111_111_111)
-            }
-        })
-    }
-}
-
-enum class OciLayerCompression(internal val extension: String, internal val mediaType: String) {
-    NONE("tar", UNCOMPRESSED_LAYER_MEDIA_TYPE) {
-        override fun createOutputStream(out: OutputStream) = out
-    },
-    GZIP("tgz", GZIP_COMPRESSED_LAYER_MEDIA_TYPE) {
-        override fun createOutputStream(out: OutputStream) = GZIPOutputStream(out)
-    };
-
-    internal abstract fun createOutputStream(out: OutputStream): OutputStream
 }
