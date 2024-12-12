@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.layer
 
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
+import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.tasks.Input
@@ -23,7 +24,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     val from = project.objects.property<String>() // TODO replace from and platform with ImageInput
 
     @get:Input
-    val platform = project.objects.property<String>()
+    val platform = project.objects.property<Platform>()
 
     @get:Input
     val command = project.objects.property<String>()
@@ -45,8 +46,9 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
 
     override fun run(tarOutputStream: TarArchiveOutputStream) {
         val imageReference = UUID.randomUUID()
+        val platformArgument = platform.get().toPlatformArgument()
         execOperations.exec {
-            commandLine("docker", "build", "-", "--platform", platform.get(), "-t", imageReference, "--no-cache")
+            commandLine("docker", "build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
             standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
         }
         val temporaryDirectory = temporaryDir
@@ -104,6 +106,11 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         appendLine("RUN echo \"Docker on MacOS creates a directory /root/.cache/rosetta in the first layer\"")
         val command = command.get()
         appendLine("RUN $command")
+    }
+
+    private fun Platform.toPlatformArgument(): String {
+        val s = "$os/$architecture"
+        return if (variant.isEmpty()) s else "$s/$variant"
     }
 
     private fun TarArchiveInputStream.findEntry(path: String): Boolean {
