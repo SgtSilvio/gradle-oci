@@ -12,11 +12,12 @@ import java.io.ByteArrayInputStream
 import java.io.FileInputStream
 import java.nio.file.attribute.FileTime
 import java.util.*
+import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
  */
-abstract class DockerLayerTask(private val execOperations: ExecOperations) : OciLayerTask() {
+abstract class DockerLayerTask @Inject constructor(private val execOperations: ExecOperations) : OciLayerTask() {
 
     @get:Input
     val from = project.objects.property<String>() // TODO replace from and platform with ImageInput
