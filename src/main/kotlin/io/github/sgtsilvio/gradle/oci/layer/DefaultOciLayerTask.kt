@@ -7,6 +7,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
+import java.nio.file.attribute.FileTime
 
 abstract class DefaultOciLayerTask : OciLayerTask() {
 
@@ -27,7 +28,7 @@ abstract class DefaultOciLayerTask : OciLayerTask() {
                     setPermissions(fileMetadata.permissions)
                     setUserId(fileMetadata.userId)
                     setGroupId(fileMetadata.groupId)
-                    setModTime(fileMetadata.modificationTime.toEpochMilli())
+                    lastModifiedTime = FileTime.from(fileMetadata.modificationTime)
                     size = fileMetadata.size
                 })
                 fileSource.copyTo(tos)
@@ -39,7 +40,7 @@ abstract class DefaultOciLayerTask : OciLayerTask() {
                     setPermissions(fileMetadata.permissions)
                     setUserId(fileMetadata.userId)
                     setGroupId(fileMetadata.groupId)
-                    setModTime(fileMetadata.modificationTime.toEpochMilli())
+                    lastModifiedTime = FileTime.from(fileMetadata.modificationTime)
                 })
                 tos.closeArchiveEntry()
             }
