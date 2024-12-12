@@ -79,15 +79,15 @@ abstract class OciLayerTask : DefaultTask() {
         val diffId: OciDigest
         val digest = FileOutputStream(file).calculateOciDigest(digestAlgorithm) { compressedDos ->
             diffId = compression.createOutputStream(compressedDos).calculateOciDigest(digestAlgorithm) { dos ->
-                TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tos ->
-                    tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
-                    tos.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
-                    run(tos)
+                TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tarOutputStream ->
+                    tarOutputStream.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
+                    tarOutputStream.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
+                    run(tarOutputStream)
                 }
             }
         }
         propertiesFile.writeText("digest=$digest\nsize=${file.length()}\ndiffId=$diffId")
     }
 
-    protected abstract fun run(tos: TarArchiveOutputStream)
+    protected abstract fun run(tarOutputStream: TarArchiveOutputStream)
 }

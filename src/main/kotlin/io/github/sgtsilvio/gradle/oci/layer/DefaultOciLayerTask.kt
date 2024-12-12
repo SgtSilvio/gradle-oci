@@ -21,28 +21,28 @@ abstract class DefaultOciLayerTask : OciLayerTask() {
 
     fun contents(action: Action<in OciCopySpec>) = action.execute(_contents)
 
-    override fun run(tos: TarArchiveOutputStream) {
+    override fun run(tarOutputStream: TarArchiveOutputStream) {
         copySpecInput.get().process(object : OciCopySpecVisitor {
             override fun visitFile(fileMetadata: FileMetadata, fileSource: FileSource) {
-                tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                tarOutputStream.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
                     setPermissions(fileMetadata.permissions)
                     setUserId(fileMetadata.userId)
                     setGroupId(fileMetadata.groupId)
                     lastModifiedTime = FileTime.from(fileMetadata.modificationTime)
                     size = fileMetadata.size
                 })
-                fileSource.copyTo(tos)
-                tos.closeArchiveEntry()
+                fileSource.copyTo(tarOutputStream)
+                tarOutputStream.closeArchiveEntry()
             }
 
             override fun visitDirectory(fileMetadata: FileMetadata) {
-                tos.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
+                tarOutputStream.putArchiveEntry(TarArchiveEntry(fileMetadata.path).apply {
                     setPermissions(fileMetadata.permissions)
                     setUserId(fileMetadata.userId)
                     setGroupId(fileMetadata.groupId)
                     lastModifiedTime = FileTime.from(fileMetadata.modificationTime)
                 })
-                tos.closeArchiveEntry()
+                tarOutputStream.closeArchiveEntry()
             }
 
             private fun TarArchiveEntry.setPermissions(permissions: Int) {

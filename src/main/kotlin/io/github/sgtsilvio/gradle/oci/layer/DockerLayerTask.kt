@@ -43,48 +43,43 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     @get:Input
     val environment = project.objects.mapProperty<String, String>()
 
-    override fun run(tos: TarArchiveOutputStream) {
+    override fun run(tarOutputStream: TarArchiveOutputStream) {
         val imageReference = UUID.randomUUID()
         execOperations.exec {
             commandLine("docker", "build", "-", "--platform", platform.get(), "-t", imageReference, "--no-cache")
             standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
         }
-        val tmpDir = temporaryDir
-        val savedImageTarFile = tmpDir.resolve("image.tar")
+        val temporaryDirectory = temporaryDir
+        val savedImageTarFile = temporaryDirectory.resolve("image.tar")
         execOperations.exec {
             commandLine("docker", "save", imageReference, "-o", savedImageTarFile)
         }
         execOperations.exec {
             commandLine("docker", "rmi", imageReference)
         }
-        val manifest = TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { tis ->
-            while (tis.nextEntry != null) {
-                if (tis.currentEntry.name == "manifest.json") {
-                    return@use tis.reader().readText()
-                }
+        val manifest = TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->
+            if (!savedImageTarInputStream.findEntry("manifest.json")) {
+                throw IllegalStateException("manifest.json not found in docker image export")
             }
-            throw IllegalStateException("manifest.json not found")
+            savedImageTarInputStream.reader().readText()
         }
         val lastLayerPath =
             manifest.substringAfter("\"Layers\":[").substringBefore("]").split(",").last().removeSurrounding("\"")
-        TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { tis ->
-            while (tis.nextEntry != null) {
-                if (tis.currentEntry.name == lastLayerPath) {
-                    TarArchiveInputStream(tis).use { tis2 ->
-                        while (tis2.nextEntry != null) {
-                            val entry2 = tis2.currentEntry
-                            entry2.lastModifiedTime = FileTime.from(DEFAULT_MODIFICATION_TIME)
-                            tos.putArchiveEntry(entry2)
-                            tis2.copyTo(tos)
-                            tos.closeArchiveEntry()
-                        }
-                    }
-                    return@use
+        TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->
+            if (!savedImageTarInputStream.findEntry(lastLayerPath)) {
+                throw IllegalStateException("$lastLayerPath not found in docker image export")
+            }
+            TarArchiveInputStream(savedImageTarInputStream).use { layerTarInputStream ->
+                while (layerTarInputStream.nextEntry != null) {
+                    val tarEntry = layerTarInputStream.currentEntry
+                    tarEntry.lastModifiedTime = FileTime.from(DEFAULT_MODIFICATION_TIME)
+                    tarOutputStream.putArchiveEntry(tarEntry)
+                    layerTarInputStream.copyTo(tarOutputStream)
+                    tarOutputStream.closeArchiveEntry()
                 }
             }
-            throw IllegalStateException("$lastLayerPath not found")
         }
-        tmpDir.deleteRecursively()
+        temporaryDirectory.deleteRecursively()
     }
 
     private fun assembleDockerfile() = buildString {
@@ -109,5 +104,14 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         appendLine("RUN echo \"Docker on MacOS creates a directory /root/.cache/rosetta in the first layer\"")
         val command = command.get()
         appendLine("RUN $command")
+    }
+
+    private fun TarArchiveInputStream.findEntry(path: String): Boolean {
+        while (nextEntry != null) {
+            if (currentEntry.name == path) {
+                return true
+            }
+        }
+        return false
     }
 }
