@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.*
+import io.github.sgtsilvio.gradle.oci.OciCopySpec
+import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.Capability
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
@@ -20,7 +21,10 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.Project
-import org.gradle.api.artifacts.*
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
