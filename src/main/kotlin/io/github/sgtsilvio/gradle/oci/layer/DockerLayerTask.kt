@@ -46,7 +46,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     override fun run(tos: TarArchiveOutputStream) {
         val imageReference = UUID.randomUUID()
         execOperations.exec {
-            commandLine("docker", "build", "-", "--platform", platform.get(), "-t", imageReference)
+            commandLine("docker", "build", "-", "--platform", platform.get(), "-t", imageReference, "--no-cache")
             standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
         }
         val tmpDir = temporaryDir
