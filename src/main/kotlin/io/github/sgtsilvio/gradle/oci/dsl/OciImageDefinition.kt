@@ -71,7 +71,7 @@ interface OciImageDefinition : Named, CapabilityFactories {
 
             fun contents(configuration: Action<in OciCopySpec>)
 
-            fun contents(task: TaskProvider<OciLayerTask>)
+            fun contents(task: TaskProvider<out OciLayerTask>)
 
             interface Metadata {
                 val creationTime: Property<Instant>
@@ -99,7 +99,7 @@ interface OciImageDefinition : Named, CapabilityFactories {
         interface Layer : Named {
             fun metadata(configuration: Action<in Variant.Layer.Metadata>)
             fun contents(configuration: Action<in OciCopySpec>)
-            fun contents(task: TaskProvider<OciLayerTask>)
+            fun contents(task: TaskProvider<out OciLayerTask>)
         }
     }
 }
