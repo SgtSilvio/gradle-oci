@@ -360,7 +360,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
 
             private var task: TaskProvider<DefaultOciLayerTask>? = null
             private var variantScopeConfigurations: LinkedList<Action<in OciCopySpec>>? = null
-            private var externalTask: TaskProvider<OciLayerTask>? = null
+            private var externalTask: TaskProvider<out OciLayerTask>? = null
 
             final override fun getName() = name
 
@@ -409,7 +409,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 }
             }
 
-            final override fun contents(task: TaskProvider<OciLayerTask>) {
+            final override fun contents(task: TaskProvider<out OciLayerTask>) {
                 externalTask = if (task == this.task) null else task
             }
 
@@ -492,7 +492,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         ) : OciImageDefinition.VariantScope.Layer {
 
             private var task: TaskProvider<DefaultOciLayerTask>? = null
-            private var externalTask: TaskProvider<OciLayerTask>? = null
+            private var externalTask: TaskProvider<out OciLayerTask>? = null
 
             final override fun getName() = name
 
@@ -514,7 +514,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 }
             }
 
-            final override fun contents(task: TaskProvider<OciLayerTask>) {
+            final override fun contents(task: TaskProvider<out OciLayerTask>) {
                 externalTask = if (task == this.task) null else task
                 variants.configureEach {
                     layers.layer(name).contents(task)
