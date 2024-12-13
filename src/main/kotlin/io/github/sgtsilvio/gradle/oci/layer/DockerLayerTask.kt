@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.layer
 
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
+import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -50,14 +51,18 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         execOperations.exec {
             commandLine("docker", "build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
             standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
+            errorOutput = createErrorStream()
         }
         val temporaryDirectory = temporaryDir
         val savedImageTarFile = temporaryDirectory.resolve("image.tar")
         execOperations.exec {
             commandLine("docker", "save", imageReference, "-o", savedImageTarFile)
+            errorOutput = createErrorStream()
         }
         execOperations.exec {
             commandLine("docker", "rmi", imageReference)
+            standardOutput = LineOutputStream { logger.info(it) }
+            errorOutput = createErrorStream()
         }
         val manifest = TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->
             if (!savedImageTarInputStream.findEntry("manifest.json")) {
@@ -111,6 +116,14 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     private fun Platform.toPlatformArgument(): String {
         val s = "$os/$architecture"
         return if (variant.isEmpty()) s else "$s/$variant"
+    }
+
+    private fun createErrorStream() = LineOutputStream { line ->
+        if (line.startsWith("ERROR")) {
+            logger.error(line)
+        } else {
+            logger.info(line)
+        }
     }
 
     private fun TarArchiveInputStream.findEntry(path: String): Boolean {
