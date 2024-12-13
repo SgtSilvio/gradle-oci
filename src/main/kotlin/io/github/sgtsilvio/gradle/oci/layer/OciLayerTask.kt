@@ -17,7 +17,6 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.nio.charset.StandardCharsets
 import java.util.*
 
 /**
@@ -79,7 +78,7 @@ abstract class OciLayerTask : DefaultTask() {
         val diffId: OciDigest
         val digest = FileOutputStream(file).calculateOciDigest(digestAlgorithm) { compressedDos ->
             diffId = compression.createOutputStream(compressedDos).calculateOciDigest(digestAlgorithm) { dos ->
-                TarArchiveOutputStream(dos, StandardCharsets.UTF_8.name()).use { tarOutputStream ->
+                TarArchiveOutputStream(dos, Charsets.UTF_8.name()).use { tarOutputStream ->
                     tarOutputStream.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
                     tarOutputStream.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX)
                     run(tarOutputStream)
