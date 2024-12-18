@@ -19,7 +19,7 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-@DisableCachingByDefault(because = "Pulling to a Docker daemon")
+@DisableCachingByDefault(because = "Loading to an external Docker daemon")
 abstract class LoadOciImagesTask @Inject constructor(private val execOperations: ExecOperations) : OciImagesTask() {
 
     final override fun run(
@@ -60,8 +60,12 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
         }
         registryDataDirectory.toFile().deleteRecursively()
     }
+}
 
-    // TODO Single task
+@DisableCachingByDefault(because = "Loading to an external Docker daemon")
+abstract class LoadOciImageTask @Inject constructor(
+    execOperations: ExecOperations
+) : LoadOciImagesTask(execOperations) {
 
     @get:Internal
     @get:Option(

@@ -3,7 +3,7 @@ package io.github.sgtsilvio.gradle.oci
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
-import io.github.sgtsilvio.gradle.oci.image.LoadOciImagesTask
+import io.github.sgtsilvio.gradle.oci.image.LoadOciImageTask
 import io.github.sgtsilvio.gradle.oci.image.PushOciImageTask
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
@@ -54,7 +54,7 @@ class OciPlugin : Plugin<Project> {
 
     private fun registerLoadTask(imageDefinition: OciImageDefinition, project: Project, extension: OciExtension) {
         val loadName = "load".concatCamelCase(imageDefinition.name.mainToEmpty())
-        project.tasks.register<LoadOciImagesTask>(loadName.concatCamelCase("ociImage")) {
+        project.tasks.register<LoadOciImageTask>(loadName.concatCamelCase("ociImage")) {
             group = TASK_GROUP_NAME
             description = "Loads the '${imageDefinition.name}' OCI image to the Docker daemon."
             from(extension.imageDependencies.create(loadName).apply {
