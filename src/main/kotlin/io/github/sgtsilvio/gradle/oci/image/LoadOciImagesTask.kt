@@ -20,7 +20,7 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 @DisableCachingByDefault(because = "Pulling to a Docker daemon")
-abstract class PullToDockerTask @Inject constructor(private val execOperations: ExecOperations) : OciImagesTask() {
+abstract class LoadOciImagesTask @Inject constructor(private val execOperations: ExecOperations) : OciImagesTask() {
 
     final override fun run(
         digestToLayerFile: Map<OciDigest, File>,
