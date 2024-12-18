@@ -12,7 +12,9 @@ import javax.inject.Inject
  * @author Silvio Giebl
  */
 @DisableCachingByDefault(because = "Pushing to an external registry")
-abstract class OciPushSingleTask @Inject constructor(workerExecutor: WorkerExecutor) : OciPushTask(workerExecutor) {
+abstract class PushOciImageTask @Inject constructor(
+    workerExecutor: WorkerExecutor,
+) : PushOciImagesTask(workerExecutor) {
 
     @get:Internal
     @get:Option(

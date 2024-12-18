@@ -44,7 +44,7 @@ import kotlin.io.path.fileSize
  * @author Silvio Giebl
  */
 @DisableCachingByDefault(because = "Pushing to an external registry")
-abstract class OciPushTask @Inject constructor(private val workerExecutor: WorkerExecutor) : OciImagesTask() {
+abstract class PushOciImagesTask @Inject constructor(private val workerExecutor: WorkerExecutor) : OciImagesTask() {
 
     @get:Nested
     val registry = project.objects.newInstance<Registry>()
@@ -218,7 +218,7 @@ internal abstract class OciPushService : BuildService<BuildServiceParameters.Non
     private val actions = ConcurrentHashMap<Int, () -> Unit>()
 
     fun pushBlob(
-        context: OciPushTask.Context,
+        context: PushOciImagesTask.Context,
         imageName: String,
         digest: OciDigest,
         size: Long,
@@ -266,7 +266,7 @@ internal abstract class OciPushService : BuildService<BuildServiceParameters.Non
     }
 
     fun pushManifest(
-        context: OciPushTask.Context,
+        context: PushOciImagesTask.Context,
         imageName: String,
         reference: String,
         mediaType: String,
