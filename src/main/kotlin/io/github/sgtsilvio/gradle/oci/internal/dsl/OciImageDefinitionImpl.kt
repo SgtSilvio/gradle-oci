@@ -166,8 +166,9 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     }
 
     private fun createIndexConfiguration(platformVariants: Map<Platform, Variant>) {
-        val indexConfiguration = configurationContainer.create(createOciIndexVariantName(name)).apply {
-            description = "Elements of the '$name' OCI image index."
+        val imageDefName = name
+        val indexConfiguration = configurationContainer.create(createOciIndexVariantName(imageDefName)).apply {
+            description = "Elements of the '$imageDefName' OCI image index."
             isCanBeConsumed = true
             isCanBeResolved = false
             attributes.apply {
