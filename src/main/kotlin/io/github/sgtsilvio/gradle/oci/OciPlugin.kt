@@ -11,7 +11,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.add
 import org.gradle.kotlin.dsl.create
-import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.register
 
 /**
@@ -38,25 +37,21 @@ class OciPlugin : Plugin<Project> {
         extension.imageDefinitions.all {
             val imageDefName = name
             val pushName = "push".concatCamelCase(imageDefName.mainToEmpty())
-            val pushTask = project.tasks.register<OciPushSingleTask>(pushName.concatCamelCase("ociImage"))
-            val pushImageDependencies = extension.imageDependencies.create(pushName).apply {
-                runtime(dependency).name(pushTask.flatMap { it.imageName }).tag(pushTask.flatMap { it.imageTags })
-            }
-            pushTask {
+            project.tasks.register<OciPushSingleTask>(pushName.concatCamelCase("ociImage")) {
                 group = TASK_GROUP_NAME
                 description = "Pushes the '$imageDefName' OCI image to a registry."
-                from(pushImageDependencies)
+                from(extension.imageDependencies.create(pushName).apply {
+                    runtime(dependency).name(imageName).tag(imageTags)
+                })
             }
 
             val pullName = "pull".concatCamelCase(imageDefName.mainToEmpty())
-            val pullTask = project.tasks.register<PullToDockerTask>(pullName.concatCamelCase("ociImage")) // TODO toDocker
-            val pullImageDependencies = extension.imageDependencies.create(pullName).apply {
-                runtime(dependency).name(pullTask.flatMap { it.imageName }).tag(pullTask.flatMap { it.imageTags })
-            }
-            pullTask {
+            project.tasks.register<PullToDockerTask>(pullName.concatCamelCase("ociImage")) { // TODO toDocker
                 group = TASK_GROUP_NAME
                 description = "Pulls the '$imageDefName' OCI image to the Docker daemon."
-                from(pullImageDependencies)
+                from(extension.imageDependencies.create(pullName).apply {
+                    runtime(dependency).name(imageName).tag(imageTags)
+                })
             }
         }
     }
