@@ -40,6 +40,7 @@ dependencies {
     implementation(libs.commons.codec)
     implementation(libs.commons.compress)
     implementation(libs.commons.io)
+    implementation(libs.commons.lang)
     implementation(libs.json)
     implementation(libs.reactor.kotlin)
     implementation(libs.reactor.netty) {
@@ -49,6 +50,7 @@ dependencies {
     implementation(platform(libs.netty.bom))
     runtimeOnly(variantOf(libs.netty.resolver.dns.native.macos) { classifier("osx-aarch_64") })
     runtimeOnly(variantOf(libs.netty.resolver.dns.native.macos) { classifier("osx-x86_64") })
+    implementation(libs.oci.registry)
 }
 
 gradlePlugin {

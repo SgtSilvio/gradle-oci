@@ -1,10 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.layer
 
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
+import io.github.sgtsilvio.gradle.oci.internal.gradle.redirectOutput
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
+import org.gradle.api.logging.Logger
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.kotlin.dsl.mapProperty
@@ -51,18 +53,17 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         execOperations.exec {
             commandLine("docker", "build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
             standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
-            errorOutput = createErrorStream()
+            errorOutput = createCombinedErrorAndInfoOutputStream(logger)
         }
         val temporaryDirectory = temporaryDir
         val savedImageTarFile = temporaryDirectory.resolve("image.tar")
         execOperations.exec {
             commandLine("docker", "save", imageReference, "-o", savedImageTarFile)
-            errorOutput = createErrorStream()
+            errorOutput = createCombinedErrorAndInfoOutputStream(logger)
         }
         execOperations.exec {
             commandLine("docker", "rmi", imageReference)
-            standardOutput = LineOutputStream { logger.info(it) }
-            errorOutput = createErrorStream()
+            redirectOutput(logger)
         }
         val manifest = TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->
             if (!savedImageTarInputStream.findEntry("manifest.json")) {
@@ -118,7 +119,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         return if (variant.isEmpty()) s else "$s/$variant"
     }
 
-    private fun createErrorStream() = LineOutputStream { line ->
+    private fun createCombinedErrorAndInfoOutputStream(logger: Logger) = LineOutputStream { line ->
         if (line.startsWith("ERROR")) {
             logger.error(line)
         } else {

@@ -3,9 +3,11 @@ caffeine = "3.1.8"
 commons-codec = "1.17.1"
 commons-compress = "1.27.1"
 commons-io = "2.18.0"
+commons-lang = "3.17.0"
 json = "20240303"
 junit-jupiter = "5.11.3"
 netty = "4.1.115.Final"
+oci-registry = "0.4.1"
 reactor-kotlin = "1.2.3"
 reactor-netty = "1.2.1"
 
@@ -14,10 +16,12 @@ caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "c
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
+commons-lang = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang" }
 json = { module = "org.json:json", version.ref = "json" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 netty-resolver-dns-native-macos = { module = "io.netty:netty-resolver-dns-native-macos", version.ref = "netty" }
+oci-registry = { module = "io.github.sgtsilvio:oci-registry", version.ref = "oci-registry" }
 reactor-kotlin = { module = "io.projectreactor.kotlin:reactor-kotlin-extensions", version.ref = "reactor-kotlin" }
 reactor-netty = { module = "io.projectreactor.netty:reactor-netty", version.ref = "reactor-netty" }
 

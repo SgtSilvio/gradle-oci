@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.image.OciPushSingleTask
+import io.github.sgtsilvio.gradle.oci.image.PullToDockerTask
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
@@ -45,6 +46,17 @@ class OciPlugin : Plugin<Project> {
                 group = TASK_GROUP_NAME
                 description = "Pushes the '$imageDefName' OCI image to a registry."
                 from(pushImageDependencies)
+            }
+
+            val pullName = "pull".concatCamelCase(imageDefName.mainToEmpty())
+            val pullTask = project.tasks.register<PullToDockerTask>(pullName.concatCamelCase("ociImage")) // TODO toDocker
+            val pullImageDependencies = extension.imageDependencies.create(pullName).apply {
+                runtime(dependency).name(pullTask.flatMap { it.imageName }).tag(pullTask.flatMap { it.imageTags })
+            }
+            pullTask {
+                group = TASK_GROUP_NAME
+                description = "Pulls the '$imageDefName' OCI image to the Docker daemon."
+                from(pullImageDependencies)
             }
         }
     }
