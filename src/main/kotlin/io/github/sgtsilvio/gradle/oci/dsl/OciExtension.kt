@@ -1,10 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
-import io.github.sgtsilvio.gradle.oci.image.OciImagesTask
-import io.github.sgtsilvio.gradle.oci.image.OciRegistryDataTask
-import io.github.sgtsilvio.gradle.oci.image.PushOciImageTask
-import io.github.sgtsilvio.gradle.oci.image.PushOciImagesTask
+import io.github.sgtsilvio.gradle.oci.image.*
 import io.github.sgtsilvio.gradle.oci.layer.DefaultOciLayerTask
 import io.github.sgtsilvio.gradle.oci.layer.DockerLayerTask
 import io.github.sgtsilvio.gradle.oci.layer.OciLayerTask
@@ -29,6 +26,8 @@ interface OciExtension : PlatformFactories, PlatformSelectorFactories {
     val imagesTaskClass get() = OciImagesTask::class
     val pushImagesTaskClass get() = PushOciImagesTask::class
     val pushImageTaskClass get() = PushOciImageTask::class
+    val loadImagesTaskClass get() = LoadOciImagesTask::class
+    val loadImageTaskClass get() = LoadOciImageTask::class
     val registryDataTaskClass get() = OciRegistryDataTask::class
 
     val registries: OciRegistries
