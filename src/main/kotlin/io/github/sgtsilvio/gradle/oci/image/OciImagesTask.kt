@@ -7,7 +7,9 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.options.Option
 import org.gradle.kotlin.dsl.listProperty
@@ -185,3 +187,20 @@ private val EMPTY_LAYER_DIFF_IDS = setOf(
     "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef".toOciDigest(),
     "sha512:8efb4f73c5655351c444eb109230c556d39e2c7624e9c11abc9e3fb4b9b9254218cc5085b454a9698d085cfa92198491f07a723be4574adc70617b73eb0b6461".toOciDigest(),
 )
+
+interface OciImageTask {
+
+    @get:Internal
+    @get:Option(
+        option = "name",
+        description = "Names the image. If not specified, the imageName defined in the image definition is used.",
+    )
+    val imageName: Property<String>
+
+    @get:Internal
+    @get:Option(
+        option = "tag",
+        description = "Tags the image. Option can be specified multiple times. The value '.' translates to the imageTag defined in the image definition. If not specified, the imageTag defined in the image definition is used.",
+    )
+    val imageTags: SetProperty<String>
+}

@@ -6,10 +6,6 @@ import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.oci.registry.DistributionRegistryStorage
 import io.github.sgtsilvio.oci.registry.OciRegistryHandler
 import org.apache.commons.lang3.SystemUtils
-import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.options.Option
-import org.gradle.kotlin.dsl.property
-import org.gradle.kotlin.dsl.setProperty
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
 import reactor.netty.http.server.HttpServer
@@ -65,19 +61,4 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
 @DisableCachingByDefault(because = "Loading to an external Docker daemon")
 abstract class LoadOciImageTask @Inject constructor(
     execOperations: ExecOperations
-) : LoadOciImagesTask(execOperations) {
-
-    @get:Internal
-    @get:Option(
-        option = "name",
-        description = "Names the image. If not specified, the imageName defined in the image definition is used.",
-    )
-    val imageName = project.objects.property<String>()
-
-    @get:Internal
-    @get:Option(
-        option = "tag",
-        description = "Tags the image. Option can be specified multiple times. The value '.' translates to the imageTag defined in the image definition. If not specified, the imageTag defined in the image definition is used.",
-    )
-    val imageTags = project.objects.setProperty<String>()
-}
+) : LoadOciImagesTask(execOperations), OciImageTask

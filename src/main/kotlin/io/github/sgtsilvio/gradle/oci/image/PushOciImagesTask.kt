@@ -324,3 +324,8 @@ private fun formatBytesString(bytes: Long): String = when {
         if (tenthMegaBytes == 0L) "$megaBytes MB" else "$megaBytes.$tenthMegaBytes MB"
     }
 }
+
+@DisableCachingByDefault(because = "Pushing to an external registry")
+abstract class PushOciImageTask @Inject constructor(
+    workerExecutor: WorkerExecutor,
+) : PushOciImagesTask(workerExecutor), OciImageTask
