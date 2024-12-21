@@ -3,7 +3,8 @@ package io.github.sgtsilvio.gradle.oci
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.json.JSONObject
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -125,11 +126,11 @@ internal class PublishMetadataTest {
                 {
                   "name": "test-1.0.0-oci-metadata.json",
                   "url": "test-1.0.0-oci-metadata.json",
-                  "size": 313,
-                  "sha512": "746de5c093ac73f3b6b693f0d2e03c608d54d341eeaa57176b6b5f24653dc277b2f65cdb2912b9abdeaec49092265c0faf4aba44b9c152e7015a8a7719fd9ac9",
-                  "sha256": "3ad109eb16bdf9819d61d2e6a279041de00f063689726491d1325a58249efa90",
-                  "sha1": "21ed0e46e81711a45f1788274e1da164a42d9e94",
-                  "md5": "e6e8f26fe56934656689bc03eef083e1"
+                  "size": 339,
+                  "sha512": "328273f4ad9667934be783dab37f9c727616b2dcbeb182dc8c06b54a1028e5784476cfcc02071668aa460174f4b697899c982b33dbae2f31a77a5bda22e70c1b",
+                  "sha256": "3e075bb681c1a292ef2b23bc18ccbf84e222336b8ab45a6155ba718d1a07e812",
+                  "sha1": "b91cf745e50b6f7900974943cbdbc19635180978",
+                  "md5": "577854a6a63958b10c508a64f2e6b237"
                 },
                 {
                   "name": "test-1.0.0-jar-oci-layer.tgz",
