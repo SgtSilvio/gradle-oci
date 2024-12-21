@@ -350,13 +350,26 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             private val imageDefName: String,
             platform: Optional<Platform>,
             objectFactory: ObjectFactory,
+            providerFactory: ProviderFactory,
             private val taskContainer: TaskContainer,
             private val projectLayout: ProjectLayout,
+            project: Project,
         ) : OciImageDefinition.Variant.Layer {
 
             private val platform: Platform? = platform.orElse(null)
             final override val metadata = objectFactory.newInstance<OciImageDefinition.Variant.Layer.Metadata>().apply {
-                createdBy.convention("gradle-oci: $name")
+                createdBy.convention(providerFactory.provider {
+                    buildString {
+                        append("${project.group}:${project.name}:${project.version}")
+                        if (imageDefName != MAIN_NAME) {
+                            append(" > $imageDefName image")
+                        }
+                        if (name != MAIN_NAME) {
+                            append(" > $name")
+                        }
+                        append(" (gradle-oci)")
+                    }
+                })
             }
 
             private var task: TaskProvider<DefaultOciLayerTask>? = null
