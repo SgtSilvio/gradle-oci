@@ -210,34 +210,23 @@ internal class TestProject(projectDir: File) {
         val registryDir = buildDir.resolve("oci/registries/testSuite")
         val blobsDir = registryDir.resolve("blobs")
         assertEquals(
-            blobDigests.flatMapTo(TreeSet()) { digest ->
-                listOf(
-                    "sha256",
-                    "sha256/${digest.substring(0, 2)}",
-                    "sha256/${digest.substring(0, 2)}/$digest",
-                    "sha256/${digest.substring(0, 2)}/$digest/data",
-                )
-            },
-            blobsDir.walkTopDown().filter { it != blobsDir }.mapTo(TreeSet()) { it.toRelativeString(blobsDir) },
+            blobDigests.mapTo(TreeSet()) { digest -> "sha256/${digest.substring(0, 2)}/$digest/data" },
+            blobsDir.leaves.mapTo(TreeSet()) { it.toRelativeString(blobsDir) },
         )
 
         val repositoriesDir = registryDir.resolve("repositories")
         val testRepositoryDir = repositoriesDir.resolve("example/test")
         val testLayersDir = testRepositoryDir.resolve("_layers")
-        // @formatter:off
         assertEquals(
-            testConfigAndLayerDigests.flatMapTo(TreeSet()) { digest -> listOf("sha256", "sha256/$digest", "sha256/$digest/link") },
-            testLayersDir.walkTopDown().filter { it != testLayersDir }.mapTo(TreeSet()) { it.toRelativeString(testLayersDir) },
+            testConfigAndLayerDigests.mapTo(TreeSet()) { digest -> "sha256/$digest/link" },
+            testLayersDir.leaves.mapTo(TreeSet()) { it.toRelativeString(testLayersDir) },
         )
-        // @formatter:on
         val testManifestsDir = testRepositoryDir.resolve("_manifests")
         val testManifestRevisionsDir = testManifestsDir.resolve("revisions")
-        // @formatter:off
         assertEquals(
-            testIndexAndManifestDigests.flatMapTo(TreeSet()) { digest -> listOf("sha256", "sha256/$digest", "sha256/$digest/link") },
-            testManifestRevisionsDir.walkTopDown().filter { it != testManifestRevisionsDir }.mapTo(TreeSet()) { it.toRelativeString(testManifestRevisionsDir) },
+            testIndexAndManifestDigests.mapTo(TreeSet()) { digest -> "sha256/$digest/link" },
+            testManifestRevisionsDir.leaves.mapTo(TreeSet()) { it.toRelativeString(testManifestRevisionsDir) },
         )
-        // @formatter:on
         val testTagsDir = testManifestsDir.resolve("tags")
         val test1TagDir = testTagsDir.resolve("1.0.0")
         assertTrue(test1TagDir.resolve("current/link").exists())
@@ -248,22 +237,27 @@ internal class TestProject(projectDir: File) {
 
         val hivemqRepositoryDir = repositoriesDir.resolve("hivemq/hivemq4")
         val hivemqLayersDir = hivemqRepositoryDir.resolve("_layers")
-        // @formatter:off
         assertEquals(
-            hivemqConfigAndLayerDigests.flatMapTo(TreeSet()) { digest -> listOf("sha256", "sha256/$digest", "sha256/$digest/link") },
-            hivemqLayersDir.walkTopDown().filter { it != hivemqLayersDir }.mapTo(TreeSet()) { it.toRelativeString(hivemqLayersDir) },
+            hivemqConfigAndLayerDigests.mapTo(TreeSet()) { digest -> "sha256/$digest/link" },
+            hivemqLayersDir.leaves.mapTo(TreeSet()) { it.toRelativeString(hivemqLayersDir) },
         )
-        // @formatter:on
         val hivemqManifestsDir = hivemqRepositoryDir.resolve("_manifests")
         val hivemqManifestRevisionsDir = hivemqManifestsDir.resolve("revisions")
-        // @formatter:off
         assertEquals(
-            hivemqIndexAndManifestDigests.flatMapTo(TreeSet()) { digest -> listOf("sha256", "sha256/$digest", "sha256/$digest/link") },
-            hivemqManifestRevisionsDir.walkTopDown().filter { it != hivemqManifestRevisionsDir }.mapTo(TreeSet()) { it.toRelativeString(hivemqManifestRevisionsDir) },
+            hivemqIndexAndManifestDigests.mapTo(TreeSet()) { digest -> "sha256/$digest/link" },
+            hivemqManifestRevisionsDir.leaves.mapTo(TreeSet()) { it.toRelativeString(hivemqManifestRevisionsDir) },
         )
-        // @formatter:on
         val hivemqTagDir = hivemqManifestsDir.resolve("tags/4.16.0")
         assertTrue(hivemqTagDir.resolve("current/link").exists())
         assertTrue(hivemqTagDir.resolve("index/sha256/$hivemqIndexDigest/link").exists())
     }
+}
+
+private val File.leaves: Set<File> get() {
+    val leaves = HashSet<File>()
+    for (file in walkTopDown()) {
+        leaves += file
+        leaves -= file.parentFile
+    }
+    return leaves
 }
