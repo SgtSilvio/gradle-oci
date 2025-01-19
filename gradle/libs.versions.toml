@@ -7,7 +7,7 @@ commons-lang = "3.17.0"
 json = "20250107"
 junit-jupiter = "5.11.4"
 netty = "4.1.117.Final"
-oci-registry = "0.4.1"
+oci-registry = "0.5.0"
 reactor-kotlin = "1.2.3"
 reactor-netty = "1.2.2"
 
