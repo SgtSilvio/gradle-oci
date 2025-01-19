@@ -20,6 +20,8 @@ internal fun createOciMetadataClassifier(imageDefName: String): String =
     imageDefName.mainToEmpty().kebabCase().concatKebabCase("oci-metadata")
 
 internal fun createOciLayerClassifier(imageDefName: String, layerName: String): String =
-    imageDefName.mainToEmpty().kebabCase().concatKebabCase(layerName.kebabCase()).concatKebabCase("oci-layer")
+    imageDefName.mainToEmpty().kebabCase() //
+        .concatKebabCase(layerName.mainToEmpty().kebabCase()) //
+        .concatKebabCase("oci-layer")
 
 internal fun createPlatformPostfix(platform: Platform?) = if (platform == null) "" else "@$platform"
