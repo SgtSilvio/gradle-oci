@@ -31,3 +31,15 @@ This example gives you two options to use the created OCI image:
     ```shell
     ./gradlew help --task pushOciImage
     ```
+- Load the image to the Docker daemon:
+  ```shell
+  ./gradlew loadOciImage
+  ```
+  - You can specify the OCI image's name and tag in the Docker daemon with the `--name` and `--tag` options:
+    ```shell
+    ./gradlew loadOciImage --name oci-demo-app --tag 123 --tag latest
+    ```
+  - Run the following to get an overview and a description of all available options:
+    ```shell
+    ./gradlew help --task loadOciImage
+    ```
