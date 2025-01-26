@@ -72,3 +72,8 @@ internal fun String.toPlatform(): Platform {
         } else TreeSet(),
     )
 }
+
+internal fun Platform.toPlatformArgument(): String {
+    val s = "$os/$architecture"
+    return if (variant.isEmpty()) s else "$s/$variant"
+}
