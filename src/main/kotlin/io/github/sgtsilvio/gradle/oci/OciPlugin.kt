@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.image.LoadOciImageTask
+import io.github.sgtsilvio.gradle.oci.image.OciImageLayoutTask
 import io.github.sgtsilvio.gradle.oci.image.PushOciImageTask
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
@@ -38,6 +39,7 @@ class OciPlugin : Plugin<Project> {
         extension.imageDefinitions.all {
             registerPushTask(this, project, extension)
             registerLoadTask(this, project, extension)
+            registerLayoutTask(this, project, extension)
         }
     }
 
@@ -60,6 +62,18 @@ class OciPlugin : Plugin<Project> {
             from(extension.imageDependencies.create(loadName).apply {
                 runtime(imageDefinition.dependency).name(imageName).tag(imageTags)
             })
+        }
+    }
+
+    private fun registerLayoutTask(imageDefinition: OciImageDefinition, project: Project, extension: OciExtension) {
+        val layoutName = imageDefinition.name.mainToEmpty()
+        project.tasks.register<OciImageLayoutTask>(layoutName.concatCamelCase("ociImageLayout")) {
+            group = TASK_GROUP_NAME
+            description = "Creates an OCI image layout directory for the '${imageDefinition.name}' OCI image."
+            from(extension.imageDependencies.create(layoutName.concatCamelCase("layout")).apply {
+                runtime(imageDefinition.dependency).name(imageName).tag(imageTags)
+            })
+            outputDirectory.set(project.layout.buildDirectory.dir("oci/images/${imageDefinition.name}/layout"))
         }
     }
 }

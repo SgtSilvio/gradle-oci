@@ -1,0 +1,101 @@
+package io.github.sgtsilvio.gradle.oci.image
+
+import io.github.sgtsilvio.gradle.oci.internal.json.addArray
+import io.github.sgtsilvio.gradle.oci.internal.json.addObject
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonArray
+import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.metadata.*
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.kotlin.dsl.property
+import java.io.File
+import java.nio.file.Path
+import kotlin.io.path.*
+
+/**
+ * @author Silvio Giebl
+ */
+abstract class OciImagesLayoutTask : OciImagesTask() {
+
+    @get:Input
+    val dockerLoadCompatible: Property<Boolean> = project.objects.property<Boolean>().convention(true)
+
+    @get:OutputDirectory
+    val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
+
+    override fun run(
+        digestToLayerFile: Map<OciDigest, File>,
+        images: List<OciImage>,
+        multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
+    ) {
+        val outputDirectory = outputDirectory.get().asFile.toPath()
+        outputDirectory.ensureEmptyDirectory()
+        outputDirectory.resolve("oci-layout").writeText("""{"imageLayoutVersion":"1.0.0"}""")
+        outputDirectory.resolve("index.json")
+            .writeBytes(createIndexJson(multiPlatformImageAndReferencesPairs).toByteArray())
+        if (dockerLoadCompatible.get()) {
+            outputDirectory.resolve("manifest.json")
+                .writeBytes(createManifestJson(multiPlatformImageAndReferencesPairs).toByteArray())
+        }
+        val blobsDirectory = outputDirectory.resolve("blobs").createDirectory()
+        for (image in images) {
+            blobsDirectory.writeBlob(image.config.data)
+            blobsDirectory.writeBlob(image.manifest.data)
+        }
+        for ((multiPlatformImage, _) in multiPlatformImageAndReferencesPairs) {
+            blobsDirectory.writeBlob(multiPlatformImage.index)
+        }
+        for ((digest, layerFile) in digestToLayerFile) {
+            blobsDirectory.resolve(digest.algorithm.id)
+                .createDirectories()
+                .resolve(digest.encodedHash)
+                .createLinkPointingTo(layerFile.toPath())
+        }
+    }
+
+    private fun createIndexJson(
+        multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
+    ) = jsonObject {
+        // sorted for canonical json: manifests, mediaType, schemaVersion
+        addArray("manifests") {
+            for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
+                for (imageReference in imageReferences) {
+                    val annotations = sortedMapOf("org.opencontainers.image.ref.name" to imageReference.toString())
+                    val descriptor = OciDataDescriptor(multiPlatformImage.index, annotations)
+                    addObject { encodeOciDescriptor(descriptor) }
+                }
+            }
+        }
+        addString("mediaType", INDEX_MEDIA_TYPE)
+        addNumber("schemaVersion", 2)
+    }
+
+    private fun createManifestJson(
+        multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
+    ) = jsonArray {
+        for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
+            for ((_, image) in multiPlatformImage.platformToImage) {
+                addObject {
+                    val configDigest = image.config.digest
+                    addString("Config", "blobs/${configDigest.algorithm.id}/${configDigest.encodedHash}")
+                    addArray("Layers") {
+                        for (variant in image.variants) {
+                            for (layer in variant.layers) {
+                                val layerDigest = layer.descriptor.digest
+                                addString("blobs/${layerDigest.algorithm.id}/${layerDigest.encodedHash}")
+                            }
+                        }
+                    }
+                    addArray("RepoTags", imageReferences.map { it.toString() })
+                }
+            }
+        }
+    }
+
+    private fun Path.writeBlob(data: OciData) =
+        resolve(data.digest.algorithm.id).createDirectories().resolve(data.digest.encodedHash).writeBytes(data.bytes)
+}
+
+abstract class OciImageLayoutTask : OciImagesLayoutTask(), OciImageTask

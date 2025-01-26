@@ -133,7 +133,7 @@ internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciData {
     return OciData(INDEX_MEDIA_TYPE, data, OciDigestAlgorithm.SHA_256)
 }
 
-private fun JsonObjectStringBuilder.encodeOciDescriptor(descriptor: OciDescriptor) {
+internal fun JsonObjectStringBuilder.encodeOciDescriptor(descriptor: OciDescriptor) {
     // sorted for canonical json: annotations, digest, mediaType, size
     addObjectIfNotEmpty("annotations", descriptor.annotations)
     addString("digest", descriptor.digest.toString())

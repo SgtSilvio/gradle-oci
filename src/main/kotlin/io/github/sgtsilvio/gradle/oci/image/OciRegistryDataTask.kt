@@ -119,7 +119,7 @@ private fun Path.writeTagLink(digest: OciDigest) {
     }
 }
 
-private fun Path.ensureEmptyDirectory(): Path {
+internal fun Path.ensureEmptyDirectory(): Path { // TODO move to PathExtensions
     if (!toFile().deleteRecursively()) {
         throw IOException("$this could not be deleted")
     }

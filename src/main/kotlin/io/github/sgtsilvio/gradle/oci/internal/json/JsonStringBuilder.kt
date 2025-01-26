@@ -6,6 +6,12 @@ internal inline fun jsonObject(block: JsonObjectStringBuilder.() -> Unit): Strin
     return builder.toString()
 }
 
+internal inline fun jsonArray(block: JsonArrayStringBuilder.() -> Unit): String {
+    val builder = JsonStringBuilderImpl()
+    builder.addArray(block)
+    return builder.toString()
+}
+
 @DslMarker
 internal annotation class JsonStringBuilderDsl
 

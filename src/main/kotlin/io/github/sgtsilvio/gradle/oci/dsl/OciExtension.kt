@@ -28,6 +28,8 @@ interface OciExtension : PlatformFactories, PlatformSelectorFactories {
     val pushImageTaskClass get() = PushOciImageTask::class
     val loadImagesTaskClass get() = LoadOciImagesTask::class
     val loadImageTaskClass get() = LoadOciImageTask::class
+    val imagesLayoutTaskClass get() = OciImagesLayoutTask::class
+    val imageLayoutTaskClass get() = OciImageLayoutTask::class
     val registryDataTaskClass get() = OciRegistryDataTask::class
 
     val registries: OciRegistries
