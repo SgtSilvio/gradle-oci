@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.redirectOutput
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
+import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
 import io.github.sgtsilvio.oci.registry.DistributionRegistryStorage
 import io.github.sgtsilvio.oci.registry.OciRegistryHandler
 import io.netty.buffer.UnpooledByteBufAllocator
@@ -33,6 +34,7 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
             multiPlatformImageAndReferencesPairs,
             registryDataDirectory,
         )
+        val singlePlatform = platformSelector.get().singlePlatformOrNull()
         val host = if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"
         val loopResources = OciLoopResources.acquire()
         try {
@@ -46,7 +48,11 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
                     for (imageReference in imageReferences) {
                         val registryImageReference = "$host:${httpServer.port()}/$imageReference"
                         execOperations.exec {
-                            commandLine("docker", "pull", registryImageReference)
+                            val arguments = mutableListOf("docker", "pull", registryImageReference)
+                            if (singlePlatform != null) {
+                                arguments += listOf("--platform", singlePlatform.toPlatformArgument())
+                            }
+                            commandLine(arguments)
                             redirectOutput(logger)
                         }
                         execOperations.exec {

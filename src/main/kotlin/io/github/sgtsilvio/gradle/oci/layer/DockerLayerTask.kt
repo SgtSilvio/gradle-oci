@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIM
 import io.github.sgtsilvio.gradle.oci.internal.gradle.redirectOutput
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.logging.Logger
@@ -112,11 +113,6 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         appendLine("RUN echo \"Docker on MacOS creates a directory /root/.cache/rosetta in the first layer\"")
         val command = command.get()
         appendLine("RUN $command")
-    }
-
-    private fun Platform.toPlatformArgument(): String {
-        val s = "$os/$architecture"
-        return if (variant.isEmpty()) s else "$s/$variant"
     }
 
     private fun createCombinedErrorAndInfoOutputStream(logger: Logger) = LineOutputStream { line ->
