@@ -67,7 +67,10 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
         addArray("manifests") {
             for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
                 for (imageReference in imageReferences) {
-                    val annotations = sortedMapOf("org.opencontainers.image.ref.name" to imageReference.toString())
+                    val annotations = sortedMapOf(
+                        "org.opencontainers.image.ref.name" to imageReference.toString(),
+                        "io.containerd.image.name" to "docker.io/$imageReference",
+                    )
                     val descriptor = OciDataDescriptor(multiPlatformImage.index, annotations)
                     addObject { encodeOciDescriptor(descriptor) }
                 }
