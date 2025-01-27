@@ -15,8 +15,11 @@ import org.gradle.kotlin.dsl.property
 import org.gradle.process.ExecOperations
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
+import java.io.InputStream
+import java.io.SequenceInputStream
 import java.nio.file.attribute.FileTime
 import java.util.*
+import java.util.zip.GZIPInputStream
 import javax.inject.Inject
 
 /**
@@ -78,7 +81,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
             if (!savedImageTarInputStream.findEntry(lastLayerPath)) {
                 throw IllegalStateException("$lastLayerPath not found in docker image export")
             }
-            TarArchiveInputStream(savedImageTarInputStream).use { layerTarInputStream ->
+            TarArchiveInputStream(savedImageTarInputStream.optionalGZIPInputStream()).use { layerTarInputStream ->
                 while (layerTarInputStream.nextEntry != null) {
                     val tarEntry = layerTarInputStream.currentEntry
                     tarEntry.lastModifiedTime = FileTime.from(DEFAULT_MODIFICATION_TIME)
@@ -130,5 +133,17 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
             }
         }
         return false
+    }
+
+    private fun InputStream.optionalGZIPInputStream(): InputStream {
+        val firstBytes = ByteArray(2)
+        val read = read(firstBytes)
+        val firstBytesStream = ByteArrayInputStream(firstBytes, 0, read)
+        if (read < 2) {
+            return firstBytesStream
+        }
+        val fullStream = SequenceInputStream(firstBytesStream, this)
+        val magic = firstBytes[0].toUByte().toInt() or (firstBytes[1].toUByte().toInt() shl 8)
+        return if (magic == GZIPInputStream.GZIP_MAGIC) GZIPInputStream(fullStream) else fullStream
     }
 }
