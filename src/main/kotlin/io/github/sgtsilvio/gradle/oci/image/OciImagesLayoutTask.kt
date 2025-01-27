@@ -48,10 +48,7 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
             blobsDirectory.writeBlob(multiPlatformImage.index)
         }
         for ((digest, layerFile) in digestToLayerFile) {
-            blobsDirectory.resolve(digest.algorithm.id)
-                .createDirectories()
-                .resolve(digest.encodedHash)
-                .createLinkPointingTo(layerFile.toPath())
+            blobsDirectory.resolveBlobFile(digest).createLinkPointingTo(layerFile.toPath())
         }
     }
 
@@ -94,8 +91,10 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
         }
     }
 
-    private fun Path.writeBlob(data: OciData) =
-        resolve(data.digest.algorithm.id).createDirectories().resolve(data.digest.encodedHash).writeBytes(data.bytes)
+    private fun Path.resolveBlobFile(digest: OciDigest) =
+        resolve(digest.algorithm.id).createDirectories().resolve(digest.encodedHash)
+
+    private fun Path.writeBlob(data: OciData) = resolveBlobFile(data.digest).writeBytes(data.bytes)
 }
 
 abstract class OciImageLayoutTask : OciImagesLayoutTask(), OciImageTask
