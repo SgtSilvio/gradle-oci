@@ -24,4 +24,7 @@ internal fun createOciLayerClassifier(imageDefName: String, layerName: String): 
         .concatKebabCase(layerName.mainToEmpty().kebabCase()) //
         .concatKebabCase("oci-layer")
 
+internal fun createOciImageLayoutClassifier(imageDefName: String) =
+    imageDefName.mainToEmpty().kebabCase().concatKebabCase("oci-image-layout")
+
 internal fun createPlatformPostfix(platform: Platform?) = if (platform == null) "" else "@$platform"
