@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.image
 
+import io.github.sgtsilvio.gradle.oci.internal.ensureEmptyDirectory
 import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonArray

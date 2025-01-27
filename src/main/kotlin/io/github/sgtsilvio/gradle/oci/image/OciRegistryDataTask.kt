@@ -1,12 +1,12 @@
 package io.github.sgtsilvio.gradle.oci.image
 
+import io.github.sgtsilvio.gradle.oci.internal.ensureEmptyDirectory
 import io.github.sgtsilvio.gradle.oci.metadata.OciData
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.OutputDirectory
 import java.io.File
-import java.io.IOException
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -117,11 +117,4 @@ private fun Path.writeTagLink(digest: OciDigest) {
             throw IllegalStateException("tried to link the same image name/tag to different images")
         }
     }
-}
-
-internal fun Path.ensureEmptyDirectory(): Path { // TODO move to PathExtensions
-    if (!toFile().deleteRecursively()) {
-        throw IOException("$this could not be deleted")
-    }
-    return createDirectories()
 }
