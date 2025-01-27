@@ -6,8 +6,10 @@ import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
 import io.github.sgtsilvio.gradle.oci.image.LoadOciImageTask
 import io.github.sgtsilvio.gradle.oci.image.OciImageLayoutTask
 import io.github.sgtsilvio.gradle.oci.image.PushOciImageTask
+import io.github.sgtsilvio.gradle.oci.internal.createOciImageLayoutClassifier
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
+import io.github.sgtsilvio.gradle.oci.internal.string.camelCase
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -66,14 +68,15 @@ class OciPlugin : Plugin<Project> {
     }
 
     private fun registerLayoutTask(imageDefinition: OciImageDefinition, project: Project, extension: OciExtension) {
-        val layoutName = imageDefinition.name.mainToEmpty()
-        project.tasks.register<OciImageLayoutTask>(layoutName.concatCamelCase("ociImageLayout")) {
+        val imageLayoutClassifier = createOciImageLayoutClassifier(imageDefinition.name)
+        project.tasks.register<OciImageLayoutTask>(imageLayoutClassifier.camelCase()) {
             group = TASK_GROUP_NAME
             description = "Creates an OCI image layout directory for the '${imageDefinition.name}' OCI image."
-            from(extension.imageDependencies.create(layoutName.concatCamelCase("layout")).apply {
+            from(extension.imageDependencies.create(name).apply {
                 runtime(imageDefinition.dependency).name(imageName).tag(imageTags)
             })
-            outputDirectory.set(project.layout.buildDirectory.dir("oci/images/${imageDefinition.name}/layout"))
+            destinationDirectory.set(project.layout.buildDirectory.dir("oci/images/${imageDefinition.name}"))
+            classifier.set(imageLayoutClassifier)
         }
     }
 }

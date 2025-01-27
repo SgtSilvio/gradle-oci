@@ -8,6 +8,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.*
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.kotlin.dsl.property
 import java.io.File
@@ -22,8 +23,15 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
     @get:Input
     val dockerLoadCompatible: Property<Boolean> = project.objects.property<Boolean>().convention(true)
 
+    @get:Internal
+    val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
+
+    @get:Internal
+    val classifier = project.objects.property<String>()
+
     @get:OutputDirectory
-    val outputDirectory: DirectoryProperty = project.objects.directoryProperty()
+    val outputDirectory: DirectoryProperty =
+        project.objects.directoryProperty().convention(destinationDirectory.dir(classifier))
 
     override fun run(
         digestToLayerFile: Map<OciDigest, File>,
