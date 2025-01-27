@@ -34,7 +34,7 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
             multiPlatformImageAndReferencesPairs,
             registryDataDirectory,
         )
-        val singlePlatform = platformSelector.get().singlePlatformOrNull()
+        val singlePlatform = platformSelector.orNull?.singlePlatformOrNull()
         val host = if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"
         val loopResources = OciLoopResources.acquire()
         try {
