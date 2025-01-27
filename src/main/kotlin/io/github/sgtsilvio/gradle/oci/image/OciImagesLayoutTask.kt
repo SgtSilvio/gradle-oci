@@ -10,6 +10,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.options.Option
 import org.gradle.kotlin.dsl.property
 import java.io.File
 import java.nio.file.Path
@@ -32,6 +33,13 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
     @get:OutputDirectory
     val outputDirectory: DirectoryProperty =
         project.objects.directoryProperty().convention(destinationDirectory.dir(classifier))
+
+    @Option(option = "tar", description = "Creates a tar of this OCI image layout.")
+    protected fun createTar(isCreateTar: Boolean) {
+        if (isCreateTar) {
+            finalizedBy(project.tasks.named("${name}Tar"))
+        }
+    }
 
     override fun run(
         digestToLayerFile: Map<OciDigest, File>,
