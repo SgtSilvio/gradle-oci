@@ -22,6 +22,10 @@ import kotlin.io.path.*
 abstract class OciImagesLayoutTask : OciImagesTask() {
 
     @get:Input
+    @get:Option(
+        option = "docker-load-compatible",
+        description = "Creates a manifest.json file for backwards compatibility with the docker save/load format",
+    )
     val dockerLoadCompatible: Property<Boolean> = project.objects.property<Boolean>().convention(true)
 
     @get:Internal
