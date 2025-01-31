@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.image
 
+import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
 import io.github.sgtsilvio.gradle.oci.internal.gradle.redirectOutput
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
@@ -34,6 +35,7 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
             multiPlatformImageAndReferencesPairs,
             registryDataDirectory,
         )
+        val dockerExecutablePath = findExecutablePath("docker")
         val singlePlatform = platformSelector.orNull?.singlePlatformOrNull()
         val host = if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"
         val loopResources = OciLoopResources.acquire()
@@ -48,7 +50,7 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
                     for (imageReference in imageReferences) {
                         val registryImageReference = "$host:${httpServer.port()}/$imageReference"
                         execOperations.exec {
-                            val arguments = mutableListOf("docker", "pull", registryImageReference)
+                            val arguments = mutableListOf(dockerExecutablePath, "pull", registryImageReference)
                             if (singlePlatform != null) {
                                 arguments += listOf("--platform", singlePlatform.toPlatformArgument())
                             }
@@ -56,11 +58,11 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
                             redirectOutput(logger)
                         }
                         execOperations.exec {
-                            commandLine("docker", "tag", registryImageReference, imageReference)
+                            commandLine(dockerExecutablePath, "tag", registryImageReference, imageReference)
                             redirectOutput(logger)
                         }
                         execOperations.exec {
-                            commandLine("docker", "rmi", registryImageReference)
+                            commandLine(dockerExecutablePath, "rmi", registryImageReference)
                             redirectOutput(logger)
                         }
                     }

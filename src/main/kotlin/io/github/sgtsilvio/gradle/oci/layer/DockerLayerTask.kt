@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.layer
 
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
+import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
 import io.github.sgtsilvio.gradle.oci.internal.gradle.redirectOutput
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -52,21 +53,22 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     val environment = project.objects.mapProperty<String, String>()
 
     override fun run(tarOutputStream: TarArchiveOutputStream) {
+        val dockerExecutablePath = findExecutablePath("docker")
         val imageReference = UUID.randomUUID()
         val platformArgument = platform.get().toPlatformArgument()
         execOperations.exec {
-            commandLine("docker", "build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
+            commandLine(dockerExecutablePath, "build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
             standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
             errorOutput = createCombinedErrorAndInfoOutputStream(logger)
         }
         val temporaryDirectory = temporaryDir
         val savedImageTarFile = temporaryDirectory.resolve("image.tar")
         execOperations.exec {
-            commandLine("docker", "save", imageReference, "-o", savedImageTarFile)
+            commandLine(dockerExecutablePath, "save", imageReference, "-o", savedImageTarFile)
             errorOutput = createCombinedErrorAndInfoOutputStream(logger)
         }
         execOperations.exec {
-            commandLine("docker", "rmi", imageReference)
+            commandLine(dockerExecutablePath, "rmi", imageReference)
             redirectOutput(logger)
         }
         val manifest = TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->
