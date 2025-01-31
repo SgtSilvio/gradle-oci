@@ -7,4 +7,4 @@ gradleOci-junitJupiter = { module = "io.github.sgtsilvio:gradle-oci-junit-jupite
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 
 [plugins]
-oci = { id = "io.github.sgtsilvio.gradle.oci", version = "0.20.1" }
+oci = { id = "io.github.sgtsilvio.gradle.oci", version = "0.20.2" }
