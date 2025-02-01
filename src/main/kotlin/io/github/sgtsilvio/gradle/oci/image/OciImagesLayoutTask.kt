@@ -5,6 +5,7 @@ import io.github.sgtsilvio.gradle.oci.internal.json.addArray
 import io.github.sgtsilvio.gradle.oci.internal.json.addObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonArray
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
+import io.github.sgtsilvio.gradle.oci.internal.string.concatKebabCase
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
@@ -97,7 +98,9 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
         multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
     ) = jsonArray {
         for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
-            for ((_, image) in multiPlatformImage.platformToImage) {
+            val addArchitectureToTag = multiPlatformImage.platformToImage.size > 1
+            val addOsToTag = multiPlatformImage.platformToImage.keys.mapTo(HashSet()) { it.os }.size > 1
+            for ((platform, image) in multiPlatformImage.platformToImage) {
                 addObject {
                     val configDigest = image.config.digest
                     addString("Config", "blobs/${configDigest.algorithm.id}/${configDigest.encodedHash}")
@@ -109,7 +112,11 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
                             }
                         }
                     }
-                    addArray("RepoTags", imageReferences.map { it.toString() })
+                    var tagSuffix = if (addOsToTag) platform.os else ""
+                    if (addArchitectureToTag) {
+                        tagSuffix = tagSuffix.concatKebabCase(platform.architecture).concatKebabCase(platform.variant)
+                    }
+                    addArray("RepoTags", imageReferences.map { it.toString().concatKebabCase(tagSuffix) })
                 }
             }
         }
