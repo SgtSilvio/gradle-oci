@@ -9,7 +9,7 @@
 This example project produces a Java application that prints "Hello World!" and the Java version.
 
 The application is bundled as an OCI/Docker image by using the Gradle OCI Plugin.
-Look at the OCI image definition in [build.gradle.kts](build.gradle).
+Look at the OCI image definition in [build.gradle](build.gradle).
 
 This example lets you use the created OCI image in the following ways:
 - Push the image to a registry:
