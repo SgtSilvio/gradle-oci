@@ -202,7 +202,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     abstract class Variant @Inject constructor(
         private val imageDefinition: OciImageDefinitionImpl,
         platformOptional: Optional<Platform>,
-        objectFactory: ObjectFactory,
+        private val objectFactory: ObjectFactory,
         providerFactory: ProviderFactory,
         configurationContainer: ConfigurationContainer,
         taskContainer: TaskContainer,
@@ -238,8 +238,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             entryPoint.convention(null)
             arguments.convention(null)
         }
-        final override val layers =
-            objectFactory.newInstance<Layers>(imageDefinition.name, Optional.ofNullable(platform))
+        final override val layers = objectFactory.namedDomainObjectList(OciImageDefinition.Variant.Layer::class)
 
         init {
             configuration.dependencies.addAllLater(dependencies.runtime.dependencies)
@@ -252,7 +251,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                     name.set(project.name)
                     classifier.set(metadataTask.flatMap { it.classifier })
                     extension.set("json")
-                }) + layers.list.mapNotNull { layer ->
+                }) + layers.mapNotNull { layer ->
                     (layer as Layer).getTask()?.let { layerTask ->
                         LazyPublishArtifact(objectFactory).apply {
                             file.set(layerTask.flatMap { it.file })
@@ -297,7 +296,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         private fun createLayerMetadataList(
             objectFactory: ObjectFactory,
             providerFactory: ProviderFactory,
-        ): Provider<List<OciLayerMetadata>> = providerFactory.provider { layers.list }.flatMap { layers ->
+        ): Provider<List<OciLayerMetadata>> = providerFactory.provider { layers }.flatMap { layers ->
             val listProperty = objectFactory.listProperty<OciLayerMetadata>()
             for (layer in layers) {
                 layer as Layer
@@ -312,8 +311,17 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =
             configuration.execute(config)
 
-        final override fun layers(configuration: Action<in OciImageDefinition.Variant.Layers>) =
-            configuration.execute(layers)
+        final override fun layer(name: String, configuration: Action<in OciImageDefinition.Variant.Layer>) =
+            configuration.execute(layer(name))
+
+        fun layer(name: String): Layer {
+            var layer = layers.findByName(name) as Layer?
+            if (layer == null) {
+                layer = objectFactory.newInstance<Layer>(name, imageDefinition.name, Optional.ofNullable(platform))
+                layers.add(layer)
+            }
+            return layer
+        }
 
         abstract class Dependencies @Inject constructor(
             objectFactory: ObjectFactory,
@@ -321,28 +329,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         ) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDefinition.Variant.Dependencies {
 
             final override val runtime = objectFactory.newInstance<OciImageDependencyCollectorImpl.Default>()
-        }
-
-        abstract class Layers @Inject constructor(
-            private val imageDefName: String,
-            platform: Optional<Platform>,
-            private val objectFactory: ObjectFactory,
-        ) : OciImageDefinition.Variant.Layers {
-
-            private val platform: Platform? = platform.orElse(null)
-            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.Variant.Layer::class)
-
-            final override fun layer(name: String, configuration: Action<in OciImageDefinition.Variant.Layer>) =
-                configuration.execute(layer(name))
-
-            fun layer(name: String): Layer {
-                var layer = list.findByName(name) as Layer?
-                if (layer == null) {
-                    layer = objectFactory.newInstance<Layer>(name, imageDefName, Optional.ofNullable(platform))
-                    list.add(layer)
-                }
-                return layer
-            }
         }
 
         abstract class Layer @Inject constructor(
@@ -454,46 +440,33 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
 
     abstract class VariantScope @Inject constructor(
         private val platformFilter: PlatformFilter,
-        imageDefName: String,
-        variants: DomainObjectSet<Variant>,
-        objectFactory: ObjectFactory,
+        private val imageDefName: String,
+        allVariants: DomainObjectSet<Variant>,
+        private val objectFactory: ObjectFactory,
     ) : OciImageDefinition.VariantScope {
 
-        private val filteredVariants = when (platformFilter) {
-            AllPlatformFilter -> variants
-            else -> variants.matching { variant -> platformFilter.matches(variant.platform) }
+        private val variants = when (platformFilter) {
+            AllPlatformFilter -> allVariants
+            else -> allVariants.matching { variant -> platformFilter.matches(variant.platform) }
         }
-        final override val layers = objectFactory.newInstance<Layers>(platformFilter, imageDefName, filteredVariants)
+        final override val layers = objectFactory.namedDomainObjectList(OciImageDefinition.VariantScope.Layer::class)
 
         final override fun dependencies(configuration: Action<in OciImageDefinition.Variant.Dependencies>) =
-            filteredVariants.configureEach { dependencies(configuration) }
+            variants.configureEach { dependencies(configuration) }
 
         final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =
-            filteredVariants.configureEach { config(configuration) }
+            variants.configureEach { config(configuration) }
 
-        final override fun layers(configuration: Action<in OciImageDefinition.VariantScope.Layers>) =
-            configuration.execute(layers)
+        final override fun layer(name: String, configuration: Action<in OciImageDefinition.VariantScope.Layer>) =
+            configuration.execute(layer(name))
 
-        abstract class Layers @Inject constructor(
-            private val platformFilter: PlatformFilter,
-            private val imageDefName: String,
-            private val variants: DomainObjectSet<Variant>,
-            private val objectFactory: ObjectFactory,
-        ) : OciImageDefinition.VariantScope.Layers {
-
-            final override val list = objectFactory.namedDomainObjectList(OciImageDefinition.VariantScope.Layer::class)
-
-            final override fun layer(name: String, configuration: Action<in OciImageDefinition.VariantScope.Layer>) =
-                configuration.execute(layer(name))
-
-            fun layer(name: String): Layer {
-                var layer = list.findByName(name) as Layer?
-                if (layer == null) {
-                    layer = objectFactory.newInstance<Layer>(name, platformFilter, imageDefName, variants)
-                    list.add(layer)
-                }
-                return layer
+        fun layer(name: String): Layer {
+            var layer = layers.findByName(name) as Layer?
+            if (layer == null) {
+                layer = objectFactory.newInstance<Layer>(name, platformFilter, imageDefName, variants)
+                layers.add(layer)
             }
+            return layer
         }
 
         abstract class Layer @Inject constructor(
@@ -511,7 +484,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             final override fun getName() = name
 
             final override fun metadata(configuration: Action<in OciImageDefinition.Variant.Layer.Metadata>) =
-                variants.configureEach { layers.layer(name).metadata(configuration) }
+                variants.configureEach { layer(name).metadata(configuration) }
 
             final override fun contents(configuration: Action<in OciCopySpec>) {
                 if (externalTask != null) {
@@ -524,14 +497,14 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 }
                 task.contents(configuration)
                 variants.configureEach {
-                    layers.layer(name).contentsFromVariantScope(configuration, task)
+                    layer(name).contentsFromVariantScope(configuration, task)
                 }
             }
 
             final override fun contents(task: TaskProvider<out OciLayerTask>) {
                 externalTask = if (task == this.task) null else task
                 variants.configureEach {
-                    layers.layer(name).contents(task)
+                    layer(name).contents(task)
                 }
             }
         }

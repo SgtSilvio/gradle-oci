@@ -35,11 +35,9 @@ oci {
                 entryPoint = listOf("java", "-jar")
                 entryPoint.add(tasks.jar.flatMap { it.archiveFileName })
             }
-            layers {
-                layer("app") {
-                    contents {
-                        from(tasks.jar)
-                    }
+            layer("main") {
+                contents {
+                    from(tasks.jar)
                 }
             }
         }

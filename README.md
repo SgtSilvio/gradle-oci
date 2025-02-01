@@ -61,11 +61,9 @@ oci {
                 entryPoint = listOf("java", "-jar")
                 entryPoint.add(tasks.jar.flatMap { it.archiveFileName })
             }
-            layers {
-                layer("jar") {
-                    contents {
-                        from(tasks.jar)
-                    }
+            layer("jar") {
+                contents {
+                    from(tasks.jar)
                 }
             }
         }

@@ -54,12 +54,10 @@ internal class PublishMetadataTest {
                         config {
                             entryPoint.set(listOf("java", "-jar", "app.jar"))
                         }
-                        layers {
-                            layer("jar") {
-                                contents {
-                                    from(tasks.jar)
-                                    rename(".*", "app.jar")
-                                }
+                        layer("jar") {
+                            contents {
+                                from(tasks.jar)
+                                rename(".*", "app.jar")
                             }
                         }
                     }

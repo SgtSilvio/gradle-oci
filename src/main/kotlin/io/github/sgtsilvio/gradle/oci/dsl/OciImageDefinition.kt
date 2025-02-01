@@ -31,11 +31,13 @@ interface OciImageDefinition : Named, CapabilityFactories {
     interface Variant {
         val dependencies: Dependencies
         val config: Config
-        val layers: Layers
+        val layers: NamedDomainObjectList<Layer>
 
         fun dependencies(configuration: Action<in Dependencies>)
+
         fun config(configuration: Action<in Config>)
-        fun layers(configuration: Action<in Layers>)
+
+        fun layer(name: String, configuration: Action<in Layer>)
 
         interface Dependencies : DependencyConstraintFactories {
             val runtime: OciImageDependencyCollector<Unit>
@@ -58,12 +60,6 @@ interface OciImageDefinition : Named, CapabilityFactories {
             val manifestDescriptorAnnotations: MapProperty<String, String>
         }
 
-        interface Layers {
-            val list: NamedDomainObjectList<Layer>
-
-            fun layer(name: String, configuration: Action<in Layer>)
-        }
-
         interface Layer : Named {
             val metadata: Metadata
 
@@ -84,17 +80,11 @@ interface OciImageDefinition : Named, CapabilityFactories {
     }
 
     interface VariantScope {
-        val layers: Layers
+        val layers: NamedDomainObjectList<Layer>
 
         fun dependencies(configuration: Action<in Variant.Dependencies>)
         fun config(configuration: Action<in Variant.Config>)
-        fun layers(configuration: Action<in Layers>)
-
-        interface Layers {
-            val list: NamedDomainObjectList<Layer>
-
-            fun layer(name: String, configuration: Action<in Layer>)
-        }
+        fun layer(name: String, configuration: Action<in Layer>)
 
         interface Layer : Named {
             fun metadata(configuration: Action<in Variant.Layer.Metadata>)
