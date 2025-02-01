@@ -102,13 +102,11 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
             val addOsToTag = multiPlatformImage.platformToImage.keys.mapTo(HashSet()) { it.os }.size > 1
             for ((platform, image) in multiPlatformImage.platformToImage) {
                 addObject {
-                    val configDigest = image.config.digest
-                    addString("Config", "blobs/${configDigest.algorithm.id}/${configDigest.encodedHash}")
+                    addString("Config", relativeBlobFilePath(image.config.digest))
                     addArray("Layers") {
                         for (variant in image.variants) {
                             for (layer in variant.layers) {
-                                val layerDigest = layer.descriptor.digest
-                                addString("blobs/${layerDigest.algorithm.id}/${layerDigest.encodedHash}")
+                                addString(relativeBlobFilePath(layer.descriptor.digest))
                             }
                         }
                     }
@@ -121,6 +119,8 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
             }
         }
     }
+
+    private fun relativeBlobFilePath(digest: OciDigest) = "blobs/${digest.algorithm.id}/${digest.encodedHash}"
 
     private fun Path.resolveBlobFile(digest: OciDigest) =
         resolve(digest.algorithm.id).createDirectories().resolve(digest.encodedHash)
