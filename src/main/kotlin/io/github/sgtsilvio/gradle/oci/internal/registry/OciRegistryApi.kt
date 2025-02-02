@@ -560,7 +560,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //        if (scopesFromResponse != scopes) { // TODO GitHub container registry always returns pull as action (no pull,push) and returns "user/image" as repository when sending basic auth in first request, log a warning instead?
 //            throw IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse")
 //        }
-        return tokenCache.getMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed())) { key ->
+        return tokenCache.getMono(TokenCacheKey(registryUrl, scopesFromResponse, credentials?.hashed())) { key ->
             val scopeParams = scopesFromResponse.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
                 if (credentials != null) {
