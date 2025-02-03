@@ -557,9 +557,10 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
         val scopesFromResponse = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
-//        if (scopesFromResponse != scopes) { // TODO GitHub container registry always returns pull as action (no pull,push) and returns "user/image" as repository when sending basic auth in first request, log a warning instead?
-//            throw IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse")
-//        }
+        // scopes == scopesFromResponse can not be validated here because registry implementations differ.
+        // The GitHub container registry always returns pull as action (never pull,push) and returns "user/image" as repository if basic auth was sent.
+        // https://ghcr.io/token simply echos back the token passed as basic auth password so the scopes do not matter as they are not included in the token.
+        // If the token actually includes scope claims, they are validated below.
         return tokenCache.getMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed())) { key ->
             val scopeParams = scopesFromResponse.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
@@ -576,6 +577,8 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                     if (hasKey("token")) getString("token") else getString("access_token")
                 }
                 val registryToken = OciRegistryToken(token)
+                // The claims are null if the token is not based on scopes, for example with the GitHub container registry.
+                // If the token actually includes scope claims (grantedScopes), they are validated against the required scopes (key.scopes).
                 val grantedScopes = registryToken.claims?.scopes
                 if ((grantedScopes != null) && (grantedScopes != key.scopes)) {
                     if (grantedScopes.isNotEmpty()) {
