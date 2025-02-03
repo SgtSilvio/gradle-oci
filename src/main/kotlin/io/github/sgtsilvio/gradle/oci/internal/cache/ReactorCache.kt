@@ -5,7 +5,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import java.util.concurrent.CancellationException
 
-internal fun <K, V> AsyncCache<K, V>.getMono(key: K, mappingFunction: (key: K) -> Mono<V>): Mono<V> {
+internal fun <K : Any, V> AsyncCache<K, V>.getMono(key: K, mappingFunction: (key: K) -> Mono<V>): Mono<V> {
     return Mono.defer {
         get(key) { localKey, _ ->
             mappingFunction(localKey).wrapError().toFuture()
@@ -13,7 +13,7 @@ internal fun <K, V> AsyncCache<K, V>.getMono(key: K, mappingFunction: (key: K) -
     }
 }
 
-internal fun <K, V> AsyncCache<K, V>.getIfPresentMono(key: K): Mono<V> =
+internal fun <K : Any, V> AsyncCache<K, V>.getIfPresentMono(key: K): Mono<V> =
     Mono.defer { getIfPresent(key)?.toMono()?.unwrapError() ?: Mono.empty() }
 
 private fun <T> Mono<T>.wrapError(): Mono<T> = onErrorMap { ErrorWrapper(it) }
