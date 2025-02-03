@@ -549,19 +549,19 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     private fun tryAuthorize(
         responseHeaders: HttpHeaders,
         registryUrl: URI,
-        requiredScopes: Set<OciRegistryResourceScope>,
+        scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String>? {
         val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
-        val scopes = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
+        val scopesFromResponse = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
 //        if (scopesFromResponse != scopes) { // TODO GitHub container registry always returns pull as action (no pull,push) and returns "user/image" as repository when sending basic auth in first request, log a warning instead?
 //            throw IllegalStateException("scopes do not match, required: $scopes, from bearer authorization header: $scopesFromResponse")
 //        }
         return tokenCache.getMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed())) { key ->
-            val scopeParams = key.scopes.joinToString("&scope=", "scope=") { it.encodeToString() }
+            val scopeParams = scopesFromResponse.joinToString("&scope=", "scope=") { it.encodeToString() }
             httpClient.headers { headers ->
                 if (credentials != null) {
                     headers[HttpHeaderNames.AUTHORIZATION] = credentials.encodeBasicAuthorization()
@@ -577,16 +577,14 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                 }
                 val registryToken = OciRegistryToken(token)
                 val grantedScopes = registryToken.claims?.scopes
-                if (grantedScopes != null) {
-                    if ((grantedScopes != key.scopes) && grantedScopes.isNotEmpty()) {
+                if ((grantedScopes != null) && (grantedScopes != key.scopes)) {
+                    if (grantedScopes.isNotEmpty()) {
                         tokenCache.asMap().putIfAbsent(
                             key.copy(scopes = grantedScopes),
                             CompletableFuture.completedFuture(registryToken),
                         )
                     }
-                    if (grantedScopes != requiredScopes) {
-                        throw InsufficientScopesException(requiredScopes, grantedScopes)
-                    }
+                    throw InsufficientScopesException(key.scopes, grantedScopes)
                 }
                 registryToken
             }
