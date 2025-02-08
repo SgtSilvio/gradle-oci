@@ -151,7 +151,6 @@ internal abstract class OciRegistryImpl @Inject constructor(
         layout("gradle")
         metadataSources {
             gradleMetadata()
-            artifact()
         }
         content {
             onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, *OCI_IMAGE_DISTRIBUTION_TYPES)
