@@ -139,7 +139,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
 
     final override val url = objectFactory.property<URI>()
     final override val finalUrl: Provider<URI> =
-        providerFactory.gradleProperty(url.map(URI::toString)).map(::URI).orElse(url)
+        providerFactory.gradleProperty(url.map { "oci.registry.mirror.$it" }).map(::URI).orElse(url)
     final override val credentials = objectFactory.property<PasswordCredentials>()
     final override val repository = repositoryHandler.ivy {
         name = this@OciRegistryImpl.name + "OciRegistry"
