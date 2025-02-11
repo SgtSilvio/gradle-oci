@@ -32,7 +32,7 @@ rootProject.name = "oci-demo"
 ```kotlin
 plugins {
     java
-    id("io.github.sgtsilvio.gradle.oci") version "0.21.0"
+    id("io.github.sgtsilvio.gradle.oci") version "0.22.0"
 }
 
 group = "org.example"
