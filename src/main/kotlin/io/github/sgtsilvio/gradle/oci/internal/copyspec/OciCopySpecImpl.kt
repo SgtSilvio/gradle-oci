@@ -37,7 +37,10 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return this
     }
 
-    final override fun from(source: Any, action: Action<in OciCopySpec>) = addChild({ from(source) }, action)
+    final override fun from(source: Any, action: Action<in OciCopySpec>): OciCopySpecImpl {
+        addChild({ from(source) }, action)
+        return this
+    }
 
     final override fun into(destinationPath: String): OciCopySpecImpl {
         if (destinationPath.contains("//")) {
@@ -53,8 +56,10 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return this
     }
 
-    final override fun into(destinationPath: String, action: Action<in OciCopySpec>) =
+    final override fun into(destinationPath: String, action: Action<in OciCopySpec>): OciCopySpecImpl {
         addChild({ into(destinationPath) }, action)
+        return this
+    }
 
     private inline fun addChild(init: OciCopySpecImpl.() -> Unit, userAction: Action<in OciCopySpec>): OciCopySpecImpl {
         val child = objectFactory.newInstance<OciCopySpecImpl>()

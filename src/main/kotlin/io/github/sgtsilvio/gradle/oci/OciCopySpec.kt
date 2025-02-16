@@ -34,7 +34,7 @@ interface OciCopySpec {
      *
      * @param source see [org.gradle.api.Project.files] for all possible types
      * @param action action invoked with the created child copy spec
-     * @return the created child copy spec
+     * @return the current copy spec
      */
     fun from(source: Any, action: Action<in OciCopySpec>): OciCopySpec
 
@@ -55,7 +55,7 @@ interface OciCopySpec {
      *
      * @param destinationPath must not start with `/`, must not end with `/`
      * @param action          action invoked with the created child copy spec
-     * @return the created child copy spec
+     * @return the current copy spec
      */
     fun into(destinationPath: String, action: Action<in OciCopySpec>): OciCopySpec
 
@@ -68,7 +68,7 @@ interface OciCopySpec {
      * Configure inclusion and exclusion filters for source files added via [from].
      *
      * @param action configuration action that can add or modify inclusion and exclusion filters
-     * @return the created child copy spec
+     * @return the current copy spec
      */
     fun filter(action: Action<in PatternFilterable>): OciCopySpec
 
