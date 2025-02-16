@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.copyspec
 
+import io.github.sgtsilvio.gradle.oci.FilesOciCopySpec
 import io.github.sgtsilvio.gradle.oci.OciCopySpec
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
@@ -16,7 +17,7 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: ObjectFactory) : OciCopySpec {
+abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: ObjectFactory) : OciCopySpec, FilesOciCopySpec {
 
     val sources = objectFactory.fileCollection()
     val destinationPath: Property<String> = objectFactory.property<String>().convention("")
@@ -37,7 +38,7 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return this
     }
 
-    final override fun from(source: Any, action: Action<in OciCopySpec>): OciCopySpecImpl {
+    final override fun from(source: Any, action: Action<in FilesOciCopySpec>): OciCopySpecImpl {
         addChild({ from(source) }, action)
         return this
     }
@@ -61,12 +62,11 @@ abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: Ob
         return this
     }
 
-    private inline fun addChild(init: OciCopySpecImpl.() -> Unit, userAction: Action<in OciCopySpec>): OciCopySpecImpl {
+    private inline fun addChild(init: OciCopySpecImpl.() -> Unit, userAction: Action<in OciCopySpecImpl>) {
         val child = objectFactory.newInstance<OciCopySpecImpl>()
         child.init() // invoke init before adding the child as it performs validations
         children += child
         userAction.execute(child)
-        return child
     }
 
     final override fun filter(action: Action<in PatternFilterable>): OciCopySpecImpl {

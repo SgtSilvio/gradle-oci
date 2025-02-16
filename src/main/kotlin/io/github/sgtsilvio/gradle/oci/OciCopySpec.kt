@@ -4,6 +4,9 @@ import org.gradle.api.Action
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.util.PatternFilterable
 
+@DslMarker
+annotation class OciCopySpecDsl
+
 /**
  * Set of specifications for copying files inspired by [org.gradle.api.file.CopySpec].
  *
@@ -15,7 +18,7 @@ import org.gradle.api.tasks.util.PatternFilterable
  *
  * @author Silvio Giebl
  */
-interface OciCopySpec {
+interface OciCopySpec : BaseOciCopySpec {
 
     /**
      * Add source files to the current copy spec.
@@ -36,15 +39,7 @@ interface OciCopySpec {
      * @param action action invoked with the created child copy spec
      * @return the current copy spec
      */
-    fun from(source: Any, action: Action<in OciCopySpec>): OciCopySpec
-
-    /**
-     * Set the destination path of the current copy spec.
-     *
-     * @param destinationPath must not start with `/`, must not end with `/`
-     * @return the current copy spec
-     */
-    fun into(destinationPath: String): OciCopySpec
+    fun from(source: Any, action: Action<in FilesOciCopySpec>): OciCopySpec
 
     /**
      * Set the destination path of a new child copy spec.
@@ -60,17 +55,43 @@ interface OciCopySpec {
     fun into(destinationPath: String, action: Action<in OciCopySpec>): OciCopySpec
 
     /**
-     * Inclusion and exclusion filters for source files added via [from].
+     * Adds the given copy spec as a child to the current copy spec.
+     * This allows reusing copy specs in multiple places.
+     *
+     * @param other the copy spec to add as a child to the current copy spec
+     * @return the current copy spec
+     * @throws IllegalArgumentException if adding the given copy spec as a child to the current copy spec would result in a cycle
+     * (the current copy spec is the same as or a transitive child of the given copy spec)
+     */
+    fun with(other: OciCopySpec): OciCopySpec
+}
+
+interface FilesOciCopySpec : BaseOciCopySpec {
+
+    /**
+     * Set the destination path of the current copy spec.
+     *
+     * @param destinationPath must not start with `/`, must not end with `/`
+     * @return the current copy spec
+     */
+    fun into(destinationPath: String): FilesOciCopySpec
+}
+
+@OciCopySpecDsl
+interface BaseOciCopySpec {
+
+    /**
+     * Inclusion and exclusion filters for source files.
      */
     val filter: PatternFilterable
 
     /**
-     * Configure inclusion and exclusion filters for source files added via [from].
+     * Configure inclusion and exclusion filters for source files.
      *
      * @param action configuration action that can add or modify inclusion and exclusion filters
      * @return the current copy spec
      */
-    fun filter(action: Action<in PatternFilterable>): OciCopySpec
+    fun filter(action: Action<in PatternFilterable>): BaseOciCopySpec
 
     /**
      * Add a file renaming rule to the current copy spec.
@@ -100,7 +121,7 @@ interface OciCopySpec {
      *                          the result must not be empty and must not contain `/`
      * @return the current copy spec
      */
-    fun rename(parentPathPattern: String, fileNameRegex: String, replacement: String): OciCopySpec
+    fun rename(parentPathPattern: String, fileNameRegex: String, replacement: String): BaseOciCopySpec
 
     /**
      * Add a directory movement rule to the current copy spec.
@@ -132,7 +153,7 @@ interface OciCopySpec {
      *                           the result may contain multiple `/` (adding directories) but not at the start or end
      * @return the current copy spec
      */
-    fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): OciCopySpec
+    fun move(parentPathPattern: String, directoryNameRegex: String, replacement: String): BaseOciCopySpec
 
     /**
      * Default (UNIX) permissions for files created at the destination.
@@ -161,7 +182,7 @@ interface OciCopySpec {
      * @param permissions UNIX permissions, from `0000` to `0777`
      * @return the current copy spec
      */
-    fun permissions(pathPattern: String, permissions: Int): OciCopySpec
+    fun permissions(pathPattern: String, permissions: Int): BaseOciCopySpec
 
     /**
      * Default user id ownership for files and directories created at the destination.
@@ -182,7 +203,7 @@ interface OciCopySpec {
      * @param userId      user id number
      * @return the current copy spec
      */
-    fun userId(pathPattern: String, userId: Long): OciCopySpec
+    fun userId(pathPattern: String, userId: Long): BaseOciCopySpec
 
     /**
      * Default group id ownership for files and directories created at the destination.
@@ -203,16 +224,6 @@ interface OciCopySpec {
      * @param groupId     group id number
      * @return the current copy spec
      */
-    fun groupId(pathPattern: String, groupId: Long): OciCopySpec
+    fun groupId(pathPattern: String, groupId: Long): BaseOciCopySpec
 
-    /**
-     * Adds the given copy spec as a child to the current copy spec.
-     * This allows reusing copy specs in multiple places.
-     *
-     * @param other the copy spec to add as a child to the current copy spec
-     * @return the current copy spec
-     * @throws IllegalArgumentException if adding the given copy spec as a child to the current copy spec would result in a cycle
-     * (the current copy spec is the same as or a transitive child of the given copy spec)
-     */
-    fun with(other: OciCopySpec): OciCopySpec
 }
