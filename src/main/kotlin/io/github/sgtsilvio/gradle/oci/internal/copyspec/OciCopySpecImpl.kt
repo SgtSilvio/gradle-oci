@@ -17,7 +17,9 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-abstract class OciCopySpecImpl @Inject constructor(private val objectFactory: ObjectFactory) : OciCopySpec, FilesOciCopySpec {
+abstract class OciCopySpecImpl @Inject constructor(
+    private val objectFactory: ObjectFactory,
+) : OciCopySpec, FilesOciCopySpec {
 
     val sources = objectFactory.fileCollection()
     val destinationPath: Property<String> = objectFactory.property<String>().convention("")

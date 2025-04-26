@@ -79,5 +79,5 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
 
 @DisableCachingByDefault(because = "Loading to an external Docker daemon")
 abstract class LoadOciImageTask @Inject constructor(
-    execOperations: ExecOperations
+    execOperations: ExecOperations,
 ) : LoadOciImagesTask(execOperations), OciImageTask
