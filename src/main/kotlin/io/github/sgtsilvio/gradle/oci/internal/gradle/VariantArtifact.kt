@@ -7,6 +7,7 @@ import org.gradle.api.capabilities.Capability
 import org.gradle.api.internal.artifacts.configurations.ArtifactCollectionInternal
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ArtifactVisitor
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.ResolvableArtifact
+import org.gradle.api.internal.attributes.ImmutableAttributes
 import org.gradle.internal.DisplayName
 import org.gradle.internal.component.external.model.ImmutableCapabilities
 import java.io.File
@@ -27,6 +28,14 @@ internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
         (this as ArtifactCollectionInternal).visitArtifacts(object : ArtifactVisitor {
             override fun visitArtifact(
                 variantName: DisplayName,
+                attributes: ImmutableAttributes,
+                capabilities: ImmutableCapabilities,
+                artifact: ResolvableArtifact,
+            ) = visitArtifact(variantName, attributes as AttributeContainer, capabilities, artifact)
+
+            // this method implements the signature of the ArtifactVisitor interface of Gradle versions between 8.6 and 8.13
+            fun visitArtifact(
+                variantName: DisplayName,
                 attributes: AttributeContainer,
                 capabilities: ImmutableCapabilities,
                 artifact: ResolvableArtifact,
@@ -40,8 +49,7 @@ internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
                 visitArtifact(variantName, attributes, capabilitySet.toList(), artifact)
             }
 
-            // this method implements the signature of the old ArtifactVisitor interface of Gradle versions between 7.2 and 8.5
-            //  https://github.com/gradle/gradle/blame/57cc16c8fbf4116a0ef0ad7b742c1a4a4e11a474/platforms/software/dependency-management/src/main/java/org/gradle/api/internal/artifacts/ivyservice/resolveengine/artifact/ArtifactVisitor.java#L41
+            // this method implements the signature of the ArtifactVisitor interface of Gradle versions between 7.2 and 8.5
             @Suppress("UNUSED_PARAMETER")
             fun visitArtifact(
                 variantName: DisplayName,
