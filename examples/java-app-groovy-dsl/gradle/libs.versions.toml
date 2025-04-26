@@ -1,5 +1,5 @@
 [versions]
-gradleOci-junitJupiter = "0.6.0"
+gradleOci-junitJupiter = "0.7.0"
 testcontainers = "1.20.0"
 
 [libraries]

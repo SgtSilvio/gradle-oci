@@ -76,7 +76,7 @@ testing {
             useJUnitJupiter()
             dependencies {
                 implementation("org.testcontainers:testcontainers:1.20.0")
-                implementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.6.0")
+                implementation("io.github.sgtsilvio:gradle-oci-junit-jupiter:0.7.0")
             }
             oci.of(this) {
                 imageDependencies {
