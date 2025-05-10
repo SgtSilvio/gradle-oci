@@ -20,7 +20,12 @@ internal class ConfigurationCacheTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments("test", "--configuration-cache", "-Dorg.gradle.kotlin.dsl.scriptCompilationAvoidance=false")
+            .withArguments(
+                "test",
+                "--configuration-cache",
+                "-Dorg.gradle.configuration-cache.parallel=true",
+                "-Dorg.gradle.kotlin.dsl.scriptCompilationAvoidance=false",
+            )
             .build()
 
         assertTrue(result.output.contains("Configuration cache entry stored"))
@@ -38,7 +43,12 @@ internal class ConfigurationCacheTest {
         val result2 = GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath()
-            .withArguments("test", "--configuration-cache", "-Dorg.gradle.kotlin.dsl.scriptCompilationAvoidance=false")
+            .withArguments(
+                "test",
+                "--configuration-cache",
+                "-Dorg.gradle.configuration-cache.parallel=true",
+                "-Dorg.gradle.kotlin.dsl.scriptCompilationAvoidance=false",
+            )
             .build()
 
         assertTrue(result2.output.contains("Configuration cache entry reused"))
