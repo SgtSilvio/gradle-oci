@@ -27,7 +27,7 @@ internal fun resolveOciImageInputs(
     val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<VariantSelector>>, OciImagesTask.ImageInput>()
     for ((platform, configuration) in platformConfigurationPairs) {
         val artifacts = configuration.incoming.artifacts
-        taskDependenciesProvider.addAll(artifacts.resolvedArtifacts)
+        taskDependenciesProvider.addAll(artifacts.artifactFiles.elements)
         val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
             .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
         val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.root)
