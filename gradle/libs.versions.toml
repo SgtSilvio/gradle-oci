@@ -9,7 +9,7 @@ junit-jupiter = "5.12.2"
 netty = "4.2.1.Final"
 oci-registry = "0.6.0"
 reactor-kotlin = "1.2.3"
-reactor-netty = "1.2.5"
+reactor-netty = "1.2.6"
 
 [libraries]
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
