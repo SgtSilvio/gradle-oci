@@ -54,21 +54,24 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
 
     override fun run(tarOutputStream: TarArchiveOutputStream) {
         val dockerExecutablePath = findExecutablePath("docker")
-        val imageReference = UUID.randomUUID()
+        val imageReference = UUID.randomUUID().toString()
         val platformArgument = platform.get().toPlatformArgument()
         execOperations.exec {
-            commandLine(dockerExecutablePath, "build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
+            executable = dockerExecutablePath
+            args = listOf("build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
             standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
             errorOutput = createCombinedErrorAndInfoOutputStream(logger)
         }
         val temporaryDirectory = temporaryDir
         val savedImageTarFile = temporaryDirectory.resolve("image.tar")
         execOperations.exec {
-            commandLine(dockerExecutablePath, "save", imageReference, "-o", savedImageTarFile)
+            executable = dockerExecutablePath
+            args = listOf("save", imageReference, "-o", savedImageTarFile.path)
             errorOutput = createCombinedErrorAndInfoOutputStream(logger)
         }
         execOperations.exec {
-            commandLine(dockerExecutablePath, "rmi", imageReference)
+            executable = dockerExecutablePath
+            args = listOf("rmi", imageReference)
             redirectOutput(logger)
         }
         val manifest = TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->

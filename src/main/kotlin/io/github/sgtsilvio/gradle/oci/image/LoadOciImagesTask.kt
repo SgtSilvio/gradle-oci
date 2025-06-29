@@ -26,19 +26,21 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
             for (imageReference in imageReferences) {
                 val registryImageReference = "$host:$registryPort/$imageReference"
                 execOperations.exec {
-                    val arguments = mutableListOf(dockerExecutablePath, "pull", registryImageReference)
+                    executable = dockerExecutablePath
+                    args = listOf("pull", registryImageReference)
                     if (singlePlatform != null) {
-                        arguments += listOf("--platform", singlePlatform.toPlatformArgument())
+                        args("--platform", singlePlatform.toPlatformArgument())
                     }
-                    commandLine(arguments)
                     redirectOutput(logger)
                 }
                 execOperations.exec {
-                    commandLine(dockerExecutablePath, "tag", registryImageReference, imageReference)
+                    executable = dockerExecutablePath
+                    args = listOf("tag", registryImageReference, imageReference.toString())
                     redirectOutput(logger)
                 }
                 execOperations.exec {
-                    commandLine(dockerExecutablePath, "rmi", registryImageReference)
+                    executable = dockerExecutablePath
+                    args = listOf("rmi", registryImageReference)
                     redirectOutput(logger)
                 }
             }
