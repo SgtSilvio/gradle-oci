@@ -47,7 +47,7 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
         }
     }
 
-    override fun run(
+    final override fun run(
         digestToLayerFile: Map<OciDigest, File>,
         images: List<OciImage>,
         multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
