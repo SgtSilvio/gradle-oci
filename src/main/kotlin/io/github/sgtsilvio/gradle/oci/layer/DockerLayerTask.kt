@@ -116,7 +116,9 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         }
         val environment = environment.get()
         if (environment.isNotEmpty()) {
-            appendLine("ENV ").append(environment.map { "${it.key}=\"${it.value}\"" }.joinToString(" "))
+            append("ENV ")
+            environment.entries.joinTo(this, " ") { "${it.key}=\"${it.value}\"" }
+            appendLine()
         }
         appendLine("RUN echo \"Docker on MacOS creates a directory /root/.cache/rosetta in the first layer\"")
         val command = command.get()
