@@ -108,20 +108,11 @@ abstract class OciImagesTask : DefaultTask() {
 
     private fun VariantInput.toVariant(): OciVariant {
         val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
-        val layerFiles = layerFiles
-        val layers = ArrayList<OciLayer>(layerFiles.size)
-        var layerFilesIndex = 0
-        for (layer in metadata.layers) {
-            val layerDescriptor = layer.descriptor ?: continue
-            if (layerFilesIndex >= layerFiles.size) {
-                throw IllegalStateException("count of layer descriptors (${layerFilesIndex + 1}+) and layer files (${layerFiles.size}) do not match")
-            }
-            val layerFile = layerFiles[layerFilesIndex++]
-            layers += OciLayer(layerDescriptor, layerFile)
+        val layerDescriptors = metadata.layers.mapNotNull { it.descriptor }
+        if (layerDescriptors.size != layerFiles.size) {
+            throw IllegalStateException("count of layer descriptors (${layerDescriptors.size}) and layer files (${layerFiles.size}) do not match")
         }
-        if (layerFilesIndex < layerFiles.size) {
-            throw IllegalStateException("count of layer descriptors ($layerFilesIndex) and layer files (${layerFiles.size}) do not match")
-        }
+        val layers = layerDescriptors.zip(layerFiles) { descriptor, file -> OciLayer(descriptor, file) }
         return OciVariant(metadata, layers)
     }
 
