@@ -109,9 +109,8 @@ internal fun createManifest(configDescriptor: OciDescriptor, variants: List<OciV
     )
 }
 
-internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciData {
+internal fun createIndex(images: Collection<OciImage>): OciData {
     val indexAnnotations = TreeMap<String, String>()
-    val images = platformToImage.values
     if (images.isNotEmpty()) {
         for (indexAnnotation in images.first().variants.last().metadata.indexAnnotations) {
             if (images.all { indexAnnotation in it.variants.last().metadata.indexAnnotations.entries }) {
@@ -123,8 +122,8 @@ internal fun createIndex(platformToImage: Map<Platform, OciImage>): OciData {
         // sorted for canonical json: annotations, manifests, mediaType, schemaVersion
         addObjectIfNotEmpty("annotations", indexAnnotations)
         addArray("manifests") {
-            for ((platform, image) in platformToImage) {
-                addObject { encodeOciManifestDescriptor(image.manifest, platform) }
+            for (image in images) {
+                addObject { encodeOciManifestDescriptor(image.manifest, image.platform) }
             }
         }
         addString("mediaType", INDEX_MEDIA_TYPE)

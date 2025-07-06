@@ -146,7 +146,7 @@ abstract class OciImagesTask : DefaultTask() {
         for ((reference, platformToImage) in referenceToPlatformToImage) {
             var multiPlatformImageAndReferencesPair = multiPlatformImageAndReferencesPairMap[platformToImage]
             if (multiPlatformImageAndReferencesPair == null) {
-                val index = createIndex(platformToImage)
+                val index = createIndex(platformToImage.values)
                 multiPlatformImageAndReferencesPair = Pair(OciMultiPlatformImage(index, platformToImage), ArrayList())
                 multiPlatformImageAndReferencesPairMap[platformToImage] = multiPlatformImageAndReferencesPair
             }
