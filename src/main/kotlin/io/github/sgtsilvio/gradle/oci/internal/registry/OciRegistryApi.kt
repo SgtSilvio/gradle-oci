@@ -312,11 +312,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
             }
         }.singleOrEmpty()
         return if (isMount && (sourceImageName != null)) {
-            mono.onErrorResume { error ->
-                if (error is InsufficientScopesException) {
-                    mountBlobOrCreatePushUrl(registryUrl, imageName, null, null, credentials)
-                } else throw error
-            }
+            mono.onErrorResume { mountBlobOrCreatePushUrl(registryUrl, imageName, null, null, credentials) }
         } else mono
     }
 
