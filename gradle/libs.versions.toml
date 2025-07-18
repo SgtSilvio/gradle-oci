@@ -2,7 +2,7 @@
 caffeine = "3.2.2"
 commons-codec = "1.18.0"
 commons-compress = "1.27.1"
-commons-io = "2.19.0"
+commons-io = "2.20.0"
 commons-lang = "3.18.0"
 json = "20250517"
 junit-jupiter = "5.13.3"
