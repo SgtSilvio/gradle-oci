@@ -10,6 +10,7 @@ import org.gradle.api.internal.artifacts.ivyservice.resolveengine.artifact.Resol
 import org.gradle.api.internal.attributes.ImmutableAttributes
 import org.gradle.internal.DisplayName
 import org.gradle.internal.component.external.model.ImmutableCapabilities
+import org.gradle.internal.component.model.VariantIdentifier
 import java.io.File
 
 internal data class VariantArtifact(
@@ -27,6 +28,15 @@ internal val ArtifactCollection.variantArtifacts: Set<VariantArtifact>
         //  ArtifactCollection.getResolvedArtifacts() wrongly deduplicates ResolvedArtifactResults of different variants for the same file
         (this as ArtifactCollectionInternal).visitArtifacts(object : ArtifactVisitor {
             override fun visitArtifact(
+                artifactSetName: DisplayName,
+                sourceVariantId: VariantIdentifier,
+                attributes: ImmutableAttributes,
+                capabilities: ImmutableCapabilities,
+                artifact: ResolvableArtifact,
+            ) = visitArtifact(artifactSetName, attributes, capabilities, artifact)
+
+            // this method implements the signature of the ArtifactVisitor interface of Gradle versions between 8.14 and 9.0
+            fun visitArtifact(
                 variantName: DisplayName,
                 attributes: ImmutableAttributes,
                 capabilities: ImmutableCapabilities,

@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.gradle
 
+import org.gradle.api.Project
 import org.gradle.api.artifacts.ExternalDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ModuleIdentifier
@@ -33,7 +34,9 @@ internal fun ModuleDependency.toVariantSelector(): VariantSelector {
     val attributes = attributes.toStringMap()
     return when (this) {
         is ProjectDependency -> ProjectVariantSelector(
-            if (isAtLeastGradle8Dot11) path else dependencyProject.path,
+            if (isAtLeastGradle8Dot11) path else {
+                (ProjectDependency::class.java.getMethod("getDependencyProject").invoke(this) as Project).path
+            },
             capabilities,
             attributes,
         )

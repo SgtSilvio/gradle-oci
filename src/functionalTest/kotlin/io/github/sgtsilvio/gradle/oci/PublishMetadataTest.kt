@@ -30,6 +30,11 @@ internal class PublishMetadataTest {
             }
             group = "org.example"
             version = "1.0.0"
+            java {
+                toolchain {
+                    languageVersion.set(JavaLanguageVersion.of(11))
+                }
+            }
             tasks.jar {
                 manifest.attributes("Main-Class" to "org.example.oci.demo.Main")
             }
@@ -125,19 +130,19 @@ internal class PublishMetadataTest {
                   "name": "test-1.0.0-oci-metadata.json",
                   "url": "test-1.0.0-oci-metadata.json",
                   "size": 339,
-                  "sha512": "328273f4ad9667934be783dab37f9c727616b2dcbeb182dc8c06b54a1028e5784476cfcc02071668aa460174f4b697899c982b33dbae2f31a77a5bda22e70c1b",
-                  "sha256": "3e075bb681c1a292ef2b23bc18ccbf84e222336b8ab45a6155ba718d1a07e812",
-                  "sha1": "b91cf745e50b6f7900974943cbdbc19635180978",
-                  "md5": "577854a6a63958b10c508a64f2e6b237"
+                  "sha512": "738742622bf75e3b75097474130f4846f54772cd6cc252ec9b17678da207402361ac76a08c1db5c99adc3dbbc09ce5e9489187ba0fdf02246cd967f373fdbb76",
+                  "sha256": "4945711ce16987c3b39988e256d3586f400eedb859a9c9ad4a7133604f563f23",
+                  "sha1": "1d29de1a48c874b1531c1f06363468d76591d68c",
+                  "md5": "d240ee9b52653a06eb823310160e20bf"
                 },
                 {
                   "name": "test-1.0.0-jar-oci-layer.tgz",
                   "url": "test-1.0.0-jar-oci-layer.tgz",
                   "size": 658,
-                  "sha512": "198f27beef9682ed4e060e7ef9f1f6d5bb040e335e4f88dc42a2d2ee91326203ca6d9663e61f005cdd6d0d42e227b40de64f6627b5d2b07e9ec31947e812a99d",
-                  "sha256": "ff7671a164ce921dc63d32e0af3c9a5aaafee2fa4d8f09565468c471a09a2426",
-                  "sha1": "cc042eabe35afed7a80bf058ca8b76576fb3aa1b",
-                  "md5": "67b04445855a3e4a935bd6af5bb733aa"
+                  "sha512": "40c2513c227a48183b1d67b42ecd50b1442f28966417cb7aa25c276aef13fdc83466289b2cdf7261c8bfc916e8f6c3a992c10013cde3c2f6a03dd66ce8e603dd",
+                  "sha256": "8414ba9a8ba8aae337344235efcdd0da17543cbccb6e7e963e01922077c8f6d6",
+                  "sha1": "d34dfe6bdd295cdc2b3b7a1f0f22eaf734d899a6",
+                  "md5": "ba7649eb297ff6177e909dd9a83ee21b"
                 }
               ]
             }

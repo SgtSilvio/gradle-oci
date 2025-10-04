@@ -116,7 +116,7 @@ private fun OciCopySpecInput.process(
             val parentPath = visitDirectories(
                 pendingDestinationPathStates,
                 destinationPath,
-                fileDetails.relativePath.parent.segments,
+                fileDetails.relativePath.parent!!.segments,
                 movePatterns,
                 moveCache,
                 directoryPermissions,

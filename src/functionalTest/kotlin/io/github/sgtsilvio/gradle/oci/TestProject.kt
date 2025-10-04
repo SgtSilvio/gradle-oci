@@ -26,6 +26,11 @@ internal class TestProject(projectDir: File) {
             }
             group = "org.example"
             version = "1.0.0"
+            java {
+                toolchain {
+                    languageVersion.set(JavaLanguageVersion.of(11))
+                }
+            }
             tasks.jar {
                 manifest.attributes("Main-Class" to "org.example.oci.demo.Main")
             }
@@ -118,10 +123,10 @@ internal class TestProject(projectDir: File) {
         // https://docs.gradle.org/current/userguide/upgrading_version_7.html#reproducible_archives_can_change_compared_to_past_versions
         if (isBeforeGradle8) {
             expectedDiffId = "sha256:f8363558d917871ea6722c762b6d4e67b0f2ac3be010ca94e4a74aead327212c"
-            expectedDigest = "sha256:9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c"
+            expectedDigest = "sha256:20161c668faaf4435aa0433a7d0c56c6a8049dcca1fa10ec0163c5cbb39c5906"
         } else {
             expectedDiffId = "sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"
-            expectedDigest = "sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0"
+            expectedDigest = "sha256:f40641a27c4a1940507aec41054f0320570667bfc840788511af53e79ee303f1"
         }
         assertEquals("digest=$expectedDigest\nsize=704\ndiffId=$expectedDiffId", propertiesFile.readText())
     }
@@ -132,9 +137,9 @@ internal class TestProject(projectDir: File) {
         assertTrue(metadataJsonFile.exists())
         // https://docs.gradle.org/current/userguide/upgrading_version_7.html#reproducible_archives_can_change_compared_to_past_versions
         val expectedComponentJson = if (isBeforeGradle8) {
-            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c","size":704,"diffId":"sha256:f8363558d917871ea6722c762b6d4e67b0f2ac3be010ca94e4a74aead327212c"},"createdBy":"org.example:test:1.0.0 > jar (gradle-oci)"}]}"""
+            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:20161c668faaf4435aa0433a7d0c56c6a8049dcca1fa10ec0163c5cbb39c5906","size":704,"diffId":"sha256:f8363558d917871ea6722c762b6d4e67b0f2ac3be010ca94e4a74aead327212c"},"createdBy":"org.example:test:1.0.0 > jar (gradle-oci)"}]}"""
         } else {
-            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0","size":704,"diffId":"sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"},"createdBy":"org.example:test:1.0.0 > jar (gradle-oci)"}]}"""
+            """{"imageReference":"example/test:1.0.0","entryPoint":["java","-jar","app.jar"],"layers":[{"descriptor":{"digest":"sha256:f40641a27c4a1940507aec41054f0320570667bfc840788511af53e79ee303f1","size":704,"diffId":"sha256:bf7023a316aaf2ae2ccd50dba4990f460cfbbd2b70ee08603c2e5452e48e0865"},"createdBy":"org.example:test:1.0.0 > jar (gradle-oci)"}]}"""
         }
         assertEquals(expectedComponentJson, metadataJsonFile.readText())
     }
@@ -148,17 +153,17 @@ internal class TestProject(projectDir: File) {
         val testConfig2Digest: String
         // https://docs.gradle.org/current/userguide/upgrading_version_7.html#reproducible_archives_can_change_compared_to_past_versions
         if (isBeforeGradle8) {
-            testJarLayerDigest = "9f0241cf6e0f2ddad911248fbb4592b18c4dff4d69e1dffa03080acfe61bce6c"
-            testIndexDigest = "ea02bb723ac6f19148a8d8017779c89826efd7ba75de0f5233d2c203673337f3"
-            testManifest1Digest = "070c5abaf9d1ad11fab4667cc4f1e8150ed2d018ca518ce7763b9e609144ef6e"
-            testManifest2Digest = "24a72ef6ec7380501d9af7e2617053f278a96c4cc3c526b9f87ee699b2786579"
+            testJarLayerDigest = "20161c668faaf4435aa0433a7d0c56c6a8049dcca1fa10ec0163c5cbb39c5906"
+            testIndexDigest = "ce90b56896cd021ab9d372afbef183ef6547ee978ef4e28f7cab651476e6c5a3"
+            testManifest1Digest = "3dd8f076dcab7b1d2701072f8df3f54f4d429e07a9f111f91b210a50cf18d78e"
+            testManifest2Digest = "af34253e212ba97e31ae739414e96e71e96b4b35f73baa40874cee579f7f223f"
             testConfig1Digest = "a6dce28f03da28ecc378f4949280957222275fb48e6a21960c757009da540b8c"
             testConfig2Digest = "ae5a3213d366230fefeab8abd1cea574958b69b7fb50644e4fe4b9a4322f1c1a"
         } else {
-            testJarLayerDigest = "e6b88907d77d29e5dd75183b8c58e75d6abe195d0594c4b8b2282c4ce75a51f0"
-            testIndexDigest = "2f594a73b7f41a57a83f1fea3ddc2b0e90ca56bb9d1a69b867c6e710078d8ce3"
-            testManifest1Digest = "fe3818b0f15d30239f7de4fd731de62b362841d22398995f4a5fa3f525f25fc1"
-            testManifest2Digest = "77f63260e32aef383b5a05646dec77f75747ea5d3fe70ba8ec46fec806c099bc"
+            testJarLayerDigest = "f40641a27c4a1940507aec41054f0320570667bfc840788511af53e79ee303f1"
+            testIndexDigest = "4cfdfd9e071b46abfa348bdf30f9956d6be7b8d5c1114366ff2ac0629c10678c"
+            testManifest1Digest = "336829a26c3be69a4a1d066adb9e25258822c6b0fe1008070b9f711e9b3f6287"
+            testManifest2Digest = "3c38b025e936128c8fe87bf0e0dcdc1a2ba1c67295feb59600b424ee2702d219"
             testConfig1Digest = "4d8c8e84521e8f85cc3c7edc98c07fc3d6cefdaece779f7284a80830bf4595b9"
             testConfig2Digest = "e9740f11d43194a5dbd02fe12fcca1ab7cd577482b141a5d5e55d3d1ece18a27"
         }
