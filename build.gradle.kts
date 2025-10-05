@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
     `kotlin-dsl`
     signing
@@ -25,9 +27,14 @@ metadata {
     }
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
+kotlin {
+    jvmToolchain(11)
+}
+
+tasks.compileKotlin {
+    compilerOptions {
+        apiVersion = KotlinVersion.KOTLIN_2_0
+        languageVersion = KotlinVersion.KOTLIN_2_0
     }
 }
 
@@ -80,6 +87,9 @@ testing {
             }
             targets.configureEach {
                 testTask {
+                    javaLauncher = javaToolchains.launcherFor {
+                        languageVersion = JavaLanguageVersion.of(17)
+                    }
                     environment(
                         "ORG_GRADLE_PROJECT_dockerHubUsername" to ToStringProvider(providers.gradleProperty("dockerHubUsername")),
                         "ORG_GRADLE_PROJECT_dockerHubPassword" to ToStringProvider(providers.gradleProperty("dockerHubPassword")),
