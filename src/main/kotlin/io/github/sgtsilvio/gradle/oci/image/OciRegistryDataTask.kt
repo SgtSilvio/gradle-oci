@@ -81,7 +81,7 @@ internal fun createRegistryDataDirectory(
     }
 }
 
-private fun Path.resolveDigestDataFile(digest: OciDigest): Path {
+internal fun Path.resolveDigestDataFile(digest: OciDigest): Path {
     val encodedHash = digest.encodedHash
     return resolve(digest.algorithm.id).resolve(encodedHash.substring(0, 2))
         .resolve(encodedHash)

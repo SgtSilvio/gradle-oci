@@ -1,38 +1,61 @@
 package io.github.sgtsilvio.gradle.oci.layer
 
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.image.*
+import io.github.sgtsilvio.gradle.oci.image.OciImagesTask.VariantInput
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
 import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
-import io.github.sgtsilvio.gradle.oci.internal.gradle.redirectOutput
+import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
+import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
+import io.github.sgtsilvio.oci.registry.DistributionRegistryStorage
+import io.github.sgtsilvio.oci.registry.OciRegistryHandler
+import io.netty.buffer.UnpooledByteBufAllocator
+import io.netty.channel.ChannelOption
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
+import org.apache.commons.lang3.SystemUtils
 import org.gradle.api.logging.Logger
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
+import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.mapProperty
 import org.gradle.kotlin.dsl.property
 import org.gradle.process.ExecOperations
+import org.json.JSONObject
+import reactor.netty.http.server.HttpServer
 import java.io.ByteArrayInputStream
-import java.io.FileInputStream
-import java.io.InputStream
-import java.io.SequenceInputStream
+import java.io.File
 import java.nio.file.attribute.FileTime
 import java.util.*
 import java.util.zip.GZIPInputStream
 import javax.inject.Inject
+import kotlin.io.path.inputStream
+import kotlin.io.path.readText
 
 /**
  * @author Silvio Giebl
  */
 abstract class DockerLayerTask @Inject constructor(private val execOperations: ExecOperations) : OciLayerTask() {
 
-    @get:Input
-    val from = project.objects.property<String>() // TODO replace from and platform with ImageInput
+    @get:Nested
+    val parentVariants = project.objects.listProperty<VariantInput>()
 
     @get:Input
     val platform = project.objects.property<Platform>()
+
+//    interface ImageInput {
+//
+//        @get:Input
+//        val platform: Property<Platform>
+//
+//        @get:Nested
+//        val variants: ListProperty<VariantInput>
+//    }
 
     @get:Input
     val command = project.objects.property<String>()
@@ -52,55 +75,99 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     @get:Input
     val environment = project.objects.mapProperty<String, String>()
 
+//    fun from(dependency: ModuleDependency) {
+//        val ociExtension = project.extensions.getByType(OciExtension::class)
+//        ociExtension.imageDependencies.maybeCreate()
+//    }
+
+    fun from(imageDependencies: OciImageDependencies) {
+        val platformSelector = platform.map { PlatformSelector(it) }
+        val imageInputs = imageDependencies.resolve(platformSelector)
+        val variantInputs = imageInputs.map { imageInputs -> imageInputs.flatMap { it.variants } }
+        parentVariants.addAll(variantInputs)
+    }
+
     override fun run(tarOutputStream: TarArchiveOutputStream) {
         val dockerExecutablePath = findExecutablePath("docker")
-        val imageReference = UUID.randomUUID().toString()
-        val platformArgument = platform.get().toPlatformArgument()
-        execOperations.exec {
-            executable = dockerExecutablePath
-            args = listOf("build", "-", "--platform", platformArgument, "-t", imageReference, "--no-cache")
-            standardInput = ByteArrayInputStream(assembleDockerfile().toByteArray())
-            errorOutput = createCombinedErrorAndInfoOutputStream(logger)
-        }
+        val imageName = UUID.randomUUID().toString()
+        val inputImageTag = "input"
+        val outputImageTag = "output"
+        val platform = platform.get()
         val temporaryDirectory = temporaryDir
-        val savedImageTarFile = temporaryDirectory.resolve("image.tar")
-        execOperations.exec {
-            executable = dockerExecutablePath
-            args = listOf("save", imageReference, "-o", savedImageTarFile.path)
-            errorOutput = createCombinedErrorAndInfoOutputStream(logger)
-        }
-        execOperations.exec {
-            executable = dockerExecutablePath
-            args = listOf("rmi", imageReference)
-            redirectOutput(logger)
-        }
-        val manifest = TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->
-            if (!savedImageTarInputStream.findEntry("manifest.json")) {
-                throw IllegalStateException("manifest.json not found in docker image export")
-            }
-            savedImageTarInputStream.reader().readText()
-        }
-        val lastLayerPath =
-            manifest.substringAfter("\"Layers\":[").substringBefore("]").split(",").last().removeSurrounding("\"")
-        TarArchiveInputStream(FileInputStream(savedImageTarFile)).use { savedImageTarInputStream ->
-            if (!savedImageTarInputStream.findEntry(lastLayerPath)) {
-                throw IllegalStateException("$lastLayerPath not found in docker image export")
-            }
-            TarArchiveInputStream(savedImageTarInputStream.optionalGZIPInputStream()).use { layerTarInputStream ->
-                while (layerTarInputStream.nextEntry != null) {
-                    val tarEntry = layerTarInputStream.currentEntry
-                    tarEntry.lastModifiedTime = FileTime.from(DEFAULT_MODIFICATION_TIME)
-                    tarOutputStream.putArchiveEntry(tarEntry)
-                    layerTarInputStream.copyTo(tarOutputStream)
-                    tarOutputStream.closeArchiveEntry()
+        val registryDataDirectory = temporaryDirectory.toPath().resolve("registry")
+        val parentImage = createImage(platform, parentVariants.get())
+        createRegistryDataDirectory(
+            collectDigestToLayerFile(parentImage),
+            listOf(parentImage),
+            listOf(Pair(parentImage.toMultiPlatformImage(), listOf(OciImageReference(imageName, inputImageTag)))),
+            registryDataDirectory,
+        )
+        val host = if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"
+        val loopResources = OciLoopResources.acquire()
+        try { // TODO dedup with OciRegistryTask
+            val httpServer = HttpServer.create()
+                .runOn(loopResources)
+                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
+                .handle(OciRegistryHandler(DistributionRegistryStorage(registryDataDirectory)))
+                .bindNow()
+            try {
+                val repository = "$host:${httpServer.port()}/$imageName"
+                execOperations.exec {
+                    executable = dockerExecutablePath
+                    args = listOf(
+                        "build",
+                        "--platform",
+                        platform.toPlatformArgument(),
+                        "-o",
+                        "type=registry,store=false,name=$repository:$outputImageTag",
+                        "--no-cache",
+                        "-",
+                    )
+                    standardInput = ByteArrayInputStream(assembleDockerfile("$repository:$inputImageTag").toByteArray())
+                    errorOutput = createCombinedErrorAndInfoOutputStream(logger)
                 }
+            } finally {
+                httpServer.disposeNow()
+            }
+        } finally {
+            OciLoopResources.release()
+        }
+        val indexOrManifestDigest =
+            registryDataDirectory.resolve("repositories/$imageName/_manifests/tags/$outputImageTag/current/link")
+                .readText()
+                .toOciDigest()
+        val blobsDirectory = registryDataDirectory.resolve("blobs")
+        val indexOrManifest = JSONObject(blobsDirectory.resolveDigestDataFile(indexOrManifestDigest).readText())
+        val manifest = when (val mediaType = indexOrManifest.getString("mediaType")) {
+            INDEX_MEDIA_TYPE, DOCKER_MANIFEST_LIST_MEDIA_TYPE -> {
+                val manifestDescriptor = indexOrManifest.getJSONArray("manifests").first() as JSONObject // TODO first -> find mediaType and platform
+                val manifestDigest = manifestDescriptor.getString("digest").toOciDigest()
+                JSONObject(blobsDirectory.resolveDigestDataFile(manifestDigest).readText())
+            }
+            MANIFEST_MEDIA_TYPE, DOCKER_MANIFEST_MEDIA_TYPE -> indexOrManifest
+            else -> throw IllegalStateException("unexpected index or manifest media type: $mediaType")
+        }
+        val layerDescriptor = manifest.getJSONArray("layers").last() as JSONObject
+        val layerDigest = layerDescriptor.getString("digest").toOciDigest()
+        val layerInputStream = blobsDirectory.resolveDigestDataFile(layerDigest).inputStream()
+        val uncompressedLayerInputStream = when (val mediaType = layerDescriptor.getString("mediaType")) {
+            UNCOMPRESSED_LAYER_MEDIA_TYPE -> layerInputStream
+            GZIP_COMPRESSED_LAYER_MEDIA_TYPE, DOCKER_LAYER_MEDIA_TYPE -> GZIPInputStream(layerInputStream)
+            else -> throw IllegalStateException("unexpected layer media type: $mediaType")
+        }
+        TarArchiveInputStream(uncompressedLayerInputStream).use { layerTarInputStream ->
+            while (layerTarInputStream.nextEntry != null) {
+                val tarEntry = layerTarInputStream.currentEntry
+                tarEntry.lastModifiedTime = FileTime.from(DEFAULT_MODIFICATION_TIME)
+                tarOutputStream.putArchiveEntry(tarEntry)
+                layerTarInputStream.copyTo(tarOutputStream)
+                tarOutputStream.closeArchiveEntry()
             }
         }
         temporaryDirectory.deleteRecursively()
     }
 
-    private fun assembleDockerfile() = buildString {
-        val from = from.get()
+    private fun assembleDockerfile(from: String) = buildString {
         appendLine("FROM $from")
         val shell = shell.orNull
         if (shell != null) {
@@ -133,24 +200,42 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         }
     }
 
-    private fun TarArchiveInputStream.findEntry(path: String): Boolean {
-        while (nextEntry != null) {
-            if (currentEntry.name == path) {
-                return true
-            }
-        }
-        return false
+    private fun createImage(platform: Platform, variantInputs: Iterable<VariantInput>): OciImage {
+        val variants = variantInputs.map { variantInput -> variantInput.toVariant() }
+        val config = createConfig(platform, variants)
+        val manifest = createManifest(config, variants)
+        return OciImage(manifest, config, platform, variants)
     }
 
-    private fun InputStream.optionalGZIPInputStream(): InputStream {
-        val firstBytes = ByteArray(2)
-        val read = read(firstBytes)
-        val firstBytesStream = ByteArrayInputStream(firstBytes, 0, read)
-        if (read < 2) {
-            return firstBytesStream
+    private fun VariantInput.toVariant(): OciVariant { // TODO dedup with OciImagesTask
+        val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
+        val layerDescriptors = metadata.layers.mapNotNull { it.descriptor }
+        if (layerDescriptors.size != layerFiles.size) {
+            throw IllegalStateException("count of layer descriptors (${layerDescriptors.size}) and layer files (${layerFiles.size}) do not match")
         }
-        val fullStream = SequenceInputStream(firstBytesStream, this)
-        val magic = firstBytes[0].toUByte().toInt() or (firstBytes[1].toUByte().toInt() shl 8)
-        return if (magic == GZIPInputStream.GZIP_MAGIC) GZIPInputStream(fullStream) else fullStream
+        val layers = layerDescriptors.zip(layerFiles) { descriptor, file -> OciLayer(descriptor, file) }
+        return OciVariant(metadata, layers)
     }
+
+    private fun OciImage.toMultiPlatformImage() =
+        OciMultiPlatformImage(createIndex(listOf(this)), mapOf(platform to this))
+
+    private fun collectDigestToLayerFile(image: OciImage): Map<OciDigest, File> {
+        // digestToLayerFile map is linked because it will be iterated
+        val digestToLayerFile = LinkedHashMap<OciDigest, File>()
+        for (variant in image.variants) {
+            for (layer in variant.layers) {
+                digestToLayerFile.putIfAbsent(layer.descriptor.digest, layer.file)
+            }
+        }
+        return digestToLayerFile
+    }
+
+//    private fun resolveVariantInputs(configuration: Configuration): Provider<List<VariantInput>> {
+//        val artifacts = configuration.incoming.artifacts
+//        return artifacts.artifactFiles.elements.map {
+//            artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
+//                .map { (_, files) -> VariantInput(files.first(), files.drop(1)) }
+//        }
+//    }
 }
