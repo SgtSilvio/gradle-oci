@@ -16,7 +16,6 @@ internal class GradleVersionsTest {
     @ParameterizedTest
     @ValueSource(
         strings = [
-            "7.6.4", // minimum version
             "8.3", // minimum 8.x version
             "8.5", // highest version for oldest ArtifactVisitor interface
             "8.6", // lowest version for second oldest ArtifactVisitor interface
