@@ -73,7 +73,6 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     override fun run(tarOutputStream: TarArchiveOutputStream) {
         val dockerExecutablePath = findExecutablePath("docker")
         val imageName = UUID.randomUUID().toString()
-        val inputImageTag = "input"
         val outputImageTag = "output"
         val platform = platform.get()
         val temporaryDirectory = temporaryDir
@@ -82,7 +81,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         createRegistryDataDirectory(
             collectDigestToLayerFile(listOf(parentImage), logger),
             listOf(parentImage),
-            listOf(Pair(parentImage.toMultiPlatformImage(), listOf(OciImageReference(imageName, inputImageTag)))),
+            listOf(Pair(parentImage.toMultiPlatformImage(), listOf(OciImageReference(imageName, "input")))),
             registryDataDirectory,
         )
         useRegistry(registryDataDirectory) { registryPort ->
@@ -98,7 +97,8 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
                     "--no-cache",
                     "-",
                 )
-                standardInput = ByteArrayInputStream(assembleDockerfile("$repository:$inputImageTag").toByteArray())
+                standardInput =
+                    ByteArrayInputStream(assembleDockerfile("$repository@${parentImage.manifest.digest}").toByteArray())
                 errorOutput = createCombinedErrorAndInfoOutputStream(logger)
             }
         }
