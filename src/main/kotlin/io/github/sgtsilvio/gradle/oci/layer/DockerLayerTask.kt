@@ -40,15 +40,6 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     @get:Input
     val platform = project.objects.property<Platform>()
 
-//    interface ImageInput {
-//
-//        @get:Input
-//        val platform: Property<Platform>
-//
-//        @get:Nested
-//        val variants: ListProperty<VariantInput>
-//    }
-
     @get:Input
     val command = project.objects.property<String>()
 
