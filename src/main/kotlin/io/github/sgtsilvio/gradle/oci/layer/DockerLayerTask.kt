@@ -12,7 +12,6 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
-import org.apache.commons.lang3.SystemUtils
 import org.gradle.api.logging.Logger
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Nested
@@ -95,10 +94,8 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
             listOf(Pair(parentImage.toMultiPlatformImage(), listOf(OciImageReference(imageName, inputImageTag)))),
             registryDataDirectory,
         )
-        // TODO dedup with LoadOciImagesTask
-        val host = if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"
         useRegistry(registryDataDirectory) { registryPort ->
-            val repository = "$host:$registryPort/$imageName"
+            val repository = "${getDockerHost()}:$registryPort/$imageName"
             execOperations.exec {
                 executable = dockerExecutablePath
                 args = listOf(

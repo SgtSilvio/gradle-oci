@@ -7,6 +7,7 @@ import io.github.sgtsilvio.oci.registry.DistributionRegistryStorage
 import io.github.sgtsilvio.oci.registry.OciRegistryHandler
 import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
+import org.apache.commons.lang3.SystemUtils
 import reactor.netty.http.server.HttpServer
 import java.io.File
 import java.nio.file.Path
@@ -57,3 +58,6 @@ internal fun useRegistry(registryDataDirectory: Path, block: (registryPort: Int)
         OciLoopResources.release()
     }
 }
+
+internal fun getDockerHost() =
+    if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"

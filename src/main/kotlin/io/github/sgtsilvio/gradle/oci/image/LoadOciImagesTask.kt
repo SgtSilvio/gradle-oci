@@ -4,7 +4,6 @@ import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
 import io.github.sgtsilvio.gradle.oci.internal.gradle.redirectOutput
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
-import org.apache.commons.lang3.SystemUtils
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
 import javax.inject.Inject
@@ -21,10 +20,9 @@ abstract class LoadOciImagesTask @Inject constructor(private val execOperations:
     ) {
         val dockerExecutablePath = findExecutablePath("docker")
         val singlePlatform = platformSelector.orNull?.singlePlatformOrNull()
-        val host = if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"
         for ((_, imageReferences) in multiPlatformImageAndReferencesPairs) {
             for (imageReference in imageReferences) {
-                val registryImageReference = "$host:$registryPort/$imageReference"
+                val registryImageReference = "${getDockerHost()}:$registryPort/$imageReference"
                 execOperations.exec {
                     executable = dockerExecutablePath
                     args = listOf("pull", registryImageReference)
