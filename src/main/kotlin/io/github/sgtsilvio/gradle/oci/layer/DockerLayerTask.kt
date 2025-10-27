@@ -5,16 +5,11 @@ import io.github.sgtsilvio.gradle.oci.image.*
 import io.github.sgtsilvio.gradle.oci.image.OciImagesTask.VariantInput
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
 import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
-import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
-import io.github.sgtsilvio.oci.registry.DistributionRegistryStorage
-import io.github.sgtsilvio.oci.registry.OciRegistryHandler
-import io.netty.buffer.UnpooledByteBufAllocator
-import io.netty.channel.ChannelOption
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.lang3.SystemUtils
@@ -27,7 +22,6 @@ import org.gradle.kotlin.dsl.mapProperty
 import org.gradle.kotlin.dsl.property
 import org.gradle.process.ExecOperations
 import org.json.JSONObject
-import reactor.netty.http.server.HttpServer
 import java.io.ByteArrayInputStream
 import java.nio.file.attribute.FileTime
 import java.util.*
@@ -101,35 +95,24 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
             listOf(Pair(parentImage.toMultiPlatformImage(), listOf(OciImageReference(imageName, inputImageTag)))),
             registryDataDirectory,
         )
+        // TODO dedup with LoadOciImagesTask
         val host = if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC) "host.docker.internal" else "localhost"
-        val loopResources = OciLoopResources.acquire()
-        try { // TODO dedup with OciRegistryTask
-            val httpServer = HttpServer.create()
-                .runOn(loopResources)
-                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
-                .handle(OciRegistryHandler(DistributionRegistryStorage(registryDataDirectory)))
-                .bindNow()
-            try {
-                val repository = "$host:${httpServer.port()}/$imageName"
-                execOperations.exec {
-                    executable = dockerExecutablePath
-                    args = listOf(
-                        "build",
-                        "--platform",
-                        platform.toPlatformArgument(),
-                        "-o",
-                        "type=registry,store=false,name=$repository:$outputImageTag",
-                        "--no-cache",
-                        "-",
-                    )
-                    standardInput = ByteArrayInputStream(assembleDockerfile("$repository:$inputImageTag").toByteArray())
-                    errorOutput = createCombinedErrorAndInfoOutputStream(logger)
-                }
-            } finally {
-                httpServer.disposeNow()
+        useRegistry(registryDataDirectory) { registryPort ->
+            val repository = "$host:$registryPort/$imageName"
+            execOperations.exec {
+                executable = dockerExecutablePath
+                args = listOf(
+                    "build",
+                    "--platform",
+                    platform.toPlatformArgument(),
+                    "-o",
+                    "type=registry,store=false,name=$repository:$outputImageTag",
+                    "--no-cache",
+                    "-",
+                )
+                standardInput = ByteArrayInputStream(assembleDockerfile("$repository:$inputImageTag").toByteArray())
+                errorOutput = createCombinedErrorAndInfoOutputStream(logger)
             }
-        } finally {
-            OciLoopResources.release()
         }
         val indexOrManifestDigest =
             registryDataDirectory.resolve("repositories/$imageName/_manifests/tags/$outputImageTag/current/link")

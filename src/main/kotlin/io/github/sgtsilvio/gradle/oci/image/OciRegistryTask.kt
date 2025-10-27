@@ -9,6 +9,7 @@ import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
 import reactor.netty.http.server.HttpServer
 import java.io.File
+import java.nio.file.Path
 
 /**
  * @author Silvio Giebl
@@ -27,20 +28,8 @@ abstract class OciRegistryTask : OciImagesTask() {
             multiPlatformImageAndReferencesPairs,
             registryDataDirectory,
         )
-        val loopResources = OciLoopResources.acquire()
-        try {
-            val httpServer = HttpServer.create()
-                .runOn(loopResources)
-                .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
-                .handle(OciRegistryHandler(DistributionRegistryStorage(registryDataDirectory)))
-                .bindNow()
-            try {
-                run(multiPlatformImageAndReferencesPairs, httpServer.port())
-            } finally {
-                httpServer.disposeNow()
-            }
-        } finally {
-            OciLoopResources.release()
+        useRegistry(registryDataDirectory) { registryPort ->
+            run(multiPlatformImageAndReferencesPairs, registryPort)
         }
         registryDataDirectory.toFile().deleteRecursively()
     }
@@ -49,4 +38,22 @@ abstract class OciRegistryTask : OciImagesTask() {
         multiPlatformImageAndReferencesPairs: List<Pair<OciMultiPlatformImage, List<OciImageReference>>>,
         registryPort: Int,
     )
+}
+
+internal fun useRegistry(registryDataDirectory: Path, block: (registryPort: Int) -> Unit) {
+    val loopResources = OciLoopResources.acquire()
+    try {
+        val httpServer = HttpServer.create()
+            .runOn(loopResources)
+            .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
+            .handle(OciRegistryHandler(DistributionRegistryStorage(registryDataDirectory)))
+            .bindNow()
+        try {
+            block(httpServer.port())
+        } finally {
+            httpServer.disposeNow()
+        }
+    } finally {
+        OciLoopResources.release()
+    }
 }
