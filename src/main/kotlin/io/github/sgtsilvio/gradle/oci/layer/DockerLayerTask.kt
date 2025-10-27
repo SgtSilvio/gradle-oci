@@ -29,7 +29,6 @@ import org.gradle.process.ExecOperations
 import org.json.JSONObject
 import reactor.netty.http.server.HttpServer
 import java.io.ByteArrayInputStream
-import java.io.File
 import java.nio.file.attribute.FileTime
 import java.util.*
 import java.util.zip.GZIPInputStream
@@ -97,7 +96,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         val registryDataDirectory = temporaryDirectory.toPath().resolve("registry")
         val parentImage = createImage(platform, parentVariants.get())
         createRegistryDataDirectory(
-            collectDigestToLayerFile(parentImage),
+            collectDigestToLayerFile(listOf(parentImage), logger),
             listOf(parentImage),
             listOf(Pair(parentImage.toMultiPlatformImage(), listOf(OciImageReference(imageName, inputImageTag)))),
             registryDataDirectory,
@@ -201,41 +200,9 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     }
 
     private fun createImage(platform: Platform, variantInputs: Iterable<VariantInput>): OciImage {
-        val variants = variantInputs.map { variantInput -> variantInput.toVariant() }
-        val config = createConfig(platform, variants)
-        val manifest = createManifest(config, variants)
-        return OciImage(manifest, config, platform, variants)
+        val variants = variantInputs.map { variantInput -> variantInput.toVariant() } // TODO dedup variants
+        return OciImage(platform, variants)
     }
 
-    private fun VariantInput.toVariant(): OciVariant { // TODO dedup with OciImagesTask
-        val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
-        val layerDescriptors = metadata.layers.mapNotNull { it.descriptor }
-        if (layerDescriptors.size != layerFiles.size) {
-            throw IllegalStateException("count of layer descriptors (${layerDescriptors.size}) and layer files (${layerFiles.size}) do not match")
-        }
-        val layers = layerDescriptors.zip(layerFiles) { descriptor, file -> OciLayer(descriptor, file) }
-        return OciVariant(metadata, layers)
-    }
-
-    private fun OciImage.toMultiPlatformImage() =
-        OciMultiPlatformImage(createIndex(listOf(this)), mapOf(platform to this))
-
-    private fun collectDigestToLayerFile(image: OciImage): Map<OciDigest, File> {
-        // digestToLayerFile map is linked because it will be iterated
-        val digestToLayerFile = LinkedHashMap<OciDigest, File>()
-        for (variant in image.variants) {
-            for (layer in variant.layers) {
-                digestToLayerFile.putIfAbsent(layer.descriptor.digest, layer.file)
-            }
-        }
-        return digestToLayerFile
-    }
-
-//    private fun resolveVariantInputs(configuration: Configuration): Provider<List<VariantInput>> {
-//        val artifacts = configuration.incoming.artifacts
-//        return artifacts.artifactFiles.elements.map {
-//            artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
-//                .map { (_, files) -> VariantInput(files.first(), files.drop(1)) }
-//        }
-//    }
+    private fun OciImage.toMultiPlatformImage() = OciMultiPlatformImage(mapOf(platform to this))
 }

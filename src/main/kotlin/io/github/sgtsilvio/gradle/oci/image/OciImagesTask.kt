@@ -7,6 +7,7 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import org.apache.commons.io.FileUtils
 import org.gradle.api.DefaultTask
+import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
@@ -74,7 +75,7 @@ abstract class OciImagesTask : DefaultTask() {
         val imageAndReferencesPairs = createImageAndReferencesPairs(imageInputs)
         val multiPlatformImageAndReferencesPairs = createMultiPlatformImageAndReferencesPairs(imageAndReferencesPairs)
         val images = imageAndReferencesPairs.map { it.first }
-        val digestToLayerFile = collectDigestToLayerFile(images)
+        val digestToLayerFile = collectDigestToLayerFile(images, logger)
         run(digestToLayerFile, images, multiPlatformImageAndReferencesPairs)
     }
 
@@ -92,10 +93,7 @@ abstract class OciImagesTask : DefaultTask() {
             val variants = imageInput.variants.map { variantInput ->
                 variantInputToVariant.getOrPut(variantInput) { variantInput.toVariant() }
             }
-            val platform = imageInput.platform
-            val config = createConfig(platform, variants)
-            val manifest = createManifest(config, variants)
-            val image = OciImage(manifest, config, platform, variants)
+            val image = OciImage(imageInput.platform, variants)
 
             val defaultImageReference = variants.last().metadata.imageReference
             // imageReferences set is linked because it will be iterated
@@ -104,16 +102,6 @@ abstract class OciImagesTask : DefaultTask() {
             }.ifEmpty { setOf(defaultImageReference) }
             Pair(image, imageReferences)
         }
-    }
-
-    private fun VariantInput.toVariant(): OciVariant {
-        val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
-        val layerDescriptors = metadata.layers.mapNotNull { it.descriptor }
-        if (layerDescriptors.size != layerFiles.size) {
-            throw IllegalStateException("count of layer descriptors (${layerDescriptors.size}) and layer files (${layerFiles.size}) do not match")
-        }
-        val layers = layerDescriptors.zip(layerFiles) { descriptor, file -> OciLayer(descriptor, file) }
-        return OciVariant(metadata, layers)
     }
 
     private fun createMultiPlatformImageAndReferencesPairs(
@@ -137,39 +125,38 @@ abstract class OciImagesTask : DefaultTask() {
         for ((reference, platformToImage) in referenceToPlatformToImage) {
             var multiPlatformImageAndReferencesPair = multiPlatformImageAndReferencesPairMap[platformToImage]
             if (multiPlatformImageAndReferencesPair == null) {
-                val index = createIndex(platformToImage.values)
-                multiPlatformImageAndReferencesPair = Pair(OciMultiPlatformImage(index, platformToImage), ArrayList())
+                multiPlatformImageAndReferencesPair = Pair(OciMultiPlatformImage(platformToImage), ArrayList())
                 multiPlatformImageAndReferencesPairMap[platformToImage] = multiPlatformImageAndReferencesPair
             }
             multiPlatformImageAndReferencesPair.second += reference
         }
         return multiPlatformImageAndReferencesPairMap.values.toList()
     }
+}
 
-    private fun collectDigestToLayerFile(images: List<OciImage>): Map<OciDigest, File> {
-        // digestToLayerFile map is linked because it will be iterated
-        val digestToLayerFile = LinkedHashMap<OciDigest, File>()
-        val duplicateLayerFiles = HashSet<File>()
-        for (image in images) {
-            for (variant in image.variants) {
-                for (layer in variant.layers) {
-                    val prevLayerFile = digestToLayerFile.putIfAbsent(layer.descriptor.digest, layer.file)
-                    if ((prevLayerFile != null) && (prevLayerFile != layer.file) && duplicateLayerFiles.add(layer.file)) {
-                        checkDuplicateLayer(layer.descriptor, prevLayerFile, layer.file)
-                    }
+internal fun collectDigestToLayerFile(images: List<OciImage>, logger: Logger): Map<OciDigest, File> {
+    // digestToLayerFile map is linked because it will be iterated
+    val digestToLayerFile = LinkedHashMap<OciDigest, File>()
+    val duplicateLayerFiles = HashSet<File>()
+    for (image in images) {
+        for (variant in image.variants) {
+            for (layer in variant.layers) {
+                val prevLayerFile = digestToLayerFile.putIfAbsent(layer.descriptor.digest, layer.file)
+                if ((prevLayerFile != null) && (prevLayerFile != layer.file) && duplicateLayerFiles.add(layer.file)) {
+                    checkDuplicateLayer(layer.descriptor, prevLayerFile, layer.file, logger)
                 }
             }
         }
-        return digestToLayerFile
     }
+    return digestToLayerFile
+}
 
-    private fun checkDuplicateLayer(layerDescriptor: OciLayerDescriptor, file1: File, file2: File) {
-        if (!FileUtils.contentEquals(file1, file2)) {
-            throw IllegalStateException("hash collision for digest ${layerDescriptor.digest}: expected file contents of $file1 and $file2 to be the same")
-        }
-        if (layerDescriptor.diffId !in EMPTY_LAYER_DIFF_IDS) {
-            logger.warn("the same layer (${layerDescriptor.digest}) should not be provided by multiple artifacts ($file1, $file2)")
-        }
+private fun checkDuplicateLayer(layerDescriptor: OciLayerDescriptor, file1: File, file2: File, logger: Logger) {
+    if (!FileUtils.contentEquals(file1, file2)) {
+        throw IllegalStateException("hash collision for digest ${layerDescriptor.digest}: expected file contents of $file1 and $file2 to be the same")
+    }
+    if (layerDescriptor.diffId !in EMPTY_LAYER_DIFF_IDS) {
+        logger.warn("the same layer (${layerDescriptor.digest}) should not be provided by multiple artifacts ($file1, $file2)")
     }
 }
 
