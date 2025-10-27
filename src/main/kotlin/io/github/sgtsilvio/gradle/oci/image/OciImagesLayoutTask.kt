@@ -7,8 +7,6 @@ import io.github.sgtsilvio.gradle.oci.internal.json.jsonArray
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.internal.string.concatKebabCase
 import io.github.sgtsilvio.gradle.oci.metadata.*
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
@@ -28,17 +26,16 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
         option = "docker-load-compatible",
         description = "Creates a manifest.json file for backwards compatibility with the docker save/load format",
     )
-    val dockerLoadCompatible: Property<Boolean> = project.objects.property<Boolean>().convention(true)
+    val dockerLoadCompatible = project.objects.property<Boolean>().convention(true)
 
     @get:Internal
-    val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
+    val destinationDirectory = project.objects.directoryProperty()
 
     @get:Internal
     val classifier = project.objects.property<String>()
 
     @get:OutputDirectory
-    val outputDirectory: DirectoryProperty =
-        project.objects.directoryProperty().convention(destinationDirectory.dir(classifier))
+    val outputDirectory = project.objects.directoryProperty().convention(destinationDirectory.dir(classifier))
 
     @Option(option = "tar", description = "Creates a tar of this OCI image layout.")
     protected fun createTar(isCreateTar: Boolean) {

@@ -4,7 +4,6 @@ import io.github.sgtsilvio.gradle.oci.internal.ensureEmptyDirectory
 import io.github.sgtsilvio.gradle.oci.metadata.OciData
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
-import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.OutputDirectory
 import java.io.File
 import java.nio.file.FileAlreadyExistsException
@@ -18,7 +17,7 @@ import kotlin.io.path.*
 abstract class OciRegistryDataTask : OciImagesTask() {
 
     @get:OutputDirectory
-    val registryDataDirectory: DirectoryProperty = project.objects.directoryProperty()
+    val registryDataDirectory = project.objects.directoryProperty()
 
     final override fun run(
         digestToLayerFile: Map<OciDigest, File>,

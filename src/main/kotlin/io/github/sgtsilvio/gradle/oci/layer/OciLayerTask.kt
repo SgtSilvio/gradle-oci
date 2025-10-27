@@ -6,9 +6,6 @@ import io.github.sgtsilvio.gradle.oci.metadata.calculateOciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.toOciDigest
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
@@ -25,31 +22,29 @@ import java.util.*
 abstract class OciLayerTask : DefaultTask() {
 
     @get:Input
-    val digestAlgorithm: Property<OciDigestAlgorithm> =
-        project.objects.property<OciDigestAlgorithm>().convention(OciDigestAlgorithm.SHA_256)
+    val digestAlgorithm = project.objects.property<OciDigestAlgorithm>().convention(OciDigestAlgorithm.SHA_256)
 
     @get:Input
-    val compression: Property<OciLayerCompression> =
-        project.objects.property<OciLayerCompression>().convention(OciLayerCompression.GZIP)
+    val compression = project.objects.property<OciLayerCompression>().convention(OciLayerCompression.GZIP)
 
     @get:Internal
     val mediaType: Provider<String> = compression.map { it.mediaType }
 
     @get:Internal
-    val destinationDirectory: DirectoryProperty = project.objects.directoryProperty()
+    val destinationDirectory = project.objects.directoryProperty()
 
     @get:Internal
     val classifier = project.objects.property<String>()
 
     @get:Internal
-    val extension: Property<String> = project.objects.property<String>().convention(compression.map { it.extension })
+    val extension = project.objects.property<String>().convention(compression.map { it.extension })
 
     @get:OutputFile
-    val file: RegularFileProperty = project.objects.fileProperty()
+    val file = project.objects.fileProperty()
         .convention(destinationDirectory.file(classifier.zip(extension) { classifier, ext -> "$classifier.$ext" }))
 
     @get:OutputFile
-    protected val propertiesFile: RegularFileProperty =
+    protected val propertiesFile =
         project.objects.fileProperty().convention(destinationDirectory.file(classifier.map { "$it.properties" }))
 
     @get:Internal
