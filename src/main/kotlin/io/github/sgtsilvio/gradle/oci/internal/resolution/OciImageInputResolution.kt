@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal.resolution
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.image.OciImagesTask
 import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
+import io.github.sgtsilvio.gradle.oci.internal.gradle.rootDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.variantArtifacts
 import io.github.sgtsilvio.gradle.oci.metadata.DEFAULT_OCI_IMAGE_REFERENCE_SPEC
@@ -10,6 +11,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.result.DependencyResult
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
@@ -30,7 +32,7 @@ internal fun resolveOciImageInputs(
         taskDependenciesProvider.addAll(artifacts.artifactFiles.elements)
         val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
             .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
-        val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.root)
+        val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.rootDependencies.get())
         for (imageSpec in imageSpecs) {
             val imageInput = OciImagesTask.ImageInput(
                 platform,
@@ -59,13 +61,11 @@ internal fun resolveOciImageInputs(
 
 private class OciImageSpec(val variants: List<ResolvedVariantResult>, val selectors: Set<VariantSelector>)
 
-private fun collectOciImageSpecs(rootComponent: ResolvedComponentResult): List<OciImageSpec> {
-    // the first variant is the resolvable configuration, but only if it declares at least one dependency
-    val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
+private fun collectOciImageSpecs(rootDependencies: List<DependencyResult>): List<OciImageSpec> {
     // firstLevelComponentAndVariantToSelectors is linked to preserve the dependency order
     val firstLevelComponentAndVariantToSelectors =
         LinkedHashMap<Pair<ResolvedComponentResult, ResolvedVariantResult>, HashSet<VariantSelector>>()
-    for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
+    for (dependency in rootDependencies) {
         if (dependency.isConstraint) continue
         if (dependency !is ResolvedDependencyResult) throw ResolutionException()
         val componentAndVariant = Pair(dependency.selected, dependency.resolvedVariant)

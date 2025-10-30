@@ -3,10 +3,12 @@ package io.github.sgtsilvio.gradle.oci.internal.resolution
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_INDEX_PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
+import io.github.sgtsilvio.gradle.oci.internal.gradle.rootDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.toPlatform
 import org.gradle.api.artifacts.ResolvableDependencies
+import org.gradle.api.artifacts.result.DependencyResult
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.ResolvedVariantResult
@@ -23,26 +25,24 @@ internal class OciVariantGraphNode(
 
 internal fun resolveOciVariantGraph(dependencies: ResolvableDependencies): OciVariantGraph {
     try {
-        return resolveOciVariantGraph(dependencies.resolutionResult.root)
+        return resolveOciVariantGraph(dependencies.resolutionResult.rootDependencies.get())
     } catch (e: ResolutionException) {
         dependencies.artifacts.failures // throws the failures
         throw IllegalStateException(e)
     }
 }
 
-private fun resolveOciVariantGraph(rootComponent: ResolvedComponentResult): OciVariantGraph {
-    // the first variant is the resolvable configuration, but only if it declares at least one dependency
-    val rootVariant = rootComponent.variants.firstOrNull() ?: return emptyList()
+private fun resolveOciVariantGraph(rootDependencies: List<DependencyResult>): OciVariantGraph {
     val variantToNode = HashMap<ResolvedVariantResult, OciVariantGraphNode?>()
-    // rootNodesToDependencySelectors is linked to preserve the dependency order
-    val rootNodesToSelectors = LinkedHashMap<OciVariantGraphNode, HashSet<VariantSelector>>()
-    for (dependency in rootComponent.getDependenciesForVariant(rootVariant)) {
+    // rootNodeToSelectors is linked to preserve the dependency order
+    val rootNodeToSelectors = LinkedHashMap<OciVariantGraphNode, HashSet<VariantSelector>>()
+    for (dependency in rootDependencies) {
         if (dependency.isConstraint) continue
         if (dependency !is ResolvedDependencyResult) throw ResolutionException()
         val node = resolveOciVariantGraphNode(dependency.selected, dependency.resolvedVariant, variantToNode)
-        rootNodesToSelectors.getOrPut(node) { HashSet() } += dependency.requested.toVariantSelector()
+        rootNodeToSelectors.getOrPut(node) { HashSet() } += dependency.requested.toVariantSelector()
     }
-    return rootNodesToSelectors.map { (node, selectors) -> OciVariantGraphRoot(node, selectors) }
+    return rootNodeToSelectors.map { (node, selectors) -> OciVariantGraphRoot(node, selectors) }
 }
 
 private fun resolveOciVariantGraphNode(
