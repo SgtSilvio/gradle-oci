@@ -92,7 +92,7 @@ private fun Path.writeDigestData(data: OciData) {
     val digestDataFile = resolveDigestDataFile(data.digest)
     try {
         digestDataFile.writeBytes(data.bytes, StandardOpenOption.CREATE_NEW)
-    } catch (e: FileAlreadyExistsException) {
+    } catch (_: FileAlreadyExistsException) {
         if (!data.bytes.contentEquals(digestDataFile.readBytes())) {
             throw IllegalStateException("hash collision for digest ${data.digest}: expected file content of $digestDataFile to be the same as ${data.bytes.contentToString()}")
         }
@@ -111,7 +111,7 @@ private fun Path.writeTagLink(digest: OciDigest) {
     val digestBytes = digest.toString().toByteArray()
     try {
         tagLinkFile.writeBytes(digestBytes, StandardOpenOption.CREATE_NEW)
-    } catch (e: FileAlreadyExistsException) {
+    } catch (_: FileAlreadyExistsException) {
         if (!digestBytes.contentEquals(tagLinkFile.readBytes())) {
             throw IllegalStateException("tried to link the same image name/tag to different images")
         }

@@ -13,7 +13,7 @@ internal fun findExecutablePath(name: String): String {
         for (searchPath in searchPaths) {
             val path = try {
                 Path(searchPath, name)
-            } catch (ignored: IllegalArgumentException) {
+            } catch (_: IllegalArgumentException) {
                 continue
             }
             if (path.exists() && !path.isDirectory()) {

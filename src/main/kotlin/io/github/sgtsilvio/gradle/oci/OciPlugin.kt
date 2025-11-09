@@ -97,7 +97,7 @@ class OciPlugin : Plugin<Project> {
                         destinationDirectory.set(imageLayoutTask.flatMap { it.destinationDirectory })
                         archiveClassifier.set(imageLayoutTask.flatMap { it.classifier })
                     }
-                } catch (ignored: UnknownTaskException) {
+                } catch (_: UnknownTaskException) {
                 }
             }
         }
