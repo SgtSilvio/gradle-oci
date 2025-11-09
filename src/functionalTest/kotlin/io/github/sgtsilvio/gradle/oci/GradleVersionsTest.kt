@@ -19,8 +19,8 @@ internal class GradleVersionsTest {
             "8.3", // minimum 8.x version
             "8.5", // highest version for oldest ArtifactVisitor interface
             "8.6", // lowest version for second oldest ArtifactVisitor interface
-            "8.10.2", // highest version not fulfilling version check >= 8.11 in VariantSelector
-            "8.11", // lowest version fulfilling version check >= 8.11 in VariantSelector
+            "8.10.2", // highest version not fulfilling version check >= 8.11 in VariantSelector and ResolutionResultExtensions
+            "8.11", // lowest version fulfilling version check >= 8.11 in VariantSelector and ResolutionResultExtensions
             "8.13", // highest version for second oldest ArtifactVisitor interface
             "8.14", // lowest version for third oldest ArtifactVisitor interface
             "9.0.0", // highest version for third oldest ArtifactVisitor interface
