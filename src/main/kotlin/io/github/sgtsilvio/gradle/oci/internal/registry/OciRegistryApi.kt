@@ -165,7 +165,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         manifest
     }
 
-    fun <T> pullBlob(
+    fun <T : Any> pullBlob(
         registryUrl: URI,
         imageName: String,
         digest: OciDigest,
@@ -502,7 +502,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 //        credentials: Credentials?,
 //    ): Mono<Nothing> = deleteManifest(registryUrl, imageName, digest.toString(), credentials)
 
-    private fun <T> send(
+    private fun <T : Any> send(
         registryUrl: URI,
         imageName: String,
         path: String,
@@ -518,7 +518,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         responseAction,
     )
 
-    private fun <T> send(
+    private fun <T : Any> send(
         registryUrl: URI,
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
@@ -628,7 +628,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         return map
     }
 
-    private fun <T> createError(response: HttpClientResponse, body: ByteBufMono): Mono<T> =
+    private fun <T : Any> createError(response: HttpClientResponse, body: ByteBufMono): Mono<T> =
         body.asString(Charsets.UTF_8).defaultIfEmpty("").map { errorBody ->
             throw HttpResponseException(response.status().code(), response.responseHeaders(), errorBody)
         }
