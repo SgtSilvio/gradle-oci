@@ -72,12 +72,12 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
         stringBuilder.append(']')
     }
 
-    inline fun addObject(key: String, block: JsonObjectStringBuilder.() -> Unit) {
+    internal inline fun addObject(key: String, block: JsonObjectStringBuilder.() -> Unit) {
         addKey(key)
         addObject(block)
     }
 
-    inline fun addArray(key: String, block: JsonArrayStringBuilder.() -> Unit) {
+    internal inline fun addArray(key: String, block: JsonArrayStringBuilder.() -> Unit) {
         addKey(key)
         addArray(block)
     }
@@ -97,13 +97,13 @@ internal class JsonStringBuilderImpl : JsonObjectStringBuilder, JsonArrayStringB
         addBoolean(value)
     }
 
-    inline fun addObject(block: JsonObjectStringBuilder.() -> Unit) {
+    internal inline fun addObject(block: JsonObjectStringBuilder.() -> Unit) {
         startObject()
         block()
         endObject()
     }
 
-    inline fun addArray(block: JsonArrayStringBuilder.() -> Unit) {
+    internal inline fun addArray(block: JsonArrayStringBuilder.() -> Unit) {
         startArray()
         block()
         endArray()
