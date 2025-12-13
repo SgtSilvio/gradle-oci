@@ -24,3 +24,9 @@ jobs:
           ORG_GRADLE_PROJECT_dockerHubUsername: ${{ secrets.DOCKER_HUB_USERNAME }}
           ORG_GRADLE_PROJECT_dockerHubPassword: ${{ secrets.DOCKER_HUB_TOKEN }}
         run: ./gradlew check
+      - name: Upload Reports
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: reports
+          path: "**/build/reports/"
