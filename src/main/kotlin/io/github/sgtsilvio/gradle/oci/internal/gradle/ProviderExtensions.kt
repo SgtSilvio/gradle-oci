@@ -8,5 +8,5 @@ private fun <T : Any> Provider<T>.optional(): Provider<Optional<T>> =
 
 internal fun <T : Any, U : Any, R : Any> Provider<T>.zipAbsentAsNull(
     other: Provider<U>,
-    combiner: (T, U?) -> R,
+    combiner: (T, U?) -> R?,
 ): Provider<R> = zip(other.optional()) { t, u -> combiner(t, u.orElse(null)) }
