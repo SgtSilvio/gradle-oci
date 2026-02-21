@@ -9,9 +9,9 @@ class OciMultiPlatformImage(
     val platformToImage: Map<Platform, OciImage>,
 )
 
-internal fun OciMultiPlatformImage(images: Map<Platform, OciImage>): OciMultiPlatformImage {
-    val index = createIndex(images.values)
-    return OciMultiPlatformImage(index, images)
+internal fun OciMultiPlatformImage(platformToImage: Map<Platform, OciImage>): OciMultiPlatformImage {
+    val index = createIndex(platformToImage.values)
+    return OciMultiPlatformImage(index, platformToImage)
 }
 
 class OciImage(
@@ -35,16 +35,6 @@ class OciVariant(
     val metadata: OciMetadata,
     val layers: List<OciLayer>,
 )
-
-internal fun OciVariantInput.toVariant(): OciVariant {
-    val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
-    val layerDescriptors = metadata.layers.mapNotNull { it.descriptor }
-    if (layerDescriptors.size != layerFiles.size) {
-        throw IllegalStateException("count of layer descriptors (${layerDescriptors.size}) and layer files (${layerFiles.size}) do not match")
-    }
-    val layers = layerDescriptors.zip(layerFiles) { descriptor, file -> OciLayer(descriptor, file) }
-    return OciVariant(metadata, layers)
-}
 
 class OciLayer(
     val descriptor: OciLayerDescriptor,
