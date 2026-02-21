@@ -41,7 +41,7 @@ abstract class OciImagesTask : DefaultTask() {
     fun from(dependenciesListProvider: Provider<List<OciImageDependencies>>) {
         val objectFactory = project.objects
         images.addAll(dependenciesListProvider.flatMap { dependenciesList ->
-            val listProperty = objectFactory.listProperty<ImageInput>()
+            val listProperty = objectFactory.listProperty<OciImageInput>()
             for (dependencies in dependenciesList) {
                 listProperty.addAll(dependencies.resolve(platformSelector))
             }
@@ -58,7 +58,7 @@ abstract class OciImagesTask : DefaultTask() {
 
     @TaskAction
     protected fun run() {
-        val imageInputs: Set<ImageInput> = images.get()
+        val imageInputs: Set<OciImageInput> = images.get()
         val imageAndReferencesPairs = createImageAndReferencesPairs(imageInputs)
         val multiPlatformImageAndReferencesPairs = createMultiPlatformImageAndReferencesPairs(imageAndReferencesPairs)
         val images = imageAndReferencesPairs.map { it.first }
@@ -73,9 +73,9 @@ abstract class OciImagesTask : DefaultTask() {
     )
 
     private fun createImageAndReferencesPairs(
-        imageInputs: Iterable<ImageInput>,
+        imageInputs: Iterable<OciImageInput>,
     ): List<Pair<OciImage, Set<OciImageReference>>> {
-        val variantInputToVariant = HashMap<VariantInput, OciVariant>()
+        val variantInputToVariant = HashMap<OciVariantInput, OciVariant>()
         return imageInputs.map { imageInput ->
             val variants = imageInput.variants.map { variantInput ->
                 variantInputToVariant.getOrPut(variantInput) { variantInput.toVariant() }
