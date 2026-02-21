@@ -11,7 +11,9 @@ import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.property
@@ -24,22 +26,7 @@ import java.io.File
 abstract class OciImagesTask : DefaultTask() {
 
     @get:Nested
-    val images = project.objects.setProperty<ImageInput>()
-
-    data class ImageInput(
-        @get:Input val platform: Platform,
-        @get:Nested val variants: List<VariantInput>,
-        @get:Input val referenceSpecs: Set<OciImageReferenceSpec>,
-    ) {
-        init {
-            require(variants.isNotEmpty()) { "variants must not be empty" }
-        }
-    }
-
-    data class VariantInput(
-        @get:InputFile @get:PathSensitive(PathSensitivity.NONE) val metadataFile: File,
-        @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) val layerFiles: List<File>,
-    )
+    val images = project.objects.setProperty<OciImageInput>()
 
     @get:Internal
     val platformSelector = project.objects.property<PlatformSelector>()

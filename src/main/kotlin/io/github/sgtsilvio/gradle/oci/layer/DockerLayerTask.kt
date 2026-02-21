@@ -2,7 +2,6 @@ package io.github.sgtsilvio.gradle.oci.layer
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.image.*
-import io.github.sgtsilvio.gradle.oci.image.OciImagesTask.VariantInput
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
 import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
@@ -35,7 +34,7 @@ import kotlin.io.path.readText
 abstract class DockerLayerTask @Inject constructor(private val execOperations: ExecOperations) : OciLayerTask() {
 
     @get:Nested
-    val parentVariants = project.objects.listProperty<VariantInput>()
+    val parentVariants = project.objects.listProperty<OciVariantInput>()
 
     @get:Input
     val platform = project.objects.property<Platform>()
@@ -170,7 +169,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         }
     }
 
-    private fun createImage(platform: Platform, variantInputs: Iterable<VariantInput>): OciImage {
+    private fun createImage(platform: Platform, variantInputs: Iterable<OciVariantInput>): OciImage {
         val variants = variantInputs.map { variantInput -> variantInput.toVariant() } // TODO dedup variants
         return OciImage(platform, variants)
     }

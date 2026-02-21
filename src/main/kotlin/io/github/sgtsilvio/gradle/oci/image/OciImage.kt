@@ -1,6 +1,5 @@
 package io.github.sgtsilvio.gradle.oci.image
 
-import io.github.sgtsilvio.gradle.oci.image.OciImagesTask.VariantInput
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import java.io.File
@@ -37,7 +36,7 @@ class OciVariant(
     val layers: List<OciLayer>,
 )
 
-internal fun VariantInput.toVariant(): OciVariant {
+internal fun OciVariantInput.toVariant(): OciVariant {
     val metadata = metadataFile.readText().decodeAsJsonToOciMetadata()
     val layerDescriptors = metadata.layers.mapNotNull { it.descriptor }
     if (layerDescriptors.size != layerFiles.size) {

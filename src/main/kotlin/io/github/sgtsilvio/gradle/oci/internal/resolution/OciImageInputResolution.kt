@@ -1,7 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.internal.resolution
 
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
-import io.github.sgtsilvio.gradle.oci.image.OciImagesTask
+import io.github.sgtsilvio.gradle.oci.image.OciImageInput
+import io.github.sgtsilvio.gradle.oci.image.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.internal.gradle.VariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.gradle.rootDependencies
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
@@ -23,18 +24,18 @@ internal fun resolveOciImageInputs(
     selectedPlatformsGraph: OciVariantGraphWithSelectedPlatforms?,
     platformConfigurationPairs: List<Pair<Platform, Configuration>>,
     objectFactory: ObjectFactory,
-): Provider<List<OciImagesTask.ImageInput>> {
+): Provider<List<OciImageInput>> {
     val taskDependenciesProvider = objectFactory.listProperty<Any>()
-    val imageInputs = ArrayList<OciImagesTask.ImageInput>()
-    val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<VariantSelector>>, OciImagesTask.ImageInput>()
+    val imageInputs = ArrayList<OciImageInput>()
+    val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<VariantSelector>>, OciImageInput>()
     for ((platform, configuration) in platformConfigurationPairs) {
         val artifacts = configuration.incoming.artifacts
         taskDependenciesProvider.addAll(artifacts.artifactFiles.elements)
         val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
-            .mapValues { (_, files) -> OciImagesTask.VariantInput(files.first(), files.drop(1)) }
+            .mapValues { (_, files) -> OciVariantInput(files.first(), files.drop(1)) }
         val imageSpecs = collectOciImageSpecs(configuration.incoming.resolutionResult.rootDependencies.get())
         for (imageSpec in imageSpecs) {
-            val imageInput = OciImagesTask.ImageInput(
+            val imageInput = OciImageInput(
                 platform,
                 imageSpec.variants.map { variant ->
                     capabilitiesToVariantInput[variant.capabilities] ?: throw IllegalStateException() // TODO message

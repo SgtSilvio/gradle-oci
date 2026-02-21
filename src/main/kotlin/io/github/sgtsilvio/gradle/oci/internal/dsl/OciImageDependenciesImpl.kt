@@ -2,7 +2,7 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
-import io.github.sgtsilvio.gradle.oci.image.OciImagesTask
+import io.github.sgtsilvio.gradle.oci.image.OciImageInput
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -85,7 +85,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
 
     private val indexGraph = lazy { resolveOciVariantGraph(indexConfiguration.incoming) }
 
-    final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImagesTask.ImageInput>> {
+    final override fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImageInput>> {
         val lazy = lazy {
             val platformSelector = platformSelectorProvider.orNull
             val singlePlatform = platformSelector?.singlePlatformOrNull()
