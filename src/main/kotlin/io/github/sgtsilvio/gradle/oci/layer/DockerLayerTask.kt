@@ -64,7 +64,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     fun from(imageDependencies: OciImageDependencies) {
         val platformSelector = platform.map { PlatformSelector(it) }
         val imageInputs = imageDependencies.resolve(platformSelector)
-        val variantInputs = imageInputs.map { imageInputs -> imageInputs.flatMap { it.variants } }
+        val variantInputs = imageInputs.map { imageInputs -> imageInputs.flatMapTo(LinkedHashSet()) { it.variants } }
         parentVariants.addAll(variantInputs)
     }
 
@@ -169,7 +169,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     }
 
     private fun createImage(platform: Platform, variantInputs: Iterable<OciVariantInput>): OciImage {
-        val variants = variantInputs.map { variantInput -> variantInput.toVariant() } // TODO dedup variants
+        val variants = variantInputs.distinct().map { variantInput -> variantInput.toVariant() }
         return OciImage(platform, variants)
     }
 
