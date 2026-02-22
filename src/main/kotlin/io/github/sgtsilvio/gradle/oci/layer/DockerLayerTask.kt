@@ -166,10 +166,8 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         }
     }
 
-    private fun createImage(platform: Platform, variantInputs: Iterable<OciVariantInput>): OciImage {
-        val variants = variantInputs.distinct().map { variantInput -> variantInput.toVariant() }
-        return OciImage(platform, variants)
-    }
+    private fun createImage(platform: Platform, variantInputs: Iterable<OciVariantInput>) =
+        OciImage(platform, variantInputs.map { it.toVariant() })
 
     private fun OciImage.toMultiPlatformImage() = OciMultiPlatformImage(mapOf(platform to this))
 }
