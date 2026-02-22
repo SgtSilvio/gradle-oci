@@ -12,6 +12,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.result.DependencyResult
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
@@ -58,6 +59,23 @@ internal fun resolveOciImageInputs(
         }
     }
     return taskDependenciesProvider.map { imageInputs }
+}
+
+internal fun resolveOciVariantInputs(dependencies: ResolvableDependencies): Provider<List<OciVariantInput>> {
+    val artifacts = dependencies.artifacts
+    return artifacts.artifactFiles.elements.map {
+        val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
+            .mapValues { (_, files) -> OciVariantInput(files.first(), files.drop(1)) }
+        val variants = LinkedHashSet<ResolvedVariantResult>()
+        for (dependency in dependencies.resolutionResult.rootDependencies.get()) {
+            if (dependency.isConstraint) continue
+            if (dependency !is ResolvedDependencyResult) throw ResolutionException()
+            collectOciVariants(dependency.selected, dependency.resolvedVariant, variants)
+        }
+        variants.map { variant ->
+            capabilitiesToVariantInput[variant.capabilities] ?: throw IllegalStateException() // TODO message
+        }
+    }
 }
 
 private class OciImageSpec(val variants: List<ResolvedVariantResult>, val selectors: Set<VariantSelector>)

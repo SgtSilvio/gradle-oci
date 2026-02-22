@@ -3,11 +3,11 @@ package io.github.sgtsilvio.gradle.oci.layer
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.image.*
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
+import io.github.sgtsilvio.gradle.oci.internal.dsl.OciImageDependenciesImpl
 import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
-import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -62,10 +62,8 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     }
 
     fun from(imageDependencies: OciImageDependencies) {
-        val platformSelector = platform.map { PlatformSelector(it) }
-        val imageInputs = imageDependencies.resolve(platformSelector)
-        val variantInputs = imageInputs.map { imageInputs -> imageInputs.flatMapTo(LinkedHashSet()) { it.variants } }
-        parentVariants.addAll(variantInputs)
+        imageDependencies as OciImageDependenciesImpl
+        parentVariants.addAll(imageDependencies.resolveVariants(platform))
     }
 
     override fun run(tarOutputStream: TarArchiveOutputStream) {

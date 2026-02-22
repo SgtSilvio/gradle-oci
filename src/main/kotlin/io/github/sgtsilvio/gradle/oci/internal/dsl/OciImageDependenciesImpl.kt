@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci.internal.dsl
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
 import io.github.sgtsilvio.gradle.oci.image.OciImageInput
+import io.github.sgtsilvio.gradle.oci.image.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -115,5 +116,15 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             resolveOciImageInputs(selectedPlatformsGraph, platformConfigurationPairs, objectFactory)
         }
         return providerFactory.provider { lazy.value }.flatMap { it }
+    }
+
+    fun resolveVariants(platformProvider: Provider<Platform>): Provider<List<OciVariantInput>> {
+        return platformProvider.flatMap { platform ->
+            val configuration = getOrCreatePlatformConfiguration(platform, null) {
+                dependencies.addAll(indexConfiguration.allDependencies)
+                dependencyConstraints.addAll(indexConfiguration.allDependencyConstraints)
+            }
+            resolveOciVariantInputs(configuration.incoming)
+        }
     }
 }
