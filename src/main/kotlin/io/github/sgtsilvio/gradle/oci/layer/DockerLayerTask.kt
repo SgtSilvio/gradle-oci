@@ -57,10 +57,9 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
     @get:Input
     val environment = project.objects.mapProperty<String, String>()
 
-//    fun from(dependency: ModuleDependency) {
-//        val ociExtension = project.extensions.getByType(OciExtension::class)
-//        ociExtension.imageDependencies.maybeCreate()
-//    }
+    init {
+        dependsOn(parentVariants)
+    }
 
     fun from(imageDependencies: OciImageDependencies) {
         val platformSelector = platform.map { PlatformSelector(it) }
