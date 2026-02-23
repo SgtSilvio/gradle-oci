@@ -36,6 +36,7 @@ interface OciExtension : PlatformFactories, PlatformSelectorFactories {
     val imageMapping: OciImageMapping
     val imageDefinitions: NamedDomainObjectContainer<OciImageDefinition>
     val imageDependencies: NamedDomainObjectContainer<OciImageDependencies>
+    val parentImageDependencies: NamedDomainObjectContainer<ParentOciImageDependencies>
 
     fun registries(configuration: Action<in OciRegistries>)
 

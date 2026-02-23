@@ -29,19 +29,15 @@ interface OciImageDefinition : Named, CapabilityFactories {
     fun specificPlatform(platform: Platform, configuration: Action<in Variant>)
 
     interface Variant {
-        val dependencies: Dependencies
+        val dependencies: ParentOciImageDependencies
         val config: Config
         val layers: NamedDomainObjectList<Layer>
 
-        fun dependencies(configuration: Action<in Dependencies>)
+        fun dependencies(configuration: Action<in ParentOciImageDependencies>)
 
         fun config(configuration: Action<in Config>)
 
         fun layer(name: String, configuration: Action<in Layer>)
-
-        interface Dependencies : DependencyConstraintFactories {
-            val runtime: OciImageDependencyCollector<Unit>
-        }
 
         interface Config {
             val creationTime: Property<Instant>
@@ -82,7 +78,7 @@ interface OciImageDefinition : Named, CapabilityFactories {
     interface VariantScope {
         val layers: NamedDomainObjectList<Layer>
 
-        fun dependencies(configuration: Action<in Variant.Dependencies>)
+        fun dependencies(configuration: Action<in ParentOciImageDependencies>)
         fun config(configuration: Action<in Variant.Config>)
         fun layer(name: String, configuration: Action<in Layer>)
 

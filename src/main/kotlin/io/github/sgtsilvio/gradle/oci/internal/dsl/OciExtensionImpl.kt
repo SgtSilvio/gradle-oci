@@ -39,12 +39,17 @@ internal abstract class OciExtensionImpl @Inject constructor(
     final override val registries = objectFactory.newInstance<OciRegistriesImpl>(imageMapping)
 
     final override val imageDefinitions = objectFactory.domainObjectContainer(OciImageDefinition::class) { name ->
-        objectFactory.newInstance<OciImageDefinitionImpl>(name)
+        objectFactory.newInstance<OciImageDefinitionImpl>(name, parentImageDependencies)
     }
 
     final override val imageDependencies = objectFactory.domainObjectContainer(OciImageDependencies::class) { name ->
         objectFactory.newInstance<OciImageDependenciesImpl>(name)
     }
+
+    final override val parentImageDependencies =
+        objectFactory.domainObjectContainer(ParentOciImageDependencies::class) { name ->
+            objectFactory.newInstance<ParentOciImageDependenciesImpl>(name)
+        }
 
     init {
         // eagerly realize imageDefinitions because they register configurations and tasks

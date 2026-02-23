@@ -5,6 +5,7 @@ import io.github.sgtsilvio.gradle.oci.TASK_GROUP_NAME
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.Capability
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
+import io.github.sgtsilvio.gradle.oci.dsl.ParentOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.dsl.toMapNotation
 import io.github.sgtsilvio.gradle.oci.internal.*
 import io.github.sgtsilvio.gradle.oci.internal.gradle.*
@@ -20,12 +21,12 @@ import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.file.ProjectLayout
@@ -41,6 +42,7 @@ import javax.inject.Inject
 
 internal abstract class OciImageDefinitionImpl @Inject constructor(
     private val name: String,
+    private val parentImageDependencies: NamedDomainObjectContainer<ParentOciImageDependencies>,
     private val objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
     private val configurationContainer: ConfigurationContainer,
@@ -89,7 +91,11 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         project.afterEvaluate {
             val platformVariants = platformVariants
             if ((platformVariants == null) && (universalVariant == null)) {
-                val variant = objectFactory.newInstance<Variant>(this@OciImageDefinitionImpl, Optional.empty<Platform>())
+                val variant = objectFactory.newInstance<Variant>(
+                    this@OciImageDefinitionImpl,
+                    Optional.empty<Platform>(),
+                    parentImageDependencies,
+                )
                 variants.add(variant)
                 universalVariant = variant
             }
@@ -155,7 +161,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
         var variant = platformVariants[platform]
         if (variant == null) {
-            variant = objectFactory.newInstance<Variant>(this, Optional.of(platform))
+            variant = objectFactory.newInstance<Variant>(this, Optional.of(platform), parentImageDependencies)
             platformVariants[platform] = variant
             variants.add(variant)
         }
@@ -202,6 +208,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
     abstract class Variant @Inject constructor(
         private val imageDefinition: OciImageDefinitionImpl,
         platformOptional: Optional<Platform>,
+        parentImageDependencies: NamedDomainObjectContainer<ParentOciImageDependencies>,
         private val objectFactory: ObjectFactory,
         providerFactory: ProviderFactory,
         configurationContainer: ConfigurationContainer,
@@ -233,7 +240,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             }
         }
 
-        final override val dependencies = objectFactory.newInstance<Dependencies>()
+        final override val dependencies: ParentOciImageDependencies = parentImageDependencies.create(configuration.name)
         final override val config = objectFactory.newInstance<OciImageDefinition.Variant.Config>().apply {
             entryPoint.convention(null)
             arguments.convention(null)
@@ -305,7 +312,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
             listProperty
         }
 
-        final override fun dependencies(configuration: Action<in OciImageDefinition.Variant.Dependencies>) =
+        final override fun dependencies(configuration: Action<in ParentOciImageDependencies>) =
             configuration.execute(dependencies)
 
         final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =
@@ -321,14 +328,6 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
                 layers.add(layer)
             }
             return layer
-        }
-
-        abstract class Dependencies @Inject constructor(
-            objectFactory: ObjectFactory,
-            dependencyConstraintHandler: DependencyConstraintHandler,
-        ) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDefinition.Variant.Dependencies {
-
-            final override val runtime = objectFactory.newInstance<OciImageDependencyCollectorImpl.Default>()
         }
 
         abstract class Layer @Inject constructor(
@@ -451,7 +450,7 @@ internal abstract class OciImageDefinitionImpl @Inject constructor(
         }
         final override val layers = objectFactory.namedDomainObjectList(OciImageDefinition.VariantScope.Layer::class)
 
-        final override fun dependencies(configuration: Action<in OciImageDefinition.Variant.Dependencies>) =
+        final override fun dependencies(configuration: Action<in ParentOciImageDependencies>) =
             variants.configureEach { dependencies(configuration) }
 
         final override fun config(configuration: Action<in OciImageDefinition.Variant.Config>) =

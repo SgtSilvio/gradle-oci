@@ -1,9 +1,8 @@
 package io.github.sgtsilvio.gradle.oci.layer
 
-import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencies
+import io.github.sgtsilvio.gradle.oci.dsl.ParentOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.image.*
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
-import io.github.sgtsilvio.gradle.oci.internal.dsl.OciImageDependenciesImpl
 import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.metadata.*
@@ -61,10 +60,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         dependsOn(parentVariants)
     }
 
-    fun from(imageDependencies: OciImageDependencies) {
-        imageDependencies as OciImageDependenciesImpl
-        parentVariants.addAll(imageDependencies.resolveVariants(platform))
-    }
+    fun from(imageDependencies: ParentOciImageDependencies) = parentVariants.addAll(imageDependencies.resolve(platform))
 
     override fun run(tarOutputStream: TarArchiveOutputStream) {
         val dockerExecutablePath = findExecutablePath("docker")
