@@ -18,7 +18,6 @@ import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.newInstance
 import javax.inject.Inject
-import kotlin.collections.addAll
 
 /**
  * @author Silvio Giebl
@@ -55,10 +54,9 @@ internal abstract class ParentOciImageDependenciesImpl @Inject constructor(
         }
     }
 
-    final override fun resolve(platformProvider: Provider<Platform>): Provider<List<OciVariantInput>> {
-        return platformProvider.flatMap { platform ->
+    final override fun resolve(platformProvider: Provider<Platform>): Provider<List<OciVariantInput>> =
+        platformProvider.flatMap { platform ->
             val configuration = getOrCreatePlatformConfiguration(platform)
             resolveOciVariantInputs(configuration.incoming)
         }
-    }
 }
