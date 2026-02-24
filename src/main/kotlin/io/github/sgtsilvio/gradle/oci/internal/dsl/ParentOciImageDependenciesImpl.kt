@@ -33,24 +33,21 @@ internal abstract class ParentOciImageDependenciesImpl @Inject constructor(
 
     final override val runtime = objectFactory.newInstance<OciImageDependencyCollectorImpl.Default>()
 
-    private val platformConfigurations = HashMap<String, Configuration>()
+    private val platformConfigurations = HashMap<Platform, Configuration>()
 
-    private fun getOrCreatePlatformConfiguration(platform: Platform): Configuration {
-        val platformConfigurationName = "${name}ParentOciImages@$platform"
-        return platformConfigurations.getOrPut(platformConfigurationName) {
-            configurationContainer.create(platformConfigurationName).apply {
-                description = "Parent OCI image dependencies '$name' for the platform $platform."
-                isCanBeConsumed = false
-                isCanBeResolved = true
-                attributes.apply {
-                    attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
-                    attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
-                    attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
-                    attribute(PLATFORM_ATTRIBUTE, platform.toString())
-                }
-                dependencies.addAllLater(runtime.dependencies)
-                dependencyConstraints.addAllLater(runtime.dependencyConstraints)
+    private fun getOrCreatePlatformConfiguration(platform: Platform) = platformConfigurations.getOrPut(platform) {
+        configurationContainer.create("${name}ParentOciImages@$platform").apply {
+            description = "Parent OCI image dependencies '$name' for the platform $platform."
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            attributes.apply {
+                attribute(Category.CATEGORY_ATTRIBUTE, objectFactory.named(DISTRIBUTION_CATEGORY))
+                attribute(DISTRIBUTION_TYPE_ATTRIBUTE, OCI_IMAGE_DISTRIBUTION_TYPE)
+                attribute(Bundling.BUNDLING_ATTRIBUTE, objectFactory.named(Bundling.EXTERNAL))
+                attribute(PLATFORM_ATTRIBUTE, platform.toString())
             }
+            dependencies.addAllLater(runtime.dependencies)
+            dependencyConstraints.addAllLater(runtime.dependencyConstraints)
         }
     }
 
