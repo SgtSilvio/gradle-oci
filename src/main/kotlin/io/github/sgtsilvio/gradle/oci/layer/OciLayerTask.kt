@@ -31,7 +31,8 @@ abstract class OciLayerTask : DefaultTask() {
     val mediaType: Provider<String> = compression.map { it.mediaType }
 
     @get:Internal
-    val destinationDirectory = project.objects.directoryProperty()
+    val destinationDirectory =
+        project.objects.directoryProperty().convention(project.layout.buildDirectory.dir("oci/layers"))
 
     @get:Internal
     val classifier = project.objects.property<String>()
