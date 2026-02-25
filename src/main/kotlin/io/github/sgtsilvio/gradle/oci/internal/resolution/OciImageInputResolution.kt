@@ -66,8 +66,7 @@ internal fun resolveOciVariantInputs(dependencies: ResolvableDependencies): Prov
         val artifacts = dependencies.artifacts
         val taskDependenciesProvider = artifacts.artifactFiles.elements
         val capabilitiesToVariantInput = artifacts.resolveOciVariantInputs()
-        val variants = LinkedHashSet<ResolvedVariantResult>()
-        collectVariants(rootDependencies, variants)
+        val variants = collectVariants(rootDependencies)
         val variantInputs = variants.mapToOciVariants(capabilitiesToVariantInput)
         taskDependenciesProvider.map { variantInputs }
     }.flatMap { it }
@@ -98,28 +97,26 @@ private fun collectOciImageSpecs(rootDependencies: List<DependencyResult>): List
     }
     return firstLevelComponentAndVariantToSelectors.map { (componentAndVariant, selectors) ->
         val (component, variant) = componentAndVariant
-        val variants = LinkedHashSet<ResolvedVariantResult>()
-        collectVariants(component, variant, variants)
+        val variants = collectVariants(component.getDependenciesForVariant(variant))
+        variants += variants
         OciImageSpec(variants, selectors)
     }
 }
 
-private fun collectVariants(
-    component: ResolvedComponentResult,
-    variant: ResolvedVariantResult,
-    variants: LinkedHashSet<ResolvedVariantResult>,
-) {
-    if (variant !in variants) {
-        collectVariants(component.getDependenciesForVariant(variant), variants)
-        variants += variant
-    }
+private fun collectVariants(dependencies: List<DependencyResult>): LinkedHashSet<ResolvedVariantResult> {
+    val variants = LinkedHashSet<ResolvedVariantResult>()
+    collectVariants(dependencies, variants)
+    return variants
 }
 
 private fun collectVariants(dependencies: List<DependencyResult>, variants: LinkedHashSet<ResolvedVariantResult>) {
     for (dependency in dependencies) {
         if (dependency.isConstraint) continue
         if (dependency !is ResolvedDependencyResult) throw ResolutionException()
-        collectVariants(dependency.selected, dependency.resolvedVariant, variants)
+        val variant = dependency.resolvedVariant
+        if (variant in variants) continue
+        collectVariants(dependency.selected.getDependenciesForVariant(variant), variants)
+        variants += variant
     }
 }
 
