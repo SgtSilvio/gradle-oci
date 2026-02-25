@@ -62,20 +62,22 @@ internal fun resolveOciImageInputs(
 }
 
 internal fun resolveOciVariantInputs(dependencies: ResolvableDependencies): Provider<List<OciVariantInput>> {
-    val artifacts = dependencies.artifacts
-    return artifacts.artifactFiles.elements.map {
+    return dependencies.resolutionResult.rootDependencies.map { rootDependencies ->
+        val artifacts = dependencies.artifacts
+        val taskDependenciesProvider = artifacts.artifactFiles.elements
         val capabilitiesToVariantInput = artifacts.variantArtifacts.groupBy({ it.capabilities }) { it.file }
             .mapValues { (_, files) -> OciVariantInput(files.first(), files.drop(1)) }
         val variants = LinkedHashSet<ResolvedVariantResult>()
-        for (dependency in dependencies.resolutionResult.rootDependencies.get()) {
+        for (dependency in rootDependencies) {
             if (dependency.isConstraint) continue
             if (dependency !is ResolvedDependencyResult) throw ResolutionException()
             collectOciVariants(dependency.selected, dependency.resolvedVariant, variants)
         }
-        variants.map { variant ->
+        val variantInputs = variants.map { variant ->
             capabilitiesToVariantInput[variant.capabilities] ?: throw IllegalStateException() // TODO message
         }
-    }
+        taskDependenciesProvider.map { variantInputs }
+    }.flatMap { it }
 }
 
 private class OciImageSpec(val variants: List<ResolvedVariantResult>, val selectors: Set<VariantSelector>)
