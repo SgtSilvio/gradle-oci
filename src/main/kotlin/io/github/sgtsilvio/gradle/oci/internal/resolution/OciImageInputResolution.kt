@@ -77,12 +77,6 @@ private fun ArtifactCollection.resolveOciVariantInputs(): Map<List<Capability>, 
         OciVariantInput(files.first(), files.drop(1))
     }
 
-private fun LinkedHashSet<ResolvedVariantResult>.mapToOciVariants(
-    capabilitiesToVariantInput: Map<List<Capability>, OciVariantInput>,
-): List<OciVariantInput> = map { variant ->
-    capabilitiesToVariantInput[variant.capabilities] ?: throw IllegalStateException()
-}
-
 private class OciImageSpec(val variants: LinkedHashSet<ResolvedVariantResult>, val selectors: Set<VariantSelector>)
 
 private fun collectOciImageSpecs(rootDependencies: List<DependencyResult>): List<OciImageSpec> {
@@ -118,6 +112,12 @@ private fun collectVariants(dependencies: List<DependencyResult>, variants: Link
         collectVariants(dependency.selected.getDependenciesForVariant(variant), variants)
         variants += variant
     }
+}
+
+private fun LinkedHashSet<ResolvedVariantResult>.mapToOciVariants(
+    capabilitiesToVariantInput: Map<List<Capability>, OciVariantInput>,
+): List<OciVariantInput> = map { variant ->
+    capabilitiesToVariantInput[variant.capabilities] ?: throw IllegalStateException() // TODO message
 }
 
 private fun Set<VariantSelector>.collectReferenceSpecs() = flatMapTo(LinkedHashSet()) { selector ->
