@@ -92,7 +92,7 @@ private fun collectOciImageSpecs(rootDependencies: List<DependencyResult>): List
     return firstLevelComponentAndVariantToSelectors.map { (componentAndVariant, selectors) ->
         val (component, variant) = componentAndVariant
         val variants = collectVariants(component.getDependenciesForVariant(variant))
-        variants += variants
+        variants += variant
         OciImageSpec(variants, selectors)
     }
 }
