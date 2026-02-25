@@ -60,7 +60,7 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         dependsOn(parentVariants)
     }
 
-    fun from(imageDependencies: ParentOciImageDependencies) = parentVariants.addAll(imageDependencies.resolve(platform))
+    fun dependencies(dependencies: ParentOciImageDependencies) = parentVariants.addAll(dependencies.resolve(platform))
 
     override fun run(tarOutputStream: TarArchiveOutputStream) {
         val dockerExecutablePath = findExecutablePath("docker")
