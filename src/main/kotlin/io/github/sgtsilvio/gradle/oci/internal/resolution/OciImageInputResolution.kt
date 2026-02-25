@@ -12,7 +12,6 @@ import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.metadata.toOciImageReferenceSpec
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.artifacts.ArtifactCollection
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.result.DependencyResult
 import org.gradle.api.artifacts.result.ResolvedComponentResult
@@ -25,14 +24,13 @@ import org.gradle.kotlin.dsl.listProperty
 
 internal fun resolveOciImageInputs(
     selectedPlatformsGraph: OciVariantGraphWithSelectedPlatforms?,
-    platformConfigurationPairs: List<Pair<Platform, Configuration>>,
+    platformDependencies: List<Pair<Platform, ResolvableDependencies>>,
     objectFactory: ObjectFactory,
 ): Provider<List<OciImageInput>> {
     val taskDependenciesProvider = objectFactory.listProperty<Any>()
     val imageInputs = ArrayList<OciImageInput>()
     val variantSelectorsToImageInput = HashMap<Pair<Platform, Set<VariantSelector>>, OciImageInput>()
-    for ((platform, configuration) in platformConfigurationPairs) {
-        val dependencies = configuration.incoming
+    for ((platform, dependencies) in platformDependencies) {
         val artifacts = dependencies.artifacts
         taskDependenciesProvider.addAll(artifacts.artifactFiles.elements)
         val capabilitiesToVariantInput = artifacts.resolveOciVariantInputs()

@@ -10,6 +10,7 @@ import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
@@ -90,29 +91,28 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
             val platformSelector = platformSelectorProvider.orNull
             val singlePlatform = platformSelector?.singlePlatformOrNull()
             val selectedPlatformsGraph: OciVariantGraphWithSelectedPlatforms?
-            val platformConfigurationPairs: List<Pair<Platform, Configuration>>
+            val platformDependencies: List<Pair<Platform, ResolvableDependencies>>
             if (singlePlatform == null) {
                 val allDependencies = indexConfiguration.allDependencies.filterIsInstance<ModuleDependency>()
                 selectedPlatformsGraph = indexGraph.value.selectPlatforms(platformSelector)
-                platformConfigurationPairs = selectedPlatformsGraph.groupByPlatform().map { (platform, graph) ->
+                platformDependencies = selectedPlatformsGraph.groupByPlatform().map { (platform, graph) ->
                     val platformSelectorString = platformSelector?.toString() ?: "all supported"
                     val platformConfiguration = getOrCreatePlatformConfiguration(platform, platformSelectorString) {
                         val variantSelectors = graph.flatMapTo(HashSet()) { it.variantSelectors }
                         dependencies.addAll(allDependencies.filter { it.toVariantSelector() in variantSelectors })
                         shouldResolveConsistentlyWith(indexConfiguration)
                     }
-                    Pair(platform, platformConfiguration)
+                    Pair(platform, platformConfiguration.incoming)
                 }
             } else {
                 selectedPlatformsGraph = null
-                platformConfigurationPairs = listOf(
-                    Pair(singlePlatform, getOrCreatePlatformConfiguration(singlePlatform, null) {
-                        dependencies.addAll(indexConfiguration.allDependencies)
-                        dependencyConstraints.addAll(indexConfiguration.allDependencyConstraints)
-                    })
-                )
+                val platformConfiguration = getOrCreatePlatformConfiguration(singlePlatform, null) {
+                    dependencies.addAll(indexConfiguration.allDependencies)
+                    dependencyConstraints.addAll(indexConfiguration.allDependencyConstraints)
+                }
+                platformDependencies = listOf(Pair(singlePlatform, platformConfiguration.incoming))
             }
-            resolveOciImageInputs(selectedPlatformsGraph, platformConfigurationPairs, objectFactory)
+            resolveOciImageInputs(selectedPlatformsGraph, platformDependencies, objectFactory)
         }
         return providerFactory.provider { lazy.value }.flatMap { it }
     }
