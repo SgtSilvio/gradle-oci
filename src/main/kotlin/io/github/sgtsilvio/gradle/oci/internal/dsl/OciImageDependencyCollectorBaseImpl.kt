@@ -12,7 +12,6 @@ import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.setProperty
-import javax.inject.Inject
 
 /**
  * @author Silvio Giebl
@@ -89,16 +88,4 @@ internal abstract class OciImageDependencyCollectorBaseImpl<T>(
         dependencyConstraintProvider: Provider<out DependencyConstraint>,
         action: Action<in DependencyConstraint>,
     ) = dependencyConstraints.add(dependencyConstraintProvider.map { action.execute(it); it })
-
-
-    internal abstract class Default @Inject constructor(
-        dependencyHandler: DependencyHandler,
-        objectFactory: ObjectFactory,
-    ) : OciImageDependencyCollectorBaseImpl<Unit>(dependencyHandler, objectFactory) {
-
-        final override fun addInternal(dependency: ModuleDependency) = dependencies.add(dependency)
-
-        final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>) =
-            dependencies.add(dependencyProvider)
-    }
 }
