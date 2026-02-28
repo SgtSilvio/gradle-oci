@@ -14,3 +14,21 @@ interface OciImageDependencies : DependencyConstraintFactories, Named {
 
     fun resolve(platformSelectorProvider: Provider<PlatformSelector>): Provider<List<OciImageInput>>
 }
+
+interface OciImageDependencyCollector : OciImageDependencyCollectorBase<OciImageDependencyCollector.Nameable> {
+
+    interface Taggable {
+        fun tag(vararg tags: String): Taggable
+        fun tag(tags: Iterable<String>): Taggable
+        fun tag(tagProvider: Provider<String>): Taggable
+
+        @Suppress("INAPPLICABLE_JVM_NAME")
+        @JvmName("tagMultiple")
+        fun tag(tagsProvider: Provider<out Iterable<String>>): Taggable
+    }
+
+    interface Nameable : Taggable {
+        fun name(name: String): Taggable
+        fun name(nameProvider: Provider<String>): Taggable
+    }
+}

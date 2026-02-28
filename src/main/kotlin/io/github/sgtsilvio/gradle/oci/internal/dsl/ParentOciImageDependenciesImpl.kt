@@ -5,15 +5,12 @@ import io.github.sgtsilvio.gradle.oci.attributes.DISTRIBUTION_TYPE_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_DISTRIBUTION_TYPE
 import io.github.sgtsilvio.gradle.oci.attributes.PLATFORM_ATTRIBUTE
 import io.github.sgtsilvio.gradle.oci.dsl.ParentOciImageDependencies
-import io.github.sgtsilvio.gradle.oci.dsl.ParentOciImageDependencyCollector
 import io.github.sgtsilvio.gradle.oci.image.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciVariantInputs
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
-import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
@@ -59,15 +56,4 @@ internal abstract class ParentOciImageDependenciesImpl @Inject constructor(
             val configuration = getOrCreatePlatformConfiguration(platform)
             resolveOciVariantInputs(configuration.incoming)
         }
-}
-
-internal abstract class ParentOciImageDependencyCollectorImpl @Inject constructor(
-    dependencyHandler: DependencyHandler,
-    objectFactory: ObjectFactory,
-) : OciImageDependencyCollectorBaseImpl<Unit>(dependencyHandler, objectFactory), ParentOciImageDependencyCollector {
-
-    final override fun addInternal(dependency: ModuleDependency) = dependencies.add(dependency)
-
-    final override fun addInternal(dependencyProvider: Provider<out ModuleDependency>) =
-        dependencies.add(dependencyProvider)
 }
