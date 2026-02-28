@@ -21,7 +21,7 @@ import javax.inject.Inject
 internal abstract class ReferencableOciImageDependencyCollectorImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     dependencyHandler: DependencyHandler,
-) : OciImageDependencyCollectorImpl<Nameable>(
+) : OciImageDependencyCollectorBaseImpl<Nameable>(
     dependencyHandler,
     objectFactory,
 ), ReferencableOciImageDependencyCollector {

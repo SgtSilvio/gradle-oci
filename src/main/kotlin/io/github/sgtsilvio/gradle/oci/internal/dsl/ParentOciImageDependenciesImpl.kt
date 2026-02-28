@@ -31,7 +31,7 @@ internal abstract class ParentOciImageDependenciesImpl @Inject constructor(
 
     final override fun getName() = name
 
-    final override val runtime = objectFactory.newInstance<OciImageDependencyCollectorImpl.Default>()
+    final override val runtime = objectFactory.newInstance<OciImageDependencyCollectorBaseImpl.Default>()
 
     private val platformConfigurations = HashMap<Platform, Configuration>()
 

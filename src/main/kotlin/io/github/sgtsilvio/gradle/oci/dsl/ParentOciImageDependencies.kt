@@ -10,7 +10,7 @@ import org.gradle.api.provider.Provider
  */
 interface ParentOciImageDependencies : DependencyConstraintFactories, Named {
 
-    val runtime: OciImageDependencyCollector<Unit>
+    val runtime: OciImageDependencyCollectorBase<Unit>
 
     fun resolve(platformProvider: Provider<Platform>): Provider<List<OciVariantInput>>
 }

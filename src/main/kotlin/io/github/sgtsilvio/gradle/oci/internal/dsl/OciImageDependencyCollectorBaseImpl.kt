@@ -1,6 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
-import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollector
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollectorBase
 import io.github.sgtsilvio.gradle.oci.internal.gradle.createDependency
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -17,10 +17,10 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-internal abstract class OciImageDependencyCollectorImpl<T>(
+internal abstract class OciImageDependencyCollectorBaseImpl<T>(
     private val dependencyHandler: DependencyHandler,
     objectFactory: ObjectFactory,
-) : OciImageDependencyCollector<T> {
+) : OciImageDependencyCollectorBase<T> {
 
     final override val dependencies = objectFactory.setProperty<ModuleDependency>()
     final override val dependencyConstraints = objectFactory.setProperty<DependencyConstraint>()
@@ -94,7 +94,7 @@ internal abstract class OciImageDependencyCollectorImpl<T>(
     internal abstract class Default @Inject constructor(
         dependencyHandler: DependencyHandler,
         objectFactory: ObjectFactory,
-    ) : OciImageDependencyCollectorImpl<Unit>(dependencyHandler, objectFactory) {
+    ) : OciImageDependencyCollectorBaseImpl<Unit>(dependencyHandler, objectFactory) {
 
         final override fun addInternal(dependency: ModuleDependency) = dependencies.add(dependency)
 
