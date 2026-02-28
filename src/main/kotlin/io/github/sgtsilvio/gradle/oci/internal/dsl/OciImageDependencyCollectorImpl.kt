@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.attributes.OCI_IMAGE_REFERENCE_SPECS_ATTRIBUTE
-import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector
-import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector.Nameable
-import io.github.sgtsilvio.gradle.oci.dsl.ReferencableOciImageDependencyCollector.Taggable
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollector
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollector.Nameable
+import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollector.Taggable
 import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
@@ -18,13 +18,10 @@ import javax.inject.Inject
 /**
  * @author Silvio Giebl
  */
-internal abstract class ReferencableOciImageDependencyCollectorImpl @Inject constructor(
+internal abstract class OciImageDependencyCollectorImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     dependencyHandler: DependencyHandler,
-) : OciImageDependencyCollectorBaseImpl<Nameable>(
-    dependencyHandler,
-    objectFactory,
-), ReferencableOciImageDependencyCollector {
+) : OciImageDependencyCollectorBaseImpl<Nameable>(dependencyHandler, objectFactory), OciImageDependencyCollector {
 
     final override fun addInternal(dependency: ModuleDependency): ReferenceSpecsBuilder {
         val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)

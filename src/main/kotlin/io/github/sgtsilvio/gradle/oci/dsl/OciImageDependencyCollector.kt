@@ -5,8 +5,7 @@ import org.gradle.api.provider.Provider
 /**
  * @author Silvio Giebl
  */
-interface ReferencableOciImageDependencyCollector :
-    OciImageDependencyCollectorBase<ReferencableOciImageDependencyCollector.Nameable> {
+interface OciImageDependencyCollector : OciImageDependencyCollectorBase<OciImageDependencyCollector.Nameable> {
 
     interface Taggable {
         fun tag(vararg tags: String): Taggable

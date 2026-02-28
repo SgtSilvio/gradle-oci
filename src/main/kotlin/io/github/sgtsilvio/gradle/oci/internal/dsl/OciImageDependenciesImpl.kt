@@ -34,7 +34,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
 
     final override fun getName() = name
 
-    final override val runtime = objectFactory.newInstance<ReferencableOciImageDependencyCollectorImpl>()
+    final override val runtime = objectFactory.newInstance<OciImageDependencyCollectorImpl>()
 
     private val descriptionPrefix get() = "OCI image dependencies '$name'"
 
