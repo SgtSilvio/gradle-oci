@@ -4,6 +4,7 @@ import io.github.sgtsilvio.gradle.oci.dsl.ParentOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.image.*
 import io.github.sgtsilvio.gradle.oci.internal.copyspec.DEFAULT_MODIFICATION_TIME
 import io.github.sgtsilvio.gradle.oci.internal.findExecutablePath
+import io.github.sgtsilvio.gradle.oci.internal.json.JsonObject
 import io.github.sgtsilvio.gradle.oci.internal.string.LineOutputStream
 import io.github.sgtsilvio.gradle.oci.metadata.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
@@ -102,9 +103,13 @@ abstract class DockerLayerTask @Inject constructor(private val execOperations: E
         val indexOrManifest = JSONObject(blobsDirectory.resolveDigestDataFile(indexOrManifestDigest).readText())
         val manifest = when (val mediaType = indexOrManifest.getString("mediaType")) {
             INDEX_MEDIA_TYPE, DOCKER_MANIFEST_LIST_MEDIA_TYPE -> {
-                val manifestDescriptor = indexOrManifest.getJSONArray("manifests").first() as JSONObject // TODO first -> find mediaType and platform
-                val manifestDigest = manifestDescriptor.getString("digest").toOciDigest()
-                JSONObject(blobsDirectory.resolveDigestDataFile(manifestDigest).readText())
+                val manifestDescriptors = JsonObject(indexOrManifest).get("manifests") {
+                    asArray().toList { asObject().decodeOciManifestDescriptor() }
+                }
+                val (_, manifestDescriptor) = manifestDescriptors.first { (descriptorPlatform, descriptor) ->
+                    ((descriptor.mediaType == MANIFEST_MEDIA_TYPE) || (descriptor.mediaType == DOCKER_MANIFEST_MEDIA_TYPE)) && (descriptorPlatform == platform)
+                }
+                JSONObject(blobsDirectory.resolveDigestDataFile(manifestDescriptor.digest).readText())
             }
             MANIFEST_MEDIA_TYPE, DOCKER_MANIFEST_MEDIA_TYPE -> indexOrManifest
             else -> throw IllegalStateException("unexpected index or manifest media type: $mediaType")
