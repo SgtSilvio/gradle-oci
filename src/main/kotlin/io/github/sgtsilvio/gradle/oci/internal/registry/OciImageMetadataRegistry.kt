@@ -306,27 +306,6 @@ internal class OciImageMetadataRegistry(val registryApi: OciRegistryApi) {
         else -> mediaType
     }
 
-    private fun JsonObject.decodeOciDescriptor() = OciDescriptorImpl(
-        getString("mediaType"),
-        getOciDigest("digest"),
-        getLong("size"),
-        getStringMapOrEmpty("annotations"),
-    ) // TODO order?
-    // TODO support data
-
-    private fun JsonObject.decodeOciManifestDescriptor() = Pair(
-        getOrNull("platform") { asObject().decodePlatform() },
-        decodeOciDescriptor(),
-    ) // TODO order?
-
-    private fun JsonObject.decodePlatform() = Platform(
-        getString("os"),
-        getString("architecture"),
-        getStringOrNull("variant") ?: "",
-        getStringOrNull("os.version") ?: "",
-        getStringSetOrEmpty("os.features"),
-    ) // TODO order?
-
     private class HistoryEntry(
         val creationTime: Instant?,
         val author: String?,

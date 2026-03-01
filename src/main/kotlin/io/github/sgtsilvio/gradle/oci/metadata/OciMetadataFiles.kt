@@ -131,27 +131,3 @@ internal fun createIndex(images: Collection<OciImage>): OciData {
     }.toByteArray()
     return OciData(INDEX_MEDIA_TYPE, data, OciDigestAlgorithm.SHA_256)
 }
-
-internal fun JsonObjectStringBuilder.encodeOciDescriptor(descriptor: OciDescriptor) {
-    // sorted for canonical json: annotations, digest, mediaType, size
-    addObjectIfNotEmpty("annotations", descriptor.annotations)
-    addString("digest", descriptor.digest.toString())
-    addString("mediaType", descriptor.mediaType)
-    addNumber("size", descriptor.size)
-}
-
-private fun JsonObjectStringBuilder.encodeOciManifestDescriptor(descriptor: OciDescriptor, platform: Platform) {
-    // sorted for canonical json: annotations, digest, mediaType, platform, size
-    addObjectIfNotEmpty("annotations", descriptor.annotations)
-    addString("digest", descriptor.digest.toString())
-    addString("mediaType", descriptor.mediaType)
-    addObject("platform") {
-        // sorted for canonical json: architecture, os, osFeatures, osVersion, variant
-        addString("architecture", platform.architecture)
-        addString("os", platform.os)
-        addArrayIfNotEmpty("os.features", platform.osFeatures)
-        addStringIfNotEmpty("os.version", platform.osVersion)
-        addStringIfNotEmpty("variant", platform.variant)
-    }
-    addNumber("size", descriptor.size)
-}
