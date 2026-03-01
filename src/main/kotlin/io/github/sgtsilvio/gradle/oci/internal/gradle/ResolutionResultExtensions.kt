@@ -5,7 +5,7 @@ import org.gradle.api.artifacts.result.ResolutionResult
 import org.gradle.api.provider.Provider
 import org.gradle.util.GradleVersion
 
-val ResolutionResult.rootDependencies: Provider<List<DependencyResult>>
+internal val ResolutionResult.rootDependencies: Provider<List<DependencyResult>>
     get() {
         return if (GradleVersion.current() >= GradleVersion.version("8.11")) {
             rootComponent.zip(rootVariant) { rootComponent, rootVariant ->
