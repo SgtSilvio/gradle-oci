@@ -12,6 +12,7 @@ import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.logging.Logger
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
@@ -31,6 +32,7 @@ import kotlin.io.path.readText
 /**
  * @author Silvio Giebl
  */
+@CacheableTask
 abstract class DockerLayerTask @Inject constructor(private val execOperations: ExecOperations) : OciLayerTask() {
 
     @get:Nested

@@ -6,10 +6,12 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
+import org.gradle.work.DisableCachingByDefault
 
 /**
  * @author Silvio Giebl
  */
+@DisableCachingByDefault(because = "Not worth caching")
 abstract class OciMetadataTask : DefaultTask() {
 
     @get:Input

@@ -5,6 +5,7 @@ import io.github.sgtsilvio.gradle.oci.metadata.OciData
 import io.github.sgtsilvio.gradle.oci.metadata.OciDigest
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.work.DisableCachingByDefault
 import java.io.File
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Path
@@ -14,6 +15,7 @@ import kotlin.io.path.*
 /**
  * @author Silvio Giebl
  */
+@DisableCachingByDefault(because = "Not worth caching")
 abstract class OciRegistryDataTask : OciImagesTask() {
 
     @get:OutputDirectory

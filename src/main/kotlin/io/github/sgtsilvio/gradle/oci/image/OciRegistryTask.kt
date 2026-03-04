@@ -8,6 +8,7 @@ import io.github.sgtsilvio.oci.registry.OciRegistryHandler
 import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
 import org.apache.commons.lang3.SystemUtils
+import org.gradle.work.DisableCachingByDefault
 import reactor.netty.http.server.HttpServer
 import java.io.File
 import java.nio.file.Path
@@ -15,6 +16,7 @@ import java.nio.file.Path
 /**
  * @author Silvio Giebl
  */
+@DisableCachingByDefault(because = "Abstract super-class, not to be instantiated directly")
 abstract class OciRegistryTask : OciImagesTask() {
 
     final override fun run(

@@ -12,6 +12,7 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.options.Option
 import org.gradle.kotlin.dsl.property
+import org.gradle.work.DisableCachingByDefault
 import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.*
@@ -19,6 +20,7 @@ import kotlin.io.path.*
 /**
  * @author Silvio Giebl
  */
+@DisableCachingByDefault(because = "Not worth caching")
 abstract class OciImagesLayoutTask : OciImagesTask() {
 
     @get:Input
@@ -125,4 +127,5 @@ abstract class OciImagesLayoutTask : OciImagesTask() {
     private fun Path.writeBlob(data: OciData) = resolveBlobFile(data.digest).writeBytes(data.bytes)
 }
 
+@DisableCachingByDefault(because = "Not worth caching")
 abstract class OciImageLayoutTask : OciImagesLayoutTask(), OciImageTask

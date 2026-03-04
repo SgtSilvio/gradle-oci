@@ -7,8 +7,10 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.Action
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
+import org.gradle.work.DisableCachingByDefault
 import java.nio.file.attribute.FileTime
 
+@DisableCachingByDefault(because = "Not worth caching")
 abstract class DefaultOciLayerTask : OciLayerTask() {
 
     private val _contents = project.objects.newOciCopySpec()

@@ -12,6 +12,7 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
+import org.gradle.work.DisableCachingByDefault
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.*
@@ -19,6 +20,7 @@ import java.util.*
 /**
  * @author Silvio Giebl
  */
+@DisableCachingByDefault(because = "Abstract super-class, not to be instantiated directly")
 abstract class OciLayerTask : DefaultTask() {
 
     @get:Input
