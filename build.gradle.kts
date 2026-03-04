@@ -1,3 +1,4 @@
+import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
@@ -66,6 +67,11 @@ gradlePlugin {
             id = "$group.$name"
             implementationClass = "$group.$name.OciPlugin"
             tags = listOf("oci", "oci-image", "docker", "docker-image", "multi-arch")
+            compatibility {
+                features {
+                    configurationCache = true
+                }
+            }
         }
     }
 }
