@@ -16,7 +16,6 @@ import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
 import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
-import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
@@ -144,8 +143,8 @@ private const val PORT_HTTP_HEADER_NAME = "port"
 internal fun OciRegistriesService(
     buildServiceRegistry: BuildServiceRegistry,
     name: String,
-    registries: NamedDomainObjectList<OciRegistry>,
-    repositoryPort: Property<Int>,
+    registries: List<OciRegistry>,
+    repositoryPort: Provider<Int>,
     imageMapping: OciImageMappingImpl,
 ): OciRegistriesService {
     val registriesService = buildServiceRegistry.registerIfAbsent(name, OciRegistriesService::class) {}.get()
@@ -154,45 +153,65 @@ internal fun OciRegistriesService(
 }
 
 internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
-    lateinit var registries: NamedDomainObjectList<OciRegistry>
-    lateinit var repositoryPort: Property<Int>
-    lateinit var imageMapping: OciImageMappingImpl
-    private var isStarted = false
-    private val httpServers = mutableListOf<DisposableServer>()
+    private var state: State? = null
 
-    fun init(
-        registries: NamedDomainObjectList<OciRegistry>,
-        repositoryPort: Property<Int>,
-        imageMapping: OciImageMappingImpl,
-    ) {
-        this.registries = registries
-        this.repositoryPort = repositoryPort
-        this.imageMapping = imageMapping
+    sealed class State {
+        class Initialized(
+            val registries: List<OciRegistry>,
+            val repositoryPort: Provider<Int>,
+            val imageMapping: OciImageMappingImpl,
+        ) : State()
+
+        class Started(
+            val httpServers: List<DisposableServer>,
+        ) : State()
+
+        object NoRegistries : State()
+
+        object Closed : State()
+    }
+
+    fun init(registries: List<OciRegistry>, repositoryPort: Provider<Int>, imageMapping: OciImageMappingImpl) {
+        if (state != null) {
+            throw IllegalStateException()
+        }
+        state = State.Initialized(registries, repositoryPort, imageMapping)
     }
 
     fun start() {
-        if (isStarted) {
+        val currentState = state
+        if (currentState !is State.Initialized) {
+            if ((currentState == null) || (currentState == State.Closed)) {
+                throw IllegalStateException()
+            }
             return
         }
-        isStarted = true
-        if (registries.isNotEmpty()) {
+        state = if (currentState.registries.isEmpty()) {
+            State.NoRegistries
+        } else {
+            val httpServers = mutableListOf<DisposableServer>()
             val loopResources = OciLoopResources.acquire()
-            startRedirectServer(repositoryPort.get(), loopResources)
-            val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
-            val imageMappingData = imageMapping.getData()
-            for (registry in registries) {
-                startRegistryServer(registry, loopResources, imageMetadataRegistry, imageMappingData)
+            val redirectServer = startRedirectServer(currentState.repositoryPort.get(), loopResources)
+            if (redirectServer != null) {
+                httpServers += redirectServer
             }
+            val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
+            val imageMappingData = currentState.imageMapping.getData()
+            for (registry in currentState.registries) {
+                httpServers += startRegistryServer(registry, loopResources, imageMetadataRegistry, imageMappingData)
+            }
+            State.Started(httpServers)
         }
     }
 
-    private fun startRedirectServer(port: Int, loopResources: LoopResources) {
-        try {
+    private fun startRedirectServer(port: Int, loopResources: LoopResources): DisposableServer? {
+        return try {
             startHttpServer(port, loopResources) { request, response ->
                 val redirectPort = request.requestHeaders()[PORT_HTTP_HEADER_NAME]
                 response.sendRedirect("http://localhost:" + redirectPort + request.uri())
             }
         } catch (_: ChannelBindException) {
+            null
         }
     }
 
@@ -201,20 +220,21 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         loopResources: LoopResources,
         imageMetadataRegistry: OciImageMetadataRegistry,
         imageMappingData: OciImageMappingData,
-    ) {
+    ): DisposableServer {
         val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
-        val port = startHttpServer(
+        val httpServer = startHttpServer(
             0,
             loopResources,
             OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials),
-        ).port()
+        )
         registry.repository.credentials(HttpHeaderCredentials::class) {
             name = PORT_HTTP_HEADER_NAME
-            value = port.toString()
+            value = httpServer.port().toString()
         }
         registry.repository.authentication {
             create<HttpHeaderAuthentication>("header")
         }
+        return httpServer
     }
 
     private fun startHttpServer(
@@ -223,14 +243,12 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         handler: BiFunction<in HttpServerRequest, in HttpServerResponse, out Publisher<Void>>,
     ): DisposableServer {
         return try {
-            val httpServer = HttpServer.create()
+            HttpServer.create()
                 .bindAddress { InetSocketAddress("localhost", port) }
                 .runOn(loopResources)
                 .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
                 .handle(handler)
                 .bindNow()
-            httpServers += httpServer
-            httpServer
         } finally {
             // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
             // The current classloader can then not be collected, although it has a narrower scope then the current thread.
@@ -239,14 +257,15 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
     }
 
     final override fun close() {
-        if (httpServers.isNotEmpty()) {
-            for (httpServer in httpServers) {
+        val currentState = state
+        if (currentState is State.Started) {
+            for (httpServer in currentState.httpServers) {
                 httpServer.disposeNow()
             }
-            httpServers.clear()
             OciRegistryHttpClient.release()
             OciLoopResources.release()
         }
+        state = State.Closed
     }
 }
 
@@ -271,9 +290,11 @@ internal fun setupProjectOciRegistries(
     registries: OciRegistries,
     imageMapping: OciImageMappingImpl,
 ) {
+    var isOciRegistriesStarted = false
     configurationContainer.configureEach {
         incoming.beforeResolve {
-            if (resolvesOciImages()) {
+            if (!isOciRegistriesStarted && resolvesOciImages()) {
+                isOciRegistriesStarted = true
                 val settingsRegistration = buildServiceRegistry.registrations.findByName(SERVICE_BASE_NAME)
                 if (settingsRegistration != null) {
                     (settingsRegistration.service.get() as OciRegistriesService).start()
