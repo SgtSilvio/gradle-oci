@@ -16,6 +16,7 @@ import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
 import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
+import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
@@ -50,30 +51,12 @@ internal val OCI_IMAGE_DISTRIBUTION_TYPES = arrayOf(OCI_IMAGE_DISTRIBUTION_TYPE,
  * @author Silvio Giebl
  */
 internal abstract class OciRegistriesImpl @Inject constructor(
-    private val imageMapping: OciImageMappingImpl,
-    private val objectFactory: ObjectFactory,
     private val repositoryHandler: RepositoryHandler,
-    configurationContainer: ConfigurationContainer,
-    buildServiceRegistry: BuildServiceRegistry,
-    project: Project,
+    private val objectFactory: ObjectFactory,
+    private val providerFactory: ProviderFactory,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
     final override val repositoryPort: Property<Int> = objectFactory.property<Int>().convention(5123)
-    private val registriesService =
-        buildServiceRegistry.registerIfAbsent("ociRegistriesService-${project.path}", OciRegistriesService::class) {}
-
-    private var beforeResolveInitialized = false
-
-    init {
-        configurationContainer.configureEach {
-            incoming.beforeResolve {
-                if (!beforeResolveInitialized && resolvesOciImages()) {
-                    beforeResolveInitialized = true
-                    beforeResolve()
-                }
-            }
-        }
-    }
 
     final override fun registry(name: String, configuration: Action<in OciRegistry>): OciRegistry {
         val registry = getOrCreateRegistry(name)
@@ -100,7 +83,7 @@ internal abstract class OciRegistriesImpl @Inject constructor(
     private inline fun getOrCreateRegistry(name: String, init: OciRegistry.() -> Unit = {}): OciRegistry {
         var registry = list.findByName(name)
         if (registry == null) {
-            registry = objectFactory.newInstance<OciRegistryImpl>(name, this)
+            registry = objectFactory.newInstance<OciRegistryImpl>(name, this, repositoryHandler, providerFactory)
             registry.init()
             list += registry
         }
@@ -113,28 +96,14 @@ internal abstract class OciRegistriesImpl @Inject constructor(
             filter(configuration)
         }
     }
-
-    private fun ResolvableDependencies.resolvesOciImages() =
-        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) in OCI_IMAGE_DISTRIBUTION_TYPES
-
-    private fun beforeResolve() {
-        if (list.isNotEmpty()) {
-            val registriesService = registriesService.get()
-            registriesService.init(repositoryPort.get())
-            val imageMappingData = imageMapping.getData()
-            for (registry in list) {
-                registriesService.register(registry, imageMappingData)
-            }
-        }
-    }
 }
 
 internal abstract class OciRegistryImpl @Inject constructor(
     private val name: String,
     registries: OciRegistriesImpl,
+    repositoryHandler: RepositoryHandler,
     objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
-    repositoryHandler: RepositoryHandler,
 ) : OciRegistry {
 
     final override val url = objectFactory.property<URI>()
@@ -167,16 +136,57 @@ internal abstract class OciRegistryImpl @Inject constructor(
         repository.content(configuration)
 }
 
+private const val SERVICE_BASE_NAME = "ociRegistriesService"
 private const val PORT_HTTP_HEADER_NAME = "port"
 
+internal fun OciRegistriesService(
+    buildServiceRegistry: BuildServiceRegistry,
+    name: String,
+    registries: NamedDomainObjectList<OciRegistry>,
+    repositoryPort: Property<Int>,
+    imageMapping: OciImageMappingImpl,
+): OciRegistriesService {
+    val registriesService = buildServiceRegistry.registerIfAbsent(name, OciRegistriesService::class) {}.get()
+    registriesService.init(registries, repositoryPort, imageMapping)
+    return registriesService
+}
+
 internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    lateinit var registries: NamedDomainObjectList<OciRegistry>
+    lateinit var repositoryPort: Property<Int>
+    lateinit var imageMapping: OciImageMappingImpl
+    private var isStarted = false
     private val httpServers = mutableListOf<DisposableServer>()
     private val loopResources = OciLoopResources.acquire()
     private val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
 
-    fun init(port: Int) {
+    fun init(
+        registries: NamedDomainObjectList<OciRegistry>,
+        repositoryPort: Property<Int>,
+        imageMapping: OciImageMappingImpl,
+    ) {
+        this.registries = registries
+        this.repositoryPort = repositoryPort
+        this.imageMapping = imageMapping
+    }
+
+    fun start() {
+        if (isStarted) {
+            return
+        }
+        isStarted = true
+        if (registries.isNotEmpty()) {
+            startRedirectServer(repositoryPort.get())
+            val imageMappingData = imageMapping.getData()
+            for (registry in registries) {
+                startRegistryServer(registry, imageMappingData)
+            }
+        }
+    }
+
+    private fun startRedirectServer(port: Int) {
         try {
-            addHttpServer(port) { request, response ->
+            startHttpServer(port) { request, response ->
                 val redirectPort = request.requestHeaders()[PORT_HTTP_HEADER_NAME]
                 response.sendRedirect("http://localhost:" + redirectPort + request.uri())
             }
@@ -184,9 +194,9 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         }
     }
 
-    fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
+    private fun startRegistryServer(registry: OciRegistry, imageMappingData: OciImageMappingData) {
         val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
-        val port = addHttpServer(0, OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials)).port()
+        val port = startHttpServer(0, OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials)).port()
         registry.repository.credentials(HttpHeaderCredentials::class) {
             name = PORT_HTTP_HEADER_NAME
             value = port.toString()
@@ -196,7 +206,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         }
     }
 
-    private fun addHttpServer(
+    private fun startHttpServer(
         port: Int,
         handler: BiFunction<in HttpServerRequest, in HttpServerResponse, out Publisher<Void>>,
     ): DisposableServer {
@@ -225,3 +235,46 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         OciLoopResources.release()
     }
 }
+
+internal fun setupSettingsOciRegistries(
+    buildServiceRegistry: BuildServiceRegistry,
+    registries: OciRegistries,
+    imageMapping: OciImageMappingImpl,
+) {
+    OciRegistriesService(
+        buildServiceRegistry,
+        SERVICE_BASE_NAME,
+        registries.list,
+        registries.repositoryPort,
+        imageMapping,
+    )
+}
+
+internal fun setupProjectOciRegistries(
+    buildServiceRegistry: BuildServiceRegistry,
+    project: Project,
+    configurationContainer: ConfigurationContainer,
+    registries: OciRegistries,
+    imageMapping: OciImageMappingImpl,
+) {
+    configurationContainer.configureEach {
+        incoming.beforeResolve {
+            if (resolvesOciImages()) {
+                val settingsRegistration = buildServiceRegistry.registrations.findByName(SERVICE_BASE_NAME)
+                if (settingsRegistration != null) {
+                    (settingsRegistration.service.get() as OciRegistriesService).start()
+                }
+                OciRegistriesService(
+                    buildServiceRegistry,
+                    "$SERVICE_BASE_NAME-${project.path}",
+                    registries.list,
+                    registries.repositoryPort,
+                    imageMapping,
+                ).start()
+            }
+        }
+    }
+}
+
+private fun ResolvableDependencies.resolvesOciImages() =
+    attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) in OCI_IMAGE_DISTRIBUTION_TYPES
