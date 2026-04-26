@@ -102,8 +102,8 @@ internal abstract class OciRegistryImpl @Inject constructor(
     private val name: String,
     repositoryPort: Provider<Int>,
     repositoryHandler: RepositoryHandler,
-    objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
+    objectFactory: ObjectFactory,
 ) : OciRegistry {
 
     final override val url = objectFactory.property<URI>()
