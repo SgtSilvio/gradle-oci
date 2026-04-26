@@ -17,7 +17,6 @@ import io.netty.channel.ChannelOption
 import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.InclusiveRepositoryContentDescriptor
@@ -52,8 +51,8 @@ internal val OCI_IMAGE_DISTRIBUTION_TYPES = arrayOf(OCI_IMAGE_DISTRIBUTION_TYPE,
  */
 internal abstract class OciRegistriesImpl @Inject constructor(
     private val repositoryHandler: RepositoryHandler,
-    private val objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
+    private val objectFactory: ObjectFactory,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
     final override val repositoryPort: Property<Int> = objectFactory.property<Int>().convention(5123)
@@ -283,24 +282,18 @@ internal fun setupSettingsOciRegistries(
     )
 }
 
-internal fun setupProjectOciRegistries(
-    buildServiceRegistry: BuildServiceRegistry,
-    project: Project,
-    configurationContainer: ConfigurationContainer,
-    registries: OciRegistries,
-    imageMapping: OciImageMappingImpl,
-) {
+internal fun setupProjectOciRegistries(project: Project, registries: OciRegistries, imageMapping: OciImageMappingImpl) {
     var isOciRegistriesStarted = false
-    configurationContainer.configureEach {
+    project.configurations.configureEach {
         incoming.beforeResolve {
             if (!isOciRegistriesStarted && resolvesOciImages()) {
                 isOciRegistriesStarted = true
-                val settingsRegistration = buildServiceRegistry.registrations.findByName(SERVICE_BASE_NAME)
+                val settingsRegistration = project.gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)
                 if (settingsRegistration != null) {
                     (settingsRegistration.service.get() as OciRegistriesService).start()
                 }
                 OciRegistriesService(
-                    buildServiceRegistry,
+                    project.gradle.sharedServices,
                     "$SERVICE_BASE_NAME-${project.path}",
                     registries.list,
                     registries.repositoryPort,

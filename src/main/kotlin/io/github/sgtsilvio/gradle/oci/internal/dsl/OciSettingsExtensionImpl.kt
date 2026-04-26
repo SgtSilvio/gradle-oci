@@ -17,8 +17,8 @@ import javax.inject.Inject
  */
 internal abstract class OciSettingsExtensionImpl @Inject constructor(
     repositoryHandler: RepositoryHandler,
-    objectFactory: ObjectFactory,
     providerFactory: ProviderFactory,
+    objectFactory: ObjectFactory,
     buildServiceRegistry: BuildServiceRegistry,
 ) : OciSettingsExtension {
 
