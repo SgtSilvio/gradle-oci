@@ -40,6 +40,7 @@ import reactor.netty.DisposableServer
 import reactor.netty.http.server.HttpServer
 import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
+import reactor.netty.resources.LoopResources
 import java.net.InetSocketAddress
 import java.net.URI
 import java.util.function.BiFunction
@@ -158,8 +159,6 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
     lateinit var imageMapping: OciImageMappingImpl
     private var isStarted = false
     private val httpServers = mutableListOf<DisposableServer>()
-    private val loopResources = OciLoopResources.acquire()
-    private val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
 
     fun init(
         registries: NamedDomainObjectList<OciRegistry>,
@@ -177,17 +176,19 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         }
         isStarted = true
         if (registries.isNotEmpty()) {
-            startRedirectServer(repositoryPort.get())
+            val loopResources = OciLoopResources.acquire()
+            startRedirectServer(repositoryPort.get(), loopResources)
+            val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
             val imageMappingData = imageMapping.getData()
             for (registry in registries) {
-                startRegistryServer(registry, imageMappingData)
+                startRegistryServer(registry, loopResources, imageMetadataRegistry, imageMappingData)
             }
         }
     }
 
-    private fun startRedirectServer(port: Int) {
+    private fun startRedirectServer(port: Int, loopResources: LoopResources) {
         try {
-            startHttpServer(port) { request, response ->
+            startHttpServer(port, loopResources) { request, response ->
                 val redirectPort = request.requestHeaders()[PORT_HTTP_HEADER_NAME]
                 response.sendRedirect("http://localhost:" + redirectPort + request.uri())
             }
@@ -195,9 +196,18 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         }
     }
 
-    private fun startRegistryServer(registry: OciRegistry, imageMappingData: OciImageMappingData) {
+    private fun startRegistryServer(
+        registry: OciRegistry,
+        loopResources: LoopResources,
+        imageMetadataRegistry: OciImageMetadataRegistry,
+        imageMappingData: OciImageMappingData,
+    ) {
         val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
-        val port = startHttpServer(0, OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials)).port()
+        val port = startHttpServer(
+            0,
+            loopResources,
+            OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials),
+        ).port()
         registry.repository.credentials(HttpHeaderCredentials::class) {
             name = PORT_HTTP_HEADER_NAME
             value = port.toString()
@@ -209,6 +219,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
 
     private fun startHttpServer(
         port: Int,
+        loopResources: LoopResources,
         handler: BiFunction<in HttpServerRequest, in HttpServerResponse, out Publisher<Void>>,
     ): DisposableServer {
         return try {
@@ -228,12 +239,14 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
     }
 
     final override fun close() {
-        for (httpServer in httpServers) {
-            httpServer.disposeNow()
+        if (httpServers.isNotEmpty()) {
+            for (httpServer in httpServers) {
+                httpServer.disposeNow()
+            }
+            httpServers.clear()
+            OciRegistryHttpClient.release()
+            OciLoopResources.release()
         }
-        httpServers.clear()
-        OciRegistryHttpClient.release()
-        OciLoopResources.release()
     }
 }
 
