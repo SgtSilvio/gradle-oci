@@ -83,7 +83,8 @@ internal abstract class OciRegistriesImpl @Inject constructor(
     private inline fun getOrCreateRegistry(name: String, init: OciRegistry.() -> Unit = {}): OciRegistry {
         var registry = list.findByName(name)
         if (registry == null) {
-            registry = objectFactory.newInstance<OciRegistryImpl>(name, this, repositoryHandler, providerFactory)
+            registry =
+                objectFactory.newInstance<OciRegistryImpl>(name, repositoryPort, repositoryHandler, providerFactory)
             registry.init()
             list += registry
         }
@@ -100,7 +101,7 @@ internal abstract class OciRegistriesImpl @Inject constructor(
 
 internal abstract class OciRegistryImpl @Inject constructor(
     private val name: String,
-    registries: OciRegistriesImpl,
+    repositoryPort: Provider<Int>,
     repositoryHandler: RepositoryHandler,
     objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
@@ -112,7 +113,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
     final override val credentials = objectFactory.property<PasswordCredentials>()
     final override val repository = repositoryHandler.ivy {
         name = this@OciRegistryImpl.name + "OciRegistry"
-        setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
+        setUrl(finalUrl.zip(repositoryPort) { url, repositoryPort ->
             val escapedUrl = url.toString().escapePathSegment()
             URI("http://localhost:$repositoryPort/$OCI_REPOSITORY_VERSION/$escapedUrl")
         })
