@@ -3,6 +3,7 @@ package io.github.sgtsilvio.gradle.oci
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -125,7 +126,7 @@ internal class CentralRegistryDeclarationTest {
             .withPluginClasspath()
             .withArguments("registryData")
             .buildAndFail()
-        result.output.contains("Could not resolve library:eclipse-temurin:20.0.1_9-jre-jammy")
+        assertTrue(result.output.contains("Could not resolve library:eclipse-temurin:20.0.1_9-jre-jammy"))
     }
 
     @Test
@@ -187,7 +188,7 @@ internal class CentralRegistryDeclarationTest {
             .withPluginClasspath()
             .withArguments("registryData")
             .buildAndFail()
-        result.output.contains("Could not resolve library:eclipse-temurin:20.0.1_9-jre-jammy")
+        assertTrue(result.output.contains("Could not resolve library:eclipse-temurin:20.0.1_9-jre-jammy"))
     }
 
     @Test
@@ -221,7 +222,7 @@ internal class CentralRegistryDeclarationTest {
             .withPluginClasspath()
             .withArguments("registryData")
             .buildAndFail()
-        result.output.contains("Build was configured to prefer settings repositories over project repositories but repository 'dockerHubOciRegistry' was added by build file 'build.gradle.kts'")
+        assertTrue(result.output.contains("Build was configured to prefer settings repositories over project repositories but repository 'dockerHubOciRegistry' was added by build file 'build.gradle.kts'"))
     }
 
     private fun assertRegistryData(projectDir: File) {
