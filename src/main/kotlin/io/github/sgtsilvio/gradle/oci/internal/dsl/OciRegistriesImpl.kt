@@ -185,21 +185,22 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
             }
             return
         }
-        state = if (currentState.registries.isEmpty()) {
-            State.NoRegistries
+        if (currentState.registries.isEmpty()) {
+            state = State.NoRegistries
         } else {
-            val httpServers = mutableListOf<DisposableServer>()
             val loopResources = OciLoopResources.acquire()
+            val httpClient = OciRegistryHttpClient.acquire()
+            val httpServers = mutableListOf<DisposableServer>()
+            state = State.Started(httpServers)
             val redirectServer = startRedirectServer(currentState.repositoryPort.get(), loopResources)
             if (redirectServer != null) {
                 httpServers += redirectServer
             }
-            val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
+            val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(httpClient))
             val imageMappingData = currentState.imageMapping.getData()
             for (registry in currentState.registries) {
                 httpServers += startRegistryServer(registry, loopResources, imageMetadataRegistry, imageMappingData)
             }
-            State.Started(httpServers)
         }
     }
 
