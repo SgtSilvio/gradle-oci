@@ -311,7 +311,7 @@ internal class TestProject(projectDir: File) {
     }
 }
 
-private val File.leaves: Set<File>
+internal val File.leaves: Set<File>
     get() {
         val leaves = HashSet<File>()
         for (file in walkTopDown()) {
