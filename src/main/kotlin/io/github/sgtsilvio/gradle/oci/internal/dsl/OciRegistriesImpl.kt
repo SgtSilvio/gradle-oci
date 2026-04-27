@@ -170,14 +170,18 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         object Closed : State()
     }
 
-    fun init(registries: List<OciRegistry>, repositoryPort: Provider<Int>, imageMapping: OciImageMappingImpl) {
+    fun init(
+        registries: List<OciRegistry>,
+        repositoryPort: Provider<Int>,
+        imageMapping: OciImageMappingImpl,
+    ) = synchronized(this) {
         if (state != null) {
             throw IllegalStateException()
         }
         state = State.Initialized(registries, repositoryPort, imageMapping)
     }
 
-    fun start() {
+    fun start() = synchronized(this) {
         val currentState = state
         if (currentState !is State.Initialized) {
             if ((currentState == null) || (currentState == State.Closed)) {
@@ -256,7 +260,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         }
     }
 
-    final override fun close() {
+    final override fun close() = synchronized(this) {
         val currentState = state
         if (currentState is State.Started) {
             for (httpServer in currentState.httpServers) {
@@ -284,22 +288,20 @@ internal fun setupSettingsOciRegistries(
 }
 
 internal fun setupProjectOciRegistries(project: Project, registries: OciRegistries, imageMapping: OciImageMappingImpl) {
-    var isOciRegistriesStarted = false
+    val settingsRegistriesService =
+        project.gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)?.service?.get() as? OciRegistriesService
+    val registriesService = OciRegistriesService(
+        project.gradle.sharedServices,
+        "$SERVICE_BASE_NAME-${project.path}",
+        registries.list,
+        registries.repositoryPort,
+        imageMapping,
+    )
     project.configurations.configureEach {
         incoming.beforeResolve {
-            if (!isOciRegistriesStarted && resolvesOciImages()) {
-                isOciRegistriesStarted = true
-                val settingsRegistration = project.gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)
-                if (settingsRegistration != null) {
-                    (settingsRegistration.service.get() as OciRegistriesService).start()
-                }
-                OciRegistriesService(
-                    project.gradle.sharedServices,
-                    "$SERVICE_BASE_NAME-${project.path}",
-                    registries.list,
-                    registries.repositoryPort,
-                    imageMapping,
-                ).start()
+            if (resolvesOciImages()) {
+                settingsRegistriesService?.start()
+                registriesService.start()
             }
         }
     }
