@@ -12,7 +12,6 @@ import io.github.sgtsilvio.gradle.oci.platform.toPlatformArgument
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.gradle.api.logging.Logger
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
@@ -20,6 +19,7 @@ import org.gradle.kotlin.dsl.listProperty
 import org.gradle.kotlin.dsl.mapProperty
 import org.gradle.kotlin.dsl.property
 import org.gradle.process.ExecOperations
+import org.gradle.work.DisableCachingByDefault
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.nio.file.attribute.FileTime
@@ -32,7 +32,7 @@ import kotlin.io.path.readText
 /**
  * @author Silvio Giebl
  */
-@CacheableTask
+@DisableCachingByDefault(because = "Cacheability depends on command")
 abstract class DockerLayerTask @Inject constructor(private val execOperations: ExecOperations) : OciLayerTask() {
 
     @get:Nested
