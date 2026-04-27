@@ -73,7 +73,7 @@ internal class CentralRegistryDeclarationTest {
             projectDir,
             """
             dependencyResolutionManagement {
-                repositoriesMode = RepositoriesMode.PREFER_PROJECT 
+                repositoriesMode = RepositoriesMode.PREFER_PROJECT
                 oci {
                     registries {
                         gitHubContainerRegistry {}

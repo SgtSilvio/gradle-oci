@@ -176,17 +176,15 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         imageMapping: OciImageMappingImpl,
     ) = synchronized(this) {
         if (state != null) {
-            throw IllegalStateException()
+            throw IllegalStateException("OciRegistriesService.init must be called exactly once immediately after creation")
         }
         state = State.Initialized(registries, repositoryPort, imageMapping)
     }
 
     fun start() = synchronized(this) {
         val currentState = state
+            ?: throw IllegalStateException("OciRegistriesService.start must be called after init")
         if (currentState !is State.Initialized) {
-            if ((currentState == null) || (currentState == State.Closed)) {
-                throw IllegalStateException()
-            }
             return
         }
         if (currentState.registries.isEmpty()) {
@@ -262,6 +260,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
 
     final override fun close() = synchronized(this) {
         val currentState = state
+            ?: throw IllegalStateException("OciRegistriesService.close must be called after init")
         if (currentState is State.Started) {
             for (httpServer in currentState.httpServers) {
                 httpServer.disposeNow()
