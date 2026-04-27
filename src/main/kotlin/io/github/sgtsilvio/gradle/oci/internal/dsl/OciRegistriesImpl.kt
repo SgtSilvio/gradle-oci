@@ -17,7 +17,6 @@ import io.netty.channel.ChannelOption
 import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.InclusiveRepositoryContentDescriptor
@@ -39,6 +38,7 @@ import reactor.netty.DisposableServer
 import reactor.netty.http.server.HttpServer
 import reactor.netty.http.server.HttpServerRequest
 import reactor.netty.http.server.HttpServerResponse
+import reactor.netty.resources.LoopResources
 import java.net.InetSocketAddress
 import java.net.URI
 import java.util.function.BiFunction
@@ -50,30 +50,12 @@ internal val OCI_IMAGE_DISTRIBUTION_TYPES = arrayOf(OCI_IMAGE_DISTRIBUTION_TYPE,
  * @author Silvio Giebl
  */
 internal abstract class OciRegistriesImpl @Inject constructor(
-    private val imageMapping: OciImageMappingImpl,
-    private val objectFactory: ObjectFactory,
     private val repositoryHandler: RepositoryHandler,
-    configurationContainer: ConfigurationContainer,
-    buildServiceRegistry: BuildServiceRegistry,
-    project: Project,
+    private val providerFactory: ProviderFactory,
+    private val objectFactory: ObjectFactory,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
     final override val repositoryPort: Property<Int> = objectFactory.property<Int>().convention(5123)
-    private val registriesService =
-        buildServiceRegistry.registerIfAbsent("ociRegistriesService-${project.path}", OciRegistriesService::class) {}
-
-    private var beforeResolveInitialized = false
-
-    init {
-        configurationContainer.configureEach {
-            incoming.beforeResolve {
-                if (!beforeResolveInitialized && resolvesOciImages()) {
-                    beforeResolveInitialized = true
-                    beforeResolve()
-                }
-            }
-        }
-    }
 
     final override fun registry(name: String, configuration: Action<in OciRegistry>): OciRegistry {
         val registry = getOrCreateRegistry(name)
@@ -100,7 +82,8 @@ internal abstract class OciRegistriesImpl @Inject constructor(
     private inline fun getOrCreateRegistry(name: String, init: OciRegistry.() -> Unit = {}): OciRegistry {
         var registry = list.findByName(name)
         if (registry == null) {
-            registry = objectFactory.newInstance<OciRegistryImpl>(name, this)
+            registry =
+                objectFactory.newInstance<OciRegistryImpl>(name, repositoryPort, repositoryHandler, providerFactory)
             registry.init()
             list += registry
         }
@@ -113,28 +96,14 @@ internal abstract class OciRegistriesImpl @Inject constructor(
             filter(configuration)
         }
     }
-
-    private fun ResolvableDependencies.resolvesOciImages() =
-        attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) in OCI_IMAGE_DISTRIBUTION_TYPES
-
-    private fun beforeResolve() {
-        if (list.isNotEmpty()) {
-            val registriesService = registriesService.get()
-            registriesService.init(repositoryPort.get())
-            val imageMappingData = imageMapping.getData()
-            for (registry in list) {
-                registriesService.register(registry, imageMappingData)
-            }
-        }
-    }
 }
 
 internal abstract class OciRegistryImpl @Inject constructor(
     private val name: String,
-    registries: OciRegistriesImpl,
-    objectFactory: ObjectFactory,
-    private val providerFactory: ProviderFactory,
+    repositoryPort: Provider<Int>,
     repositoryHandler: RepositoryHandler,
+    private val providerFactory: ProviderFactory,
+    objectFactory: ObjectFactory,
 ) : OciRegistry {
 
     final override val url = objectFactory.property<URI>()
@@ -143,7 +112,7 @@ internal abstract class OciRegistryImpl @Inject constructor(
     final override val credentials = objectFactory.property<PasswordCredentials>()
     final override val repository = repositoryHandler.ivy {
         name = this@OciRegistryImpl.name + "OciRegistry"
-        setUrl(finalUrl.zip(registries.repositoryPort) { url, repositoryPort ->
+        setUrl(finalUrl.zip(repositoryPort) { url, repositoryPort ->
             val escapedUrl = url.toString().escapePathSegment()
             URI("http://localhost:$repositoryPort/$OCI_REPOSITORY_VERSION/$escapedUrl")
         })
@@ -167,48 +136,121 @@ internal abstract class OciRegistryImpl @Inject constructor(
         repository.content(configuration)
 }
 
+private const val SERVICE_BASE_NAME = "ociRegistriesService"
 private const val PORT_HTTP_HEADER_NAME = "port"
 
-internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
-    private val httpServers = mutableListOf<DisposableServer>()
-    private val loopResources = OciLoopResources.acquire()
-    private val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(OciRegistryHttpClient.acquire()))
+internal fun OciRegistriesService(
+    buildServiceRegistry: BuildServiceRegistry,
+    name: String,
+    registries: List<OciRegistry>,
+    repositoryPort: Provider<Int>,
+    imageMapping: OciImageMappingImpl,
+): OciRegistriesService {
+    val registriesService = buildServiceRegistry.registerIfAbsent(name, OciRegistriesService::class) {}.get()
+    registriesService.init(registries, repositoryPort, imageMapping)
+    return registriesService
+}
 
-    fun init(port: Int) {
-        try {
-            addHttpServer(port) { request, response ->
+internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
+    private var state: State? = null
+
+    sealed class State {
+        class Initialized(
+            val registries: List<OciRegistry>,
+            val repositoryPort: Provider<Int>,
+            val imageMapping: OciImageMappingImpl,
+        ) : State()
+
+        class Started(
+            val httpServers: List<DisposableServer>,
+        ) : State()
+
+        object NoRegistries : State()
+
+        object Closed : State()
+    }
+
+    fun init(
+        registries: List<OciRegistry>,
+        repositoryPort: Provider<Int>,
+        imageMapping: OciImageMappingImpl,
+    ) = synchronized(this) {
+        if (state != null) {
+            throw IllegalStateException("OciRegistriesService.init must be called exactly once immediately after creation")
+        }
+        state = State.Initialized(registries, repositoryPort, imageMapping)
+    }
+
+    fun start() = synchronized(this) {
+        val currentState = state
+            ?: throw IllegalStateException("OciRegistriesService.start must be called after init")
+        if (currentState !is State.Initialized) {
+            return
+        }
+        if (currentState.registries.isEmpty()) {
+            state = State.NoRegistries
+        } else {
+            val loopResources = OciLoopResources.acquire()
+            val httpClient = OciRegistryHttpClient.acquire()
+            val httpServers = mutableListOf<DisposableServer>()
+            state = State.Started(httpServers)
+            val redirectServer = startRedirectServer(currentState.repositoryPort.get(), loopResources)
+            if (redirectServer != null) {
+                httpServers += redirectServer
+            }
+            val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(httpClient))
+            val imageMappingData = currentState.imageMapping.getData()
+            for (registry in currentState.registries) {
+                httpServers += startRegistryServer(registry, loopResources, imageMetadataRegistry, imageMappingData)
+            }
+        }
+    }
+
+    private fun startRedirectServer(port: Int, loopResources: LoopResources): DisposableServer? {
+        return try {
+            startHttpServer(port, loopResources) { request, response ->
                 val redirectPort = request.requestHeaders()[PORT_HTTP_HEADER_NAME]
                 response.sendRedirect("http://localhost:" + redirectPort + request.uri())
             }
         } catch (_: ChannelBindException) {
+            null
         }
     }
 
-    fun register(registry: OciRegistry, imageMappingData: OciImageMappingData) {
+    private fun startRegistryServer(
+        registry: OciRegistry,
+        loopResources: LoopResources,
+        imageMetadataRegistry: OciImageMetadataRegistry,
+        imageMappingData: OciImageMappingData,
+    ): DisposableServer {
         val credentials = registry.credentials.orNull?.let { Credentials(it.username!!, it.password!!) }
-        val port = addHttpServer(0, OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials)).port()
+        val httpServer = startHttpServer(
+            0,
+            loopResources,
+            OciRepositoryHandler(imageMetadataRegistry, imageMappingData, credentials),
+        )
         registry.repository.credentials(HttpHeaderCredentials::class) {
             name = PORT_HTTP_HEADER_NAME
-            value = port.toString()
+            value = httpServer.port().toString()
         }
         registry.repository.authentication {
             create<HttpHeaderAuthentication>("header")
         }
+        return httpServer
     }
 
-    private fun addHttpServer(
+    private fun startHttpServer(
         port: Int,
+        loopResources: LoopResources,
         handler: BiFunction<in HttpServerRequest, in HttpServerResponse, out Publisher<Void>>,
     ): DisposableServer {
         return try {
-            val httpServer = HttpServer.create()
+            HttpServer.create()
                 .bindAddress { InetSocketAddress("localhost", port) }
                 .runOn(loopResources)
                 .childOption(ChannelOption.ALLOCATOR, UnpooledByteBufAllocator.DEFAULT)
                 .handle(handler)
                 .bindNow()
-            httpServers += httpServer
-            httpServer
         } finally {
             // Netty adds a thread local to the current thread that then retains a reference to the current classloader.
             // The current classloader can then not be collected, although it has a narrower scope then the current thread.
@@ -216,12 +258,53 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         }
     }
 
-    final override fun close() {
-        for (httpServer in httpServers) {
-            httpServer.disposeNow()
+    final override fun close() = synchronized(this) {
+        val currentState = state
+            ?: throw IllegalStateException("OciRegistriesService.close must be called after init")
+        if (currentState is State.Started) {
+            for (httpServer in currentState.httpServers) {
+                httpServer.disposeNow()
+            }
+            OciRegistryHttpClient.release()
+            OciLoopResources.release()
         }
-        httpServers.clear()
-        OciRegistryHttpClient.release()
-        OciLoopResources.release()
+        state = State.Closed
     }
 }
+
+internal fun setupSettingsOciRegistries(
+    buildServiceRegistry: BuildServiceRegistry,
+    registries: OciRegistries,
+    imageMapping: OciImageMappingImpl,
+) {
+    OciRegistriesService(
+        buildServiceRegistry,
+        SERVICE_BASE_NAME,
+        registries.list,
+        registries.repositoryPort,
+        imageMapping,
+    )
+}
+
+internal fun setupProjectOciRegistries(project: Project, registries: OciRegistries, imageMapping: OciImageMappingImpl) {
+    val settingsRegistriesService =
+        project.gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)?.service?.get() as? OciRegistriesService
+    val registriesService = OciRegistriesService(
+        project.gradle.sharedServices,
+        "$SERVICE_BASE_NAME-${project.path}",
+        registries.list,
+        registries.repositoryPort,
+        imageMapping,
+    )
+    project.configurations.configureEach {
+        incoming.beforeResolve {
+            if (resolvesOciImages()) {
+                settingsRegistriesService?.start()
+                registriesService.start()
+            }
+        }
+    }
+}
+
+private fun ResolvableDependencies.resolvesOciImages() =
+    attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) in OCI_IMAGE_DISTRIBUTION_TYPES

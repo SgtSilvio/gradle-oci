@@ -11,6 +11,7 @@ import io.github.sgtsilvio.gradle.oci.mapping.OciImageMapping
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.github.sgtsilvio.gradle.oci.platform.PlatformFilter
 import org.gradle.api.Action
+import org.gradle.api.Project
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.jvm.JvmTestSuite
@@ -32,11 +33,12 @@ internal abstract class OciExtensionImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     private val taskContainer: TaskContainer,
     private val projectLayout: ProjectLayout,
+    project: Project,
 ) : OciExtension {
 
-    final override val imageMapping = objectFactory.newInstance<OciImageMappingImpl>()
+    final override val registries = objectFactory.newInstance<OciRegistriesImpl>()
 
-    final override val registries = objectFactory.newInstance<OciRegistriesImpl>(imageMapping)
+    final override val imageMapping = objectFactory.newInstance<OciImageMappingImpl>()
 
     final override val imageDefinitions = objectFactory.domainObjectContainer(OciImageDefinition::class) { name ->
         objectFactory.newInstance<OciImageDefinitionImpl>(name, parentImageDependencies)
@@ -54,6 +56,7 @@ internal abstract class OciExtensionImpl @Inject constructor(
     init {
         // eagerly realize imageDefinitions because they register configurations and tasks
         imageDefinitions.all {}
+        setupProjectOciRegistries(project, registries, imageMapping)
     }
 
     final override fun registries(configuration: Action<in OciRegistries>) = configuration.execute(registries)

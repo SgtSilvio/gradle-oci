@@ -3,18 +3,21 @@ package io.github.sgtsilvio.gradle.oci
 import io.github.sgtsilvio.gradle.oci.attributes.*
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDefinition
+import io.github.sgtsilvio.gradle.oci.dsl.OciSettingsExtension
 import io.github.sgtsilvio.gradle.oci.image.LoadOciImageTask
 import io.github.sgtsilvio.gradle.oci.image.OciImageLayoutTask
 import io.github.sgtsilvio.gradle.oci.image.OciImagesLayoutTask
 import io.github.sgtsilvio.gradle.oci.image.PushOciImageTask
 import io.github.sgtsilvio.gradle.oci.internal.createOciImageLayoutClassifier
 import io.github.sgtsilvio.gradle.oci.internal.dsl.OciExtensionImpl
+import io.github.sgtsilvio.gradle.oci.internal.dsl.OciSettingsExtensionImpl
 import io.github.sgtsilvio.gradle.oci.internal.mainToEmpty
 import io.github.sgtsilvio.gradle.oci.internal.string.camelCase
 import io.github.sgtsilvio.gradle.oci.internal.string.concatCamelCase
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.UnknownTaskException
+import org.gradle.api.initialization.Settings
 import org.gradle.api.tasks.bundling.Tar
 import org.gradle.kotlin.dsl.add
 import org.gradle.kotlin.dsl.create
@@ -24,9 +27,27 @@ import org.gradle.kotlin.dsl.register
 /**
  * @author Silvio Giebl
  */
-class OciPlugin : Plugin<Project> {
+class OciPlugin : Plugin<Any> {
 
-    override fun apply(project: Project) {
+    override fun apply(target: Any) {
+        when (target) {
+            is Settings -> apply(target)
+            is Project -> apply(target)
+            else -> throw IllegalArgumentException("The plugin must be applied to a Project or Settings, but was applied to ${target::class.java}")
+        }
+    }
+
+    private fun apply(settings: Settings) {
+        settings.extensions.create(
+            OciSettingsExtension::class,
+            EXTENSION_NAME,
+            OciSettingsExtensionImpl::class,
+            settings.dependencyResolutionManagement.repositories,
+            settings.providers,
+        )
+    }
+
+    private fun apply(project: Project) {
         project.dependencies.attributesSchema.apply {
             attribute(DISTRIBUTION_TYPE_ATTRIBUTE)
             getMatchingStrategy(DISTRIBUTION_TYPE_ATTRIBUTE).apply {
