@@ -77,7 +77,7 @@ abstract class PushOciImagesTask @Inject constructor(private val workerExecutor:
 
     @Option(
         option = "registry",
-        description = "Pushes to the registry defined with the specified name in oci.registries.",
+        description = "Pushes to the registry defined with the specified name in oci.registries (searches in this project first, then in settings).",
     )
     protected fun setRegistryName(registryName: String) = registry.from(
         project.extensions.getByType(OciExtension::class).registries.list.findByName(registryName)
