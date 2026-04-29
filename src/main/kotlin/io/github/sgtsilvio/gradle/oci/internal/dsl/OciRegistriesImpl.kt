@@ -16,6 +16,7 @@ import io.netty.buffer.UnpooledByteBufAllocator
 import io.netty.channel.ChannelOption
 import io.netty.util.concurrent.FastThreadLocal
 import org.gradle.api.Action
+import org.gradle.api.NamedDomainObjectList
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
@@ -142,7 +143,7 @@ private const val PORT_HTTP_HEADER_NAME = "port"
 internal fun OciRegistriesService(
     buildServiceRegistry: BuildServiceRegistry,
     name: String,
-    registries: List<OciRegistry>,
+    registries: NamedDomainObjectList<OciRegistry>,
     repositoryPort: Provider<Int>,
     imageMapping: OciImageMappingImpl,
 ): OciRegistriesService {
@@ -154,24 +155,26 @@ internal fun OciRegistriesService(
 internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
     private var state: State? = null
 
-    sealed class State {
+    sealed class State(val registries: NamedDomainObjectList<OciRegistry>) {
+
         class Initialized(
-            val registries: List<OciRegistry>,
+            registries: NamedDomainObjectList<OciRegistry>,
             val repositoryPort: Provider<Int>,
             val imageMapping: OciImageMappingImpl,
-        ) : State()
+        ) : State(registries)
 
         class Started(
+            registries: NamedDomainObjectList<OciRegistry>,
             val httpServers: List<DisposableServer>,
-        ) : State()
+        ) : State(registries)
 
-        object NoRegistries : State()
+        class NoRegistries(registries: NamedDomainObjectList<OciRegistry>) : State(registries)
 
-        object Closed : State()
+        class Closed(registries: NamedDomainObjectList<OciRegistry>) : State(registries)
     }
 
     fun init(
-        registries: List<OciRegistry>,
+        registries: NamedDomainObjectList<OciRegistry>,
         repositoryPort: Provider<Int>,
         imageMapping: OciImageMappingImpl,
     ) = synchronized(this) {
@@ -181,6 +184,12 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         state = State.Initialized(registries, repositoryPort, imageMapping)
     }
 
+    val registries: NamedDomainObjectList<OciRegistry>
+        get() = synchronized(this) {
+            state?.registries
+                ?: throw IllegalStateException("OciRegistriesService.registries must be called after init")
+        }
+
     fun start() = synchronized(this) {
         val currentState = state
             ?: throw IllegalStateException("OciRegistriesService.start must be called after init")
@@ -188,12 +197,12 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
             return
         }
         if (currentState.registries.isEmpty()) {
-            state = State.NoRegistries
+            state = State.NoRegistries(currentState.registries)
         } else {
             val loopResources = OciLoopResources.acquire()
             val httpClient = OciRegistryHttpClient.acquire()
             val httpServers = mutableListOf<DisposableServer>()
-            state = State.Started(httpServers)
+            state = State.Started(currentState.registries, httpServers)
             val redirectServer = startRedirectServer(currentState.repositoryPort.get(), loopResources)
             if (redirectServer != null) {
                 httpServers += redirectServer
@@ -268,7 +277,7 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
             OciRegistryHttpClient.release()
             OciLoopResources.release()
         }
-        state = State.Closed
+        state = State.Closed(currentState.registries)
     }
 }
 
@@ -287,8 +296,7 @@ internal fun setupSettingsOciRegistries(
 }
 
 internal fun setupProjectOciRegistries(project: Project, registries: OciRegistries, imageMapping: OciImageMappingImpl) {
-    val settingsRegistriesService =
-        project.gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)?.service?.get() as? OciRegistriesService
+    val settingsRegistriesService = project.settingsRegistriesService
     val registriesService = OciRegistriesService(
         project.gradle.sharedServices,
         "$SERVICE_BASE_NAME-${project.path}",
@@ -305,6 +313,9 @@ internal fun setupProjectOciRegistries(project: Project, registries: OciRegistri
         }
     }
 }
+
+internal val Project.settingsRegistriesService: OciRegistriesService?
+    get() = gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)?.service?.get() as? OciRegistriesService
 
 private fun ResolvableDependencies.resolvesOciImages() =
     attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) in OCI_IMAGE_DISTRIBUTION_TYPES

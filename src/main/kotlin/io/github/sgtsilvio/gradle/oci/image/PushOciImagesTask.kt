@@ -2,6 +2,7 @@ package io.github.sgtsilvio.gradle.oci.image
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciExtension
 import io.github.sgtsilvio.gradle.oci.dsl.OciRegistry
+import io.github.sgtsilvio.gradle.oci.internal.dsl.settingsRegistriesService
 import io.github.sgtsilvio.gradle.oci.internal.gradle.passwordCredentials
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.Credentials
@@ -23,7 +24,10 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.options.Option
 import org.gradle.internal.logging.progress.ProgressLoggerFactory
-import org.gradle.kotlin.dsl.*
+import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.registerIfAbsent
+import org.gradle.kotlin.dsl.submit
 import org.gradle.work.DisableCachingByDefault
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
@@ -73,10 +77,13 @@ abstract class PushOciImagesTask @Inject constructor(private val workerExecutor:
 
     @Option(
         option = "registry",
-        description = "Pushes to the registry defined with the specified name in oci.registries.",
+        description = "Pushes to the registry defined with the specified name in oci.registries (searches in this project first, then in settings).",
     )
-    protected fun setRegistryName(registryName: String) =
-        registry.from(project.extensions.getByType(OciExtension::class).registries.list[registryName])
+    protected fun setRegistryName(registryName: String) = registry.from(
+        project.extensions.getByType(OciExtension::class).registries.list.findByName(registryName)
+            ?: project.settingsRegistriesService?.registries?.findByName(registryName)
+            ?: throw IllegalArgumentException("Registry with name '$registryName' not found.")
+    )
 
     @Option(option = "url", description = "Pushes to the specified registry URL.")
     protected fun setRegistryUrl(registryUrl: String) = registry.url.set(project.uri(registryUrl))
