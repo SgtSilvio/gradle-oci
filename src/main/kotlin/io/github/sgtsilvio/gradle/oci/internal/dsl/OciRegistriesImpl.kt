@@ -315,7 +315,7 @@ internal fun setupProjectOciRegistries(project: Project, registries: OciRegistri
 }
 
 internal val Project.settingsRegistriesService: OciRegistriesService?
-    get() = project.gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)?.service?.get() as? OciRegistriesService
+    get() = gradle.sharedServices.registrations.findByName(SERVICE_BASE_NAME)?.service?.get() as? OciRegistriesService
 
 private fun ResolvableDependencies.resolvesOciImages() =
     attributes.getAttribute(DISTRIBUTION_TYPE_ATTRIBUTE) in OCI_IMAGE_DISTRIBUTION_TYPES
