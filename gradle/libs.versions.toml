@@ -8,7 +8,7 @@ json = "20251224"
 junit-jupiter = "5.14.4"
 netty = "4.2.15.Final"
 oci-registry = "0.7.0"
-reactor-kotlin = "1.3.0"
+reactor-kotlin = "1.3.1"
 reactor-netty = "1.3.6"
 
 [libraries]
