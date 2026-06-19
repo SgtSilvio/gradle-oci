@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.DependencyConstraintFactories
+import io.github.sgtsilvio.gradle.oci.internal.gradle.createDependency
 import org.gradle.api.Project
 import org.gradle.api.artifacts.DependencyConstraint
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
@@ -17,7 +18,8 @@ abstract class DependencyConstraintFactoriesImpl(
     final override fun constraint(dependencyConstraintNotation: CharSequence): DependencyConstraint =
         dependencyConstraintHandler.create(dependencyConstraintNotation)
 
-    final override fun constraint(project: Project): DependencyConstraint = dependencyConstraintHandler.create(project)
+    final override fun constraint(project: Project): DependencyConstraint =
+        dependencyConstraintHandler.create(project.createDependency())
 
     private fun constraint(dependency: MinimalExternalModuleDependency): DependencyConstraint =
         dependencyConstraintHandler.create(dependency)
