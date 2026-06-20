@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import org.gradle.api.artifacts.DependencyConstraint
+import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.provider.Provider
@@ -10,6 +11,8 @@ import org.gradle.api.provider.ProviderConvertible
  * @author Silvio Giebl
  */
 interface DependencyFactories {
+
+    fun module(dependencyNotation: CharSequence): ExternalModuleDependency
 
     fun project(): ProjectDependency
 

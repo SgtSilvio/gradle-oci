@@ -16,6 +16,8 @@ abstract class DependencyFactoriesImpl(
     private val project: Project,
 ) : DependencyFactories, DependencyConstraintFactories {
 
+    final override fun module(dependencyNotation: CharSequence) = project.dependencyFactory.create(dependencyNotation)
+
     final override fun project() = project.createProjectDependency()
 
     final override fun project(projectPath: String) = project.createProjectDependency(projectPath)

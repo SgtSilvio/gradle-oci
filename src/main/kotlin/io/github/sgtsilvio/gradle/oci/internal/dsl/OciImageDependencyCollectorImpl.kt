@@ -8,6 +8,7 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.attribute
 import io.github.sgtsilvio.gradle.oci.internal.gradle.zipAbsentAsNull
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReferenceSpec
 import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.dsl.DependencyFactory
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
@@ -20,8 +21,10 @@ import javax.inject.Inject
  */
 internal abstract class OciImageDependencyCollectorImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
+    dependencyFactory: DependencyFactory,
     dependencyHandler: DependencyHandler,
-) : OciImageDependencyCollectorBaseImpl<Nameable>(dependencyHandler, objectFactory), OciImageDependencyCollector {
+) : OciImageDependencyCollectorBaseImpl<Nameable>(objectFactory, dependencyFactory, dependencyHandler),
+    OciImageDependencyCollector {
 
     final override fun addInternal(dependency: ModuleDependency): ReferenceSpecsBuilder {
         val referenceSpecsBuilder = ReferenceSpecsBuilder(objectFactory)

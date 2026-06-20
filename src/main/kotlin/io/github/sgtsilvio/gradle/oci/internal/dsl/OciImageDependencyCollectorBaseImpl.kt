@@ -5,6 +5,7 @@ import org.gradle.api.Action
 import org.gradle.api.artifacts.DependencyConstraint
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
+import org.gradle.api.artifacts.dsl.DependencyFactory
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
@@ -14,8 +15,9 @@ import org.gradle.kotlin.dsl.setProperty
  * @author Silvio Giebl
  */
 internal abstract class OciImageDependencyCollectorBaseImpl<T>(
-    private val dependencyHandler: DependencyHandler,
     objectFactory: ObjectFactory,
+    private val dependencyFactory: DependencyFactory,
+    private val dependencyHandler: DependencyHandler,
 ) : OciImageDependencyCollectorBase<T> {
 
     final override val dependencies = objectFactory.setProperty<ModuleDependency>()
@@ -50,13 +52,10 @@ internal abstract class OciImageDependencyCollectorBaseImpl<T>(
 
     // add dependency converted from a different notation
 
-    private fun module(dependencyNotation: CharSequence) =
-        dependencyHandler.create(dependencyNotation) as ExternalModuleDependency
-
-    final override fun add(dependencyNotation: CharSequence) = add(module(dependencyNotation))
+    final override fun add(dependencyNotation: CharSequence) = add(dependencyFactory.create(dependencyNotation))
 
     final override fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
-        add(module(dependencyNotation), action)
+        add(dependencyFactory.create(dependencyNotation), action)
 
     // add constraint
 
