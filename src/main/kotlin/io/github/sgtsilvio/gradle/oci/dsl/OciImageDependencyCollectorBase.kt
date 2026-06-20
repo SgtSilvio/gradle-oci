@@ -1,6 +1,7 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import org.gradle.api.Action
+import org.gradle.api.NonExtensible
 import org.gradle.api.artifacts.DependencyConstraint
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
@@ -11,6 +12,7 @@ import org.gradle.api.provider.ProviderConvertible
 /**
  * @author Silvio Giebl
  */
+@NonExtensible
 interface OciImageDependencyCollectorBase<T> {
 
     val dependencies: Provider<Set<ModuleDependency>>
