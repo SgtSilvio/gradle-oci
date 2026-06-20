@@ -47,8 +47,8 @@ internal class TestProject(projectDir: File) {
                         useJUnitJupiter("5.10.0")
                         oci.of(this) {
                             imageDependencies {
-                                runtime(project)
-                                runtime(project).tag("latest")
+                                runtime(project())
+                                runtime(project()).tag("latest")
                                 runtime(constraint("library:eclipse-temurin:20.0.1_9-jre-jammy"))
                                 runtime("hivemq:hivemq4:4.16.0")
                                 runtime("library:redis:sha256!0779069b3c24a47a2f681855c1c01d046793e7c5f7d2b079c2aa0652c42eaf0e").tag("8.0.0-alpine")

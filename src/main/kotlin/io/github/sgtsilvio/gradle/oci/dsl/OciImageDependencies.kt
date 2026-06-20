@@ -8,7 +8,7 @@ import org.gradle.api.provider.Provider
 /**
  * @author Silvio Giebl
  */
-interface OciImageDependencies : DependencyConstraintFactories, Named {
+interface OciImageDependencies : DependencyFactories, DependencyConstraintFactories, Named {
 
     val runtime: OciImageDependencyCollector
 

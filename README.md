@@ -80,7 +80,7 @@ testing {
             }
             oci.of(this) {
                 imageDependencies {
-                    runtime(project)
+                    runtime(project())
                 }
             }
         }

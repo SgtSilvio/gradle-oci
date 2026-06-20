@@ -7,11 +7,12 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.toVariantSelector
 import io.github.sgtsilvio.gradle.oci.internal.resolution.*
 import io.github.sgtsilvio.gradle.oci.platform.Platform
 import io.github.sgtsilvio.gradle.oci.platform.PlatformSelector
+import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ResolvableDependencies
-import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
+import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
@@ -29,8 +30,9 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
     private val configurationContainer: ConfigurationContainer,
-    dependencyConstraintHandler: DependencyConstraintHandler,
-) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), OciImageDependencies {
+    project: Project,
+    dependencyHandler: DependencyHandler,
+) : DependencyFactoriesImpl(project, dependencyHandler), OciImageDependencies {
 
     final override fun getName() = name
 

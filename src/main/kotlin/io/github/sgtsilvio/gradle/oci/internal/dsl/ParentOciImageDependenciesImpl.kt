@@ -8,9 +8,10 @@ import io.github.sgtsilvio.gradle.oci.dsl.ParentOciImageDependencies
 import io.github.sgtsilvio.gradle.oci.image.OciVariantInput
 import io.github.sgtsilvio.gradle.oci.internal.resolution.resolveOciVariantInputs
 import io.github.sgtsilvio.gradle.oci.platform.Platform
+import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
+import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
@@ -26,8 +27,9 @@ internal abstract class ParentOciImageDependenciesImpl @Inject constructor(
     private val name: String,
     private val objectFactory: ObjectFactory,
     private val configurationContainer: ConfigurationContainer,
-    dependencyConstraintHandler: DependencyConstraintHandler,
-) : DependencyConstraintFactoriesImpl(dependencyConstraintHandler), ParentOciImageDependencies {
+    project: Project,
+    dependencyHandler: DependencyHandler,
+) : DependencyFactoriesImpl(project, dependencyHandler), ParentOciImageDependencies {
 
     final override fun getName() = name
 

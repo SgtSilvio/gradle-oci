@@ -1,8 +1,10 @@
 package io.github.sgtsilvio.gradle.oci.dsl
 
 import org.gradle.api.Action
-import org.gradle.api.Project
-import org.gradle.api.artifacts.*
+import org.gradle.api.artifacts.DependencyConstraint
+import org.gradle.api.artifacts.ExternalModuleDependency
+import org.gradle.api.artifacts.MinimalExternalModuleDependency
+import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderConvertible
 
@@ -29,10 +31,6 @@ interface OciImageDependencyCollectorBase<T> {
     fun add(dependencyNotation: CharSequence): T
 
     fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>): T
-
-    fun add(project: Project): T
-
-    fun add(project: Project, action: Action<in ProjectDependency>): T
 
     fun add(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
         add(dependencyProvider.asProvider())
@@ -73,10 +71,6 @@ interface OciImageDependencyCollectorBase<T> {
 
     operator fun invoke(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
         add(dependencyNotation, action)
-
-    operator fun invoke(project: Project) = add(project)
-
-    operator fun invoke(project: Project, action: Action<in ProjectDependency>) = add(project, action)
 
     operator fun invoke(dependencyProvider: ProviderConvertible<out MinimalExternalModuleDependency>) =
         add(dependencyProvider)

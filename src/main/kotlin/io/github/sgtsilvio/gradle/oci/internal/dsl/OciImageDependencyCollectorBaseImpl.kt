@@ -1,13 +1,10 @@
 package io.github.sgtsilvio.gradle.oci.internal.dsl
 
 import io.github.sgtsilvio.gradle.oci.dsl.OciImageDependencyCollectorBase
-import io.github.sgtsilvio.gradle.oci.internal.gradle.createDependency
 import org.gradle.api.Action
-import org.gradle.api.Project
 import org.gradle.api.artifacts.DependencyConstraint
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
@@ -60,11 +57,6 @@ internal abstract class OciImageDependencyCollectorBaseImpl<T>(
 
     final override fun add(dependencyNotation: CharSequence, action: Action<in ExternalModuleDependency>) =
         add(module(dependencyNotation), action)
-
-    final override fun add(project: Project) = add(project.createDependency())
-
-    final override fun add(project: Project, action: Action<in ProjectDependency>) =
-        add(project.createDependency(), action)
 
     // add constraint
 
