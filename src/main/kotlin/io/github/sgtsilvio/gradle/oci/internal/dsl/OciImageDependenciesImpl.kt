@@ -12,7 +12,6 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.ResolvableDependencies
-import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.model.ObjectFactory
@@ -31,8 +30,7 @@ internal abstract class OciImageDependenciesImpl @Inject constructor(
     private val providerFactory: ProviderFactory,
     private val configurationContainer: ConfigurationContainer,
     project: Project,
-    dependencyHandler: DependencyHandler,
-) : DependencyFactoriesImpl(project, dependencyHandler), OciImageDependencies {
+) : DependencyFactoriesImpl(project), OciImageDependencies {
 
     final override fun getName() = name
 
