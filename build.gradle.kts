@@ -1,4 +1,5 @@
 import org.gradle.plugin.compatibility.compatibility
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
@@ -29,13 +30,20 @@ metadata {
 }
 
 kotlin {
-    jvmToolchain(11)
+    jvmToolchain(21)
 }
 
 tasks.compileKotlin {
     compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
         apiVersion = KotlinVersion.KOTLIN_2_0
         languageVersion = KotlinVersion.KOTLIN_2_0
+    }
+}
+
+tasks.compileJava {
+    javaCompiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(11)
     }
 }
 
@@ -93,9 +101,8 @@ testing {
             }
             targets.configureEach {
                 testTask {
-                    javaLauncher = javaToolchains.launcherFor {
-                        languageVersion = JavaLanguageVersion.of(17)
-                    }
+                    systemProperty("java.home.11", javaHome(11))
+                    systemProperty("java.home.17", javaHome(17))
                     environment(
                         "ORG_GRADLE_PROJECT_dockerHubUsername" to ToStringProvider(providers.gradleProperty("dockerHubUsername")),
                         "ORG_GRADLE_PROJECT_dockerHubPassword" to ToStringProvider(providers.gradleProperty("dockerHubPassword")),
@@ -113,6 +120,10 @@ testing {
         testSourceSets(sourceSets["functionalTest"])
     }
 }
+
+fun javaHome(javaVersion: Int): String =
+    javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaVersion) }
+        .get().metadata.installationPath.asFile.absolutePath
 
 class ToStringProvider(private val provider: Provider<String>) {
     override fun toString() = provider.get()
