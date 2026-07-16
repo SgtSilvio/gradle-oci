@@ -18,8 +18,8 @@ internal fun JsonObject.decodeResourceScope() = OciRegistryResourceScope(
     getStringSetOrEmpty("actions"),
 )
 
-internal fun String.decodeToResourceScope(): OciRegistryResourceScope {
+internal fun String.decodeToResourceScopeOrNull(): OciRegistryResourceScope? {
     val parts = split(':')
-    require(parts.size == 3) { "'$this' is not a valid resource scope, required: 3 parts, actual: ${parts.size} parts" }
+    if (parts.size != 3) return null
     return OciRegistryResourceScope(parts[0], parts[1], parts[2].split(',').toSet())
 }
