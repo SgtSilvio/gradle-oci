@@ -552,13 +552,15 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
-        val scopesFromResponse = scope.split(' ').mapTo(HashSet()) { it.decodeToResourceScope() }
+        // Do not parse scopes as they do not always follow the "type:name:actions" format.
+        // The AWS ECR Public registry, for example, always responds with scope="aws", regardless of the requested resource.
+        val scopesFromResponse = scope.split(' ')
         // scopes == scopesFromResponse can not be validated here because registry implementations differ.
         // The GitHub container registry always returns pull as action (never pull,push) and returns "user/image" as repository if basic auth was sent.
         // https://ghcr.io/token simply echos back the token passed as basic auth password so the scopes do not matter as they are not included in the token.
         // If the token actually includes scope claims, they are validated below.
         return tokenCache.getMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed())) { key ->
-            val scopeParams = scopesFromResponse.joinToString("&scope=", "scope=") { it.encodeToString() }
+            val scopeParams = scopesFromResponse.joinToString("&scope=", "scope=")
             httpClient.headers { headers ->
                 if (credentials != null) {
                     headers[HttpHeaderNames.AUTHORIZATION] = credentials.encodeBasicAuthorization()
