@@ -49,12 +49,32 @@ import java.util.function.BiFunction
 internal const val OCI_REPOSITORY_VERSION = "v0.17"
 
 /**
+ * Path segment of the repository that serves registry qualified coordinates, in place of the registry url of a
+ * repository that is bound to a single registry.
+ */
+internal const val OCI_QUALIFIED_REGISTRY_SEGMENT = "qualified"
+
+/**
+ * Separates the registry host from the image namespace in a registry qualified coordinate group, for example
+ * `ghcr.io!shopify:toxiproxy:2.12.0`. Neither a registry host nor an image namespace can contain this character, so the
+ * group can always be split into its two parts.
+ */
+internal const val REGISTRY_SEPARATOR = '!'
+
+/**
  * @author Silvio Giebl
  */
 internal class OciRepositoryHandler(
     private val imageMetadataRegistry: OciImageMetadataRegistry,
     private val imageMappingData: OciImageMappingData,
     private val credentials: Credentials?,
+    /**
+     * Takes the registry from the coordinate group instead of from the request path, see
+     * [OCI_QUALIFIED_REGISTRY_SEGMENT]. The credentials are then looked up by registry host, so that a registry
+     * qualified coordinate of a declared registry is pulled with the credentials of that registry.
+     */
+    private val registryFromGroup: Boolean = false,
+    private val credentialsByRegistryHost: Map<String, Credentials> = emptyMap(),
 ) : BiFunction<HttpServerRequest, HttpServerResponse, Publisher<Void>> {
 
     private val imageMetadataCache: AsyncCache<ImageMetadataCacheKey, OciMultiPlatformImageMetadata> =
@@ -90,12 +110,22 @@ internal class OciRepositoryHandler(
             response.sendNotFound()
         }
         val registryUrl = try {
-            URI(segments[0].unescapePathSegment())
+            if (registryFromGroup) {
+                val group = segments[1]
+                val registryEndIndex = group.indexOf(REGISTRY_SEPARATOR)
+                if (registryEndIndex < 1) {
+                    return response.sendBadRequest()
+                }
+                URI("https://" + group.substring(0, registryEndIndex))
+            } else {
+                URI(segments[0].unescapePathSegment())
+            }
         } catch (e: IllegalArgumentException) {
             return response.sendBadRequest()
         } catch (e: URISyntaxException) {
             return response.sendBadRequest()
         }
+        val credentials = if (registryFromGroup) credentialsByRegistryHost[registryUrl.host] else credentials
         if ((segments.size == 5) && segments[4].endsWith(".module")) {
             val componentId = VersionedCoordinates(segments[1], segments[2], segments[3])
             val mappedComponent = imageMappingData.map(componentId)
@@ -103,8 +133,8 @@ internal class OciRepositoryHandler(
         }
         val last = segments.last()
         return when {
-            last.endsWith(".json") -> getOrHeadMetadata(registryUrl, segments, isGet, response)
-            last.endsWith("oci-layer") -> getOrHeadLayer(registryUrl, segments, isGet, response)
+            last.endsWith(".json") -> getOrHeadMetadata(registryUrl, credentials, segments, isGet, response)
+            last.endsWith("oci-layer") -> getOrHeadLayer(registryUrl, credentials, segments, isGet, response)
             else -> response.sendNotFound()
         }
     }
@@ -215,6 +245,7 @@ internal class OciRepositoryHandler(
 
     private fun getOrHeadMetadata(
         registryUrl: URI,
+        credentials: Credentials?,
         segments: List<String>,
         isGet: Boolean,
         response: HttpServerResponse,
@@ -257,6 +288,7 @@ internal class OciRepositoryHandler(
 
     private fun getOrHeadLayer(
         registryUrl: URI,
+        credentials: Credentials?,
         segments: List<String>,
         isGet: Boolean,
         response: HttpServerResponse,

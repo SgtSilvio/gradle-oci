@@ -1,5 +1,6 @@
 package io.github.sgtsilvio.gradle.oci.mapping
 
+import io.github.sgtsilvio.gradle.oci.internal.registry.REGISTRY_SEPARATOR
 import io.github.sgtsilvio.gradle.oci.metadata.OciImageReference
 import java.util.*
 
@@ -77,7 +78,15 @@ private fun defaultMappedComponent(componentId: VersionedCoordinates) = OciImage
     ),
 )
 
-internal fun defaultMappedImageNamespace(group: String) = when (val tldEndIndex = group.indexOf('.')) {
-    -1 -> if (group.isEmpty()) "" else "$group/"
-    else -> group.substring(tldEndIndex + 1).replace('.', '/') + '/'
+internal fun defaultMappedImageNamespace(group: String): String {
+    val registryEndIndex = group.indexOf(REGISTRY_SEPARATOR)
+    if (registryEndIndex != -1) {
+        // a registry qualified group contains the namespace as is, there is no tld to skip
+        val namespace = group.substring(registryEndIndex + 1)
+        return if (namespace.isEmpty()) "" else namespace.replace('.', '/') + '/'
+    }
+    return when (val tldEndIndex = group.indexOf('.')) {
+        -1 -> if (group.isEmpty()) "" else "$group/"
+        else -> group.substring(tldEndIndex + 1).replace('.', '/') + '/'
+    }
 }
