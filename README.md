@@ -221,6 +221,39 @@ This section of the documentation is still WIP.
 
 - split registry from image name (same as Gradle's repositories and dependencies)
 
+#### Registry Qualified Coordinates
+
+Splitting the registry from the image name reaches its limit when an image is consumed that was built by another build.
+Parent images are transitive dependencies, and repositories are not part of a published component, so the consuming
+build resolves the parent images against its own repositories although only the build that defines the image knows
+their registry.
+
+A coordinate can therefore name its registry, separated from the image namespace by `!`:
+
+```kotlin
+oci {
+    registries {
+        dockerHub {
+            optionalCredentials()
+        }
+    }
+    imageDefinitions.register("main") {
+        allPlatforms {
+            dependencies {
+                runtime("public.ecr.aws!hivemq.base-images:eclipse-temurin:sha256!5e349bf2...")
+            }
+        }
+    }
+}
+```
+
+Such a coordinate is resolved without declaring its registry, keeps its whole namespace, so no image mapping is needed,
+and is pulled with the credentials of a declared registry of the same host, anonymously otherwise. A registry with an
+explicit port has to be declared, as `:` can not be part of a coordinate.
+
+The reasoning behind the separator is documented in
+[docs/decisions/registry-in-coordinates.md](docs/decisions/registry-in-coordinates.md).
+
 ### Reproducible Builds
 
 The artifacts produced by this plugin are fully reproducible.

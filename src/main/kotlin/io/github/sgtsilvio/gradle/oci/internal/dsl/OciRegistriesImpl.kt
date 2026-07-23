@@ -10,6 +10,8 @@ import io.github.sgtsilvio.gradle.oci.internal.gradle.passwordCredentials
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciLoopResources
 import io.github.sgtsilvio.gradle.oci.internal.reactor.netty.OciRegistryHttpClient
 import io.github.sgtsilvio.gradle.oci.internal.registry.*
+import io.github.sgtsilvio.gradle.oci.internal.registry.OCI_QUALIFIED_REGISTRY_SEGMENT
+import io.github.sgtsilvio.gradle.oci.internal.registry.REGISTRY_SEPARATOR
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingData
 import io.github.sgtsilvio.gradle.oci.mapping.OciImageMappingImpl
 import io.netty.buffer.UnpooledByteBufAllocator
@@ -21,6 +23,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ResolvableDependencies
 import org.gradle.api.artifacts.dsl.RepositoryHandler
 import org.gradle.api.artifacts.repositories.InclusiveRepositoryContentDescriptor
+import org.gradle.api.artifacts.repositories.IvyArtifactRepository
 import org.gradle.api.artifacts.repositories.RepositoryContentDescriptor
 import org.gradle.api.credentials.HttpHeaderCredentials
 import org.gradle.api.credentials.PasswordCredentials
@@ -47,6 +50,8 @@ import javax.inject.Inject
 
 internal val OCI_IMAGE_DISTRIBUTION_TYPES = arrayOf(OCI_IMAGE_DISTRIBUTION_TYPE, OCI_IMAGE_INDEX_DISTRIBUTION_TYPE)
 
+private const val QUALIFIED_REPOSITORY_NAME = "qualifiedOciRegistry"
+
 /**
  * @author Silvio Giebl
  */
@@ -56,6 +61,8 @@ internal abstract class OciRegistriesImpl @Inject constructor(
     private val objectFactory: ObjectFactory,
 ) : OciRegistries {
     final override val list = objectFactory.namedDomainObjectList(OciRegistry::class)
+    private var qualifiedRepositoryOrNull: IvyArtifactRepository? = null
+    internal val qualifiedRepository: IvyArtifactRepository? get() = qualifiedRepositoryOrNull
     final override val repositoryPort: Property<Int> = objectFactory.property<Int>().convention(5123)
 
     final override fun registry(name: String, configuration: Action<in OciRegistry>): OciRegistry {
@@ -88,7 +95,39 @@ internal abstract class OciRegistriesImpl @Inject constructor(
             registry.init()
             list += registry
         }
+        registerQualifiedRepository()
         return registry
+    }
+
+    /**
+     * Registers the repository that serves registry qualified coordinates, a coordinate whose group contains the
+     * registry host, for example `ghcr.io!shopify:toxiproxy:2.12.0`. Such a coordinate does not need a declared
+     * registry, which is what allows an image to be consumed without knowing where its parent images are hosted.
+     *
+     * The repository is registered together with the first declared registry instead of unconditionally, so that a
+     * build that declares no repositories at all keeps declaring none.
+     */
+    internal fun registerQualifiedRepository(): IvyArtifactRepository {
+        var repository = qualifiedRepositoryOrNull
+        if (repository == null) {
+            repository = repositoryHandler.ivy {
+                name = QUALIFIED_REPOSITORY_NAME
+                setUrl(repositoryPort.map { port ->
+                    URI("http://localhost:$port/$OCI_REPOSITORY_VERSION/$OCI_QUALIFIED_REGISTRY_SEGMENT")
+                })
+                isAllowInsecureProtocol = true
+                layout("gradle")
+                metadataSources {
+                    gradleMetadata()
+                }
+                content {
+                    onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, *OCI_IMAGE_DISTRIBUTION_TYPES)
+                    includeGroupByRegex(".*$REGISTRY_SEPARATOR.*")
+                }
+            }
+            qualifiedRepositoryOrNull = repository
+        }
+        return repository
     }
 
     final override fun OciRegistry.exclusiveContent(configuration: Action<in InclusiveRepositoryContentDescriptor>) {
@@ -124,6 +163,8 @@ internal abstract class OciRegistryImpl @Inject constructor(
         }
         content {
             onlyForAttribute(DISTRIBUTION_TYPE_ATTRIBUTE, *OCI_IMAGE_DISTRIBUTION_TYPES)
+            // a registry qualified coordinate names its registry, so it is served by the qualified repository
+            excludeGroupByRegex(".*$REGISTRY_SEPARATOR.*")
         }
     }
 
@@ -143,48 +184,42 @@ private const val PORT_HTTP_HEADER_NAME = "port"
 internal fun OciRegistriesService(
     buildServiceRegistry: BuildServiceRegistry,
     name: String,
-    registries: NamedDomainObjectList<OciRegistry>,
-    repositoryPort: Provider<Int>,
+    registries: OciRegistriesImpl,
     imageMapping: OciImageMappingImpl,
 ): OciRegistriesService {
     val registriesService = buildServiceRegistry.registerIfAbsent(name, OciRegistriesService::class) {}.get()
-    registriesService.init(registries, repositoryPort, imageMapping)
+    registriesService.init(registries, imageMapping)
     return registriesService
 }
 
 internal abstract class OciRegistriesService : BuildService<BuildServiceParameters.None>, AutoCloseable {
     private var state: State? = null
 
-    sealed class State(val registries: NamedDomainObjectList<OciRegistry>) {
+    sealed class State(val registries: OciRegistriesImpl) {
 
         class Initialized(
-            registries: NamedDomainObjectList<OciRegistry>,
-            val repositoryPort: Provider<Int>,
+            registries: OciRegistriesImpl,
             val imageMapping: OciImageMappingImpl,
         ) : State(registries)
 
         class Started(
-            registries: NamedDomainObjectList<OciRegistry>,
+            registries: OciRegistriesImpl,
             val httpServers: List<DisposableServer>,
         ) : State(registries)
 
-        class NoRegistries(registries: NamedDomainObjectList<OciRegistry>) : State(registries)
+        class NoRegistries(registries: OciRegistriesImpl) : State(registries)
 
-        class Closed(registries: NamedDomainObjectList<OciRegistry>) : State(registries)
+        class Closed(registries: OciRegistriesImpl) : State(registries)
     }
 
-    fun init(
-        registries: NamedDomainObjectList<OciRegistry>,
-        repositoryPort: Provider<Int>,
-        imageMapping: OciImageMappingImpl,
-    ) = synchronized(this) {
+    fun init(registries: OciRegistriesImpl, imageMapping: OciImageMappingImpl) = synchronized(this) {
         if (state != null) {
             throw IllegalStateException("OciRegistriesService.init must be called exactly once immediately after creation")
         }
-        state = State.Initialized(registries, repositoryPort, imageMapping)
+        state = State.Initialized(registries, imageMapping)
     }
 
-    val registries: NamedDomainObjectList<OciRegistry>
+    val registries: OciRegistriesImpl
         get() = synchronized(this) {
             state?.registries
                 ?: throw IllegalStateException("OciRegistriesService.registries must be called after init")
@@ -196,21 +231,36 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
         if (currentState !is State.Initialized) {
             return
         }
-        if (currentState.registries.isEmpty()) {
-            state = State.NoRegistries(currentState.registries)
+        val registries = currentState.registries
+        val qualifiedRepository = registries.qualifiedRepository
+        if (registries.list.isEmpty() && (qualifiedRepository == null)) {
+            state = State.NoRegistries(registries)
         } else {
             val loopResources = OciLoopResources.acquire()
             val httpClient = OciRegistryHttpClient.acquire()
             val httpServers = mutableListOf<DisposableServer>()
-            state = State.Started(currentState.registries, httpServers)
-            val redirectServer = startRedirectServer(currentState.repositoryPort.get(), loopResources)
+            state = State.Started(registries, httpServers)
+            val redirectServer = startRedirectServer(registries.repositoryPort.get(), loopResources)
             if (redirectServer != null) {
                 httpServers += redirectServer
             }
             val imageMetadataRegistry = OciImageMetadataRegistry(OciRegistryApi(httpClient))
             val imageMappingData = currentState.imageMapping.getData()
-            for (registry in currentState.registries) {
+            for (registry in registries.list) {
                 httpServers += startRegistryServer(registry, loopResources, imageMetadataRegistry, imageMappingData)
+            }
+            if (qualifiedRepository != null) {
+                val credentialsByRegistryHost = registries.list.mapNotNull { registry ->
+                    val credentials = registry.credentials.orNull ?: return@mapNotNull null
+                    registry.finalUrl.get().host to Credentials(credentials.username!!, credentials.password!!)
+                }.toMap()
+                httpServers += startQualifiedRegistryServer(
+                    qualifiedRepository,
+                    loopResources,
+                    imageMetadataRegistry,
+                    imageMappingData,
+                    credentialsByRegistryHost,
+                )
             }
         }
     }
@@ -243,6 +293,32 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
             value = httpServer.port().toString()
         }
         registry.repository.authentication {
+            create<HttpHeaderAuthentication>("header")
+        }
+        return httpServer
+    }
+
+    /**
+     * Serves the coordinates that contain the registry themselves, so one server is enough for all of their registries.
+     * Such an image is pulled with the credentials of a declared registry of the same host, anonymously otherwise.
+     */
+    private fun startQualifiedRegistryServer(
+        repository: IvyArtifactRepository,
+        loopResources: LoopResources,
+        imageMetadataRegistry: OciImageMetadataRegistry,
+        imageMappingData: OciImageMappingData,
+        credentialsByRegistryHost: Map<String, Credentials>,
+    ): DisposableServer {
+        val httpServer = startHttpServer(
+            0,
+            loopResources,
+            OciRepositoryHandler(imageMetadataRegistry, imageMappingData, null, true, credentialsByRegistryHost),
+        )
+        repository.credentials(HttpHeaderCredentials::class) {
+            name = PORT_HTTP_HEADER_NAME
+            value = httpServer.port().toString()
+        }
+        repository.authentication {
             create<HttpHeaderAuthentication>("header")
         }
         return httpServer
@@ -283,25 +359,24 @@ internal abstract class OciRegistriesService : BuildService<BuildServiceParamete
 
 internal fun setupSettingsOciRegistries(
     buildServiceRegistry: BuildServiceRegistry,
-    registries: OciRegistries,
+    registries: OciRegistriesImpl,
     imageMapping: OciImageMappingImpl,
 ) {
-    OciRegistriesService(
-        buildServiceRegistry,
-        SERVICE_BASE_NAME,
-        registries.list,
-        registries.repositoryPort,
-        imageMapping,
-    )
+    // a repository of the settings is shared by all projects and never conflicts with RepositoriesMode
+    registries.registerQualifiedRepository()
+    OciRegistriesService(buildServiceRegistry, SERVICE_BASE_NAME, registries, imageMapping)
 }
 
-internal fun setupProjectOciRegistries(project: Project, registries: OciRegistries, imageMapping: OciImageMappingImpl) {
+internal fun setupProjectOciRegistries(
+    project: Project,
+    registries: OciRegistriesImpl,
+    imageMapping: OciImageMappingImpl,
+) {
     val settingsRegistriesService = project.settingsRegistriesService
     val registriesService = OciRegistriesService(
         project.gradle.sharedServices,
         "$SERVICE_BASE_NAME-${project.path}",
-        registries.list,
-        registries.repositoryPort,
+        registries,
         imageMapping,
     )
     project.configurations.configureEach {
