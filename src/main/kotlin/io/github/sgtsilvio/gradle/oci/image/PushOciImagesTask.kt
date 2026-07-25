@@ -319,9 +319,9 @@ private fun formatBytesString(bytes: Long): String = when {
     bytes < 1_000 -> "$bytes B"
     bytes < 1_000_000 -> {
         val hundredBytes = bytes / 100
-        val kileBytes = hundredBytes / 10
+        val kiloBytes = hundredBytes / 10
         val tenthKiloBytes = hundredBytes % 10
-        if (tenthKiloBytes == 0L) "$kileBytes KB" else "$kileBytes.$tenthKiloBytes KB"
+        if (tenthKiloBytes == 0L) "$kiloBytes KB" else "$kiloBytes.$tenthKiloBytes KB"
     }
 
     else -> {
