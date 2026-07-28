@@ -37,6 +37,7 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 /*
 https://github.com/opencontainers/distribution-spec/blob/main/spec.md
@@ -73,6 +74,13 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     private val httpClient = httpClient.followRedirect(true)
     private val tokenCache: AsyncCache<TokenCacheKey, OciRegistryToken> =
         Caffeine.newBuilder().expireAfter(TokenCacheExpiry).buildAsync()
+
+    // Registries that answered with a "Basic" (not "Bearer") authentication challenge. Credentials are sent to these
+    // registries directly; for "Bearer" registries they are sent to the token endpoint instead. Remembering which
+    // registries use basic auth lets us send the credentials proactively after the first challenge, avoiding an extra
+    // round trip per request without sending basic auth to registries that reject it (the AWS ECR Public registry, for
+    // example, responds with 400 to basic auth on the registry endpoint).
+    private val basicAuthRegistryUrls: MutableSet<URI> = ConcurrentHashMap.newKeySet()
 
     private data class TokenCacheKey(
         val registryUrl: URI,
@@ -548,6 +556,14 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String>? {
+        val authHeader = responseHeaders[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
+        // A "Basic" challenge is answered by sending the credentials to the registry directly. Remember the registry so
+        // the credentials are sent proactively next time (getAuthorization) instead of paying for another challenge.
+        if (authHeader.startsWith("Basic ")) {
+            if (credentials == null) return null
+            basicAuthRegistryUrls.add(registryUrl)
+            return Mono.just(credentials.encodeBasicAuthorization())
+        }
         val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
@@ -597,9 +613,17 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String> {
-        return tokenCache.getIfPresentMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed()))
+        val cachedBearerAuthorization = tokenCache.getIfPresentMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed()))
             .map { encodeBearerAuthorization(it.token) }
-            .run { if (credentials == null) this else defaultIfEmpty(credentials.encodeBasicAuthorization()) }
+        // Basic auth is sent proactively only to registries already known to use it. A bearer registry gets no
+        // credentials on the first request: it answers with a "Bearer" challenge, which tryAuthorize turns into a token
+        // request against the token endpoint. This follows the Docker registry v2 token authentication flow and avoids
+        // sending basic auth to registries that reject it on the registry endpoint.
+        return if ((credentials != null) && (registryUrl in basicAuthRegistryUrls)) {
+            cachedBearerAuthorization.defaultIfEmpty(credentials.encodeBasicAuthorization())
+        } else {
+            cachedBearerAuthorization
+        }
     }
 
     private fun Credentials.encodeBasicAuthorization() =
