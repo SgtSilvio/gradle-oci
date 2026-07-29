@@ -548,6 +548,11 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String>? {
+        val authHeader = responseHeaders[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
+        // A "Basic" challenge is answered by sending the credentials to the registry directly.
+        if (authHeader.startsWith("Basic ")) {
+            return if (credentials == null) null else Mono.just(credentials.encodeBasicAuthorization())
+        }
         val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
@@ -597,9 +602,13 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String> {
+        // Do not send credentials proactively. A registry that uses the token flow answers an unauthenticated request
+        // with a "Bearer" challenge, which tryAuthorize turns into a request to the token endpoint; a registry that uses
+        // basic auth answers with a "Basic" challenge, which tryAuthorize answers by sending the credentials directly.
+        // This follows the Docker registry v2 token authentication flow and avoids sending basic auth to registries that
+        // reject it on the registry endpoint (the AWS ECR Public registry, for example, responds with 400).
         return tokenCache.getIfPresentMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed()))
             .map { encodeBearerAuthorization(it.token) }
-            .run { if (credentials == null) this else defaultIfEmpty(credentials.encodeBasicAuthorization()) }
     }
 
     private fun Credentials.encodeBasicAuthorization() =
