@@ -553,7 +553,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         if (authHeader.startsWith("Basic ")) {
             return if (credentials == null) null else Mono.just(credentials.encodeBasicAuthorization())
         }
-        val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
+        val bearerParams = decodeBearerParams(authHeader) ?: return null // TODO return parsing error
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
@@ -616,8 +616,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 
     private fun encodeBearerAuthorization(token: String) = "Bearer $token" // TODO move out
 
-    private fun decodeBearerParams(headers: HttpHeaders): Map<String, String>? { // TODO move out
-        val authHeader = headers[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
+    private fun decodeBearerParams(authHeader: String): Map<String, String>? { // TODO move out
         if (!authHeader.startsWith("Bearer ")) return null
         val authParamString = authHeader.substring("Bearer ".length)
         val map = HashMap<String, String>()
