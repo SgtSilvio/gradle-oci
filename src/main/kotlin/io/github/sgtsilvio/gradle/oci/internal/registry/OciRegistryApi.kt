@@ -548,7 +548,12 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String>? {
-        val bearerParams = decodeBearerParams(responseHeaders) ?: return null // TODO return parsing error
+        val authHeader = responseHeaders[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
+        // A "Basic" challenge is answered by sending the credentials to the registry directly.
+        if (authHeader.startsWith("Basic ")) {
+            return if (credentials == null) null else Mono.just(credentials.encodeBasicAuthorization())
+        }
+        val bearerParams = decodeBearerParams(authHeader) ?: return null // TODO return parsing error
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
@@ -597,9 +602,13 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         scopes: Set<OciRegistryResourceScope>,
         credentials: Credentials?,
     ): Mono<String> {
+        // Do not send credentials proactively. A registry that uses the token flow answers an unauthenticated request
+        // with a "Bearer" challenge, which tryAuthorize turns into a request to the token endpoint; a registry that uses
+        // basic auth answers with a "Basic" challenge, which tryAuthorize answers by sending the credentials directly.
+        // This follows the Docker registry v2 token authentication flow and avoids sending basic auth to registries that
+        // reject it on the registry endpoint (the AWS ECR Public registry, for example, responds with 400).
         return tokenCache.getIfPresentMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed()))
             .map { encodeBearerAuthorization(it.token) }
-            .run { if (credentials == null) this else defaultIfEmpty(credentials.encodeBasicAuthorization()) }
     }
 
     private fun Credentials.encodeBasicAuthorization() =
@@ -607,8 +616,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 
     private fun encodeBearerAuthorization(token: String) = "Bearer $token" // TODO move out
 
-    private fun decodeBearerParams(headers: HttpHeaders): Map<String, String>? { // TODO move out
-        val authHeader = headers[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
+    private fun decodeBearerParams(authHeader: String): Map<String, String>? { // TODO move out
         if (!authHeader.startsWith("Bearer ")) return null
         val authParamString = authHeader.substring("Bearer ".length)
         val map = HashMap<String, String>()
