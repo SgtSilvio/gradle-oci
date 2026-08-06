@@ -583,7 +583,7 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                 // The claims are null if the token is not based on scopes, for example with the GitHub container registry.
                 // If the token actually includes scope claims (grantedScopes), they are validated against the required scopes (key.scopes).
                 val grantedScopes = registryToken.claims?.scopes
-                if ((grantedScopes != null) && (grantedScopes != key.scopes)) {
+                if ((grantedScopes != null) && !grantedScopes.includesAll(key.scopes)) {
                     if (grantedScopes.isNotEmpty()) {
                         tokenCache.asMap().putIfAbsent(
                             key.copy(scopes = grantedScopes),

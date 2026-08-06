@@ -45,3 +45,9 @@ private fun JsonObject.decodeOciRegistryTokenClaims() = OciRegistryTokenClaims(
 )
 
 private fun JsonObject.getInstantOfEpochSecondOrNull(key: String) = getOrNull(key) { Instant.ofEpochSecond(asLong()) }
+
+internal fun Set<OciRegistryResourceScope>.includesAll(required: Set<OciRegistryResourceScope>): Boolean =
+    required.all { (type, name, actions) ->
+        val scope = find { (it.type == type) && (it.name == name) }
+        (scope != null) && scope.actions.containsAll(actions)
+    }
