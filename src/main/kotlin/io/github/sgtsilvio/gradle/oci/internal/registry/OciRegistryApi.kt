@@ -5,6 +5,8 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Expiry
 import io.github.sgtsilvio.gradle.oci.internal.cache.getIfPresentMono
 import io.github.sgtsilvio.gradle.oci.internal.cache.getMono
+import io.github.sgtsilvio.gradle.oci.internal.json.getInstantOrNull
+import io.github.sgtsilvio.gradle.oci.internal.json.getLongOrNull
 import io.github.sgtsilvio.gradle.oci.internal.json.getString
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.metadata.*
@@ -32,11 +34,9 @@ import reactor.util.retry.RetrySpec
 import java.net.URI
 import java.security.DigestException
 import java.security.MessageDigest
-import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.*
-import java.util.concurrent.CompletableFuture
 
 /*
 https://github.com/opencontainers/distribution-spec/blob/main/spec.md
@@ -81,10 +81,8 @@ internal class OciRegistryApi(httpClient: HttpClient) {
     )
 
     private object TokenCacheExpiry : Expiry<TokenCacheKey, OciRegistryToken> {
-        override fun expireAfterCreate(key: TokenCacheKey, value: OciRegistryToken, currentTime: Long): Long {
-            val expirationTime = value.claims?.expirationTime ?: return Duration.ofMinutes(3).toNanos()
-            return Instant.now().until(expirationTime.minusSeconds(30), ChronoUnit.NANOS).coerceAtLeast(0)
-        }
+        override fun expireAfterCreate(key: TokenCacheKey, value: OciRegistryToken, currentTime: Long): Long =
+            Instant.now().until(value.expirationTime.minusSeconds(10), ChronoUnit.NANOS).coerceAtLeast(0)
 
         override fun expireAfterUpdate(
             key: TokenCacheKey,
@@ -576,20 +574,16 @@ internal class OciRegistryApi(httpClient: HttpClient) {
                     else -> createError(response, body)
                 }
             }.retryWhen(RETRY_SPEC).map { response ->
-                val token = jsonObject(response).run {
-                    if (hasKey("token")) getString("token") else getString("access_token")
-                }
-                val registryToken = OciRegistryToken(token)
-                // The claims are null if the token is not based on scopes, for example with the GitHub container registry.
+                val responseJsonObject = jsonObject(response)
+                val token =
+                    responseJsonObject.getString(if (responseJsonObject.hasKey("token")) "token" else "access_token")
+                val issuedAt = responseJsonObject.getInstantOrNull("issued_at") ?: Instant.now()
+                val expiresInSeconds = responseJsonObject.getLongOrNull("expires_in") ?: 60L
+                val registryToken = OciRegistryToken(token, issuedAt.plusSeconds(expiresInSeconds))
+                // The scopes are null if the token is not a JWT or if the JWT does not contain the access claim, for example with the GitHub container registry.
                 // If the token actually includes scope claims (grantedScopes), they are validated against the required scopes (key.scopes).
-                val grantedScopes = registryToken.claims?.scopes
-                if ((grantedScopes != null) && !grantedScopes.includesAll(key.scopes)) {
-                    if (grantedScopes.isNotEmpty()) {
-                        tokenCache.asMap().putIfAbsent(
-                            key.copy(scopes = grantedScopes),
-                            CompletableFuture.completedFuture(registryToken),
-                        )
-                    }
+                val grantedScopes = registryToken.scopes
+                if (!grantedScopes.isNullOrEmpty() && !grantedScopes.includesAll(key.scopes)) {
                     throw InsufficientScopesException(key.scopes, grantedScopes)
                 }
                 registryToken
