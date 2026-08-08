@@ -1,9 +1,9 @@
 package io.github.sgtsilvio.gradle.oci.internal.registry
 
 import io.github.sgtsilvio.gradle.oci.internal.json.JsonException
-import io.github.sgtsilvio.gradle.oci.internal.json.JsonObject
 import io.github.sgtsilvio.gradle.oci.internal.json.jsonObject
 import io.github.sgtsilvio.gradle.oci.internal.jwt.decodeToJWS
+import java.time.DateTimeException
 import java.time.Instant
 
 /**
@@ -19,7 +19,13 @@ internal fun OciRegistryToken(token: String, expirationTime: Instant): OciRegist
     return try {
         val jws = token.decodeToJWS()
         val jwtClaimsJsonObject = jsonObject(jws.payload.decodeToString())
-        val jwtExpirationTime = jwtClaimsJsonObject.getInstantOfEpochSecondOrNull("exp")
+        val jwtExpirationTime = try {
+            jwtClaimsJsonObject.getOrNull("exp") { Instant.ofEpochSecond(asLong()) }
+        } catch (e: JsonException) {
+            null
+        } catch (e: DateTimeException) {
+            null
+        }
         val scopes = try {
             jwtClaimsJsonObject.getOrNull("access") {
                 asArray().toSet(HashSet()) { asObject().decodeResourceScope() }
@@ -34,8 +40,6 @@ internal fun OciRegistryToken(token: String, expirationTime: Instant): OciRegist
         OciRegistryToken(token, expirationTime, null)
     }
 }
-
-private fun JsonObject.getInstantOfEpochSecondOrNull(key: String) = getOrNull(key) { Instant.ofEpochSecond(asLong()) }
 
 internal fun Set<OciRegistryResourceScope>.includesAll(required: Set<OciRegistryResourceScope>): Boolean =
     required.all { (type, name, actions) ->
