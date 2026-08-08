@@ -551,7 +551,8 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         if (authHeader.startsWith("Basic ")) {
             return if (credentials == null) null else Mono.just(credentials.encodeBasicAuthorization())
         }
-        val bearerParams = decodeBearerParams(authHeader) ?: return null // TODO return parsing error
+        if (!authHeader.startsWith("Bearer ")) return null
+        val bearerParams = decodeBearerParams(authHeader.substring("Bearer ".length))
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
@@ -610,22 +611,20 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 
     private fun encodeBearerAuthorization(token: String) = "Bearer $token" // TODO move out
 
-    private fun decodeBearerParams(authHeader: String): Map<String, String>? { // TODO move out
-        if (!authHeader.startsWith("Bearer ")) return null
-        val authParamString = authHeader.substring("Bearer ".length)
+    private fun decodeBearerParams(authParamsString: String): Map<String, String> { // TODO move out
         val map = HashMap<String, String>()
         var i = 0
         while (true) {
-            val keyEndIndex = authParamString.indexOf('=', i)
+            val keyEndIndex = authParamsString.indexOf('=', i)
             if (keyEndIndex == -1) break
-            val key = authParamString.substring(i, keyEndIndex).trim()
-            val valueStartIndex = authParamString.indexOf('"', keyEndIndex + 1)
+            val key = authParamsString.substring(i, keyEndIndex).trim()
+            val valueStartIndex = authParamsString.indexOf('"', keyEndIndex + 1)
             if (valueStartIndex == -1) break
-            val valueEndIndex = authParamString.indexOf('"', valueStartIndex + 1)
+            val valueEndIndex = authParamsString.indexOf('"', valueStartIndex + 1)
             if (valueEndIndex == -1) break
-            val value = authParamString.substring(valueStartIndex + 1, valueEndIndex).trim()
+            val value = authParamsString.substring(valueStartIndex + 1, valueEndIndex).trim()
             map[key] = value
-            i = authParamString.indexOf(',', valueEndIndex + 1)
+            i = authParamsString.indexOf(',', valueEndIndex + 1)
             if (i == -1) break
             i++
         }
