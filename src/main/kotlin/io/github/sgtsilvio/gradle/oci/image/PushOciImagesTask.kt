@@ -81,7 +81,7 @@ abstract class PushOciImagesTask @Inject constructor(private val workerExecutor:
     )
     protected fun setRegistryName(registryName: String) = registry.from(
         project.extensions.getByType(OciExtension::class).registries.list.findByName(registryName)
-            ?: project.settingsRegistriesService?.registries?.findByName(registryName)
+            ?: project.settingsRegistriesService?.registries?.list?.findByName(registryName)
             ?: throw IllegalArgumentException("Registry with name '$registryName' not found.")
     )
 
