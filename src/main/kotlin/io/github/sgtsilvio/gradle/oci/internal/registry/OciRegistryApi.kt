@@ -547,12 +547,20 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         credentials: Credentials?,
     ): Mono<String>? {
         val authHeader = responseHeaders[HttpHeaderNames.WWW_AUTHENTICATE] ?: return null
-        // A "Basic" challenge is answered by sending the credentials to the registry directly.
-        if (authHeader.startsWith("Basic ")) {
-            return if (credentials == null) null else Mono.just(credentials.encodeBasicAuthorization())
+        return when (authHeader.substringBefore(' ')) {
+            "Basic" -> if (credentials == null) null else Mono.just(credentials.encodeBasicAuthorization())
+            "Bearer" -> tryAuthorizeBearer(authHeader.substring("Bearer ".length), registryUrl, scopes, credentials)
+            else -> null
         }
-        if (!authHeader.startsWith("Bearer ")) return null
-        val bearerParams = decodeBearerParams(authHeader.substring("Bearer ".length))
+    }
+
+    private fun tryAuthorizeBearer(
+        authParamsString: String,
+        registryUrl: URI,
+        scopes: Set<OciRegistryResourceScope>,
+        credentials: Credentials?,
+    ): Mono<String> {
+        val bearerParams = decodeBearerParams(authParamsString)
         val realm = bearerParams["realm"] ?: throw IllegalArgumentException("bearer authorization header is missing 'realm'")
         val service = bearerParams["service"] ?: throw IllegalArgumentException("bearer authorization header is missing 'service'")
         val scope = bearerParams["scope"] ?: throw IllegalArgumentException("bearer authorization header is missing 'scope'")
