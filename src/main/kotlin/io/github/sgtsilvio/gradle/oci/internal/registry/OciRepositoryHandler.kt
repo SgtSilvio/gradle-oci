@@ -284,7 +284,11 @@ internal class OciRepositoryHandler(
         return if (isGet) {
             getLayer(registryUrl, imageName, digest, size, credentials, response)
         } else {
-            headLayer(registryUrl, imageName, digest, credentials, response)
+            // The layer's presence, digest and size are already known from the resolved manifest (the
+            // headers above), so answer the HEAD directly rather than probing the registry with an
+            // upstream blob HEAD. That probe was also incompatible with ECR Public, which returns 403
+            // for HEAD /v2/<name>/blobs/<digest> while allowing the GET the getLayer path uses.
+            response.send()
         }
     }
 
@@ -337,15 +341,6 @@ internal class OciRepositoryHandler(
             ByteBufFlux::retain,
         )
     )
-
-    private fun headLayer(
-        registryUrl: URI,
-        imageName: String,
-        digest: OciDigest,
-        credentials: Credentials?,
-        response: HttpServerResponse,
-    ): Publisher<Void> = imageMetadataRegistry.registryApi.isBlobPresent(registryUrl, imageName, digest, credentials)
-        .flatMap { present -> if (present) response.send() else response.sendNotFound() }
 
     private fun mapLayerMediaTypeToExtension(mediaType: String) = when (mediaType) {
         UNCOMPRESSED_LAYER_MEDIA_TYPE -> ".tar"
