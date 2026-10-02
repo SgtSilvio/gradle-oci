@@ -32,6 +32,7 @@ import reactor.util.context.Context
 import reactor.util.retry.Retry
 import reactor.util.retry.RetrySpec
 import java.net.URI
+import java.net.URLEncoder
 import java.security.DigestException
 import java.security.MessageDigest
 import java.time.Instant
@@ -572,12 +573,11 @@ internal class OciRegistryApi(httpClient: HttpClient) {
         // https://ghcr.io/token simply echos back the token passed as basic auth password so the scopes do not matter as they are not included in the token.
         // If the token actually includes scope claims, they are validated below.
         return tokenCache.getMono(TokenCacheKey(registryUrl, scopes, credentials?.hashed())) { key ->
-            val scopeParams = scopesFromResponse.joinToString("&scope=", "scope=")
             httpClient.headers { headers ->
                 if (credentials != null) {
                     headers[HttpHeaderNames.AUTHORIZATION] = credentials.encodeBasicAuthorization()
                 }
-            }.get().uri(URI("$realm?service=$service&$scopeParams")).responseSingle { response, body ->
+            }.get().uri(createTokenUri(realm, service, scopesFromResponse)).responseSingle { response, body ->
                 when (response.status().code()) {
                     200 -> body.asString(Charsets.UTF_8)
                     else -> createError(response, body)
@@ -751,6 +751,11 @@ internal class InsufficientScopesException(
 }
 
 private fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
+
+internal fun createTokenUri(realm: String, service: String, scopes: List<String>) =
+    URI("$realm?service=${service.encodeQueryParam()}" + scopes.joinToString("") { "&scope=${it.encodeQueryParam()}" })
+
+private fun String.encodeQueryParam(): String = URLEncoder.encode(this, Charsets.UTF_8)
 
 private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
 private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
