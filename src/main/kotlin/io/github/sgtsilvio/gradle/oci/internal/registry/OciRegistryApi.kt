@@ -753,9 +753,9 @@ internal class InsufficientScopesException(
 private fun URI.addQueryParam(param: String) = URI(toString() + (if (query == null) "?" else "&") + param)
 
 internal fun createTokenUri(realm: String, service: String, scopes: List<String>) =
-    URI("$realm?service=${service.encodeQueryParam()}" + scopes.joinToString("") { "&scope=${it.encodeQueryParam()}" })
+    URI("$realm?service=${service.formUrlEncode()}" + scopes.joinToString("") { "&scope=${it.formUrlEncode()}" })
 
-private fun String.encodeQueryParam(): String = URLEncoder.encode(this, Charsets.UTF_8)
+private fun String.formUrlEncode(): String = URLEncoder.encode(this, Charsets.UTF_8)
 
 private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
 private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
