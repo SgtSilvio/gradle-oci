@@ -25,6 +25,7 @@ internal class ConfigurationCacheTest {
                 "--configuration-cache",
                 "-Dorg.gradle.configuration-cache.parallel=true",
                 "-Dorg.gradle.kotlin.dsl.scriptCompilationAvoidance=false",
+                "-Dorg.gradle.unsafe.isolated-projects=true",
             )
             .build()
 
@@ -48,6 +49,7 @@ internal class ConfigurationCacheTest {
                 "--configuration-cache",
                 "-Dorg.gradle.configuration-cache.parallel=true",
                 "-Dorg.gradle.kotlin.dsl.scriptCompilationAvoidance=false",
+                "-Dorg.gradle.unsafe.isolated-projects=true",
             )
             .build()
 
