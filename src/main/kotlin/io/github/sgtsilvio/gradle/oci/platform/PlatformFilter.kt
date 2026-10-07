@@ -108,11 +108,8 @@ private class OrPlatformFilter(filters: Array<FieldPlatformFilter>) : PlatformFi
         }
     }
 
-    override fun equals(other: Any?) = when {
-        this === other -> true
-        other !is OrPlatformFilter -> false
-        else -> filters.contentEquals(other.filters)
-    }
+    override fun equals(other: Any?) =
+        (this === other) || ((other is OrPlatformFilter) && filters.contentEquals(other.filters))
 
     override fun hashCode() = filters.contentHashCode()
 }
