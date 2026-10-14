@@ -109,6 +109,7 @@ abstract class PushOciImagesTask @Inject constructor(private val workerExecutor:
         )
 
         val blobs = HashMap<OciDigest, Blob>()
+        val mountFutures = HashMap<Pair<String, OciDigest>, CompletableFuture<Unit>>()
         for ((multiPlatformImage, imageReferences) in multiPlatformImageAndReferencesPairs) {
             for ((imageName, tags) in imageReferences.groupByTo(HashMap(), { it.name }, { it.tag })) {
                 val manifestFutures = mutableListOf<CompletableFuture<Unit>>()
@@ -128,7 +129,7 @@ abstract class PushOciImagesTask @Inject constructor(private val workerExecutor:
                                 future
                             } else if (sourceBlob.imageName == imageName) {
                                 sourceBlob.future
-                            } else {
+                            } else mountFutures.getOrPut(Pair(imageName, digest)) {
                                 val size = sourceBlob.size
                                 val sourceImageName = sourceBlob.imageName
                                 val sender = sourceBlob.sender
@@ -153,7 +154,7 @@ abstract class PushOciImagesTask @Inject constructor(private val workerExecutor:
                         future
                     } else if (sourceBlob.imageName == imageName) {
                         sourceBlob.future
-                    } else {
+                    } else mountFutures.getOrPut(Pair(imageName, configDigest)) {
                         val size = sourceBlob.size
                         val sourceImageName = sourceBlob.imageName
                         val sender = sourceBlob.sender
