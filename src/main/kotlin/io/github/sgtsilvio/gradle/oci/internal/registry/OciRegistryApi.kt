@@ -641,7 +641,17 @@ internal class OciRegistryApi(httpClient: HttpClient) {
 
     private fun <T : Any> createError(response: HttpClientResponse, body: ByteBufMono): Mono<T> =
         body.asString(Charsets.UTF_8).defaultIfEmpty("").map { errorBody ->
-            throw HttpResponseException(response.status().code(), response.responseHeaders(), errorBody)
+            val resourceUrl = response.resourceUrl() ?: response.uri()
+            // Redirect targets can be presigned URLs with credentials in the query.
+            val originalUrl = response.redirectedFrom().firstOrNull()
+            throw HttpResponseException(
+                response.method().name(),
+                originalUrl ?: resourceUrl,
+                if (originalUrl == null) null else resourceUrl.toSchemeHostAndPath(),
+                response.status().code(),
+                response.responseHeaders(),
+                errorBody,
+            )
         }
 }
 
@@ -728,6 +738,9 @@ private fun sizeMismatchException(expectedSize: Long, actualSize: Long) =
     DigestException("expected and actual size do not match (expected: $expectedSize, actual: $actualSize)")
 
 internal class HttpResponseException(
+    val method: String,
+    val url: String,
+    val redirectUrl: String?,
     val statusCode: Int,
     val headers: HttpHeaders,
     val body: String,
@@ -736,6 +749,10 @@ internal class HttpResponseException(
 
     private fun responseToString() = buildString {
         append(statusCode).append('\n')
+        append(method).append(' ').append(url).append('\n')
+        if (redirectUrl != null) {
+            append("(redirected to ").append(redirectUrl).append(")\n")
+        }
         for ((key, value) in headers.iteratorCharSequence()) {
             append(key).append(": ").append(value).append('\n')
         }
@@ -756,6 +773,11 @@ internal fun createTokenUri(realm: String, service: String, scopes: List<String>
     URI("$realm?service=${service.formUrlEncode()}" + scopes.joinToString("") { "&scope=${it.formUrlEncode()}" })
 
 private fun String.formUrlEncode(): String = URLEncoder.encode(this, Charsets.UTF_8)
+
+internal fun String.toSchemeHostAndPath(): String {
+    val uri = URI(this)
+    return uri.scheme + "://" + uri.host + (if (uri.port == -1) "" else ":${uri.port}") + uri.rawPath
+}
 
 private const val RESOURCE_SCOPE_REPOSITORY_TYPE = "repository"
 private val RESOURCE_SCOPE_PULL_ACTIONS = setOf("pull")
